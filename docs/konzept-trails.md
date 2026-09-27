@@ -607,6 +607,16 @@ damit die nächste Diskussion nicht bei null beginnt.
    (100 MB je Datei auf raw.githubusercontent.com, DACH als eine Datei
    nur bis z8; `docs/offline-karten-web.md` in PilzBuddy). Verworfen:
    Web nur zum Pflegen ohne Offline, oder Android zuerst.
+9. **Offen: das Live-Projekt bei Supabase.** Der Free-Plan erlaubt zwei
+   aktive Projekte je Konto, gezählt über alle Organisationen mit Owner-
+   oder Admin-Rolle; beide sind belegt. Wege: Pro-Plan für die eine
+   Organisation (hebt auch PilzBuddys Free-Grenzen), ein Projekt
+   pausieren, oder ein Zweitkonto für den Start mit späterem
+   Project-Transfer nach Pro vor dem Play-Store-Eintrag — das Zweitkonto
+   umgeht die Regel eher, als sie zu nutzen, und braucht einen Eintrag im
+   DocuHub, wem Token und Mails gehören. Für Phase 1 nicht nötig: Die
+   Entwicklung läuft gegen den lokalen Stack, PostGIS inklusive.
+   Entschieden wird, wenn die erste APK an einen Buddy geht.
 
 ## 11. Fahrplan
 
@@ -640,3 +650,81 @@ damit die nächste Diskussion nicht bei null beginnt.
 
 Die Punkte aus Abschnitt 10 sind entschieden, Phase 0 ist gemessen. Der
 nächste Schritt ist Phase 1.
+
+## 12. Dezentral: der offene Weg
+
+*Frage des Betreibers am 2026-09-27: „Würde ein dezentraler Ansatz
+funktionieren?" Die Antwort ist eine Entwurfsregel, keine Entscheidung
+für v1.*
+
+Drei Formen von „dezentral", zwei davon scheiden aus:
+
+- **Echtes Peer-to-Peer, Telefon zu Telefon**: nein. Ein Telefon ist
+  nie verlässlich online, Android friert Hintergrundprozesse ein, hinter
+  Mobilfunk-NAT findet sich kein Gerät ohne Vermittler, der Web-Client
+  hätte keinen Platz. Jedes mobile P2P-Projekt endet bei einem
+  Relay-Server, also bei einem Betreiber.
+- **Föderation, jede Gruppe ihr Server**: nein. Niemand betreibt einen
+  Server für zwanzig Leute, und Trail-Netze leben davon, dass sich
+  Gruppen überlappen.
+- **Local-first mit einem Relay, das nichts lesen kann**: ja, das trägt.
+  Die Daten liegen auf den Geräten; der Server speichert nur
+  Ende-zu-Ende-verschlüsselte Blobs je Buddy-Beziehung und stellt sie
+  zu. Der Betreiber sieht weder Geometrie noch Namen noch Status.
+
+**Warum die dritte Form zum Motiv passt:** RLS schützt vor anderen
+Nutzern. Verschlüsselung schützt zusätzlich vor dem Betreiber selbst,
+vor einem Einbruch in die Datenbank und vor einer Herausgabeanordnung —
+es gibt keinen Honigtopf, den jemand ausleeren könnte. Für eine
+Plattform, deren Tor „nur wer es kennt, sieht es" heißt, ist das der
+konsequente Endpunkt.
+
+**Was es kostet, benannt:**
+
+- **Der globale Abgleich (4.4) fällt weg.** Ein Server, der nichts
+  lesen kann, findet keine Dubletten über Netze hinweg. Dedup läuft dann
+  auf dem Gerät gegen das sichtbare Netz; beim Verbinden zweier Buddys
+  werden die Bestände gegeneinander abgeglichen und die Kennungen
+  ausgehandelt (die kleinere gewinnt, wie bei einem CRDT). Machbar: Es
+  sind Hunderte Trails, und das Messwerkzeug hat 584 in fünf Sekunden
+  verglichen. Die unsichtbaren Overlap-Kanten gibt es dann nicht — der
+  einzige echte Verlust.
+- **Die Datenbankseite aus PilzBuddy wird Ballast.** RLS, Policies,
+  Schema Check, Patches: alles auf einen Server gebaut, der liest. Auth,
+  Buddys, Offline-Karten, Aufzeichnung, Ausgangskorb, Feedback-Bot und
+  CI bleiben.
+- **Schlüssel sind ein eigenes Produkt.** Gerät verloren heißt Daten
+  verloren, sofern keine Wiederherstellung ein Geheimnis irgendwo
+  ablegt; Zweitgerät und Web-Client brauchen Schlüsseltransfer; Push
+  trägt keinen Inhalt. Das ist die Arbeit, an der Messenger Jahre
+  sitzen, und sie käme vor dem ersten Trail.
+- **Nie möglich:** alles, was der Server über Nutzer hinweg rechnen
+  müsste — Rankings, Community-Statistik, Moderation. Für dieses Konzept
+  kein Verlust, denn genau das soll es nicht geben.
+
+**Offene Frage des Betreibers, später anzusehen:** Kommen auf diesem
+Weg Aktualisierungen — ein Trail-Status, eine neue Aufzeichnung — bei
+allen Buddys an? Die kurze Antwort ist ja, aber anders als über eine
+RPC: Der Server kann nichts auswerten, also fächert das GERÄT auf. Eine
+Statusmeldung wird je Buddy-Beziehung einmal verschlüsselt und in dessen
+Postfach gelegt, wie eine Nachricht; bei dreißig Buddys sind das dreißig
+kleine Blobs. Ein inhaltsloser Push weckt die App, die holt ab. Der Preis
+ist, dass Zustellung an Buddys hängt, die die App lange nicht öffnen —
+ihre Postfächer wachsen, eine Frist räumt ab. Was ein Server hier NICHT
+kann: nachträglich einem neuen Buddy den ganzen Bestand geben; das muss
+das Gerät des Bestandsinhabers tun, wenn es online ist. Genau das ist
+beim Verbinden ohnehin der Moment des Abgleichs.
+
+**Die Regel für v1, damit der Weg offen bleibt:**
+
+> Kein Feature darf darauf bauen, dass der Server über Netzgrenzen
+> hinweg liest — mit genau einer Ausnahme, dem stillen Abgleich aus 4.4.
+> Alles Sichtbare wird aus eigenen und Buddy-Beiträgen gerechnet, nie
+> aus einer Aggregation über alle.
+
+Das Konzept erfüllt sie heute schon (3, 6, 7). Solange sie hält, ist der
+Wechsel auf ein verschlüsseltes Relay ein Umbau der Speicherschicht,
+kein Neubau. Wird das Motiv „der Betreiber soll nichts herausgeben
+können" wichtiger als der bequeme Start, ist das die Variante, die es
+einlöst. Wer ein Feature vorschlägt, das die Regel bricht, schreibt
+dazu, dass es diesen Weg schließt.

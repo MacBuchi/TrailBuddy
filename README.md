@@ -7,5 +7,7 @@ verbunden ist. Schwesterprojekt von
 
 **Stand: Konzeptphase.** Das Konzept für Trails, Duplikate und das
 Community-Tor steht in [`docs/konzept-trails.md`](docs/konzept-trails.md);
-die Entscheidungen des Betreibers in dessen Abschnitt 10. Nächster
-Schritt ist das Messwerkzeug aus Phase 0, kein App-Code.
+die Entscheidungen des Betreibers in dessen Abschnitt 10. Phase 0
+(Messung an echten Aufzeichnungen) ist erledigt, siehe
+[`docs/trail-abgleich-messung.md`](docs/trail-abgleich-messung.md).
+Nächster Schritt ist Phase 1, das Grundgerüst.
