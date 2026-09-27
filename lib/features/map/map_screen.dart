@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
 import '../../models/trail.dart';
+import '../feedback/feedback_dialog.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
@@ -124,6 +125,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           if (trailsAsync.hasValue && trails.isEmpty)
             const _EmptyHint(),
           const UpdateBanner(),
+          // Die Glühbirne (PilzBuddy-Muster): melden kann man immer, also
+          // steht sie immer da — klein, unten links, wo weder die
+          // Attribution (rechts) noch die Banner (oben) liegen.
+          SafeArea(
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: FloatingActionButton.small(
+                  heroTag: 'feedback',
+                  tooltip: 'Idee oder Fehler melden',
+                  onPressed: () => showFeedbackFlow(context, ref),
+                  child: const Icon(Icons.lightbulb_outline),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

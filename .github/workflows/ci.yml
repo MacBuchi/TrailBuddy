@@ -46,6 +46,7 @@ jobs:
         run: |
           python3 tool/trail_match.py --self-test > /dev/null
           bash tool/schema_check.sh --self-test > /dev/null
+          python3 tool/feedback_bot.py --self-test > /dev/null
       - name: Nothing private in the repository
         run: python3 tool/private_info_check.py
 
@@ -153,6 +154,8 @@ jobs:
           bash tool/schema_check.sh
       - name: Der Abgleich mit echten Linien (matcher_check.sql)
         run: psql "postgresql://postgres:postgres@127.0.0.1:54522/postgres" -v ON_ERROR_STOP=1 -q -f tool/matcher_check.sql
+      - name: Rechte des Service-Schlüssels (Bestand)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54522/postgres" -v ON_ERROR_STOP=1 -q -f tool/grants_check.sql
       - name: Datenbank auf null zurücksetzen
         run: supabase db reset
       # Derselbe Weg wie beim ersten Lauf gegen ein leeres Live-Projekt:
@@ -172,6 +175,8 @@ jobs:
           SUPABASE_URL=http://127.0.0.1:54521 \
           SUPABASE_KEY=$(supabase status -o json | jq -r '.ANON_KEY') \
           bash tool/schema_check.sh
+      - name: Rechte des Service-Schlüssels (Frischinstallation)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54522/postgres" -v ON_ERROR_STOP=1 -q -f tool/grants_check.sql
       - name: Auth-Mail-Flows end-to-end prüfen
         run: bash tool/auth_reset_check.sh
 

@@ -202,4 +202,16 @@ void main() {
           reason: '$name trägt einen Pfadfilter');
     }
   });
+
+  test('der Feedback-Bot läuft nur mit Schlüssel und sagt es sonst', () {
+    final bot = File('.github/workflows/feedback.yml').readAsStringSync();
+    expect(bot, contains('id: key'));
+    expect(bot, contains("if: steps.key.outputs.have == 'true'"));
+    expect(bot, contains('python3 tool/feedback_bot.py'));
+    // Nur was er braucht: Issues schreiben, den Code lesen.
+    expect(bot, contains('issues: write'));
+    expect(bot, isNot(contains('contents: write')));
+    expect(ci, contains('python3 tool/feedback_bot.py --self-test'));
+    expect(ci, contains('tool/grants_check.sql'));
+  });
 }

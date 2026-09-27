@@ -15,6 +15,17 @@ updates:
     groups:
       pub-dependencies:
         patterns: ["*"]
+    ignore:
+      # Riverpod 3 ist eine Migration, kein Update: der erste Sammel-PR (#8)
+      # brach mit 21 Analyzer-Fehlern (Override-Typ, AsyncValue-API,
+      # StateProvider). PilzBuddy steht ebenso auf 2.6.1. Umgestellt wird
+      # bewusst, in einem eigenen PR und am besten in beiden Apps — sonst
+      # hält ein einziges nicht anhebbares Paket den ganzen Sammel-PR rot,
+      # und die brauchbaren Updates darin kämen nie durch.
+      - dependency-name: "flutter_riverpod"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "riverpod"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
