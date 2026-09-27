@@ -7,5 +7,5 @@ verbunden ist. Schwesterprojekt von
 
 **Stand: Konzeptphase.** Das Konzept für Trails, Duplikate und das
 Community-Tor steht in [`docs/konzept-trails.md`](docs/konzept-trails.md);
-die offenen Entscheidungen in dessen Abschnitt 10. Code gibt es erst,
-wenn die entschieden sind.
+die Entscheidungen des Betreibers in dessen Abschnitt 10. Nächster
+Schritt ist das Messwerkzeug aus Phase 0, kein App-Code.

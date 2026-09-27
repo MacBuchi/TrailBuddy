@@ -1,8 +1,9 @@
 # TrailBuddy — Konzept: Trails, Duplikate und das Community-Tor
 
-*Entwurf vom 2026-09-27, vor jeder Umsetzung. Zur Entscheidung durch den
-Betreiber; die offenen Punkte stehen in Abschnitt 10. Deutsch, weil es
-ein Arbeitspapier für den Betreiber ist; auf GitHub wird Englisch
+*Entwurf vom 2026-09-27, vor jeder Umsetzung. Die acht Entscheidungen
+in Abschnitt 10 hat der Betreiber am selben Tag getroffen; das
+Dokument ist damit die Grundlage für Phase 0. Deutsch, weil es ein
+Arbeitspapier für den Betreiber ist; auf GitHub wird Englisch
 gesprochen (Commits, Issues, PRs — Regel aus PilzBuddy).*
 
 ## 0. Kurzfassung
@@ -102,7 +103,10 @@ create table public.trail_recordings (
   user_id uuid not null references public.profiles(id) on delete cascade,
   geom geography(LineString, 4326) not null,
   recorded_at timestamptz,             -- null bei Import ohne Zeiten
-  source text not null check (source in ('app', 'import')),
+  -- 'planned': importierte Datei ohne Zeiten oder mit unplausiblen
+  -- Geschwindigkeiten — eine geplante Route, keine Fahrt. Zählt als
+  -- Beitrag (Entscheidung 2), mit Qualität nahe null.
+  source text not null check (source in ('app', 'import', 'planned')),
   reversed boolean not null default false,  -- gegen die Trail-Richtung gefahren
   quality real not null,               -- 0..1, siehe 4.5
   created_at timestamptz not null default now(),
@@ -167,7 +171,12 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
 - **Name** = eigener Name, sonst der Name des ältesten sichtbaren
   Beitrags; die anderen als „auch: …" (Muster Buddy-Alias in PilzBuddy).
 - **Schwierigkeit** = Median der sichtbaren S-Grade, mit Spanne.
-- **Status** = die jüngste sichtbare Statusmeldung.
+- **Status** = die jüngste sichtbare Statusmeldung, mit ihrem Alter
+  („gesperrt, gemeldet vor 14 Monaten"). Kein automatisches Verfallen,
+  aber ein sichtbares Datum; alle Meldungen bleiben im Blatt. **Jede
+  neue Aufzeichnung setzt den Status des Aufzeichnenden auf „offen"**
+  — wer den Trail fährt, hat ihn befahrbar vorgefunden. Bei
+  Widerspruch zwischen Buddys gewinnt der jüngste, ohne Abstimmung.
 
 Eine zentrale Sicht (`trails_visible`) rechnet das serverseitig, damit
 Karte, Liste und Blatt dieselbe Antwort geben — dieselbe Regel wie in
@@ -294,10 +303,13 @@ Prüfung der Angriffe:
 - **Rate:** 50 Aufzeichnungen je Nutzer und Tag reichen jedem echten
   Nutzer (auch für einen Bestandsimport an einem Abend) und machen das
   Sondieren als Fläche unattraktiv.
-- **Synthetische GPX:** Ein Import ohne Zeitstempel bekommt Qualität
-  „unbelegt" und wird in der Anzeige gekennzeichnet („importiert"),
-  gilt aber als Beitrag — der Nutzer hat die Linie, mehr beweist auch
-  eine App-Aufzeichnung nicht.
+- **Synthetische GPX:** Ein Import ohne Zeitstempel oder mit
+  unplausiblen Geschwindigkeiten wird als „geplant" gespeichert
+  (`source = 'planned'`), bekommt Qualität nahe null und steht in der
+  Anzeige so da; ein Import mit Zeiten als „importiert". Beides gilt
+  als Beitrag — der Nutzer hat die Linie, mehr beweist auch eine
+  App-Aufzeichnung nicht. Die Linie eines Buddys mit echter
+  Aufzeichnung gewinnt in der Anzeige immer.
 
 Was DESHALB nie an den Client geht: Zähler über alle Beiträge, das
 Alter der Kennung, die Overlap-Tabelle, irgendeine Aggregation über
@@ -529,47 +541,78 @@ Leistungsnachweis — die Oberfläche sagt das; und es ist ein Anreiz zu
 Risiko, das gehört in die Nutzungsbedingungen. Das Modell braucht dafür
 eine Tabelle Ereignis-je-Fahrt-und-Trail, nichts davon in v1.
 
-## 10. Offene Entscheidungen für den Betreiber
+## 10. Entscheidungen des Betreibers (2026-09-27)
 
-1. **Sichtbarkeit: nur direkte Buddys, keine Weitergabe von Gesehenem.**
-   Empfehlung: ja. Die Alternative („was ich sehe, sehen meine Buddys")
-   macht aus dem Netz eine öffentliche Karte mit Umweg.
-2. **Importierte Trails gleichwertig zu aufgezeichneten?** Empfehlung:
-   ja, mit Kennzeichnung „importiert" und niedrigerer Qualität. Ohne
-   das ist der Bestandsimport wertlos, und der Beleg ist ohnehin nur
-   „hat die Linie".
-3. **Offen registrieren mit leerer Karte, Einladung als
-   Bequemlichkeit.** Empfehlung: ja (7).
-4. **Fahrten in der Cloud sichern (privat, nur für sich selbst)?**
-   Empfehlung: nein in v1. Jede Fahrt auf dem Server ist ein
-   Bewegungsprofil unter Verantwortung des Betreibers; Export als GPX
-   reicht als Sicherung.
-5. **Die Zahlen aus 4.2 sind Startwerte.** Sie werden an echten Daten
-   gemessen — dafür braucht Phase 0 **10 bis 30 GPX-Dateien des
-   Betreibers**, darunter bewusst: derselbe Trail mehrfach gefahren, ein
-   Trail mit Kehren, zwei parallele Trails, ein Trail in beiden
-   Richtungen, eine ganze Fahrt mit mehreren Trails. Ohne diese Messung
-   ist jede Schwelle geraten.
-6. **Statusmeldungen** (gesperrt, zerstört, verändert): je Beitrag mit
-   Datum, sichtbar im Netz. Empfehlung: ja, in v1, weil es das ist, was
-   eine Gruppe wirklich austauscht.
-7. **Rechtliche Prüfung** von Nutzungsbedingungen und
-   Datenschutzerklärung vor dem ersten fremden Nutzer. Empfehlung:
-   einplanen, nicht aufschieben.
-8. **Web-Fassung von Anfang an?** PilzBuddy hat sie, und die
-   Infrastruktur bringt sie mit. Empfehlung: ja, weil Import und
-   Schreibtischarbeit (Benennen, Bewerten) am Rechner leichter sind;
-   Aufzeichnen bleibt Android.
+Alle acht sind entschieden; die verworfenen Alternativen stehen dabei,
+damit die nächste Diskussion nicht bei null beginnt.
+
+1. **Sichtbarkeit: nur Gefahrenes wandert weiter.** Ich sehe eigene
+   Beiträge und die meiner direkten Buddys; weitergeben kann nur, wer
+   selbst einen Beleg hat. Verworfen: „Weitergeben auf Tastendruck"
+   (Kette unbegrenzt, der Erstbeitragende sieht nicht, wo sein Trail
+   landet) und Transitivität (öffentliche Karte mit Anmeldung).
+2. **Importierte Trails sind gleichwertig, mit Kennzeichnung.** Import
+   mit Zeiten heißt „importiert", ohne Zeiten oder mit unplausiblen
+   Geschwindigkeiten „geplant" (`source`, 3); beides mit niedrigerer
+   Qualität als eine App-Aufzeichnung. Verworfen: Import nur für sich
+   selbst (zwei Klassen von Trails, Start mit leerem Netz über Monate)
+   und kein Import (ignoriert den Bestand).
+3. **Offen registrieren, leere Karte, Einladung optional.** Wie
+   PilzBuddy; ein Einladungslink füllt nur eine Buddy-Anfrage vor. Das
+   Tor sitzt in der Sichtbarkeit, nicht an der Tür. Verworfen:
+   Pflicht-Einladung (Play-Review braucht Testzugänge, Einladungskette
+   ist eine weitere personenbezogene Tabelle) und Bürgen-Modell.
+4. **Keine Fahrten in der Cloud in v1.** Fahrten bleiben auf dem
+   Gerät, Sicherung ist der GPX-Export; Gerätewechsel heißt Fahrten
+   weg, Trails bleiben. Verworfen für jetzt: private Sicherung (erste
+   Tabelle, die mit gefahrener Zeit wächst; Bewegungsprofile unter
+   Verantwortung des Betreibers). Eine spätere private Tabelle ändert
+   nichts am Sichtbarkeitsmodell, die Tür bleibt offen.
+5. **Die Messung läuft mit den Locus-Tracks des Betreibers** (GPX,
+   gezippt; Zeiten und Höhen sind dabei). Die Sonderfälle — derselbe
+   Trail mehrfach, Kehren, parallele Trails, Gegenrichtung, Fahrt mit
+   mehreren Trails — sind im Bestand weitgehend enthalten. **Die
+   Dateien gehören nicht ins Repo** (öffentlich; eine Fahrt beginnt an
+   der Haustür): Sie liegen im DocuHub oder in einem lokalen Ordner, den
+   das Werkzeug über eine Umgebungsvariable findet (Muster `KEYS_DIR`).
+   Der Messbericht nennt Kennzahlen, keine Koordinaten und keine
+   Ortsnamen; ein Wächter wie `private_info_test.dart` kommt von Anfang
+   an mit. Das Werkzeug liest direkt aus dem Zip.
+6. **Statusmeldungen in v1**, alle vier Werte, mit Datum; der jüngste
+   gewinnt, alle bleiben sichtbar, eine neue Aufzeichnung setzt den
+   eigenen Status auf „offen" (3). Verworfen: nur gesperrt/offen, oder
+   später.
+7. **Rechtliche Prüfung vor dem Play-Store-Eintrag.** Bis dahin nur
+   persönlich bekannte Nutzer über die GitHub-APK. Nutzungsbedingungen
+   und Datenschutzerklärung werden vorher als Entwurf aus dem Konzept
+   vorbereitet, aufbauend auf PilzBuddy, damit der Prüfende etwas in der
+   Hand hat. Die Grenze, an der aus einem privaten Werkzeug eine
+   Plattform wird, ist der erste Nutzer über einen Einladungslink, den
+   der Betreiber nicht selbst verschickt hat — die liegt vor dem
+   Play-Store und ist bewusst in Kauf genommen.
+8. **Web voll wie PilzBuddy, von Anfang an**: Import, Liste, Blatt,
+   Buddys, Status UND Offline-Karten samt IndexedDB-Zwischenspeicher
+   für Trails; nur das Aufzeichnen bleibt Android. Folgen: Jede
+   Kartenfunktion läuft ab v1 auf beiden Engines (MapLibre, flutter_map),
+   Trails als Linien im Web brauchen den GeoJSON-Zwischenspeicher ab
+   v1, und für die Offline-Karten im Web gilt die bekannte Grenze
+   (100 MB je Datei auf raw.githubusercontent.com, DACH als eine Datei
+   nur bis z8; `docs/offline-karten-web.md` in PilzBuddy). Verworfen:
+   Web nur zum Pflegen ohne Offline, oder Android zuerst.
 
 ## 11. Fahrplan
 
 - **Phase 0 — Messen, bevor gebaut wird.** Ein Python-Werkzeug
   `tool/trail_match.py` (nur Standardbibliothek, wie die Werkzeuge in
-  PilzBuddy) nimmt die GPX-Dateien des Betreibers, rechnet Deckung und
-  Fréchet für alle Paare und schreibt eine Tabelle: Welche Paare sind
-  „gleich", welche „Gabel", und stimmen die Schwellen? Ergebnis ist
-  `docs/trail-abgleich-messung.md` mit Zahlen. Erst dann werden die
-  Schwellen in SQL gegossen. Kein App-Code in dieser Phase.
+  PilzBuddy) nimmt die Locus-Tracks des Betreibers direkt aus dem Zip
+  (Pfad aus der Umgebung, nie im Repo), rechnet Deckung und Fréchet für
+  alle Paare und schreibt eine Tabelle: Welche Paare sind „gleich",
+  welche „Gabel", und stimmen die Schwellen? Ein `--self-test` mit
+  synthetischen Fällen (Kehren, Parallelen, Gegenrichtung) prüft das
+  Werkzeug, bevor es echte Daten sieht. Ergebnis ist
+  `docs/trail-abgleich-messung.md` mit Kennzahlen ohne Koordinaten.
+  Erst dann werden die Schwellen in SQL gegossen. Kein App-Code in
+  dieser Phase.
 - **Phase 1 — Grundgerüst.** Repo aus PilzBuddy-Bausteinen aufsetzen
   (Auth, Buddys, Karte, CI, Schema-Werkzeuge, eigene `CLAUDE.md`),
   PostGIS, Tabellen aus 3, `contribute_recording`, GPX-Import mit
@@ -585,5 +628,5 @@ eine Tabelle Ereignis-je-Fahrt-und-Trail, nichts davon in v1.
 - **Phase 5 — Community.** Airtime, Ranking unter Buddys, Fotos am
   Trail (Fundfoto-Baustein).
 
-Das Konzept ist fertig, wenn die Punkte aus Abschnitt 10 entschieden
-sind. Der erste Code ist das Messwerkzeug aus Phase 0.
+Die Punkte aus Abschnitt 10 sind entschieden. Der erste Code ist das
+Messwerkzeug aus Phase 0.
