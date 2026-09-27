@@ -309,7 +309,25 @@ class Trail {
     return names.toList();
   }
 
-  /// Median der sichtbaren S-Grade, null ohne Angabe.
+  /// Die sichtbaren Einschätzungen, älteste Beiträge zuerst — „wer hat
+  /// was gesagt" im Blatt.
+  List<TrailDetails> get gradeVotes =>
+      contributionsOrdered.where((d) => d.grade != null).toList();
+
+  /// Leichteste und schwerste sichtbare Einschätzung (Konzept 3: „Median
+  /// … mit Spanne"), null ohne Angabe.
+  ({int min, int max})? get gradeRange {
+    final grades = details.map((d) => d.grade).whereType<int>();
+    if (grades.isEmpty) return null;
+    return (
+      min: grades.reduce((a, b) => a < b ? a : b),
+      max: grades.reduce((a, b) => a > b ? a : b),
+    );
+  }
+
+  /// Median der sichtbaren S-Grade, null ohne Angabe. Bei gerader Anzahl
+  /// der SCHWERERE der beiden mittleren: Im Zweifel gewinnt die Warnung —
+  /// wer einen S3 für S2 hält, liegt teurer daneben als umgekehrt.
   int? get grade {
     final grades = details.map((d) => d.grade).whereType<int>().toList()..sort();
     if (grades.isEmpty) return null;

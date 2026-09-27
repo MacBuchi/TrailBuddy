@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
 import '../../models/trail.dart';
+import 'singletrail_scale.dart';
 import 'trail_providers.dart';
 
 /// Der eigene Beitrag zu einem Trail: Name, Schwierigkeit, Art,
@@ -67,15 +68,30 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<int?>(
-              initialValue: _grade,
-              decoration: const InputDecoration(labelText: 'Schwierigkeit (Singletrail-Skala)'),
-              items: [
-                const DropdownMenuItem<int?>(value: null, child: Text('Keine Angabe')),
-                for (var g = 0; g <= 5; g++)
-                  DropdownMenuItem<int?>(value: g, child: Text(gradeLabel(g))),
+            // Die Skala ist direkt beim Angeben erklärt: die Kurzfassung in
+            // jeder Zeile der Auswahl, die ganze Fassung hinter dem „?".
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int?>(
+                    initialValue: _grade,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                        labelText: 'Schwierigkeit (Singletrail-Skala)'),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('Keine Angabe')),
+                      for (final g in kSingletrailScale)
+                        DropdownMenuItem<int?>(
+                          value: g.value,
+                          child: Text('${g.label} · ${g.short}',
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _grade = v),
+                  ),
+                ),
+                SingletrailScaleButton(highlight: _grade),
               ],
-              onChanged: (v) => setState(() => _grade = v),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<TrailKind?>(

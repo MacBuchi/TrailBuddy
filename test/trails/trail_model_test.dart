@@ -122,4 +122,27 @@ void main() {
     expect(TrailRecording.fromJson(row([500])).ele, isNull,
         reason: 'eine verschobene Reihe wäre schlimmer als keine');
   });
+
+  test('Schwierigkeit: Spanne, Einzelstimmen, Gleichstand zum schwereren', () {
+    final t = buildTrails(recordings: [
+      rec('t', 'me'),
+      rec('t', 'a', day: 2),
+      rec('t', 'b', day: 3),
+      rec('t', 'c', day: 4),
+    ], details: [
+      det('t', 'me', grade: 1),
+      det('t', 'a', grade: 2),
+      det('t', 'b', grade: 3),
+      det('t', 'c'),
+    ], myId: 'me').single;
+    expect(t.gradeRange, (min: 1, max: 3));
+    expect(t.gradeVotes.map((d) => d.userId), ['me', 'a', 'b'],
+        reason: 'ohne Angabe zählt nicht, älteste Beiträge zuerst');
+    expect(t.grade, 2);
+    final even = buildTrails(recordings: [rec('u', 'me'), rec('u', 'a')],
+        details: [det('u', 'me', grade: 2), det('u', 'a', grade: 3)], myId: 'me').single;
+    expect(even.grade, 3, reason: 'bei Gleichstand gewinnt die Warnung');
+    expect(buildTrails(recordings: [rec('v', 'me')], details: [det('v', 'me')], myId: 'me')
+        .single.gradeRange, isNull);
+  });
 }

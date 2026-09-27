@@ -139,6 +139,13 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Ohne Höhen sagt das Blatt „Keine Höhenangaben", nie „0 Hm".
     Aufzeichnungen vor 0.3.0 haben keine; ein Weg zum Nachtragen ist
     offen (eigenes Issue).
+- **Schwierigkeit** (#14, Teil 2): Singletrail-Skala S0–S5 je Beitrag,
+  angezeigt als Median (bei Gleichstand der SCHWERERE — im Zweifel die
+  Warnung), Spanne und Anzahl. Die Beschreibungen stehen an EINER Stelle
+  (`singletrail_scale.dart`, eigene Kurzfassungen, keine Zitate) und sind
+  überall aufrufbar, wo man einen Grad angibt: Auswahl im Beitrag und
+  Chips im Blatt. Die Einschätzung im Blatt gibt es nur für selbst
+  belegte Trails (Konzept 3: ohne Beleg kein Beitrag).
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
