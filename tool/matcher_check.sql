@@ -700,4 +700,90 @@ begin
                         'hat sie schon Höhen: false, nichts überschrieben');
 end $$;
 
+\echo -- 20. Hinweise für Buddys (Patch 004, Issue #7)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  ub uuid := '22222222-2222-4222-8222-222222222222';
+  uc uuid := '33333333-3333-4333-8333-333333333333';
+  t uuid;
+  note uuid;
+  code text; ok boolean;
+begin
+  -- Ein Trail, den Anna mit Bernd teilt und den Bernd selbst NICHT belegt hat.
+  select d.trail_id into t from public.trail_details d
+   where d.user_id = ua and d.visibility = 'buddies'
+     and not exists (select 1 from public.trail_recordings r
+                      where r.trail_id = d.trail_id and r.user_id = ub)
+   limit 1;
+  perform tb_test.check(t is not null, 'geteilter Trail von Anna ohne Beleg von Bernd');
+
+  perform tb_test.exec_as(ua, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
+                                     t, ua, 'Baum liegt quer'));
+  perform tb_test.check(tb_test.count_as(ua, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 1,
+                        'Anna sieht ihren Hinweis');
+  perform tb_test.check(tb_test.count_as(ub, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 1,
+                        'Bernd (Buddy) sieht ihn');
+  perform tb_test.check(tb_test.count_as(uc, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 0,
+                        'Carla (kein Buddy) sieht ihn nicht');
+
+  -- Abgelehnt: ohne eigenen Beleg, im Namen eines anderen, leer, zu lang.
+  foreach code in array array['ohne Beleg', 'fremder Name', 'leer', 'zu lang'] loop
+    ok := false;
+    begin
+      perform tb_test.exec_as(case code when 'ohne Beleg' then ub else ua end,
+        format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
+               t,
+               case code when 'ohne Beleg' then ub when 'fremder Name' then ub else ua end,
+               case code when 'leer' then '   ' when 'zu lang' then repeat('x', 501) else 'Hinweis' end));
+    exception when others then
+      ok := sqlstate = case when code in ('leer', 'zu lang') then '23514' else '42501' end;
+    end;
+    perform tb_test.as_owner();
+    perform tb_test.check(ok, format('Hinweis „%s" abgelehnt', code));
+  end loop;
+
+  -- Kein Bearbeiten, und fremde löschen filtert still.
+  ok := false;
+  begin
+    perform tb_test.exec_as(ua, format('update public.trail_notes set body = %L where trail_id = %L', 'anders', t));
+  exception when others then
+    ok := sqlstate = '42501';
+  end;
+  perform tb_test.as_owner();
+  perform tb_test.check(ok, 'Hinweise lassen sich nicht bearbeiten (42501)');
+  perform tb_test.exec_as(ub, format('delete from public.trail_notes where trail_id = %L', t));
+  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 1,
+                        'Bernd kann Annas Hinweis nicht löschen');
+
+  -- Privat nimmt den Hinweis mit aus Bernds Sicht.
+  perform tb_test.exec_as(ua, format('update public.trail_details set visibility = %L where trail_id = %L and user_id = %L', 'private', t, ua));
+  perform tb_test.check(tb_test.count_as(ub, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 0,
+                        'privat: Bernd sieht den Hinweis nicht mehr');
+  perform tb_test.exec_as(ua, format('update public.trail_details set visibility = %L where trail_id = %L and user_id = %L', 'buddies', t, ua));
+
+  -- anon: kein Grant.
+  ok := false;
+  begin
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    perform count(*) from public.trail_notes;
+  exception when others then
+    ok := sqlstate = '42501';
+  end;
+  execute 'reset role';
+  perform tb_test.check(ok, 'anon hat keinen Grant auf trail_notes');
+
+  -- Eigenen löschen geht; der Beitrag nimmt die übrigen mit.
+  select id into note from public.trail_notes where trail_id = t and user_id = ua;
+  perform tb_test.exec_as(ua, format('delete from public.trail_notes where id = %L', note));
+  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 0,
+                        'Anna löscht ihren Hinweis');
+  perform tb_test.exec_as(ua, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
+                                     t, ua, 'Neuer Drop am Ende'));
+  perform tb_test.exec_as(ua, format('delete from public.trail_details where trail_id = %L and user_id = %L', t, ua));
+  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 0,
+                        'Beitrag gelöscht: seine Hinweise sind mit weg');
+end $$;
+
 \echo -- Alle Prüfungen bestanden.

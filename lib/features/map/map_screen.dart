@@ -16,7 +16,8 @@ import 'poi_source.dart';
 /// Die Karte: OSM-Raster, darüber die Trails des eigenen Netzes als
 /// Linien. Eigene grün, nur von Buddys belegte blau, gesperrte oder
 /// zerstörte in Warnfarbe — die Farbe sagt, was ICH damit zu tun habe,
-/// nicht, wie gut der Trail ist. Darunter, auf Wunsch, Orte aus
+/// nicht, wie gut der Trail ist. Ein gelber Rand heißt: Ein Buddy hat
+/// in den letzten Tagen einen Hinweis dazu geschrieben (#7). Darunter, auf Wunsch, Orte aus
 /// OpenStreetMap als Stecknadeln (#12) — unter den Trails, damit ein
 /// Tipp auf eine Linie nie an einer Nadel hängen bleibt.
 class MapScreen extends ConsumerStatefulWidget {
@@ -115,6 +116,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       points: t.points,
                       color: _colorOf(t),
                       strokeWidth: 4,
+                      // Neuer Hinweis eines Buddys (#7): ein gelber
+                      // Leuchtrand, die Linie behält ihre Farbe.
+                      borderStrokeWidth: t.hasFreshNote() ? 4 : 0,
+                      borderColor: AppColors.noteYellow,
                       hitValue: t.id,
                     ),
                 ],

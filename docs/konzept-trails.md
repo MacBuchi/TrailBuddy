@@ -195,6 +195,18 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   neue Aufzeichnung setzt den Status des Aufzeichnenden auf „offen"**
   — wer den Trail fährt, hat ihn befahrbar vorgefunden. Bei
   Widerspruch zwischen Buddys gewinnt der jüngste, ohne Abstimmung.
+- **Hinweise** (#7, entschieden am 2026-09-28) = freier Text zum
+  Trail, der das Warum trägt, das der Status nicht sagen kann („Baum
+  liegt quer nach der zweiten Kehre"). Eine eigene Liste, mehrere je
+  Beitrag, neueste zuerst, mit Alter; kein Verfall, kein Bearbeiten,
+  der Schreibende kann löschen. Schreiben nur mit eigenem Beleg,
+  sichtbar genau dort, wo der Beitrag des Schreibenden sichtbar ist —
+  direkte Buddys, nicht bei „privat", keine Transitivität. Ein Hinweis
+  hängt am Beitrag und geht mit ihm. Beim Ändern des Status wird einer
+  angeboten. Ohne Push (kommt mit „Nachrichten") hebt die App Trails
+  mit einem Hinweis eines Buddys aus den letzten sieben Tagen in Karte
+  und Liste hervor. Dezentral (12) passt das: Zeilen je Autor, nichts
+  über Netzgrenzen.
 
 Eine zentrale Sicht (`trails_visible`) rechnet das serverseitig, damit
 Karte, Liste und Blatt dieselbe Antwort geben — dieselbe Regel wie in

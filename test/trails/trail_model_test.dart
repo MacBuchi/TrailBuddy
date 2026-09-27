@@ -145,4 +145,47 @@ void main() {
     expect(buildTrails(recordings: [rec('v', 'me')], details: [det('v', 'me')], myId: 'me')
         .single.gradeRange, isNull);
   });
+
+  test('Hinweise: neueste zuerst, „neu" nur von Buddys und nur 7 Tage', () {
+    final now = DateTime(2026, 9, 28, 12);
+    TrailNote note(String user, int daysAgo) => TrailNote(
+          id: '$user-$daysAgo',
+          trailId: 't',
+          userId: user,
+          body: 'Baum quer',
+          createdAt: now.subtract(Duration(days: daysAgo)),
+        );
+    Trail trail(List<TrailNote> notes) => buildTrails(
+          recordings: [rec('t', 'me'), rec('t', 'bob')],
+          details: const [],
+          notes: [...notes, note('bob', 1).copyTrail('anderer')],
+          myId: 'me',
+        ).singleWhere((t) => t.id == 't');
+
+    final t = trail([note('bob', 9), note('me', 0), note('bob', 3)]);
+    expect(t.notes, hasLength(3), reason: 'Hinweise anderer Trails bleiben dort');
+    expect(t.notesNewestFirst.map((n) => n.id), ['me-0', 'bob-3', 'bob-9']);
+    expect(t.hasFreshNote(now: now), isTrue);
+    expect(trail([note('me', 0), note('bob', 8)]).hasFreshNote(now: now), isFalse,
+        reason: 'der eigene zählt nicht, der alte ist nicht mehr neu');
+  });
+
+  test('TrailNote.fromJson liest den Autor aus dem Embed', () {
+    final n = TrailNote.fromJson({
+      'id': 'n1',
+      'trail_id': 't',
+      'user_id': 'u',
+      'body': 'Neuer Drop am Ende',
+      'created_at': '2026-09-28T10:00:00Z',
+      'author': {'username': 'bob'},
+    });
+    expect(n.username, 'bob');
+    expect(n.body, 'Neuer Drop am Ende');
+    expect(n.createdAt.isUtc, isFalse);
+  });
+}
+
+extension on TrailNote {
+  TrailNote copyTrail(String trailId) => TrailNote(
+      id: '$id-x', trailId: trailId, userId: userId, body: body, createdAt: createdAt);
 }

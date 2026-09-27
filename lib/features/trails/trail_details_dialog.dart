@@ -5,6 +5,7 @@ import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
 import '../../models/trail.dart';
 import 'singletrail_scale.dart';
+import 'trail_notes.dart';
 import 'trail_providers.dart';
 
 /// Der eigene Beitrag zu einem Trail: Name, Schwierigkeit, Art,
@@ -14,14 +15,16 @@ Future<void> showTrailDetailsDialog(
     BuildContext context, WidgetRef ref, Trail trail) async {
   final current = trail.myDetails ??
       TrailDetails(trailId: trail.id, userId: trail.myId);
-  final result = await showDialog<TrailDetails>(
+  final result = await showDialog<({TrailDetails details, String? note})>(
     context: context,
     builder: (_) => _DetailsDialog(initial: current),
   );
   if (result == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
   try {
-    final fresh = await ref.read(trailsProvider.notifier).saveDetails(result);
+    final fresh = await ref
+        .read(trailsProvider.notifier)
+        .saveDetails(result.details, note: result.note);
     messenger.showSnackBar(SnackBar(
         content: Text('Beitrag gespeichert${fresh ? '' : staleAfterWriteHint}')));
   } catch (e, st) {
@@ -42,6 +45,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
   late final _name = TextEditingController(text: widget.initial.name ?? '');
   late final _description =
       TextEditingController(text: widget.initial.description ?? '');
+  final _note = TextEditingController();
   late int? _grade = widget.initial.grade;
   late TrailKind? _kind = widget.initial.kind;
   late TrailVisibility _visibility = widget.initial.visibility;
@@ -51,6 +55,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
   void dispose() {
     _name.dispose();
     _description.dispose();
+    _note.dispose();
     super.dispose();
   }
 
@@ -114,6 +119,22 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               ],
               onChanged: (v) => setState(() => _status = v ?? _status),
             ),
+            // Der Status sagt WAS, der Hinweis WARUM (#7). Angeboten nur
+            // beim Ändern; gespeichert als eigener Hinweis mit Datum.
+            if (_status != widget.initial.status)
+              TextField(
+                key: const ValueKey('status-note'),
+                controller: _note,
+                maxLength: kNoteMaxLength,
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: 'Hinweis für Buddys (optional)',
+                  hintText: _status == TrailStatus.open
+                      ? 'z. B. Baum ist weggeräumt'
+                      : 'z. B. Baum liegt quer nach der zweiten Kehre',
+                ),
+              ),
             const SizedBox(height: 8),
             DropdownButtonFormField<TrailVisibility>(
               initialValue: _visibility,
@@ -142,7 +163,9 @@ class _DetailsDialogState extends State<_DetailsDialog> {
         FilledButton(
           onPressed: () {
             final statusChanged = _status != widget.initial.status;
-            Navigator.of(context).pop(TrailDetails(
+            Navigator.of(context).pop((
+              note: statusChanged ? _note.text.trim() : null,
+              details: TrailDetails(
               trailId: widget.initial.trailId,
               userId: widget.initial.userId,
               username: widget.initial.username,
@@ -157,7 +180,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               // Eine Statusmeldung trägt ihr Datum (Entscheidung 6); ein
               // unveränderter Status behält das alte.
               statusAt: statusChanged ? DateTime.now() : widget.initial.statusAt,
-            ));
+            )));
           },
           child: const Text('Speichern'),
         ),

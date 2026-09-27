@@ -15,4 +15,10 @@ abstract final class AppColors {
   /// Warnungen und „bitte nachsehen"-Abzeichen: ein Orange, das auf der
   /// Karte weder Grün noch Blau ist.
   static const warningAmber = Color(0xFFEF6C00);
+
+  /// „Hier gibt es etwas Neues von einem Buddy" (#7): Leuchtrand um die
+  /// Linie auf der Karte, Tönung der Zeile in der Liste. Ein Gelb, das
+  /// neben Grün, Blau und dem Warn-Orange als eigene Aussage lesbar
+  /// bleibt — es färbt nie die Linie selbst, die bleibt bei ihrer Farbe.
+  static const noteYellow = Color(0xFFFFC400);
 }

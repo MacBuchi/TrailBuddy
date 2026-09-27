@@ -90,7 +90,15 @@ class _TrailTile extends StatelessWidget {
       if (trail.buddyIds.isNotEmpty)
         '${trail.buddyIds.length} ${trail.buddyIds.length == 1 ? 'Buddy' : 'Buddys'}',
     ];
+    // Neuer Hinweis eines Buddys (#7): die Zeile getönt, ein Symbol am
+    // Ende und das Wort dazu — Farbe allein wäre nicht für alle lesbar.
+    final fresh = trail.hasFreshNote();
     return ListTile(
+      tileColor: fresh ? AppColors.noteYellow.withValues(alpha: 0.18) : null,
+      trailing: fresh
+          ? const Icon(Icons.mark_chat_unread_outlined,
+              semanticLabel: 'neuer Hinweis')
+          : null,
       leading: Icon(
         trail.status.warns ? Icons.warning_amber : Icons.route,
         color: trail.status.warns
@@ -101,6 +109,7 @@ class _TrailTile extends StatelessWidget {
       subtitle: Text([
         parts.join(' · '),
         if (trail.status.warns) trail.status.label,
+        if (fresh) 'neuer Hinweis',
       ].join(' — ')),
       onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
     );

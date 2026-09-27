@@ -12,10 +12,12 @@ import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
+import 'trail_notes.dart';
 import 'trail_providers.dart';
 
 /// Das Blatt zu einem Trail: Name (und die anderen Namen), Länge, S-Grad,
-/// Status mit Alter, wer ihn belegt hat, und der eigene Beitrag.
+/// Status mit Alter, wer ihn belegt hat, Hinweise für Buddys und der
+/// eigene Beitrag.
 Future<void> showTrailSheet(BuildContext context, Trail trail,
     {bool showOnMapButton = false}) {
   return showModalBottomSheet<void>(
@@ -146,6 +148,8 @@ class _TrailSheet extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(mine.description!),
               ),
+            const SizedBox(height: 12),
+            TrailNotesSection(trail: trail),
             if (trail.isOwn) ...[
               const SizedBox(height: 12),
               OwnGradePicker(trail: trail),

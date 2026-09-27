@@ -23,10 +23,12 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     final myId = ref.watch(currentUserIdProvider);
     if (myId == null) return const [];
     final repo = ref.watch(trailRepositoryProvider);
-    final results = await Future.wait([repo.fetchRecordings(), repo.fetchDetails()]);
+    final results = await Future.wait(
+        [repo.fetchRecordings(), repo.fetchDetails(), repo.fetchNotes()]);
     return buildTrails(
       recordings: results[0] as List<TrailRecording>,
       details: results[1] as List<TrailDetails>,
+      notes: results[2] as List<TrailNote>,
       myId: myId,
     );
   }
@@ -69,9 +71,28 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     return trailId;
   }
 
-  Future<bool> saveDetails(TrailDetails details) async {
-    await ref.read(trailRepositoryProvider).saveDetails(details);
+  /// Speichert den eigenen Beitrag; ein [note] (etwa zum geänderten
+  /// Status) geht als Hinweis mit — ein Neuladen für beides.
+  Future<bool> saveDetails(TrailDetails details, {String? note}) async {
+    final repo = ref.read(trailRepositoryProvider);
+    await repo.saveDetails(details);
+    final text = note?.trim() ?? '';
+    if (text.isNotEmpty) {
+      await repo.addNote(trailId: details.trailId, body: text);
+    }
     return reloadAfterWrite('Trail-Beitrag speichern');
+  }
+
+  Future<bool> addNote(String trailId, String body) async {
+    await ref
+        .read(trailRepositoryProvider)
+        .addNote(trailId: trailId, body: body.trim());
+    return reloadAfterWrite('Hinweis speichern');
+  }
+
+  Future<bool> deleteNote(String id) async {
+    await ref.read(trailRepositoryProvider).deleteNote(id);
+    return reloadAfterWrite('Hinweis löschen');
   }
 
   /// Höhen einer eigenen Aufzeichnung nachtragen (#16). Kein Neuladen

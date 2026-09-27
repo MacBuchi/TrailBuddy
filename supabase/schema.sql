@@ -199,6 +199,24 @@ create table public.trail_details (
 );
 create index trail_details_user_idx on public.trail_details (user_id);
 
+-- Hinweise zu einem Trail für Buddys (Patch 004, Issue #7): „Baum liegt
+-- quer". Mehrere je Beitrag, ohne Verfall (das Alter steht dabei), ohne
+-- Bearbeiten. Hängen am BEITRAG: Wer ihn löscht, löscht sie mit, und
+-- sichtbar sind sie genau dort, wo der Beitrag sichtbar ist.
+create table public.trail_notes (
+  id uuid primary key default gen_random_uuid(),
+  trail_id uuid not null,
+  user_id uuid not null,
+  body text not null check (char_length(btrim(body)) between 1 and 500),
+  created_at timestamptz not null default now(),
+  constraint trail_notes_user_id_fkey foreign key (user_id)
+    references public.profiles(id) on delete cascade,
+  constraint trail_notes_details_fkey foreign key (trail_id, user_id)
+    references public.trail_details(trail_id, user_id) on delete cascade
+);
+create index trail_notes_trail_idx on public.trail_notes (trail_id);
+create index trail_notes_user_idx on public.trail_notes (trail_id, user_id);
+
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
 -- (Username kommt aus den Signup-Metadaten der App)
@@ -919,6 +937,7 @@ alter table public.app_config        enable row level security;
 alter table public.trails            enable row level security;
 alter table public.trail_recordings  enable row level security;
 alter table public.trail_details     enable row level security;
+alter table public.trail_notes       enable row level security;
 alter table app_internal.trail_overlaps enable row level security;
 
 -- Ausdrücklich gesperrt (PilzBuddy Patch 037): RLS ohne Policy verweigert
@@ -1004,6 +1023,22 @@ create policy td_friend_select on public.trail_details for select
      and visibility = 'buddies'
      and app_internal.are_friends(user_id, auth.uid()));
 
+-- trail_notes: lesen wie trail_recordings; schreiben nur als man selbst
+-- und nur mit eigener Aufzeichnung des Trails (Konzept 3: ohne Beleg
+-- kein Beitrag); löschen die eigenen. Kein update — ein korrigierter
+-- Hinweis ist ein neuer, sonst stimmte sein Alter nicht mehr.
+create policy notes_select on public.trail_notes for select
+  using (user_id = auth.uid()
+     or (app_internal.are_friends(user_id, auth.uid())
+         and app_internal.contributor_shares(user_id, trail_id)));
+create policy notes_insert_own on public.trail_notes for insert
+  with check (user_id = auth.uid()
+     and exists (select 1 from public.trail_recordings r
+                  where r.trail_id = trail_notes.trail_id
+                    and r.user_id = auth.uid()));
+create policy notes_delete_own on public.trail_notes for delete
+  using (user_id = auth.uid());
+
 -- ============================================================
 -- Grants — ausdrücklich, nicht über auto_expose
 -- ============================================================
@@ -1026,6 +1061,7 @@ grant insert on public.error_reports to anon, authenticated;
 grant insert, select on public.feedback to authenticated;
 grant select, delete on public.trail_recordings to authenticated;   -- insert nur per RPC
 grant select, insert, update, delete on public.trail_details to authenticated;
+grant select, insert, delete on public.trail_notes to authenticated;
 grant select on public.recordings_visible to authenticated;
 -- KEIN Grant auf public.trails, KEINER auf app_internal.trail_overlaps.
 
@@ -1087,5 +1123,6 @@ create policy applied_patches_no_client on public.applied_patches
 insert into public.applied_patches (filename) values
   ('patch_001_feedback_bot_grants.sql'),
   ('patch_002_recording_elevation.sql'),
-  ('patch_003_attach_elevation.sql')
+  ('patch_003_attach_elevation.sql'),
+  ('patch_004_trail_notes.sql')
 on conflict do nothing;

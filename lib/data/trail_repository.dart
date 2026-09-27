@@ -35,6 +35,16 @@ abstract class TrailRepository {
   });
 
   Future<void> saveDetails(TrailDetails details);
+
+  /// Die Hinweise, die ich sehen darf (Patch 004): eigene und die von
+  /// Buddys, deren Beitrag nicht privat ist.
+  Future<List<TrailNote>> fetchNotes();
+
+  /// Ein Hinweis zu einem Trail, den ich selbst belegt habe — sonst lehnt
+  /// die RLS ab.
+  Future<void> addNote({required String trailId, required String body});
+
+  Future<void> deleteNote(String id);
 }
 
 /// Die Spalten der Sicht `recordings_visible` — dieselbe Liste prüft
@@ -47,6 +57,12 @@ const kRecordingColumns =
 const kDetailsColumns =
     'trail_id, user_id, name, description, grade, kind, visibility, status, status_at, updated_at, '
     'contributor:profiles!trail_details_user_id_fkey(username)';
+
+/// Wie [kDetailsColumns]: Der Embed heißt nach dem Fremdschlüssel, und
+/// `tool/schema_check.sh` fragt genau diese Liste ab.
+const kNoteColumns =
+    'id, trail_id, user_id, body, created_at, '
+    'author:profiles!trail_notes_user_id_fkey(username)';
 
 class SupabaseTrailRepository implements TrailRepository {
   SupabaseTrailRepository(this._client);
@@ -110,5 +126,26 @@ class SupabaseTrailRepository implements TrailRepository {
     final uid = _client.requireUid;
     final row = details.toRow()..['user_id'] = uid;
     await _client.from('trail_details').upsert(row);
+  }
+
+  @override
+  Future<List<TrailNote>> fetchNotes() async {
+    _client.requireUid;
+    final rows = await _client.from('trail_notes').select(kNoteColumns);
+    return [for (final r in rows) TrailNote.fromJson(r)];
+  }
+
+  @override
+  Future<void> addNote({required String trailId, required String body}) async {
+    final uid = _client.requireUid;
+    await _client
+        .from('trail_notes')
+        .insert({'trail_id': trailId, 'user_id': uid, 'body': body});
+  }
+
+  @override
+  Future<void> deleteNote(String id) async {
+    _client.requireUid;
+    await _client.from('trail_notes').delete().eq('id', id);
   }
 }

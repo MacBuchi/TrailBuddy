@@ -243,6 +243,11 @@ check_get_protected "recordings_visible-Spalten (Aufzeichnungen)" \
 check_get_protected "trail_details-Spalten (Beiträge)" \
   "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,kind,visibility,status,status_at,created_at,updated_at&limit=1"
 
+# trail_notes: Hinweise für Buddys (Patch 004), exakt die Query aus
+# TrailRepository.fetchNotes samt Embed über den Constraint-NAMEN.
+check_get_protected "trail_notes-Embed (Hinweise)" \
+  "/rest/v1/trail_notes?select=id,trail_id,user_id,body,created_at,author:profiles!trail_notes_user_id_fkey(username)&limit=1"
+
 # trails: für NIEMANDEN lesbar (Konzept 4.6) — nicht einmal mit Konto.
 # Hier lässt sich nur anon prüfen; dass auch authenticated 42501 bekommt,
 # beweist tool/matcher_check.sql direkt in SQL.
