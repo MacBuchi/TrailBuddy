@@ -51,21 +51,34 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   dahin gibt es kein Web-Deploy.
 - **Schema Dry Run** (ci.yml, Pflicht-Check): lokaler Supabase-Stack auf
   dem Runner (`supabase/config.toml`, Portblock **5452x**), beide Wege —
-  Bestand (Basis-Schema + neue Patches) und Frischinstallation (nur
-  `schema.sql`) —, danach `tool/schema_check.sh` (App-Queries gegen das
-  Schema), `tool/matcher_check.sql` (der Abgleich mit echten Linien) und
-  `tool/auth_reset_check.sh` (Auth-Flows gegen echtes GoTrue). **Ein
-  Live-„Schema Check" gibt es noch nicht** — es gibt kein Live-Projekt
-  (Konzept, Punkt 9); er kommt mit dem Projekt, samt Secret
-  `SUPABASE_DB_URL`.
+  Bestand (Basis-Schema + neue Patches) und Frischinstallation (leere
+  Datenbank, `db_migrate.sh` spielt `schema.sql` ein — derselbe Zweig wie
+  beim ersten Lauf gegen das leere Live-Projekt) —, danach
+  `tool/schema_check.sh` (App-Queries gegen das Schema),
+  `tool/matcher_check.sql` (der Abgleich mit echten Linien) und
+  `tool/auth_reset_check.sh` (Auth-Flows gegen echtes GoTrue).
+  `auto_expose_new_tables = false`: Ein vergessener Grant fällt im Dry Run
+  auf, statt still von der Vorgabe ersetzt zu werden.
+- **Schema Check** (ci.yml, `needs: schema-dry-run`): erst danach wird die
+  Live-Datenbank angefasst — `db_migrate.sh` spielt neue Patches ein (auf
+  einem LEEREN Projekt vorher `schema.sql`; halb eingerichtet ⇒ Abbruch
+  statt Raten), dann `schema_check.sh` gegen das Live-Schema. Braucht das
+  Secret `SUPABASE_DB_URL` (Session-Pooler-URI inkl. Passwort). Der
+  Release-Workflow wiederholt beides vor dem Bauen. **Nie Schema von Hand
+  im Dashboard ändern** — der Weg ist immer ein `patch_NNN`.
+- **Live-Projekt wach halten** (`keepalive.yml`, Mo + Do): Der Free-Plan
+  pausiert nach ~1 Woche ohne Zugriff. Der Lauf fährt `schema_check.sh`
+  gegen live und ist damit zugleich Drift-Wächter. Wer ihn abschaltet,
+  riskiert eine tote App. Das Projekt liegt im Zweitkonto des Betreibers
+  (Konzept, Punkt 9; wem Konto und Mails gehören: DocuHub).
 - **Patches**: `supabase/patch_NNN_*.sql` + Struktur in `schema.sql` + Eintrag
   in der Saat-Liste, alles im selben PR; ein eingespielter Patch wird nie
   wieder angefasst (`tool/patch_guard.sh`). Baseline ist 0: Es gibt keine
   von Hand eingespielten Patches.
 - **Supabase-Konfiguration der App**: `lib/core/supabase_config.dart` liest
-  `SUPABASE_URL`/`SUPABASE_KEY` aus `--dart-define`, Vorgabe ist der lokale
-  Stack. Ein Live-Projekt trägt seine Werte dort ein (Publishable Key ist
-  öffentlich; niemals den service_role-Key).
+  `SUPABASE_URL`/`SUPABASE_KEY` aus `--dart-define`, Vorgabe ist das
+  Live-Projekt (Publishable Key ist öffentlich; niemals den
+  service_role-Key). Gegen den lokalen Stack per `--dart-define` bauen.
 
 ## Technik-Notizen
 

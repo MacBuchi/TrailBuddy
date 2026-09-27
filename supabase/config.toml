@@ -25,13 +25,13 @@ enabled = true
 port = 54521
 schemas = ["public"]
 extra_search_path = ["public", "extensions"]
-# Legacy-Verhalten der Bestandsprojekte: Tabellen im public-Schema sind
-# ohne explizite Grants über die API erreichbar. schema.sql verlässt sich
-# NICHT darauf — es nimmt allen Tabellen erst alle Rechte und vergibt sie
-# gezielt zurück —, die Zeile bleibt aber, damit der Dry Run dieselben
-# Regeln prüft wie ein Live-Projekt mit dieser Vorgabe. Das Feld fällt am
-# 2026-10-30 weg; dann kann die Zeile raus, an schema.sql ändert das nichts.
-auto_expose_new_tables = true
+# AUS — so ist es auch für das Live-Projekt vorgesehen (keine automatische
+# Freigabe neuer Tabellen über die Data API). schema.sql nimmt allen Tabellen erst alle
+# Rechte und vergibt sie gezielt zurück; mit `true` fiele ein vergessener
+# Grant im Dry Run nicht auf, weil die Vorgabe ihn stillschweigend
+# ersetzte. PilzBuddy steht hier noch auf `true` (Legacy seines
+# Bestandsprojekts).
+auto_expose_new_tables = false
 
 [db]
 port = 54522

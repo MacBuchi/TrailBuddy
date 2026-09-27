@@ -607,16 +607,18 @@ damit die nächste Diskussion nicht bei null beginnt.
    (100 MB je Datei auf raw.githubusercontent.com, DACH als eine Datei
    nur bis z8; `docs/offline-karten-web.md` in PilzBuddy). Verworfen:
    Web nur zum Pflegen ohne Offline, oder Android zuerst.
-9. **Offen: das Live-Projekt bei Supabase.** Der Free-Plan erlaubt zwei
+9. **Entschieden (2026-09-27): Zweitkonto, Free-Plan.** Das Live-Projekt
+   liegt in einem eigenen Supabase-Konto des Betreibers; wem Konto,
+   Token und Mails gehören, steht im DocuHub. Vor dem Play-Store-Eintrag
+   bleibt der Transfer in eine Pro-Organisation die Option. Pausieren
+   verhindert `keepalive.yml`. Die Abwägung davor: Der Free-Plan erlaubt zwei
    aktive Projekte je Konto, gezählt über alle Organisationen mit Owner-
    oder Admin-Rolle; beide sind belegt. Wege: Pro-Plan für die eine
    Organisation (hebt auch PilzBuddys Free-Grenzen), ein Projekt
    pausieren, oder ein Zweitkonto für den Start mit späterem
    Project-Transfer nach Pro vor dem Play-Store-Eintrag — das Zweitkonto
    umgeht die Regel eher, als sie zu nutzen, und braucht einen Eintrag im
-   DocuHub, wem Token und Mails gehören. Für Phase 1 nicht nötig: Die
-   Entwicklung läuft gegen den lokalen Stack, PostGIS inklusive.
-   Entschieden wird, wenn die erste APK an einen Buddy geht.
+   DocuHub, wem Token und Mails gehören.
 
 ## 11. Fahrplan
 
