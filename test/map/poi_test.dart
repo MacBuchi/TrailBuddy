@@ -30,9 +30,11 @@ void main() {
   });
 
   test('die Abfrage fragt nur die eingeschalteten Gruppen im Rahmen', () {
+    // Ein erfundener Rahmen: Fünfstellige Paare wie in echten Abfragen
+    // hält `private_info_check.py` zu Recht für Koordinaten.
     final q = overpassQuery(
-        (s: 47.5, w: 9.0, n: 47.6, e: 9.15), {PoiGroup.water});
-    expect(q, contains('[bbox:47.50000,9.00000,47.60000,9.15000]'));
+        (s: 1.5, w: 2.0, n: 1.6, e: 2.15), {PoiGroup.water});
+    expect(q, contains('[bbox:1.50000,2.00000,1.60000,2.15000]'));
     expect(q, contains('nwr["amenity"="drinking_water"]'));
     expect(q, contains('nwr["natural"="spring"]'));
     expect(q, isNot(contains('cafe')));
