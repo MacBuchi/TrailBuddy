@@ -148,6 +148,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   überall aufrufbar, wo man einen Grad angibt: Auswahl im Beitrag und
   Chips im Blatt. Die Einschätzung im Blatt gibt es nur für selbst
   belegte Trails (Konzept 3: ohne Beleg kein Beitrag).
+- **Orte auf der Karte** (#12, `lib/features/map/poi*.dart`): live von
+  `overpass-api.de` (FOSSGIS), erst ab Zoom 12, geladen in einem festen
+  Raster (0,1° × 0,15°), jede Zelle je Gruppe einmal pro App-Lauf; der
+  Filter ist gerätelokal (`Settings.poiGroups`, Vorgabe nur „Wasser" —
+  Entscheidung des Betreibers). Ist alles aus, geht KEINE Anfrage raus;
+  der Test-Harness hängt `FakePoiSource` ein, weil die Karte beim
+  Einpassen auf einen Trail über Zoom 12 liegt. Die Nadeln liegen UNTER
+  den Trail-Linien und tragen nie eine der Trail-Farben.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys

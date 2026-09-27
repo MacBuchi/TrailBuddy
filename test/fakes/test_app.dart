@@ -15,9 +15,11 @@ import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
 import 'package:trailbuddy/features/map/map_providers.dart';
+import 'package:trailbuddy/features/map/poi_source.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
 import 'fake_backend.dart';
+import 'fake_pois.dart';
 import 'fake_settings.dart';
 import 'fake_trails.dart';
 
@@ -42,6 +44,7 @@ List<Override> overridesFor(FakeBackend backend,
         String appVersion = '1.0.0',
         Settings? settings,
         FakeTrailRepository? trails,
+        FakePoiSource? pois,
         List<Override> extra = const []}) =>
     [
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
@@ -61,6 +64,9 @@ List<Override> overridesFor(FakeBackend backend,
               areFriends: backend.areFriends)),
       // Kein Netz in Tests: Die Kacheln sind transparente 1×1-PNGs.
       mapTileProviderProvider.overrideWithValue(FakeTileProvider()),
+      // Und keine Overpass-Abfragen: Eine Karte, die auf einen Trail
+      // zoomt, liegt über Zoom 12 und fragte sonst wirklich an.
+      poiSourceProvider.overrideWithValue(pois ?? FakePoiSource()),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
@@ -78,6 +84,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     String appVersion = '1.0.0',
     Settings? settings,
     FakeTrailRepository? trails,
+    FakePoiSource? pois,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -86,6 +93,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         appVersion: appVersion,
         settings: settings,
         trails: trails,
+        pois: pois,
         extra: extraOverrides),
     child: const TrailBuddyApp(),
   ));
