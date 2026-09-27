@@ -19,7 +19,7 @@ dependencies:
   # Karte (OpenStreetMap-Raster, kein API-Key). MapLibre für Android kommt
   # wie in PilzBuddy hinter einer Fassade — später, mit Messung.
   flutter_map: ^8.3.2
-  latlong2: ^0.9.1
+  latlong2: ^0.10.1
 
   supabase_flutter: ^2.17.2
   flutter_riverpod: ^2.6.1
