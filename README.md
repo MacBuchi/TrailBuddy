@@ -18,5 +18,6 @@ man selbst oder ein direkter Buddy gefahren ist.
 - Arbeitsregeln für Mitwirkende und Werkzeuge: [`CLAUDE.md`](CLAUDE.md).
 
 Noch nicht da: Aufzeichnen in der App (Phase 2), Offline-Karten,
-Nachrichten, Routing. Es gibt noch kein Live-Backend; Entwicklung und CI
-laufen gegen den lokalen Supabase-Stack (`supabase/config.toml`).
+Nachrichten, Routing. Die App spricht mit einem Supabase-Projekt; CI
+prüft jede Schema-Änderung zuerst gegen einen lokalen Stack
+(`supabase/config.toml`) und erst dann gegen das Live-Projekt.

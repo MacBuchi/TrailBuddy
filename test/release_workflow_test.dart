@@ -16,9 +16,12 @@ void main() {
   final ci = File('.github/workflows/ci.yml').readAsStringSync();
   final release = File('.github/workflows/release.yml').readAsStringSync();
 
-  test('es gibt die vier Workflows des Grundgerüsts', () {
+  test('es gibt die Workflows des Grundgerüsts', () {
     final names = workflows.map((f) => f.uri.pathSegments.last).toSet();
-    expect(names, containsAll(['ci.yml', 'release.yml', 'security.yml', 'workflow-lint.yml']));
+    expect(names, containsAll([
+      'ci.yml', 'release.yml', 'security.yml', 'workflow-lint.yml',
+      'keepalive.yml',
+    ]));
   });
 
   test('alle Workflows pinnen dieselbe Flutter-Version', () {
@@ -134,5 +137,57 @@ void main() {
     }
     expect(ci, contains('-- CHANGELOG.md'),
         reason: 'CHANGELOG.md liegt im Binary und braucht den Bump');
+  });
+
+  test('die Live-Datenbank wird erst nach dem Dry Run angefasst', () {
+    final job = ci.substring(
+        ci.indexOf('  schema-check:'), ci.indexOf('  housekeeping:'));
+    expect(job, contains('needs: schema-dry-run'));
+    expect(job, contains('SUPABASE_DB_URL: \${{ secrets.SUPABASE_DB_URL }}'));
+    expect(job, contains('bash tool/db_migrate.sh'));
+    expect(job, contains('bash tool/schema_check.sh'));
+    // Ohne Historie hält db_migrate.sh jeden secretlosen Lauf für rot.
+    expect(job, contains('fetch-depth: 0'));
+  });
+
+  test('Release migriert und prüft VOR dem Bauen', () {
+    final build = release.substring(release.indexOf('  build-android:'));
+    expect(build, contains('needs: [version, migrate]'));
+    final migrate = release.substring(
+        release.indexOf('  migrate:'), release.indexOf('  build-android:'));
+    expect(migrate, contains('bash tool/db_migrate.sh'));
+    expect(migrate, contains('bash tool/schema_check.sh'));
+  });
+
+  test('der Frisch-Weg im Dry Run ist der Bootstrap des Live-Projekts', () {
+    // Ein leeres Projekt bekommt schema.sql über db_migrate.sh — derselbe
+    // Zweig muss im Dry Run laufen, sonst fährt die Produktion etwas, das
+    // CI nie gesehen hat.
+    final fresh = ci.substring(ci.indexOf('supabase db reset'));
+    expect(fresh.indexOf('bash tool/db_migrate.sh'), greaterThan(-1));
+    expect(fresh, isNot(contains('-f supabase/schema.sql')));
+    expect(File('tool/db_migrate.sh').readAsStringSync(),
+        contains('-f supabase/schema.sql'));
+  });
+
+  test('das Live-Projekt wird wach gehalten', () {
+    // Free-Plan pausiert nach ~1 Woche ohne Zugriff.
+    final keep = File('.github/workflows/keepalive.yml').readAsStringSync();
+    final cron = RegExp(r'cron: "[^"]*\* \* ([0-9,]+)"').firstMatch(keep);
+    expect(cron, isNotNull);
+    final days = cron!.group(1)!.split(',').map(int.parse).toList()..sort();
+    // Größte Lücke zwischen zwei Läufen, über das Wochenende hinweg.
+    var gap = days.first + 7 - days.last;
+    for (var i = 1; i < days.length; i++) {
+      gap = gap > days[i] - days[i - 1] ? gap : days[i] - days[i - 1];
+    }
+    expect(gap, lessThan(7));
+    expect(keep, contains('bash tool/schema_check.sh'));
+  });
+
+  test('der Dry Run gibt Tabellen nicht automatisch frei', () {
+    // Mit `true` ersetzte die Vorgabe einen vergessenen Grant still.
+    final config = File('supabase/config.toml').readAsStringSync();
+    expect(config, contains('auto_expose_new_tables = false'));
   });
 }

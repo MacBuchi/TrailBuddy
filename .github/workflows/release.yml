@@ -77,9 +77,33 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # Sicherheitsnetz: normalerweise spielt schon der Pflicht-Check im PR
+  # neue DB-Patches ein (ci.yml, "Schema Check"). Vor dem Veröffentlichen
+  # wird trotzdem migriert (idempotent über public.applied_patches) und das
+  # Live-Schema erneut gegen die App-Queries geprüft — eine App, deren
+  # Queries auf der Live-DB scheitern, wird nie ausgeliefert.
+  migrate:
+    name: DB-Patches & Schema Check
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: DB-Patches einspielen
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash tool/db_migrate.sh
+      - name: Live-Schema gegen die App-Queries prüfen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tool/schema_check.sh
+
   build-android:
     name: Build Android APK + AAB (signed)
-    needs: version
+    needs: [version, migrate]
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30

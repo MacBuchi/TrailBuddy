@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Applies pending supabase/patch_NNN_*.sql files to the live database.
+# Applies pending supabase/patch_NNN_*.sql files to the live database —
+# and, on an empty project, supabase/schema.sql first (see below).
 #
 # Applied patches are tracked in public.applied_patches. Each patch runs in
 # a single transaction and is recorded afterwards, so the script is
@@ -82,6 +83,31 @@ if ! run_sql -c "select 1" >/dev/null; then
   echo "::error::Keine Verbindung zur Datenbank — stimmt die Session-Pooler-URI im Secret SUPABASE_DB_URL (inkl. Passwort)?"
   exit 1
 fi
+
+# Frisches Projekt: schema.sql ist der erste Stand, und er kommt über
+# DIESEN Weg hinein, nicht von Hand im Dashboard — sonst gäbe es für die
+# Produktion einen Schritt, den CI nie gefahren hat. Der Schema Dry Run
+# fährt genau diesen Zweig (Frischinstallation nach `supabase db reset`).
+#
+# Entschieden wird an ZWEI Tabellen, und nur die beiden Eindeutigen
+# führen weiter: keine von beiden ⇒ leer, einspielen; beide ⇒ Bestand.
+# Alles dazwischen ist ein halb eingerichtetes Projekt, und darüber
+# schema.sql zu legen hieße raten, was schon steht.
+state=$(run_sql -c "select format('%s%s',
+  (to_regclass('public.trails') is not null)::int,
+  (to_regclass('public.applied_patches') is not null)::int);")
+case "$state" in
+  00)
+    echo "→ Leeres Projekt: spiele supabase/schema.sql ein"
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -q --single-transaction -f supabase/schema.sql
+    echo "✓ Eingespielt: schema.sql (die Saat-Liste trägt alle bisherigen Patches)"
+    ;;
+  11) ;;
+  *)
+    echo "::error::Halb eingerichtetes Projekt (trails/applied_patches: $state) — schema.sql wird NICHT darübergelegt. Von Hand nachsehen, was dort steht."
+    exit 1
+    ;;
+esac
 
 # RLS + Revoke gehören zum Bootstrap (idempotent), nicht nur zu Patch 010:
 # die Tabelle entsteht hier VOR dem ersten Patch-Lauf und wäre auf einer

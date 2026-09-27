@@ -69,6 +69,8 @@ void main() {
       'api.github.com',
       'github.com',
       'macbuchi.github.io',
+      // Das Live-Projekt (lib/core/supabase_config.dart).
+      'ibxrjgvwouuoydhdkfmf.supabase.co',
     };
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet.
     const onTapOnly = {

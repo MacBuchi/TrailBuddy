@@ -1,0 +1,33 @@
+name: Live-Projekt wach halten
+
+# Supabase pausiert Projekte im Free-Plan nach rund einer Woche ohne
+# Zugriff — danach ist die App tot, bis jemand im Dashboard auf „Restore"
+# drückt. PilzBuddy halten Feedback-Bot und Backup wach; TrailBuddy hat
+# beides noch nicht. Dieser Lauf ist die bewusste Zusage dafür: Wer ihn
+# abschaltet, riskiert ein pausiertes Projekt.
+#
+# Er tut dabei etwas Nützliches statt nur anzuklopfen: `schema_check.sh`
+# fährt die App-Queries gegen das Live-Schema (nur Publishable Key, keine
+# Secrets). Drift zwischen Repo und Live-Datenbank fällt damit auch ohne
+# PR auf. Rot heißt: Schema oder Projekt ansehen — auch „pausiert".
+
+on:
+  schedule:
+    # Montag und Donnerstag: nie mehr als vier Tage Pause.
+    - cron: "23 6 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Live-Schema prüfen
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: App-Queries gegen das Live-Schema
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tool/schema_check.sh
