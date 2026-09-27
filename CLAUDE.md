@@ -117,6 +117,28 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Fahrten können in Phase 1 nicht beigesteuert werden (Zerlegen kommt mit
   der Aufzeichnung, Phase 2). Ohne Zeiten oder mit > 60 km/h Median ⇒
   `planned`.
+- **Höhen** (Patch 002, #14): `trail_recordings.ele` trägt eine Höhe je
+  Punkt der Linie oder ist leer — ganz oder gar nicht, der Check
+  `trail_recordings_ele_check` hält Anzahl und Bereich fest. Vier Dinge,
+  die man wissen muss:
+  - **Die RPC entfernt doppelte Punkte SAMT Höhe** (Fensterfunktion statt
+    `st_removerepeatedpoints`, das nur die Linie kürzte und die Höhen
+    danach versetzt neben ihr herlaufen ließe). `matcher_check.sql`
+    Block 16 prüft genau das.
+  - **Die Vereinfachung vor dem Hochladen rechnet dreidimensional**
+    (`simplify`, senkrechte Toleranz `kSimplifyVerticalM`): Ein gerades,
+    welliges Stück verlöre sonst seine Wellen. Das Import-Blatt rechnet
+    deshalb auf der VEREINFACHTEN Spur, damit es dieselbe Zahl sagt wie
+    danach das Trail-Blatt.
+  - **Hysterese `kElevationThresholdM`**, Spiegel in
+    `tool/elevation_measure.py` mit denselben Testvektoren; Werkzeug und
+    Dart im selben PR ändern. Die Importregel „Abstieg > 2 × Anstieg"
+    rechnet bewusst ROH — so ist sie gemessen.
+  - **Angezeigt wird in Trail-Richtung, aus der besten Aufzeichnung MIT
+    Höhen** (`Trail.elevation`), nicht zwingend aus der besten Linie.
+    Ohne Höhen sagt das Blatt „Keine Höhenangaben", nie „0 Hm".
+    Aufzeichnungen vor 0.3.0 haben keine; ein Weg zum Nachtragen ist
+    offen (eigenes Issue).
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys

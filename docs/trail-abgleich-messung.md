@@ -202,3 +202,16 @@ Der Bericht ist mit `--report` reproduzierbar; die Zahlen oben sind
 seine Ausgabe vom 2026-09-27. Eine zweite Sammlung (ein Buddy) wird
 gegen dieselbe Datei gemessen, indem beide Zips in einen Ordner
 entpackt werden — das Werkzeug nimmt auch ein Verzeichnis.
+
+## Höhen (Issue #14) — Messung steht aus
+
+Anstieg und Abstieg zählt die App mit Hysterese: Eine Höhenänderung
+zählt erst ab einer Schwelle (`kElevationThresholdM`), und vor dem
+Hochladen bleibt ein Punkt auch, wenn seine Höhe mehr als
+`kSimplifyVerticalM` neben der Geraden liegt. Beide Werte stehen
+**vorläufig** auf 5 m und 2 m. Gemessen werden sie mit
+`tool/elevation_measure.py` an derselben Sammlung wie oben
+(`TRAIL_GPX`); der Bericht nennt nur Anzahlen und Meter. Das Ergebnis
+kommt hierher, die Werte folgen ihm — im selben PR wie Werkzeug und
+Dart-Konstanten.
+

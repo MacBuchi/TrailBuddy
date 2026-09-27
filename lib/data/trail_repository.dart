@@ -15,8 +15,10 @@ abstract class TrailRepository {
   /// Steuert eine Aufzeichnung bei und gibt die Trail-Kennung zurück —
   /// die eines bestehenden Trails, wenn der Abgleich „gleich" sagt, sonst
   /// eine neue. Ob sie neu ist, sagt der Server bewusst nicht (4.6).
+  /// [eles] trägt eine Höhe je Punkt oder ist null (Patch 002).
   Future<String> contribute({
     required List<double> coords,
+    List<double>? eles,
     required RecordingSource source,
     DateTime? recordedAt,
     required String clientId,
@@ -28,7 +30,7 @@ abstract class TrailRepository {
 /// Die Spalten der Sicht `recordings_visible` — dieselbe Liste prüft
 /// `tool/schema_check.sh` gegen das Schema.
 const kRecordingColumns =
-    'id, trail_id, user_id, source, recorded_at, reversed, quality, created_at, geojson, length_m';
+    'id, trail_id, user_id, source, recorded_at, reversed, quality, created_at, geojson, length_m, ele';
 
 /// Der Embed heißt nach dem Fremdschlüssel; wird er in einem Patch
 /// umbenannt, muss diese Zeile mitziehen (der Schema Check fällt sonst).
@@ -57,6 +59,7 @@ class SupabaseTrailRepository implements TrailRepository {
   @override
   Future<String> contribute({
     required List<double> coords,
+    List<double>? eles,
     required RecordingSource source,
     DateTime? recordedAt,
     required String clientId,
@@ -68,6 +71,7 @@ class SupabaseTrailRepository implements TrailRepository {
         'source': source.name,
         'recorded_at': recordedAt?.toUtc().toIso8601String(),
         'client_id': clientId,
+        'eles': eles,
       });
       return result as String;
     } on PostgrestException catch (e) {

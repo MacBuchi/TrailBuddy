@@ -51,21 +51,105 @@ double trackLengthM(List<TrackPoint> pts) {
   return sum;
 }
 
-/// (Anstieg, Abstieg) in Metern — nur wenn JEDER Punkt eine Höhe trägt,
-/// sonst null. Eine halbe Höhenreihe ergäbe eine erfundene Zahl.
-({double gain, double loss})? elevationGainLoss(List<TrackPoint> pts) {
-  if (pts.isEmpty || pts.any((p) => p.ele == null)) return null;
+/// Ab dieser Änderung zählt eine Höhe als Anstieg oder Abstieg
+/// (Hysterese). GPS- und Barometerhöhen rauschen: Wer jeden Schritt
+/// aufsummiert, findet auf einem reinen Downhill Dutzende Meter „bergauf",
+/// die niemand getreten hat. **VORLÄUFIG** — gemessen wird mit
+/// `tool/elevation_measure.py` an echten Aufzeichnungen, der Wert hier
+/// folgt der Messung (docs/trail-abgleich-messung.md, Abschnitt Höhen).
+/// Werkzeug und Dart im selben PR ändern, die Testvektoren sind dieselben.
+const double kElevationThresholdM = 5;
+
+/// Senkrechte Toleranz der Vereinfachung vor dem Hochladen: Ein Punkt
+/// bleibt auch, wenn seine Höhe so weit neben der Geraden liegt. Ohne sie
+/// verlöre ein gerades, aber welliges Stück seine Wellen — die Linie
+/// bliebe richtig, die Höhenmeter nicht. **VORLÄUFIG**, siehe oben.
+const double kSimplifyVerticalM = 2;
+
+/// Über diese Strecke wird das steilste Stück gemessen. Von Punkt zu
+/// Punkt wäre es Rauschen: 3 m Höhe auf 5 m Weg sind „60 %".
+const double kSteepestWindowM = 50;
+
+/// Die Höhen einer Spur — nur wenn JEDER Punkt eine plausible trägt,
+/// sonst null. Eine halbe Höhenreihe ergäbe eine erfundene Zahl, und
+/// ein Gerät, das „keine Höhe" als −32768 schreibt, soll die Aufzeichnung
+/// nicht an `trail_recordings_ele_check` scheitern lassen: lieber ohne
+/// Höhen beigesteuert als gar nicht. Dieselben Grenzen wie in der RPC.
+List<double>? trackElevations(List<TrackPoint> pts) {
+  if (pts.isEmpty) return null;
+  final out = <double>[];
+  for (final p in pts) {
+    final e = p.ele;
+    if (e == null || e < kMinElevationM || e > kMaxElevationM) return null;
+    out.add(e);
+  }
+  return out;
+}
+
+/// Plausible Höhen, wie `contribute_recording` sie annimmt.
+const double kMinElevationM = -500;
+const double kMaxElevationM = 9000;
+
+/// Meter bergauf und bergab mit Hysterese: Eine Änderung zählt erst, wenn
+/// sie [thresholdM] gegenüber der zuletzt gezählten Höhe erreicht. Der
+/// Rest am Ende wird mitgebucht, deshalb ist `loss - gain` bei JEDER
+/// Schwelle genau `ele.first - ele.last` — das Nettogefälle hängt nie an
+/// der Schwelle, nur das Rauschen drumherum.
+///
+/// Spiegel von `gain_loss` in `tool/elevation_measure.py`.
+({double gain, double loss}) gainLoss(List<double> ele, double thresholdM) {
+  if (ele.length < 2) return (gain: 0, loss: 0);
+  var ref = ele.first;
   var gain = 0.0;
   var loss = 0.0;
-  for (var i = 1; i < pts.length; i++) {
-    final d = pts[i].ele! - pts[i - 1].ele!;
-    if (d > 0) {
+  for (final e in ele.skip(1)) {
+    final d = e - ref;
+    if (d > 0 && d >= thresholdM) {
       gain += d;
-    } else {
+      ref = e;
+    } else if (d < 0 && -d >= thresholdM) {
       loss -= d;
+      ref = e;
     }
   }
+  final rest = ele.last - ref;
+  if (rest > 0) {
+    gain += rest;
+  } else {
+    loss -= rest;
+  }
   return (gain: gain, loss: loss);
+}
+
+/// (Anstieg, Abstieg) einer Spur, null ohne vollständige Höhen. Die
+/// Vorgabe ist die Schwelle der Anzeige; die Importregel rechnet roh
+/// ([classifyTrack]), so ist sie gemessen.
+({double gain, double loss})? elevationGainLoss(List<TrackPoint> pts,
+    {double thresholdM = kElevationThresholdM}) {
+  final ele = trackElevations(pts);
+  return ele == null ? null : gainLoss(ele, thresholdM);
+}
+
+/// Das steilste Gefälle in Prozent über mindestens [windowM] Meter
+/// (Distanzen aufsteigend, je Punkt). Null, wenn die Strecke kürzer ist.
+/// Ein Anstieg ergibt einen negativen Wert — auf einem Trail, der ganz
+/// bergauf läuft, ist das die ehrliche Antwort.
+///
+/// Spiegel von `steepest` in `tool/elevation_measure.py`.
+double? steepestDescentPct(List<double> distM, List<double> ele,
+    {double windowM = kSteepestWindowM}) {
+  double? best;
+  var j = 0;
+  for (var i = 0; i < distM.length; i++) {
+    if (j < i) j = i;
+    while (j < distM.length && distM[j] - distM[i] < windowM) {
+      j++;
+    }
+    if (j >= distM.length) break;
+    final g = (ele[i] - ele[j]) / (distM[j] - distM[i]) * 100;
+    if (best == null || g > best) best = g;
+  }
+  return best;
 }
 
 /// Ohne verwertbare Zeiten oder mit Fahrradfremden Geschwindigkeiten:
@@ -98,7 +182,8 @@ TrackKind classifyTrack(List<TrackPoint> pts) {
   final length = trackLengthM(pts);
   if (length < kTrailMinLengthM) return TrackKind.fragment;
   if (length >= kTrailMaxLengthM) return TrackKind.ride;
-  final el = elevationGainLoss(pts);
+  // Roh (Schwelle 0): so ist die Regel an 584 Tracks gemessen.
+  final el = elevationGainLoss(pts, thresholdM: 0);
   if (el == null) return TrackKind.trail;
   return el.loss > 2 * el.gain ? TrackKind.trail : TrackKind.ride;
 }
@@ -106,8 +191,15 @@ TrackKind classifyTrack(List<TrackPoint> pts) {
 /// Douglas-Peucker in Metern — damit ein 6 894-Punkte-Track nicht als
 /// 14 000 Zahlen an die RPC geht. 3 m Toleranz liegt unter jedem
 /// GPS-Rauschen und weit unter dem 15-m-Korridor des Abgleichs.
-List<TrackPoint> simplify(List<TrackPoint> pts, {double toleranceM = 3}) {
+///
+/// Tragen ALLE Punkte eine Höhe, zählt auch die senkrechte Abweichung
+/// ([verticalToleranceM], gegen die Höhe an derselben Stelle der Sehne):
+/// Ein Punkt bleibt, sobald er waagerecht ODER senkrecht zu weit
+/// danebenliegt. Spiegel von `simplify_3d` in `tool/elevation_measure.py`.
+List<TrackPoint> simplify(List<TrackPoint> pts,
+    {double toleranceM = 3, double verticalToleranceM = kSimplifyVerticalM}) {
   if (pts.length <= 2) return List.of(pts);
+  final withEle = pts.every((p) => p.ele != null);
   final keep = List<bool>.filled(pts.length, false);
   keep[0] = true;
   keep[pts.length - 1] = true;
@@ -128,19 +220,27 @@ List<TrackPoint> simplify(List<TrackPoint> pts, {double toleranceM = 3}) {
     for (var i = a + 1; i < b; i++) {
       final px = x(pts[i]), py = y(pts[i]);
       double d;
+      var t = 0.0;
       if (l2 == 0) {
         d = math.sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay));
       } else {
-        final t = (((px - ax) * dx + (py - ay) * dy) / l2).clamp(0.0, 1.0);
+        t = (((px - ax) * dx + (py - ay) * dy) / l2).clamp(0.0, 1.0);
         final cx = ax + t * dx, cy = ay + t * dy;
         d = math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
       }
-      if (d > worst) {
-        worst = d;
+      // Beide Abweichungen in Vielfachen ihrer Toleranz: > 1 heißt behalten.
+      var score = d / toleranceM;
+      if (withEle) {
+        final ea = pts[a].ele!, eb = pts[b].ele!;
+        final dv = (pts[i].ele! - (ea + t * (eb - ea))).abs();
+        score = math.max(score, dv / verticalToleranceM);
+      }
+      if (score > worst) {
+        worst = score;
         worstI = i;
       }
     }
-    if (worst > toleranceM) {
+    if (worst > 1) {
       keep[worstI] = true;
       stack.add((a, worstI));
       stack.add((worstI, b));

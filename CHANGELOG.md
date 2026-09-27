@@ -2,6 +2,20 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Höhenmeter und Höhenprofil
+
+*Version 0.3.0, 2026-09-27*
+
+- **Jeder Trail zeigt seine Höhenmeter**: „↓ 420 Hm · ↑ 35 Hm" und das
+  mittlere Gefälle, im Trail-Blatt und kurz in der Liste.
+- **Ein Höhenprofil** im Trail-Blatt, immer in Fahrtrichtung des Trails,
+  mit dem steilsten Stück darunter.
+- Kleine Wellen aus dem GPS-Rauschen zählen nicht mit — auf einer Abfahrt
+  steht deshalb nicht plötzlich „40 m bergauf".
+- **Trails, die du vor dieser Version importiert hast, haben noch keine
+  Höhen** — die App hat sie damals nicht mitgeschickt. Das Blatt sagt es.
+  Ein Weg, sie nachzutragen, kommt.
+
 ## Idee oder Fehler melden
 
 *Version 0.2.0, 2026-09-27*

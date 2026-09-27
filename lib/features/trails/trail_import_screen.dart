@@ -36,7 +36,10 @@ final gpxPickerProvider = Provider<Future<List<PickedFile>> Function()>((ref) {
 class ImportCandidate {
   ImportCandidate(this.file, this.track)
       : lengthM = trackLengthM(track.points),
-        elevation = elevationGainLoss(track.points),
+        // Aus der VEREINFACHTEN Spur, also aus genau dem, was hochgeht:
+        // Das Blatt rechnet danach mit denselben Punkten, und die Zahl
+        // hier soll dieselbe sein wie dort.
+        elevation = elevationGainLoss(simplify(track.points)),
         kind = classifyTrack(track.points),
         source = sourceOf(track.points);
 
@@ -233,7 +236,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   String _describe(ImportCandidate c) {
     final parts = <String>[formatLength(c.lengthM)];
     final el = c.elevation;
-    if (el != null) parts.add('↓ ${el.loss.round()} m · ↑ ${el.gain.round()} m');
+    if (el != null) parts.add(formatElevation(el));
     parts.add(switch (c.source) {
       RecordingSource.planned => 'geplant (keine Fahrzeiten)',
       RecordingSource.import => 'aufgezeichnet',

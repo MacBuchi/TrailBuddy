@@ -4,18 +4,20 @@ import 'package:trailbuddy/features/trails/trail_geometry.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 TrailRecording rec(String trail, String user,
-        {double quality = 0.5, int day = 1, List<LatLng>? pts}) =>
+        {double quality = 0.5, int day = 1, List<LatLng>? pts, List<double>? ele,
+        bool reversed = false}) =>
     TrailRecording(
       id: '$trail-$user-$day',
       trailId: trail,
       userId: user,
       source: RecordingSource.import,
       recordedAt: null,
-      reversed: false,
+      reversed: reversed,
       quality: quality,
       createdAt: DateTime(2026, 1, day),
       points: pts ?? const [LatLng(48, 9), LatLng(48.01, 9)],
       lengthM: 1000,
+      ele: ele,
     );
 
 TrailDetails det(String trail, String user,
@@ -90,5 +92,34 @@ void main() {
       expect(r.source, RecordingSource.planned);
       expect(r.reversed, isTrue);
     }
+  });
+
+  test('Höhen: aus der besten Aufzeichnung MIT Höhen, in Trail-Richtung', () {
+    // Die beste Linie (0,6) ist alt und ohne Höhen; die Höhen kommen aus
+    // der schlechteren, und die ist gegen die Richtung gefahren.
+    final t = buildTrails(recordings: [
+      rec('t', 'me', quality: 0.6),
+      rec('t', 'bob', quality: 0.4, day: 2, ele: [500, 620], reversed: true),
+    ], details: const [], myId: 'me').single;
+    expect(t.best.userId, 'me');
+    expect(t.elevationRecording!.userId, 'bob');
+    expect(t.elevation!.lossM, 120, reason: 'bergauf gefahren, bergab gemeint');
+    expect(t.elevation!.gainM, 0);
+    expect(buildTrails(recordings: [rec('u', 'me')], details: const [], myId: 'me')
+        .single.elevation, isNull);
+  });
+
+  test('fromJson liest ele nur, wenn es zu den Punkten passt', () {
+    Map<String, dynamic> row(Object? ele) => {
+          'id': 'r', 'trail_id': 't', 'user_id': 'u', 'source': 'import',
+          'recorded_at': null, 'reversed': false, 'quality': 0.4,
+          'created_at': '2026-09-27T10:00:00Z', 'length_m': 1000,
+          'geojson': '{"type":"LineString","coordinates":[[9,48],[9,48.01]]}',
+          'ele': ele,
+        };
+    expect(TrailRecording.fromJson(row([500, 480.5])).ele, [500, 480.5]);
+    expect(TrailRecording.fromJson(row(null)).ele, isNull);
+    expect(TrailRecording.fromJson(row([500])).ele, isNull,
+        reason: 'eine verschobene Reihe wäre schlimmer als keine');
   });
 }

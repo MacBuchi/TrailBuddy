@@ -110,7 +110,8 @@ create table public.trail_recordings (
   reversed boolean not null default false,  -- gegen die Trail-Richtung gefahren
   quality real not null,               -- 0..1, siehe 4.5
   created_at timestamptz not null default now(),
-  client_id uuid                       -- Ausgangskorb, Idempotenz wie PilzBuddy Patch 016
+  client_id uuid,                      -- Ausgangskorb, Idempotenz wie PilzBuddy Patch 016
+  ele real[]                           -- Höhe je Punkt oder null (Patch 002, #14)
 );
 create index trail_recordings_geom_gix on public.trail_recordings using gist (geom);
 create index trail_recordings_trail_idx on public.trail_recordings (trail_id);
@@ -166,11 +167,24 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
 - **Linie** = die Aufzeichnung mit der höchsten Qualität unter den
   sichtbaren. Wer allein ist, sieht seine eigene; wer Buddys hat, sieht
   vielleicht deren bessere. Kein Mittelwert (siehe 4.5).
-- **Länge, Höhenmeter, mittleres Gefälle** = aus dieser Linie plus dem
-  Höhengitter (PilzBuddy-Baustein, offline).
+- **Länge** = aus dieser Linie. **Höhenmeter, mittleres Gefälle,
+  steilstes Stück und Profil** = aus den Höhen der besten sichtbaren
+  Aufzeichnung, die welche HAT (eine je Punkt, Patch 002) — nicht
+  zwingend derselben wie die Linie, sonst blieben Trails mit einer alten
+  Aufzeichnung ohne Höhen für immer ohne Zahlen. Immer in
+  Trail-Richtung (4.3): Eine gegen die Richtung gefahrene Aufzeichnung
+  wird umgedreht. Gezählt wird mit Hysterese (eine Höhenänderung erst ab
+  einer Schwelle), gemessen an echten Aufzeichnungen
+  (`tool/elevation_measure.py`, `docs/trail-abgleich-messung.md`).
+  **Korrektur vom 2026-09-27:** Hier stand „plus dem Höhengitter"; das
+  PilzBuddy-Gitter hat 90-m-Waben und 20-m-Stufen und ist für einen
+  3-km-Trail mit Kehren zu grob. Es bleibt der spätere Rückfall für
+  Dateien ohne Höhen.
 - **Name** = eigener Name, sonst der Name des ältesten sichtbaren
   Beitrags; die anderen als „auch: …" (Muster Buddy-Alias in PilzBuddy).
-- **Schwierigkeit** = Median der sichtbaren S-Grade, mit Spanne.
+- **Schwierigkeit** = Median der sichtbaren S-Grade (Singletrail-Skala,
+  von den Buddys eingeschätzt; bei gerader Anzahl der schwerere), mit
+  Spanne.
 - **Status** = die jüngste sichtbare Statusmeldung, mit ihrem Alter
   („gesperrt, gemeldet vor 14 Monaten"). Kein automatisches Verfallen,
   aber ein sichtbares Datum; alle Meldungen bleiben im Blatt. **Jede
@@ -491,7 +505,7 @@ großer Teil der Infrastruktur ist eins zu eins übertragbar:
 | Offline-Karten (PMTiles-Regionen, DACH-Übersicht, Foreground-Service für Downloads) | komplett | unverändert; die Wege-Ebene wird dazu für die Kandidaten-Heuristik gelesen |
 | Tour-Aufzeichnung (Service-Isolate, JSON Lines, Brücke) | `lib/features/tour/` | wird zur Fahrt; Leergang-Logik entfällt |
 | Ausgangskorb (Idempotenz per `client_id`) | `lib/data/outbox*.dart` | Aufträge: Aufzeichnung beitragen, Beitrag ändern |
-| Höhengitter (Copernicus DEM, 20-m-Stufen, DACH, offline) | `elevation-data.yml` | Höhenmeter je Trail, Kandidaten-Heuristik, später Routing |
+| Höhengitter (Copernicus DEM, 20-m-Stufen, DACH, offline) | `elevation-data.yml` | Kandidaten-Heuristik, später Routing, Rückfall für Dateien ohne Höhen — für die Höhenmeter je Trail zu grob (siehe 3) |
 | Höhenlinien auf der Karte | `elevation_contours.dart` | unverändert |
 | Schutzgebiets-Gitter | `protected_areas.dart` | Hinweis beim Anlegen |
 | Erklär-Tour, Neuheiten, Kurzanleitung | Hinweis-Maschine | Skripte neu, Maschine gleich |

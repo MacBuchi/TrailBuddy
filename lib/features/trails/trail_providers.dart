@@ -30,7 +30,8 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     );
   }
 
-  /// Steuert eine Spur bei: vereinfacht, schickt sie an die RPC und legt
+  /// Steuert eine Spur bei: vereinfacht (mit Höhe, siehe [simplify]),
+  /// schickt Linie und Höhen an die RPC und legt
   /// den eigenen Beitrag mit dem Namen aus der Datei an. Gibt die
   /// Trail-Kennung zurück. Wirft, wenn das SCHREIBEN scheitert; ein
   /// gescheitertes Neuladen meldet der Rückgabewert von [reloadAfterWrite]
@@ -45,6 +46,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         source == RecordingSource.planned ? null : track.points.first.time;
     final trailId = await repo.contribute(
       coords: flatCoords(pts),
+      eles: trackElevations(pts),
       source: source,
       recordedAt: recordedAt,
       clientId: clientId ?? newClientId(),
