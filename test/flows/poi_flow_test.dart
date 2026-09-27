@@ -87,6 +87,30 @@ void main() {
     expect(find.text('Öffnungszeiten: Sa-Su 10:00-18:00'), findsOneWidget);
   });
 
+  testWidgets('Detailfilter: eine Art ausblenden, ohne neu zu fragen',
+      (tester) async {
+    settings.poiGroups = const ['food', 'water'];
+    await start(tester);
+    expect(waterPin, findsOneWidget);
+    expect(cafePin, findsOneWidget);
+    final asked = pois.calls.length;
+
+    await tester.tap(find.byTooltip('Orte auf der Karte'));
+    await settle(tester);
+    // Die Arten stehen unter ihrer Gruppe; Sonstiges ist aus, also ohne.
+    expect(find.byKey(const ValueKey('poi-kind-biergarten')), findsOneWidget);
+    expect(find.byKey(const ValueKey('poi-kind-parking')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('poi-kind-cafe')));
+    await settle(tester);
+    expect(settings.poiHiddenKinds, ['cafe']);
+    await tester.tapAt(const Offset(400, 20));
+    await settle(tester, frames: 20);
+
+    expect(cafePin, findsNothing);
+    expect(waterPin, findsOneWidget);
+    expect(pois.calls.length, asked, reason: 'ausblenden fragt nicht neu');
+  });
+
   testWidgets('alles aus: keine einzige Abfrage', (tester) async {
     settings.poiGroups = const [];
     await start(tester);

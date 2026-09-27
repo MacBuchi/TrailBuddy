@@ -80,6 +80,30 @@ class PoiGroupsNotifier extends Notifier<Set<PoiGroup>> {
 final poiGroupsProvider =
     NotifierProvider<PoiGroupsNotifier, Set<PoiGroup>>(PoiGroupsNotifier.new);
 
+/// Der Detailfilter: einzeln abgewählte Arten. Er blendet nur aus —
+/// geladen wird weiter je Gruppe, damit Zwischenspeicher und Abfrage
+/// nicht an jeder Art hängen und ein Wiedereinschalten sofort wirkt.
+class PoiHiddenKindsNotifier extends Notifier<Set<PoiKind>> {
+  @override
+  Set<PoiKind> build() => {
+        for (final name in ref.read(settingsProvider).poiHiddenKinds ?? const [])
+          ...PoiKind.values.where((k) => k.name == name),
+      };
+
+  void toggle(PoiKind kind) {
+    final next = {...state};
+    if (!next.remove(kind)) next.add(kind);
+    state = next;
+    unawaited(ref
+        .read(settingsProvider)
+        .setPoiHiddenKinds([for (final k in PoiKind.values) if (next.contains(k)) k.name])
+        .catchError((Object e, StackTrace s) => logError('Orte-Detailfilter merken', e, s)));
+  }
+}
+
+final poiHiddenKindsProvider =
+    NotifierProvider<PoiHiddenKindsNotifier, Set<PoiKind>>(PoiHiddenKindsNotifier.new);
+
 /// Was geladen ist, je Rasterzelle und Gruppe.
 @immutable
 class PoiState {

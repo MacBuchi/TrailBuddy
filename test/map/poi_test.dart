@@ -1,5 +1,6 @@
 // Orte auf der Karte (#12): Arten erkennen, Overpass-Abfrage bauen und
 // lesen, das Raster, und dass jede Zelle je Gruppe nur einmal gefragt wird.
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -20,6 +21,17 @@ void main() {
       expect(PoiKind.of({'highway': 'track'}), isNull);
     });
 
+    test('Gasthaus mit Biergarten ist ein Biergarten (Krug, nicht Besteck)', () {
+      expect(PoiKind.of({'amenity': 'restaurant', 'biergarten': 'yes'}),
+          PoiKind.biergarten);
+      expect(PoiKind.of({'amenity': 'pub', 'beer_garden': 'yes'}),
+          PoiKind.biergarten);
+      expect(PoiKind.of({'amenity': 'restaurant'}), PoiKind.restaurant);
+      expect(PoiKind.biergarten.icon, Icons.sports_bar);
+      expect(PoiKind.spring.icon, Icons.local_drink, reason: 'Wasserglas statt Wellen');
+      expect(PoiKind.cafe.icon, isNull, reason: 'das Kuchenstück ist gezeichnet');
+    });
+
     test('Ladesäule nur fürs Rad, Parkplatz nur öffentlich', () {
       expect(PoiKind.of({'amenity': 'charging_station'}), isNull);
       expect(PoiKind.of({'amenity': 'charging_station', 'bicycle': 'yes'}),
@@ -38,6 +50,10 @@ void main() {
     expect(q, contains('nwr["amenity"="drinking_water"]'));
     expect(q, contains('nwr["natural"="spring"]'));
     expect(q, isNot(contains('cafe')));
+    expect(overpassQuery((s: 0, w: 0, n: 1, e: 1), {PoiGroup.food}),
+        allOf(contains('nwr["amenity"="biergarten"];'),
+            contains('nwr["biergarten"="yes"];'),
+            contains('nwr["beer_garden"="yes"];')));
     expect(q, endsWith('out center $kPoiMaxResults;'));
     expect(
         overpassQuery((s: 0, w: 0, n: 1, e: 1), {PoiGroup.other}),
@@ -150,6 +166,19 @@ void main() {
       ]);
       addTearDown(c3.dispose);
       expect(c3.read(poiGroupsProvider), isEmpty);
+    });
+
+    test('Detailfilter: vorgegeben alles sichtbar, Abwahl gemerkt', () {
+      final settings = FakeSettings();
+      final c2 = ProviderContainer(
+          overrides: [settingsProvider.overrideWithValue(settings)]);
+      addTearDown(c2.dispose);
+      expect(c2.read(poiHiddenKindsProvider), isEmpty);
+      c2.read(poiHiddenKindsProvider.notifier).toggle(PoiKind.spring);
+      expect(c2.read(poiHiddenKindsProvider), {PoiKind.spring});
+      expect(settings.poiHiddenKinds, ['spring']);
+      c2.read(poiHiddenKindsProvider.notifier).toggle(PoiKind.spring);
+      expect(settings.poiHiddenKinds, isEmpty);
     });
   });
 }
