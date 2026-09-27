@@ -1,0 +1,80 @@
+# Lizenz-Gate über ALLE Abhängigkeiten (nicht nur die neuen).
+#
+# Läuft in .github/workflows/security.yml über `lic_ck check-licenses`.
+# Bewusst NICHT als dev_dependency: `pubspec.yaml` ist nicht vom Version
+# Guard ausgenommen, eine Zeile dort würde also ein Release an die Nutzer
+# auslösen, nur um einen Linter zu installieren. Deshalb
+# `dart pub global activate` im Runner — das schreibt nach ~/.pub-cache und
+# lässt pubspec.lock in Ruhe.
+#
+# **Warum license_checker und nicht `osv-scanner --licenses`:** Dessen
+# Lizenzdaten kommen aus deps.dev, dessen dokumentierte Ökosysteme npm, Go,
+# Maven, PyPI, Cargo, NuGet und RubyGems sind — `pub` ist dort als
+# *Lizenz*-Ökosystem nicht belegt (als *Schwachstellen*-Ökosystem in
+# osv-scanner dagegen sehr wohl). license_checker liest stattdessen die
+# echten LICENSE-Dateien aus dem pub-Cache und kann strukturell nicht dünn
+# sein. `dart_license_checker` fiel raus: vier Jahre alt, nur Anzeige, kein
+# Gate.
+#
+# Seit #265 der EINZIGE Lizenz-Check: `dependency-review` im selben
+# Workflow kann keine Lizenzregel tragen, ohne an GitHubs kleingeschriebenen
+# pub-Lizenzen jede Abhängigkeits-PR rot zu machen (Begründung dort). Diese
+# Liste ist ohnehin die stärkere — sie prüft den GANZEN Baum statt nur das,
+# was ein PR neu hinzufügt, und würde als Einzige einen Lizenzwechsel in
+# einer bestehenden transitiven Abhängigkeit bemerken.
+
+# Freizügige Lizenzen — verträglich mit der MIT-Auslieferung dieser App (Vorlage aus PilzBuddy, dort gegen 174 Pakete geprüft) und
+# mit dem Play Store. Der pub-Bestand besteht fast vollständig aus MIT und
+# BSD-3-Clause.
+permittedLicenses:
+  - MIT
+  - BSD-3-Clause
+  - BSD-2-Clause
+  - Apache-2.0
+  - ISC
+  - Zlib
+  - Unlicense
+  - CC0-1.0
+  # Schwaches Copyleft auf Datei-Ebene: verpflichtet nur, Änderungen AN DER
+  # BIBLIOTHEK offenzulegen, nicht die eigene App. Für eine eingebundene
+  # Abhängigkeit unproblematisch.
+  - MPL-2.0
+  # Die von der OSI geführte moderne MIT-Fassung (ohne die
+  # „Software"-Definition der Urfassung). Trägt `sky_engine`, also die
+  # Flutter-Engine selbst — inhaltlich MIT.
+  - MIT-Modern-Variant
+
+# Starkes Copyleft und Nicht-Kommerziell. Beides würde die Auslieferung
+# einer MIT-lizenzierten App über GitHub-Releases und den Play Store
+# entweder verbieten oder die ganze App unter dieselbe Lizenz zwingen.
+rejectedLicenses:
+  - GPL-2.0
+  - GPL-3.0
+  - AGPL-3.0
+  - LGPL-2.1
+  - LGPL-3.0
+  - SSPL-1.0
+  - CC-BY-NC-4.0
+  - CC-BY-NC-SA-4.0
+
+# Pakete, deren Lizenz der Detektor nicht aus der LICENSE-Datei lesen kann.
+# JEDER Eintrag hier ist von Hand nachgesehen — ein Override ohne Beleg
+# wäre genau das Loch, das dieses Gate schließen soll.
+packageLicenseOverride:
+  # Die LICENSE-Datei trägt nur den Apache-Kurzhinweis („Licensed under the
+  # Apache License, Version 2.0") statt des Volltexts, deshalb erkennt der
+  # Detektor sie nicht. Nachgelesen in
+  # ~/.pub-cache/hosted/pub.dev/latlong2-0.9.1/LICENSE:
+  # „Copyright 2015 Michael Mitterer …, Licensed under the Apache License,
+  # Version 2.0". Apache-2.0 steht oben ohnehin auf der Erlaubt-Liste.
+  latlong2: Apache-2.0
+
+# Pakete ohne eigene LICENSE-Datei. Das sind ausschließlich die
+# SDK-Pseudo-Pakete: Sie liegen IM Flutter-SDK und sind von dessen
+# BSD-3-Clause abgedeckt (`flutter` selbst wird oben korrekt so erkannt).
+# Eine eigene Datei haben sie nie gehabt.
+approvedPackages:
+  no-file:
+    - flutter_localizations
+    - flutter_test
+    - flutter_web_plugins

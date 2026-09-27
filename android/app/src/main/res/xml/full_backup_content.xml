@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Dasselbe für Android 11 und älter (API ≤ 30), das noch
+  `android:fullBackupContent` auswertet. Inhaltlich identisch zu
+  backup_rules.xml — beide Dateien zusammen halten.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+    <exclude domain="file" path="offline_maps"/>
+    <exclude domain="file" path="outbox"/>
+    <exclude domain="file" path="trail_cache"/>
+    <exclude domain="file" path="rides"/>
+    <exclude domain="file" path="updates"/>
+</full-backup-content>

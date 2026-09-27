@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup-Regeln ab Android 12 (API 31). Gesichert wird weiter, aber ohne:
+
+  * FlutterSharedPreferences.xml — darin liegt der Supabase-Session-Token.
+    Ein Auth-Credential hat in Googles Cloud nichts verloren.
+  * updates/ — die geladene Update-APK, reiner Zwischenschritt.
+  * offline_maps/ — Regionskarten von 44 MB bis 2 GB, jederzeit neu ladbar;
+    Auto-Backup hat 25 MB je App, eine Karte sprengt das.
+  * trail_cache/ — die zwischengespeicherten Trails des eigenen Netzes.
+    Googles Cloud ist in der Datenschutzerklärung kein Empfänger.
+  * rides/ — die eigenen Fahrten (Bewegungsprofile, Haustür bis Haustür).
+    Sie verlassen das Gerät nie (Konzept, Entscheidung 4), also auch nicht
+    über ein Backup.
+  * outbox/ — Aufträge des Ausgangskorbs: Aufzeichnungen, die auf die
+    Übertragung warten. Hier stehen Linien, BEVOR sie irgendwo anders
+    stehen.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+        <exclude domain="file" path="offline_maps"/>
+        <exclude domain="file" path="outbox"/>
+        <exclude domain="file" path="trail_cache"/>
+        <exclude domain="file" path="rides"/>
+        <exclude domain="file" path="updates"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+        <exclude domain="file" path="offline_maps"/>
+        <exclude domain="file" path="outbox"/>
+        <exclude domain="file" path="trail_cache"/>
+        <exclude domain="file" path="rides"/>
+        <exclude domain="file" path="updates"/>
+    </device-transfer>
+</data-extraction-rules>

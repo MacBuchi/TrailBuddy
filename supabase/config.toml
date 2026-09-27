@@ -1,0 +1,114 @@
+# Lokaler Supabase-Stack — für den CI-Job „Schema Dry Run" und denselben
+# Ablauf von Hand (tool/ci_supabase_start.sh, tool/schema_check.sh,
+# tool/auth_reset_check.sh). Ein Live-Projekt gibt es noch nicht
+# (Konzept, Entscheidung 9); bis dahin IST dieser Stack die Datenbank der
+# Entwicklung. Sobald es eines gibt, wird es über tool/db_migrate.sh +
+# supabase/patch_NNN_*.sql migriert, nie über diese Datei.
+#
+# Bewusst minimal: nur Datenbank, Auth, PostgREST. schema.sql braucht Auth
+# zwingend (references auth.users, auth.uid() in Policies, Trigger auf
+# auth.users) und PostGIS (bringt das Postgres-Image mit) — alles andere
+# kostet auf dem CI-Runner nur Startzeit. Kein Storage (keine Fotos), keine
+# Edge Functions (kein Push).
+project_id = "TrailBuddy"
+
+# ⚠️ EIGENER PORTBLOCK, NICHT DIE VORGABE (54321 ff.).
+# Auf demselben Rechner liegen mehrere Projekte mit lokalem Stack, jedes
+# mit eigenem Hunderterblock (FWApp 5432x, MitFahrBar 5532x, PilzBuddy
+# 5442x). Die Kollision zweier Stacks ist still: Läuft der eine schon,
+# scheitert `supabase start` hier, und alles danach redet mit der FALSCHEN
+# Datenbank — PilzBuddy hat so einmal in FWApps Buckets geschrieben.
+# TrailBuddy: 5452x. Wer einen Port ändert, ändert ihn auch in
+# .github/workflows/ci.yml und tool/auth_reset_check.sh mit.
+[api]
+enabled = true
+port = 54521
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+# Legacy-Verhalten der Bestandsprojekte: Tabellen im public-Schema sind
+# ohne explizite Grants über die API erreichbar. schema.sql verlässt sich
+# NICHT darauf — es nimmt allen Tabellen erst alle Rechte und vergibt sie
+# gezielt zurück —, die Zeile bleibt aber, damit der Dry Run dieselben
+# Regeln prüft wie ein Live-Projekt mit dieser Vorgabe. Das Feld fällt am
+# 2026-10-30 weg; dann kann die Zeile raus, an schema.sql ändert das nichts.
+auto_expose_new_tables = true
+
+[db]
+port = 54522
+# Ausdrücklich gesetzt: Ohne diese Zeile nimmt die CLI die Vorgabe 54320 —
+# und damit den Port, auf dem FWApps Schattendatenbank liegt.
+shadow_port = 54520
+# Wie Supabase-Projekte heute (Server 17.x).
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[auth]
+enabled = true
+# Der Dry Run legt über die API Testkonten an (auth_reset_check.sh); GoTrue
+# muss das auth-Schema anlegen, damit schema.sql durchläuft.
+site_url = "http://127.0.0.1:3000"
+
+# Mailpit fängt die Auth-Mails lokal ab (Web-UI und REST-API unter diesem
+# Port) — damit ist „Passwort vergessen" komplett ohne Mailversand prüfbar:
+# Mail abholen, Code auslesen, einlösen.
+[local_smtp]
+enabled = true
+port = 54524
+
+# Spiegelt die Härtung, die im Dashboard eines Live-Projekts zu setzen ist
+# (aus PilzBuddy übernommen), damit lokal nicht laxer geprüft wird als in
+# Produktion — genau solcher Drift bleibt sonst unbemerkt.
+[auth.email]
+# Passwort-Änderungen verlangen eine frische Anmeldung. Der Reset-Flow
+# lebt davon, dass die eben per Code eingelöste Sitzung als frisch gilt —
+# mit dieser Zeile beweist der lokale Lauf das mit.
+secure_password_change = true
+# Bestätigungspflicht: Sonst entstehen Konten auf Adressen, die niemand
+# liest — der Reset-Code kann sie nie erreichen, und unzustellbare Mails
+# schlagen auf die Absender-Reputation. Die App zeigt nach signUp die
+# Code-Eingabe (Muster PilzBuddy).
+enable_confirmations = true
+# „Secure email change": Eine neue Adresse braucht Codes aus BEIDEN
+# Postfächern — ein gestohlenes Session-Token allein kann das Konto nicht
+# auf eine fremde Adresse umziehen.
+double_confirm_changes = true
+
+# Dieselben Vorlagen, die ins Dashboard gehören (versionierte Kopien, siehe
+# die Dateien): Code statt Link. Ohne diesen Block verschickt der lokale
+# Stack GoTrues englische Standard-Mail mit Link — dann prüft man lokal
+# etwas anderes als das, was die App kann.
+[auth.email.template.confirmation]
+subject = "TrailBuddy: Bitte bestätige deine Adresse"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "TrailBuddy: Code zum Zurücksetzen"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "TrailBuddy: Code für die neue Adresse"
+content_path = "./supabase/templates/email_change.html"
+
+[studio]
+enabled = false
+
+[realtime]
+enabled = false
+
+[storage]
+# Aus: Es gibt keine Buckets. Kommen Fotos (PilzBuddy Patch 026 als
+# Muster), braucht schema.sql `storage.buckets`, und das Schema legen die
+# Migrationen des Storage-Dienstes beim Start an — dann hier einschalten
+# und storage-api aus der Ausschlussliste in tool/ci_supabase_start.sh
+# nehmen.
+enabled = false
+
+[edge_runtime]
+# Aus: keine Functions (kein Push). Mit den Functions kommt die
+# Begründung, warum eine davon `verify_jwt = false` braucht — nicht vorher.
+enabled = false
+
+[analytics]
+enabled = false

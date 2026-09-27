@@ -1,0 +1,31 @@
+# Abhängigkeits-Updates, gebündelt und monatlich (Muster PilzBuddy):
+# `pubspec.yaml` ist nicht vom Version Guard ausgenommen, jeder pub-PR
+# verlangt einen Bump und wird damit ein Release. Gebündelt bleibt es
+# EIN PR im Monat. `.github/` ist ausgenommen; die Actions-PRs pflegen die
+# SHA-Pins der Fremd-Actions.
+version: 2
+updates:
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore"
+    groups:
+      pub-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+# Bewusst NICHT: "gradle" (Versionen kommen aus dem Flutter-SDK, AGP und
+# Kotlin werden beim Flutter-Upgrade von Hand mitgezogen) und "pip" (die
+# Skripte in tool/ brauchen keine Fremdpakete).

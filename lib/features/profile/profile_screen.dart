@@ -1,0 +1,495 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/app_distribution.dart';
+import '../../core/app_info.dart';
+import '../../core/errors.dart';
+import '../../core/update_check.dart';
+import '../../core/widgets/form_notice.dart';
+import '../../core/widgets/letter_avatar.dart';
+import '../../core/widgets/password_field.dart';
+import '../../data/providers.dart';
+import 'account_dialogs.dart';
+import 'profile_providers.dart';
+
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(myProfileProvider);
+    final profile = profileAsync.valueOrNull;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          IconButton(
+            // Nach dem Abmelden leitet der Router sofort auf /login um —
+            // alles, was danach noch `ref` bräuchte, gehört VOR diesen
+            // Aufruf.
+            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            icon: const Icon(Icons.logout),
+            tooltip: 'Abmelden',
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (profile != null) ...[
+            Row(
+              children: [
+                LetterAvatar(name: profile.username, size: 56),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(profile.username,
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+          ] else if (profileAsync.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('Trails importieren'),
+            subtitle: const Text(
+                'GPX-Aufzeichnungen aus anderen Apps in dein Trail-Netz holen'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/profile/import'),
+          ),
+          const Divider(height: 32),
+          ChangeUsernameTile(username: profile?.username),
+          const ChangeEmailTile(),
+          const _ChangePasswordTile(),
+          const SignOutOtherDevicesTile(),
+          const Divider(height: 40),
+          const _AboutSection(),
+          const Divider(height: 40),
+          _DeleteAccountTile(username: profile?.username),
+        ],
+      ),
+    );
+  }
+}
+
+/// Passwort ändern für Angemeldete. Der Reset-Flow auf dem Login-Screen
+/// hilft nur, wer ausgesperrt ist — wer drin ist, braucht diesen Weg.
+class _ChangePasswordTile extends ConsumerWidget {
+  const _ChangePasswordTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.lock_outline),
+      title: const Text('Passwort ändern'),
+      subtitle: const Text(
+          'Braucht dein aktuelles Passwort — so ist ein fremdes Gerät '
+          'allein nicht genug'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => const _ChangePasswordDialog(),
+      ),
+    );
+  }
+}
+
+class _ChangePasswordDialog extends ConsumerStatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  ConsumerState<_ChangePasswordDialog> createState() =>
+      _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
+  final _currentController = TextEditingController();
+  final _newController = TextEditingController();
+  final _repeatController = TextEditingController();
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _repeatController.dispose();
+    super.dispose();
+  }
+
+  bool get _canSave =>
+      _currentController.text.isNotEmpty &&
+      _newController.text.length >= minPasswordLength &&
+      _newController.text == _repeatController.text;
+
+  Future<void> _save() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(authRepositoryProvider).changePassword(
+            currentPassword: _currentController.text,
+            newPassword: _newController.text,
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dein Passwort ist geändert.')),
+      );
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = changePasswordErrorMessage(e));
+    } catch (e, stackTrace) {
+      logError('Passwort ändern', e, stackTrace);
+      if (mounted) setState(() => _error = friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Passwort ändern'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PasswordField(
+              controller: _currentController,
+              label: 'Aktuelles Passwort',
+              textInputAction: TextInputAction.next,
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            PasswordField(
+              controller: _newController,
+              label: 'Neues Passwort (mind. $minPasswordLength Zeichen)',
+              textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            PasswordField(
+              controller: _repeatController,
+              label: 'Neues Passwort wiederholen',
+              onSubmitted: (_) => (_canSave && !_busy) ? _save() : null,
+              onChanged: (_) => setState(() {}),
+            ),
+            PasswordMatchHint(
+              password: _newController.text,
+              repeated: _repeatController.text,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              FormNotice(message: _error!, tone: NoticeTone.error),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          onPressed: (!_canSave || _busy) ? null : _save,
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Speichern'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Konto endgültig löschen — bewusst ganz unten und optisch abgesetzt.
+class _DeleteAccountTile extends ConsumerWidget {
+  const _DeleteAccountTile({required this.username});
+
+  final String? username;
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final name = username;
+    if (name == null) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => _DeleteAccountDialog(username: name),
+        ) ??
+        false;
+    if (!confirmed || !context.mounted) return;
+
+    try {
+      await ref.read(authRepositoryProvider).deleteAccount();
+      // Der Router schickt nach dem Abmelden automatisch auf /login.
+    } catch (e, stackTrace) {
+      logError('Konto löschen', e, stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final error = Theme.of(context).colorScheme.error;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      leading: Icon(Icons.no_accounts_outlined, color: error),
+      title: Text('Konto löschen', style: TextStyle(color: error)),
+      subtitle: const Text(
+          'Entfernt dich und alle deine Trails endgültig — ohne Karenzzeit.'),
+      // Ohne geladenes Profil fehlt der Benutzername für die Bestätigung.
+      enabled: username != null,
+      onTap: () => _confirmAndDelete(context, ref),
+    );
+  }
+}
+
+/// Bestätigung durch Abtippen des Benutzernamens. Ein Ja/Nein-Dialog wäre
+/// für eine unwiderrufliche Aktion zu leicht versehentlich zu treffen.
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog({required this.username});
+
+  final String username;
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _controller = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  bool get _matches => _controller.text.trim() == widget.username;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Konto endgültig löschen?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Sofort und unwiderruflich gelöscht werden: dein Profil, '
+                'alle deine Trails und deine Buddy-Verbindungen.'),
+            const SizedBox(height: 12),
+            const Text(
+                'Deine Trails verschwinden damit auch aus dem Netz deiner '
+                'Buddys — geteilte Trails sind Kopien deiner Daten, keine '
+                'eigenen.'),
+            const SizedBox(height: 12),
+            Text(
+              'Bereits abgeschicktes Feedback bleibt bestehen: es steht mit '
+              'deinem Benutzernamen öffentlich im GitHub-Projekt und lässt '
+              'sich von hier aus nicht zurückholen.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            Text('Tippe „${widget.username}" ein, um zu bestätigen:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Benutzername',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _busy ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error),
+          onPressed: (!_matches || _busy)
+              ? null
+              : () {
+                  setState(() => _busy = true);
+                  Navigator.of(context).pop(true);
+                },
+          child: const Text('Endgültig löschen'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dezente „Über"-Sektion am Ende des Profils: Version, Update-Status
+/// und die öffentlichen Links der App.
+class _AboutSection extends ConsumerWidget {
+  const _AboutSection();
+
+  Future<void> _open(String url) =>
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final version = ref.watch(appVersionProvider).valueOrNull ?? '–';
+    final updateInfo = ref.watch(updateInfoProvider).valueOrNull;
+    final updateStatus = kIsWeb
+        ? 'Die Web-App ist immer aktuell.'
+        : !AppDistribution.showsUpdateHints
+            // Play-Build: der Store aktualisiert selbst, die App prüft nichts.
+            ? 'Updates kommen über den Play Store.'
+            : updateInfo != null
+                ? 'Neueste Version: v${updateInfo.latestVersion} — zum '
+                    'Herunterladen auf der Projektseite.'
+                : 'Du bist auf dem aktuellen Stand.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Über TrailBuddy',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text('Version $version — $updateStatus',
+            style: Theme.of(context).textTheme.bodySmall),
+        // Nur wo der Update-Weg überhaupt läuft. Im Web und im Play-Build
+        // zeigte der Schalter auf nichts; der Provider hält denselben
+        // Riegel, hier steht er gegen einen Schalter, den man sonst
+        // umlegen könnte, ohne dass je etwas passiert.
+        if (updateChecksApply)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            secondary: const Icon(Icons.science_outlined),
+            title: const Text('Vorabversionen erhalten'),
+            subtitle: const Text(
+                'Bietet auch Zwischenstände an, die noch nicht freigegeben '
+                'sind — ungetestet und häufig. Gilt nur für dieses Gerät.'),
+            value: ref.watch(prereleaseUpdatesProvider),
+            onChanged: (value) =>
+                ref.read(prereleaseUpdatesProvider.notifier).set(value),
+          ),
+        // Der Web-Gegenpart zu „Vorabversionen erhalten" — aber bewusst
+        // KEIN Schalter: Die Vorschau liegt auf einem eigenen Origin, der
+        // Wechsel ist also eine Navigation und keine Einstellung. Und weil
+        // damit ein eigener `localStorage` gilt, muss der Text die
+        // Neuanmeldung ansagen; sonst sieht sie aus wie ein Fehler.
+        if (ref.watch(webChannelProvider) == WebChannel.stable)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(Icons.science_outlined),
+            title: const Text('Entwicklungsversion öffnen'),
+            subtitle: const Text(
+                'Der neueste Zwischenstand — ungetestet und oft halbfertig. '
+                'Öffnet eine eigene Adresse; dort musst du dich neu '
+                'anmelden.'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => _open(AppInfo.previewAppUrl),
+          ),
+        // Und der Rückweg. Er steht nur in der Vorschau, dafür an
+        // derselben Stelle — wer hierher gefunden hat, soll auch wieder
+        // hinausfinden.
+        if (ref.watch(webChannelProvider) == WebChannel.preview)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: const Icon(Icons.verified_outlined),
+            title: const Text('Zur freigegebenen Version'),
+            subtitle: const Text(
+                'Du benutzt gerade einen Entwicklungsstand. Die echte App '
+                'liegt unter ihrer gewohnten Adresse.'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => _open(AppInfo.webAppUrl),
+          ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.auto_stories_outlined),
+          title: const Text('Was ist neu'),
+          subtitle: const Text('Was sich in welcher Version geändert hat'),
+          onTap: () => context.push('/profile/changelog'),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.code),
+          title: const Text('GitHub-Projekt & Dokumentation'),
+          subtitle: const Text(AppInfo.githubUrl),
+          onTap: () => _open(AppInfo.githubUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.public),
+          title: const Text('Web-App'),
+          subtitle: const Text(AppInfo.webAppUrl),
+          onTap: () => _open(AppInfo.webAppUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: const Text('Datenschutzerklärung'),
+          subtitle: const Text('Was gespeichert wird — und was öffentlich ist'),
+          onTap: () => _open(AppInfo.privacyUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.info_outline),
+          title: const Text('Impressum'),
+          subtitle: const Text('Wer TrailBuddy anbietet'),
+          onTap: () => _open(AppInfo.impressumUrl),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.description_outlined),
+          title: const Text('Open-Source-Lizenzen'),
+          subtitle: const Text('TrailBuddy steht unter der MIT-Lizenz'),
+          onTap: () => showLicensePage(
+            context: context,
+            applicationName: 'TrailBuddy',
+            applicationVersion: version,
+            // Das Pseudonym wie in LICENSE: Der Klarname steht nur, wo er
+            // Pflicht ist — Impressum und Datenschutzerklärung.
+            applicationLegalese: '© 2026 MacBuchi — MIT-Lizenz',
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Kartendaten: © OpenStreetMap-Mitwirkende',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}

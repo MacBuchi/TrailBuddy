@@ -1,0 +1,160 @@
+name: Release
+
+# Zwei Wege zum Release (Muster PilzBuddy):
+#  - Push eines Tags v* baut und veröffentlicht genau diesen Stand.
+#  - Push auf main: steht in pubspec.yaml eine Version ohne passenden Tag,
+#    wird v<version> getaggt und released. Kein Bump = kein Release.
+#
+# Alles hier ist ein PRERELEASE. Freigegeben wird später von Hand über
+# promote.yml (kommt mit dem Pages-Deploy). Der Update-Weg der App fragt
+# `/releases/latest`, und dort liefert GitHub keine Prereleases.
+#
+# **Kein Keystore, kein Tag.** Solange die Secrets ANDROID_KEYSTORE_* fehlen,
+# tut dieser Workflow sichtbar nichts (Run-Summary) — und zwar VOR dem Taggen.
+# Ein Tag ohne Release ist nur von Hand zu heilen, und die Tag-Entscheidung
+# hielte den Stand fortan für veröffentlicht. Der `secrets`-Kontext ist in
+# `if:` nicht verfügbar (GitHub verwirft dann die ganze Datei), deshalb ein
+# Feststell-Schritt mit `env:` und `steps.<id>.outputs`.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    name: Determine release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.decide.outputs.tag }}
+      release: ${{ steps.decide.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Keystore-Secrets vorhanden?
+        id: keystore
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "have=$([ -n "$KS" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Kein Keystore, kein Release
+        if: steps.keystore.outputs.have == 'false'
+        run: |
+          {
+            echo "### Kein Release — \`ANDROID_KEYSTORE_BASE64\` fehlt"
+            echo ""
+            echo "Es wurde weder getaggt noch gebaut. Einrichtung: Keystore erzeugen,"
+            echo "als Secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,"
+            echo "ANDROID_KEY_PASSWORD und ANDROID_KEY_ALIAS hinterlegen (CLAUDE.md, Signing)."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - id: decide
+        if: steps.keystore.outputs.have == 'true'
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          version=$(sed -n 's/^version: \([0-9][0-9.]*\).*/\1/p' pubspec.yaml)
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag existiert schon — kein neues Release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$tag"
+            git push origin "$tag"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-android:
+    name: Build Android APK + AAB (signed)
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+      - run: flutter pub get
+      - name: Write signing config
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          echo "$KEYSTORE_BASE64" | base64 -d > android/trailbuddy-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=trailbuddy-release.jks
+          EOF
+      # Nur arm64 für die GitHub-APK; `disable-abi-filtering` gehört dazu,
+      # sonst setzt das Flutter-Gradle-Plugin die Filter selbst zurück
+      # (PilzBuddy, nachgemessen). `--flavor github` behält den Update-Weg.
+      - run: >
+          flutter build apk --release
+          --flavor github
+          --target-platform android-arm64
+          -Pdisable-abi-filtering=true
+      - name: Artefakt benennen
+        run: cp build/app/outputs/flutter-apk/app-github-release.apk "trailbuddy-${{ needs.version.outputs.tag }}.apk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: trailbuddy-${{ needs.version.outputs.tag }}.apk
+      # AAB für den Play Store, universal (Play splittet selbst), mit
+      # PLAY_BUILD=true (kein Update-Hinweis) und `--flavor play` (ohne
+      # REQUEST_INSTALL_PACKAGES). Nur Artefakt, nicht am Release.
+      - run: >
+          flutter build appbundle --release
+          --flavor play
+          --dart-define=PLAY_BUILD=true
+      - name: Bundle benennen
+        run: cp build/app/outputs/bundle/playRelease/app-play-release.aab "trailbuddy-${{ needs.version.outputs.tag }}.aab"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-aab
+          path: trailbuddy-${{ needs.version.outputs.tag }}.aab
+          retention-days: 90
+
+  release:
+    name: Create GitHub Release
+    needs: [version, build-android]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          generate_release_notes: true
+          files: trailbuddy-*.apk
+          # BEIDE Zeilen gehören zusammen: `prerelease` allein genügt nicht,
+          # GitHub markiert das neueste Release sonst trotzdem als „latest".
+          prerelease: true
+          make_latest: false

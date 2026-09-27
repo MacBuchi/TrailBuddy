@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Was der FileProvider herausgeben darf — nur der Ordner mit der geladenen
+  Update-APK, nicht das App-Verzeichnis (dort liegen Session-Token und
+  Zwischenspeicher). `files-path` ist `getFilesDir()`, also
+  path_provider's getApplicationSupportDirectory() auf Android.
+-->
+<paths>
+    <files-path name="updates" path="updates/"/>
+</paths>
