@@ -34,10 +34,11 @@ void main() {
   });
 
   test('Rauschen auf einem Downhill zählt nicht als Anstieg', () {
-    // ±3 m Zickzack auf ~100 m Gefälle: roh rund 70 m „bergauf", mit
-    // der Schwelle keiner. (Endet auf einem Tal, sonst bucht der Rest am
-    // Ende die letzte halbe Welle als Anstieg.)
-    final ele = [for (var i = 0; i < 40; i++) 600 - i * 2.5 + (i.isEven ? 3.0 : -3.0)];
+    // ±2,4 m Zickzack auf ~80 m Gefälle: jede Welle steigt 2,8 m, knapp
+    // unter der Schwelle — roh rund 55 m „bergauf", mit der Schwelle
+    // keiner. (Endet auf einem Tal, sonst bucht der Rest am Ende die
+    // letzte halbe Welle als Anstieg.)
+    final ele = [for (var i = 0; i < 40; i++) 600 - i * 2.0 + (i.isEven ? 2.4 : -2.4)];
     expect(gainLoss(ele, 0).gain, greaterThan(20));
     expect(gainLoss(ele, kElevationThresholdM).gain, 0);
   });

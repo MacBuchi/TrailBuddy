@@ -2,6 +2,15 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Höhenmeter an echten Fahrten abgestimmt
+
+*Version 0.4.1, 2026-09-27*
+
+- **Genauere Höhenmeter**: Ab wann ein Auf und Ab zählt, ist jetzt an
+  Hunderten echten Fahrten gemessen statt geschätzt. Auf reinen Abfahrten
+  erscheint kein erfundener Anstieg mehr, auf Touren geht weniger echter
+  Anstieg verloren.
+
 ## Schwierigkeit nach der Singletrail-Skala
 
 *Version 0.4.0, 2026-09-27*

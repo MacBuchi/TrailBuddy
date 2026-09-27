@@ -54,16 +54,20 @@ double trackLengthM(List<TrackPoint> pts) {
 /// Ab dieser Änderung zählt eine Höhe als Anstieg oder Abstieg
 /// (Hysterese). GPS- und Barometerhöhen rauschen: Wer jeden Schritt
 /// aufsummiert, findet auf einem reinen Downhill Dutzende Meter „bergauf",
-/// die niemand getreten hat. **VORLÄUFIG** — gemessen wird mit
-/// `tool/elevation_measure.py` an echten Aufzeichnungen, der Wert hier
-/// folgt der Messung (docs/trail-abgleich-messung.md, Abschnitt Höhen).
-/// Werkzeug und Dart im selben PR ändern, die Testvektoren sind dieselben.
-const double kElevationThresholdM = 5;
+/// die niemand getreten hat. Gemessen mit `tool/elevation_measure.py` an
+/// echten Aufzeichnungen (docs/trail-abgleich-messung.md, Abschnitt
+/// Höhen): Ab 3 m fällt der Anstieg auf Trails im Median auf 0 und der
+/// Abstieg auf das Nettogefälle, Fahrten behalten 88 % ihres Anstiegs
+/// (5 m: 82 %). Werkzeug und Dart im selben PR ändern, die Testvektoren
+/// sind dieselben.
+const double kElevationThresholdM = 3;
 
 /// Senkrechte Toleranz der Vereinfachung vor dem Hochladen: Ein Punkt
 /// bleibt auch, wenn seine Höhe so weit neben der Geraden liegt. Ohne sie
 /// verlöre ein gerades, aber welliges Stück seine Wellen — die Linie
-/// bliebe richtig, die Höhenmeter nicht. **VORLÄUFIG**, siehe oben.
+/// bliebe richtig, die Höhenmeter nicht. Gemessen wie oben: Bei 2 m
+/// weichen Anstieg und Abstieg im p90 um 2 m ab (ohne: 3 m), und der
+/// Wert liegt unter der Schwelle — eine gezählte Welle geht nicht verloren.
 const double kSimplifyVerticalM = 2;
 
 /// Über diese Strecke wird das steilste Stück gemessen. Von Punkt zu
