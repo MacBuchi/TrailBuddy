@@ -126,11 +126,13 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     danach versetzt neben ihr herlaufen ließe). `matcher_check.sql`
     Block 16 prüft genau das.
   - **Die Vereinfachung vor dem Hochladen rechnet dreidimensional**
-    (`simplify`, senkrechte Toleranz `kSimplifyVerticalM`): Ein gerades,
+    (`simplify`, senkrechte Toleranz `kSimplifyVerticalM` = 2 m,
+    gemessen): Ein gerades,
     welliges Stück verlöre sonst seine Wellen. Das Import-Blatt rechnet
     deshalb auf der VEREINFACHTEN Spur, damit es dieselbe Zahl sagt wie
     danach das Trail-Blatt.
-  - **Hysterese `kElevationThresholdM`**, Spiegel in
+  - **Hysterese `kElevationThresholdM` = 3 m**, gemessen an 578 Tracks
+    (`docs/trail-abgleich-messung.md`, Abschnitt Höhen), Spiegel in
     `tool/elevation_measure.py` mit denselben Testvektoren; Werkzeug und
     Dart im selben PR ändern. Die Importregel „Abstieg > 2 × Anstieg"
     rechnet bewusst ROH — so ist sie gemessen.

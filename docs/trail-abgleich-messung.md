@@ -203,15 +203,99 @@ seine Ausgabe vom 2026-09-27. Eine zweite Sammlung (ein Buddy) wird
 gegen dieselbe Datei gemessen, indem beide Zips in einen Ordner
 entpackt werden — das Werkzeug nimmt auch ein Verzeichnis.
 
-## Höhen (Issue #14) — Messung steht aus
+## Höhen (Issue #14)
 
 Anstieg und Abstieg zählt die App mit Hysterese: Eine Höhenänderung
 zählt erst ab einer Schwelle (`kElevationThresholdM`), und vor dem
 Hochladen bleibt ein Punkt auch, wenn seine Höhe mehr als
-`kSimplifyVerticalM` neben der Geraden liegt. Beide Werte stehen
-**vorläufig** auf 5 m und 2 m. Gemessen werden sie mit
-`tool/elevation_measure.py` an derselben Sammlung wie oben
-(`TRAIL_GPX`); der Bericht nennt nur Anzahlen und Meter. Das Ergebnis
-kommt hierher, die Werte folgen ihm — im selben PR wie Werkzeug und
-Dart-Konstanten.
+`kSimplifyVerticalM` neben der Geraden liegt. Gemessen am 2026-09-27
+mit `tool/elevation_measure.py` an derselben Sammlung wie oben:
 
+- Dateien: 584, davon mit Höhe an JEDEM Punkt: 578 (99 %)
+- darunter Trails (< 8 km, bergab): 454, Fahrten: 112
+- Höhenschritt Punkt zu Punkt: Median 0,83 m, p90 4,00 m; ganzzahlige
+  Werte 32 %
+
+**Ergebnis: Schwelle 3 m, senkrechte Toleranz 2 m.**
+
+### Schwelle — Trails
+
+Auf einem Trail, der bergab läuft, ist fast jeder Meter „bergauf"
+Rauschen. Abstieg − Anstieg ist bei jeder Schwelle gleich.
+
+| Schwelle | Anstieg Median | Anstieg p90 | Abstieg Median | Abstieg / Nettogefälle |
+|---:|---:|---:|---:|---:|
+| 0 m | 4 m | 37 m | 86 m | 1.03 |
+| 1 m | 3 m | 31 m | 85 m | 1.02 |
+| 2 m | 1 m | 25 m | 83 m | 1.01 |
+| 3 m | 0 m | 22 m | 82 m | 1.00 |
+| 5 m | 0 m | 18 m | 82 m | 1.00 |
+| 8 m | 0 m | 11 m | 81 m | 1.00 |
+| 10 m | 0 m | 11 m | 80 m | 1.00 |
+
+### Schwelle — Fahrten (Gegenprobe)
+
+| Schwelle | Anstieg Median | Anstieg / roh |
+|---:|---:|---:|
+| 0 m | 105 m | 1.00 |
+| 1 m | 97 m | 0.97 |
+| 2 m | 93 m | 0.92 |
+| 3 m | 91 m | 0.88 |
+| 5 m | 88 m | 0.82 |
+| 8 m | 80 m | 0.73 |
+| 10 m | 72 m | 0.69 |
+
+3 m ist die kleinste Schwelle, ab der der Anstieg auf Trails im Median
+0 ist und der Abstieg dem Nettogefälle entspricht. Fahrten behalten
+dabei 88 % ihres rohen Anstiegs; 5 m (der vorläufige Wert) kostete sie
+82 %, 8 m schon 73 %. Offen bleibt der p90 auf Trails (22 m): Ein
+Zehntel der Trails trägt noch Scheinanstieg, den nur eine Schwelle
+wegbekäme, die auf Fahrten deutlich mehr kostet.
+
+### Importregel mit Schwelle? (nur berichtet)
+
+Die Importregel „Abstieg > 2 × Anstieg" rechnet ROH und bleibt so.
+Rechnete sie mit Schwelle, kippten von den Dateien unter 8 km:
+
+| Schwelle | Fahrt → Trail | Trail → Fahrt |
+|---:|---:|---:|
+| 1 m | 4 | 0 |
+| 2 m | 5 | 0 |
+| 3 m | 9 | 0 |
+| 5 m | 11 | 0 |
+| 8 m | 16 | 0 |
+| 10 m | 18 | 0 |
+
+### Ausdünnen vor dem Hochladen
+
+Punkte, die übrig bleiben (Median), und Abweichung von Anstieg/Abstieg
+gegenüber allen Punkten, je Schwelle. „nur 3 m" ist die Vereinfachung
+ohne Höhe.
+
+| senkrecht | Punkte übrig | Δ Anstieg p90 (3 m) | Δ Abstieg p90 (3 m) | Δ Anstieg p90 (5 m) | Δ Abstieg p90 (5 m) |
+|---|---:|---:|---:|---:|---:|
+| nur 3 m | 38 % | 3 m | 3 m | 4 m | 4 m |
+| 1 m | 46 % | 2 m | 2 m | 3 m | 3 m |
+| 2 m | 41 % | 2 m | 2 m | 3 m | 3 m |
+| 3 m | 40 % | 3 m | 3 m | 3 m | 3 m |
+| 5 m | 39 % | 2 m | 2 m | 4 m | 4 m |
+
+Der Bericht rundet auf ganze Meter; ungerundet (Schwelle 3 m) liegt
+Δ p90 bei 2,02 m (1 m), 2,21 m (2 m), 2,25 m (2,5 m), 2,76 m (3 m) und
+2,50 m (5 m) — oberhalb von 2 m fallen kaum noch Punkte weg, die
+Abweichung wächst. 2 m bleibt, auch weil der Wert unter der Schwelle
+liegt: Eine Welle, die zählt, übersteht das Ausdünnen.
+
+### Steilstes Stück — Trails
+
+| Fenster | Median | p90 | über 100 % |
+|---:|---:|---:|---:|
+| 50 m | 26 % | 41 % | 1 |
+| 100 m | 22 % | 35 % | 0 |
+
+### Offen
+
+Eine feste Schwelle für alle Geräte ist ein Kompromiss. Später könnte
+sie sich am Eingangssignal ausrichten — etwa am Rauschen einer
+Aufzeichnung (Signal-Rausch-Verhältnis der Höhenreihe), sodass ein
+Barometer eine kleinere Schwelle bekommt als eine GPS-Höhe.
