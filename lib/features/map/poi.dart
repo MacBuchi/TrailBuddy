@@ -13,7 +13,7 @@ import 'package:latlong2/latlong.dart';
 
 /// Die Gruppen, die man im Filter an- und ausschaltet.
 enum PoiGroup {
-  food('Einkehr', 'Café, Biergarten, Hütte, Gasthaus', Color(0xFF8D5524)),
+  food('Einkehr', 'Biergarten, Café, Hütte, Gasthaus', Color(0xFF8D5524)),
   water('Wasser', 'Trinkwasser, Wasserstellen, Quellen', Color(0xFF0277BD)),
   bikeService('Rad-Service', 'Reparaturstation, Radladen, E-Bike-Laden',
       Color(0xFF455A64)),
@@ -37,66 +37,92 @@ enum PoiGroup {
 }
 
 /// Was ein Ort ist. Die Reihenfolge zählt: Ein Objekt mit mehreren
-/// passenden Merkmalen bekommt die ERSTE passende Art.
+/// passenden Merkmalen bekommt die ERSTE passende Art. Deshalb steht der
+/// Biergarten vorn: Ein Gasthaus mit Biergarten zeigt den Krug, nicht
+/// das Besteck.
 enum PoiKind {
-  cafe(PoiGroup.food, 'Café', Icons.cake, 'amenity', 'cafe'),
-  biergarten(PoiGroup.food, 'Biergarten', Icons.sports_bar, 'amenity',
-      'biergarten'),
-  pub(PoiGroup.food, 'Kneipe', Icons.sports_bar, 'amenity', 'pub'),
-  restaurant(PoiGroup.food, 'Gasthaus', Icons.restaurant, 'amenity',
-      'restaurant'),
-  hut(PoiGroup.food, 'Hütte', Icons.cabin, 'tourism', 'alpine_hut'),
-  drinkingWater(PoiGroup.water, 'Trinkwasser', Icons.water_drop, 'amenity',
-      'drinking_water'),
-  waterPoint(PoiGroup.water, 'Wasserstelle', Icons.water_drop, 'amenity',
-      'water_point'),
-  spring(PoiGroup.water, 'Quelle', Icons.water, 'natural', 'spring'),
-  repairStation(PoiGroup.bikeService, 'Reparaturstation', Icons.build,
-      'amenity', 'bicycle_repair_station'),
-  bikeShop(PoiGroup.bikeService, 'Radladen', Icons.pedal_bike, 'shop',
-      'bicycle'),
+  // In OSM gibt es beides: den eigenständigen Biergarten und das Gasthaus
+  // (seltener die Kneipe) mit `biergarten=yes` — in München 54 zu 8.
+  biergarten(PoiGroup.food, 'Biergarten', Icons.sports_bar, [
+    {'amenity': 'biergarten'},
+    {'biergarten': 'yes'},
+    {'beer_garden': 'yes'},
+  ]),
+  // Kein Material-Symbol für ein Kuchenstück — `PoiGlyph` zeichnet es.
+  cafe(PoiGroup.food, 'Café', null, [
+    {'amenity': 'cafe'},
+  ]),
+  pub(PoiGroup.food, 'Kneipe', Icons.sports_bar, [
+    {'amenity': 'pub'},
+  ]),
+  restaurant(PoiGroup.food, 'Gasthaus', Icons.restaurant, [
+    {'amenity': 'restaurant'},
+  ]),
+  hut(PoiGroup.food, 'Hütte', Icons.cabin, [
+    {'tourism': 'alpine_hut'},
+  ]),
+  drinkingWater(PoiGroup.water, 'Trinkwasser', Icons.water_drop, [
+    {'amenity': 'drinking_water'},
+  ]),
+  waterPoint(PoiGroup.water, 'Wasserstelle', Icons.water_drop, [
+    {'amenity': 'water_point'},
+  ]),
+  spring(PoiGroup.water, 'Quelle', Icons.local_drink, [
+    {'natural': 'spring'},
+  ]),
+  repairStation(PoiGroup.bikeService, 'Reparaturstation', Icons.build, [
+    {'amenity': 'bicycle_repair_station'},
+  ]),
+  bikeShop(PoiGroup.bikeService, 'Radladen', Icons.pedal_bike, [
+    {'shop': 'bicycle'},
+  ]),
   // Ladesäulen gibt es an jedem Supermarkt — hier nur die fürs Rad.
   eBikeCharging(PoiGroup.bikeService, 'E-Bike-Ladestation',
-      Icons.electric_bike, 'amenity', 'charging_station',
-      extra: {'bicycle': 'yes'}),
-  shelter(PoiGroup.other, 'Unterstand', Icons.roofing, 'amenity', 'shelter'),
-  toilets(PoiGroup.other, 'Toilette', Icons.wc, 'amenity', 'toilets'),
-  viewpoint(PoiGroup.other, 'Aussichtspunkt', Icons.landscape, 'tourism',
-      'viewpoint'),
+      Icons.electric_bike, [
+    {'amenity': 'charging_station', 'bicycle': 'yes'},
+  ]),
+  shelter(PoiGroup.other, 'Unterstand', Icons.roofing, [
+    {'amenity': 'shelter'},
+  ]),
+  toilets(PoiGroup.other, 'Toilette', Icons.wc, [
+    {'amenity': 'toilets'},
+  ]),
+  viewpoint(PoiGroup.other, 'Aussichtspunkt', Icons.landscape, [
+    {'tourism': 'viewpoint'},
+  ]),
   // Private Parkplätze (Firmen, Anwohner) helfen niemandem.
-  parking(PoiGroup.other, 'Parkplatz', Icons.local_parking, 'amenity',
-      'parking',
-      excludeAccess: true);
+  parking(PoiGroup.other, 'Parkplatz', Icons.local_parking, [
+    {'amenity': 'parking'},
+  ], excludeAccess: true);
 
-  const PoiKind(this.group, this.label, this.icon, this.key, this.value,
-      {this.extra = const {}, this.excludeAccess = false});
+  const PoiKind(this.group, this.label, this.icon, this.rules,
+      {this.excludeAccess = false});
 
   final PoiGroup group;
   final String label;
-  final IconData icon;
-  final String key;
-  final String value;
-  final Map<String, String> extra;
+
+  /// Das Symbol in der Nadel; null heißt gezeichnet (`PoiGlyph`).
+  final IconData? icon;
+
+  /// Jede Regel ist eine Menge Merkmale, die ALLE passen müssen; eine
+  /// passende Regel genügt.
+  final List<Map<String, String>> rules;
   final bool excludeAccess;
 
   bool matches(Map<String, String> tags) {
-    if (tags[key] != value) return false;
-    for (final e in extra.entries) {
-      if (tags[e.key] != e.value) return false;
-    }
     if (excludeAccess && _closedAccess.contains(tags['access'])) return false;
-    return true;
+    return rules.any((r) => r.entries.every((e) => tags[e.key] == e.value));
   }
 
-  /// Der Overpass-Filter für diese Art, ohne Rahmen (der steht global).
-  String get selector {
-    final b = StringBuffer('nwr["$key"="$value"]');
-    for (final e in extra.entries) {
-      b.write('["${e.key}"="${e.value}"]');
-    }
-    if (excludeAccess) b.write('["access"!~"^(private|no)\$"]');
-    return b.toString();
-  }
+  /// Die Overpass-Filter für diese Art, ohne Rahmen (der steht global).
+  List<String> get selectors => [
+        for (final r in rules)
+          [
+            'nwr',
+            for (final e in r.entries) '["${e.key}"="${e.value}"]',
+            if (excludeAccess) '["access"!~"^(private|no)\$"]',
+          ].join(),
+      ];
 
   static PoiKind? of(Map<String, String> tags) {
     for (final k in values) {
@@ -196,7 +222,8 @@ String overpassQuery(
   final bbox = '${f(box.s)},${f(box.w)},${f(box.n)},${f(box.e)}';
   final selectors = [
     for (final k in PoiKind.values)
-      if (groups.contains(k.group)) '${k.selector};',
+      if (groups.contains(k.group))
+        for (final sel in k.selectors) '$sel;',
   ];
   return '[out:json][timeout:25][bbox:$bbox];'
       '(${selectors.join()});'

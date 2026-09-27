@@ -163,7 +163,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Entscheidung des Betreibers). Ist alles aus, geht KEINE Anfrage raus;
   der Test-Harness hängt `FakePoiSource` ein, weil die Karte beim
   Einpassen auf einen Trail über Zoom 12 liegt. Die Nadeln liegen UNTER
-  den Trail-Linien und tragen nie eine der Trail-Farben.
+  den Trail-Linien und tragen nie eine der Trail-Farben. Eine Art hat
+  mehrere Tag-Regeln, die ERSTE passende Art gewinnt (Biergarten vor
+  Gasthaus: `biergarten=yes`); das Kuchenstück ist gezeichnet
+  (`PoiGlyph`, Material hat keins). Der Detailfilter
+  (`Settings.poiHiddenKinds`) blendet nur aus, geladen wird je Gruppe.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys

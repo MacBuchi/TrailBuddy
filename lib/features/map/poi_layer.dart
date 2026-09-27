@@ -36,6 +36,7 @@ class _PoiLayerState extends ConsumerState<PoiLayer> {
     final camera = MapCamera.of(context);
     final groups = ref.watch(poiGroupsProvider);
     final state = ref.watch(poiControllerProvider);
+    final hidden = ref.watch(poiHiddenKindsProvider);
     if (groups.isEmpty || camera.zoom < kPoiMinZoom) {
       _debounce?.cancel();
       _requested = null;
@@ -53,7 +54,7 @@ class _PoiLayerState extends ConsumerState<PoiLayer> {
     }
     final pois = [
       for (final p in state.inCells(cells, groups))
-        if (b.contains(p.position)) p,
+        if (b.contains(p.position) && !hidden.contains(p.kind)) p,
     ];
     return MarkerLayer(
       markers: [
@@ -95,7 +96,7 @@ class PoiPin extends StatelessWidget {
             painter: _PinPainter(kind.group.color),
             child: Align(
               alignment: const Alignment(0, -0.45),
-              child: Icon(kind.icon, size: 17, color: Colors.white),
+              child: PoiGlyph(kind: kind, size: 17, background: kind.group.color),
             ),
           ),
         ),
@@ -134,6 +135,75 @@ class _PinPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PinPainter old) => old.color != color;
+}
+
+/// Das Symbol einer Art, weiß auf [background]: ein Material-Symbol oder,
+/// wo es keins gibt, gezeichnet (das Kuchenstück fürs Café).
+class PoiGlyph extends StatelessWidget {
+  const PoiGlyph(
+      {super.key, required this.kind, required this.size, required this.background});
+
+  final PoiKind kind;
+  final double size;
+
+  /// Die Farbe darunter — gezeichnete Symbole brauchen sie für ihre
+  /// Binnenlinien (die Sahneschicht im Kuchen).
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = kind.icon;
+    if (icon != null) return Icon(icon, size: size, color: Colors.white);
+    return CustomPaint(
+      size: Size.square(size),
+      painter: CakeSlicePainter(fill: Colors.white, cut: background),
+    );
+  }
+}
+
+/// Ein Stück Kuchen von der Seite: Keil mit Spitze links und Rand rechts,
+/// eine Sahneschicht, oben eine Kirsche. Gezeichnet auf 24 × 24 wie die
+/// Material-Symbole, damit es neben ihnen gleich groß wirkt.
+class CakeSlicePainter extends CustomPainter {
+  const CakeSlicePainter({required this.fill, required this.cut});
+
+  final Color fill;
+  final Color cut;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 24, size.height / 24);
+    final paint = Paint()..color = fill;
+    // Der Keil: oben schräg von der Spitze zum Rand, unten gerade.
+    canvas.drawPath(
+        Path()
+          ..moveTo(1.8, 12.8)
+          ..lineTo(21, 7.4)
+          ..quadraticBezierTo(22.4, 7.4, 22.4, 8.8)
+          ..lineTo(22.4, 21.5)
+          ..lineTo(1.8, 21.5)
+          ..close(),
+        paint);
+    // Die Sahneschicht als Fuge in der Farbe darunter.
+    canvas.drawLine(
+        const Offset(3.2, 16.6),
+        const Offset(22.4, 16.6),
+        Paint()
+          ..color = cut
+          ..strokeWidth = 1.6);
+    // Kirsche mit Stiel.
+    canvas.drawCircle(const Offset(14.6, 6.0), 2.5, paint);
+    canvas.drawLine(
+        const Offset(15.4, 3.7),
+        const Offset(17.4, 1.2),
+        Paint()
+          ..color = fill
+          ..strokeWidth = 1.3
+          ..strokeCap = StrokeCap.round);
+  }
+
+  @override
+  bool shouldRepaint(CakeSlicePainter old) => old.fill != fill || old.cut != cut;
 }
 
 /// Was man über einen Ort wissen will: Art, Name, Öffnungszeiten — und
@@ -187,13 +257,15 @@ Future<void> showPoiSheet(BuildContext context, Poi poi) =>
       },
     );
 
-/// Der Filter: vier Gruppen zum An- und Ausschalten. Er sagt dazu, ab
-/// wann Orte erscheinen und wohin der Ausschnitt dafür geht.
+/// Der Filter: vier Gruppen zum An- und Ausschalten, darunter je Gruppe
+/// ihre Arten als Chips (Detailfilter). Er sagt dazu, ab wann Orte
+/// erscheinen und wohin der Ausschnitt dafür geht.
 Future<void> showPoiFilterSheet(BuildContext context) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      isScrollControlled: true,
+      // Nicht bildschirmhoch: Oben bleibt Karte sichtbar (und zum
+      // Schließen antippbar); was nicht passt, scrollt im Blatt.
       builder: (_) => const _PoiFilterSheet(),
     );
 
@@ -203,39 +275,78 @@ class _PoiFilterSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groups = ref.watch(poiGroupsProvider);
+    final hidden = ref.watch(poiHiddenKindsProvider);
     final text = Theme.of(context).textTheme;
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Text('Orte auf der Karte', style: text.titleLarge),
-          ),
-          for (final g in PoiGroup.values)
-            SwitchListTile(
-              key: ValueKey('poi-group-${g.name}'),
-              secondary: CircleAvatar(
-                backgroundColor: g.color,
-                child: Icon(PoiKind.values.firstWhere((k) => k.group == g).icon,
-                    color: Colors.white, size: 20),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('Orte auf der Karte', style: text.titleLarge),
+            ),
+            for (final g in PoiGroup.values) ...[
+              SwitchListTile(
+                key: ValueKey('poi-group-${g.name}'),
+                secondary: CircleAvatar(
+                  backgroundColor: g.color,
+                  child: PoiGlyph(
+                      kind: PoiKind.values.firstWhere((k) => k.group == g),
+                      size: 20,
+                      background: g.color),
+                ),
+                title: Text(g.label),
+                subtitle: Text(g.examples),
+                value: groups.contains(g),
+                onChanged: (_) => ref.read(poiGroupsProvider.notifier).toggle(g),
               ),
-              title: Text(g.label),
-              subtitle: Text(g.examples),
-              value: groups.contains(g),
-              onChanged: (_) => ref.read(poiGroupsProvider.notifier).toggle(g),
+              // Die Arten nur unter eingeschalteten Gruppen — unter einer
+              // ausgeschalteten wären es Schalter ohne Wirkung.
+              if (groups.contains(g))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final k in PoiKind.values)
+                        if (k.group == g)
+                          FilterChip(
+                            key: ValueKey('poi-kind-${k.name}'),
+                            // Abgewählt: grau, damit man es ohne Hinsehen
+                            // auf den Chip-Hintergrund erkennt.
+                            avatar: CircleAvatar(
+                              backgroundColor:
+                                  hidden.contains(k) ? Colors.grey : g.color,
+                              child: PoiGlyph(
+                                  kind: k,
+                                  size: 14,
+                                  background:
+                                      hidden.contains(k) ? Colors.grey : g.color),
+                            ),
+                            label: Text(k.label),
+                            selected: !hidden.contains(k),
+                            showCheckmark: false,
+                            onSelected: (_) =>
+                                ref.read(poiHiddenKindsProvider.notifier).toggle(k),
+                          ),
+                    ],
+                  ),
+                ),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: Text(
+                'Orte erscheinen ab Zoomstufe ${kPoiMinZoom.round()}. Sie kommen '
+                'aus OpenStreetMap: Dafür geht der sichtbare Kartenausschnitt '
+                'an overpass-api.de — keine Trails, keine Fahrten, kein Konto.',
+                style: text.bodySmall,
+              ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            child: Text(
-              'Orte erscheinen ab Zoomstufe ${kPoiMinZoom.round()}. Sie kommen '
-              'aus OpenStreetMap: Dafür geht der sichtbare Kartenausschnitt '
-              'an overpass-api.de — keine Trails, keine Fahrten, kein Konto.',
-              style: text.bodySmall,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -37,6 +37,12 @@ abstract interface class Settings {
   List<String>? get poiGroups;
 
   Future<void> setPoiGroups(List<String> groups);
+
+  /// Einzeln abgewählte Arten innerhalb der Gruppen (`PoiKind.name`) —
+  /// der Detailfilter. Leer oder null: alle Arten einer Gruppe sichtbar.
+  List<String>? get poiHiddenKinds;
+
+  Future<void> setPoiHiddenKinds(List<String> kinds);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -63,6 +69,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setPoiGroups(List<String> groups) =>
       _prefs.setStringList(_poiGroupsKey, groups);
+
+  static const _poiHiddenKindsKey = 'poi_hidden_kinds';
+
+  @override
+  List<String>? get poiHiddenKinds => _prefs.getStringList(_poiHiddenKindsKey);
+
+  @override
+  Future<void> setPoiHiddenKinds(List<String> kinds) =>
+      _prefs.setStringList(_poiHiddenKindsKey, kinds);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

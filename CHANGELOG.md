@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Orte: eigene Symbole und Detailfilter
+
+*Version 0.7.0, 2026-09-28*
+
+- **Jede Art an ihrem Symbol erkennbar**: Biergärten zeigen immer den
+  Bierkrug — auch Gasthäuser mit Biergarten, die bisher das Besteck
+  hatten. Cafés zeigen ein Stück Kuchen, Quellen ein Wasserglas.
+- **Detailfilter**: Unter jeder eingeschalteten Gruppe stehen ihre Arten
+  zum einzelnen Abwählen — zum Beispiel Einkehr ohne Kneipen, oder
+  Wasser nur mit Trinkwasser.
+
 ## Höhen für ältere Trails nachtragen
 
 *Version 0.6.0, 2026-09-28*
