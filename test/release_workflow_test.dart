@@ -214,4 +214,19 @@ void main() {
     expect(ci, contains('python3 tool/feedback_bot.py --self-test'));
     expect(ci, contains('tool/grants_check.sql'));
   });
+
+  test('jedes Werkzeug mit Selbsttest läuft in CI (sonst verrottet es still)', () {
+    final ci = File('.github/workflows/ci.yml').readAsStringSync();
+    final tools = Directory('tool')
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.py'))
+        .where((f) => f.readAsStringSync().contains("'--self-test'") ||
+            f.readAsStringSync().contains('"--self-test"'));
+    expect(tools, isNotEmpty);
+    for (final f in tools) {
+      final name = f.uri.pathSegments.last;
+      expect(ci, contains('python3 tool/$name --self-test'), reason: name);
+    }
+  });
 }

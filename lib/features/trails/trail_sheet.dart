@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
+import 'elevation_profile_chart.dart';
+import 'trail_elevation.dart';
+import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_providers.dart';
 
@@ -34,6 +37,19 @@ String statusAge(DateTime? at, {DateTime? now}) {
 String formatLength(double m) =>
     m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} km' : '${m.round()} m';
 
+/// „↓ 420 Hm · ↑ 35 Hm" — bergab zuerst, weil ein Trail bergab gefahren
+/// wird. Dieselbe Zeile im Import-Blatt und im Trail-Blatt.
+String formatElevation(({double gain, double loss}) el) =>
+    '↓ ${el.loss.round()} Hm · ↑ ${el.gain.round()} Hm';
+
+/// „Ø 14 % Gefälle" bzw. „Ø 3 % Steigung"; unter einem halben Prozent
+/// „Ø eben" statt einer Null mit Vorzeichen.
+String formatMeanGrade(double descentPct) {
+  final v = descentPct.abs().round();
+  if (v == 0) return 'Ø eben';
+  return descentPct > 0 ? 'Ø $v % Gefälle' : 'Ø $v % Steigung';
+}
+
 class _TrailSheet extends ConsumerWidget {
   const _TrailSheet({required this.trailId, required this.showOnMapButton});
   final String trailId;
@@ -52,13 +68,16 @@ class _TrailSheet extends ConsumerWidget {
     final status = trail.latestStatus;
     final mine = trail.myDetails;
     final buddies = trail.buddyIds.length;
+    final elevation = trail.elevation;
     final contributors = trail.contributionsOrdered
         .where((d) => d.userId != trail.myId)
         .map((d) => d.username ?? 'Buddy')
         .toList();
 
+    // Scrollbar, seit das Höhenprofil drinsteht: Auf einem kleinen oder
+    // quer gehaltenen Telefon liefe das Blatt sonst unten über.
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -74,6 +93,12 @@ class _TrailSheet extends ConsumerWidget {
               runSpacing: 4,
               children: [
                 Chip(label: Text(formatLength(trail.lengthM))),
+                if (elevation != null) ...[
+                  Chip(
+                      label: Text(formatElevation(
+                          (gain: elevation.gainM, loss: elevation.lossM)))),
+                  Chip(label: Text(formatMeanGrade(elevation.meanDescentPct))),
+                ],
                 if (trail.grade != null) Chip(label: Text(gradeLabel(trail.grade!))),
                 if (mine?.kind != null) Chip(label: Text(mine!.kind!.label)),
                 if (trail.status.warns)
@@ -84,6 +109,15 @@ class _TrailSheet extends ConsumerWidget {
                   ),
               ],
             ),
+            const SizedBox(height: 8),
+            if (elevation != null) ...[
+              ElevationProfileChart(elevation),
+              const SizedBox(height: 4),
+              Text(_profileCaption(elevation), style: theme.textTheme.bodySmall),
+            ] else
+              Text('Keine Höhenangaben — die Datei hatte keine.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 8),
             Text(
               trail.isOwn
@@ -129,4 +163,13 @@ class _TrailSheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _profileCaption(ElevationProfile p) {
+  final steepest = p.steepestDescentPct;
+  final parts = <String>['In Trail-Richtung'];
+  if (steepest != null && steepest > 0) {
+    parts.add('steilstes Stück ${steepest.round()} % auf ${kSteepestWindowM.round()} m');
+  }
+  return parts.join(' · ');
 }

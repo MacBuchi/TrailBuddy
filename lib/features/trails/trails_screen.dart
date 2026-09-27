@@ -85,6 +85,7 @@ class _TrailTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final parts = <String>[
       formatLength(trail.lengthM),
+      if (trail.elevation != null) '↓ ${trail.elevation!.lossM.round()} Hm',
       if (trail.grade != null) gradeLabel(trail.grade!),
       if (trail.buddyIds.isNotEmpty)
         '${trail.buddyIds.length} ${trail.buddyIds.length == 1 ? 'Buddy' : 'Buddys'}',

@@ -45,6 +45,7 @@ jobs:
       - name: Tool self-tests
         run: |
           python3 tool/trail_match.py --self-test > /dev/null
+          python3 tool/elevation_measure.py --self-test > /dev/null
           bash tool/schema_check.sh --self-test > /dev/null
           python3 tool/feedback_bot.py --self-test > /dev/null
       - name: Nothing private in the repository

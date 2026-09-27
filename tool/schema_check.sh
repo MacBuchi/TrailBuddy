@@ -237,7 +237,7 @@ check_get_protected "friend_aliases-Spalten (Aliase)" \
 # recordings_visible: die Sicht, aus der die App die Linien liest
 # (GeoJSON + Länge, Konzept Abschnitt 3). Grant nur für authenticated.
 check_get_protected "recordings_visible-Spalten (Aufzeichnungen)" \
-  "/rest/v1/recordings_visible?select=id,trail_id,user_id,source,recorded_at,reversed,quality,created_at,geojson,length_m&limit=1"
+  "/rest/v1/recordings_visible?select=id,trail_id,user_id,source,recorded_at,reversed,quality,created_at,geojson,length_m,ele&limit=1"
 
 # trail_details: die Spalten des Beitrags (TrailRepository).
 check_get_protected "trail_details-Spalten (Beiträge)" \
@@ -327,10 +327,15 @@ check_rpc_protected "delete_own_account-RPC" "delete_own_account" '{}'
 
 # Der Schreibweg für Aufzeichnungen (Konzept 4.1): Signatur
 # (coords double precision[], source text, recorded_at timestamptz,
-# client_id uuid). Der Body trägt alle vier Namen, sonst hieße PGRST202
-# „Signatur passt nicht" statt „fehlt".
+# client_id uuid, eles double precision[] — seit Patch 002, mit Vorgabe).
+# Der Body trägt alle Namen, sonst hieße PGRST202 „Signatur passt nicht"
+# statt „fehlt".
 check_rpc_protected "contribute_recording-RPC" "contribute_recording" \
   '{"coords":[9.0,48.0,9.002,48.0],"source":"app","recorded_at":null,"client_id":null}'
+# Seit Patch 002 mit Höhen. Beide Aufrufe müssen die Funktion treffen: der
+# obere ist der Aufruf der Clients vor 0.3.0, dieser der heutige.
+check_rpc_protected "contribute_recording-RPC mit Höhen" "contribute_recording" \
+  '{"coords":[9.0,48.0,9.002,48.0],"source":"app","recorded_at":null,"client_id":null,"eles":[500,490]}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:latlong2/latlong.dart';
 
+import '../features/trails/trail_elevation.dart';
 import '../features/trails/trail_geometry.dart';
 
 /// Ein Beleg: „ich bin das gefahren" (Konzept 3). Die Linie kommt aus
@@ -18,6 +19,7 @@ class TrailRecording {
     required this.createdAt,
     required this.points,
     required this.lengthM,
+    this.ele,
   });
 
   final String id;
@@ -30,6 +32,11 @@ class TrailRecording {
   final DateTime createdAt;
   final List<LatLng> points;
   final double lengthM;
+
+  /// Eine Höhe je Punkt, oder null (Datei ohne Höhen, Aufzeichnung vor
+  /// Patch 002). Passt die Anzahl nicht zu den Punkten, ist sie ebenfalls
+  /// null — eine verschobene Reihe wäre schlimmer als keine.
+  final List<double>? ele;
 
   factory TrailRecording.fromJson(Map<String, dynamic> json) {
     // `st_asgeojson` liefert Text. Je nachdem, ob die Sicht ihn nach json
@@ -48,6 +55,11 @@ class TrailRecording {
         }
       }
     }
+    final rawEle = json['ele'];
+    List<double>? ele;
+    if (rawEle is List && rawEle.length == points.length && rawEle.every((e) => e is num)) {
+      ele = [for (final e in rawEle) (e as num).toDouble()];
+    }
     return TrailRecording(
       id: json['id'] as String,
       trailId: json['trail_id'] as String,
@@ -63,6 +75,7 @@ class TrailRecording {
       createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
       points: points,
       lengthM: (json['length_m'] as num?)?.toDouble() ?? 0,
+      ele: ele,
     );
   }
 }
@@ -237,6 +250,27 @@ class Trail {
 
   List<LatLng> get points => best.points;
   double get lengthM => best.lengthM;
+
+  /// Die beste sichtbare Aufzeichnung MIT Höhen — nicht unbedingt [best]:
+  /// Sonst blieben Trails, deren älteste Aufzeichnung vor Patch 002
+  /// entstand, für immer ohne Höhenmeter, auch wenn längst jemand sie mit
+  /// Höhen nachgeliefert hat.
+  TrailRecording? get elevationRecording {
+    final withEle = recordings.where((r) => r.ele != null).toList()
+      ..sort((a, b) {
+        final q = b.quality.compareTo(a.quality);
+        return q != 0 ? q : a.createdAt.compareTo(b.createdAt);
+      });
+    return withEle.firstOrNull;
+  }
+
+  /// Höhenprofil in Trail-Richtung, null ohne Höhen.
+  late final ElevationProfile? elevation = () {
+    final r = elevationRecording;
+    return r == null
+        ? null
+        : ElevationProfile.of(r.points, r.ele, reversed: r.reversed);
+  }();
 
   TrailDetails? get myDetails =>
       details.where((d) => d.userId == myId).firstOrNull;

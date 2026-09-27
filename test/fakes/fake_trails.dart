@@ -26,6 +26,9 @@ class FakeTrailRepository implements TrailRepository {
 
   int contributeCalls = 0;
 
+  /// Die Höhen des letzten Aufrufs — so, wie sie an die RPC gingen.
+  List<double>? lastEles;
+
   /// Spiegelt `match_params().daily_limit`: so viele eigene Aufzeichnungen
   /// nimmt der Server an, danach wirft das echte Repository
   /// [DailyLimitException] (SQLSTATE 54000). `null` = kein Limit.
@@ -75,6 +78,7 @@ class FakeTrailRepository implements TrailRepository {
   @override
   Future<String> contribute({
     required List<double> coords,
+    List<double>? eles,
     required RecordingSource source,
     DateTime? recordedAt,
     required String clientId,
@@ -107,6 +111,11 @@ class FakeTrailRepository implements TrailRepository {
     if (length < kTrailMinLengthM) {
       throw StateError('Linie kürzer als ${kTrailMinLengthM.round()} m');
     }
+    // Wie die RPC: eine Höhe je Punkt oder keine (SQLSTATE 22023).
+    if (eles != null && eles.length != points.length) {
+      throw StateError('Höhen: ${eles.length} Werte für ${points.length} Punkte');
+    }
+    lastEles = eles;
     recordings.add(TrailRecording(
       id: 'rec-$clientId',
       trailId: trailId,
@@ -122,6 +131,7 @@ class FakeTrailRepository implements TrailRepository {
       createdAt: DateTime.now(),
       points: points,
       lengthM: length,
+      ele: eles,
     ));
     if (!details.any((d) => d.trailId == trailId && d.userId == me)) {
       details.add(TrailDetails(trailId: trailId, userId: me));
@@ -148,11 +158,12 @@ class FakeTrailRepository implements TrailRepository {
   }
 
   /// Ein fertiger Beleg von [userId] für Tests — eine 1-km-Linie nach
-  /// Norden ab [lat]/[lon].
+  /// Norden ab [lat]/[lon], drei Punkte; [ele] trägt dann drei Höhen.
   String seedTrail(String userId,
       {String? name, double lat = 48.0, double lon = 9.0, double quality = 0.4,
       TrailStatus status = TrailStatus.open, DateTime? statusAt,
-      TrailVisibility visibility = TrailVisibility.buddies, String? trailId}) {
+      TrailVisibility visibility = TrailVisibility.buddies, String? trailId,
+      List<double>? ele, bool reversed = false}) {
     final id = trailId ?? 'trail-${newClientId()}';
     recordings.add(TrailRecording(
       id: 'rec-${newClientId()}',
@@ -160,11 +171,12 @@ class FakeTrailRepository implements TrailRepository {
       userId: userId,
       source: RecordingSource.import,
       recordedAt: null,
-      reversed: false,
+      reversed: reversed,
       quality: quality,
       createdAt: DateTime(2026, 1, 1).add(Duration(seconds: recordings.length)),
       points: [LatLng(lat, lon), LatLng(lat + 0.005, lon), LatLng(lat + 0.009, lon)],
       lengthM: 1000,
+      ele: ele,
     ));
     details.add(TrailDetails(
       trailId: id,

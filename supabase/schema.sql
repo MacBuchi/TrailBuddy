@@ -155,7 +155,18 @@ create table public.trail_recordings (
   -- (PilzBuddy Patch 016): macht die Wiedervorlage nach einem
   -- abgerissenen Aufruf idempotent. Leer bei allem, was nicht über den
   -- Korb kam.
-  client_id uuid
+  client_id uuid,
+  -- Höhe in Metern je Punkt der Linie, in derselben Reihenfolge (Patch
+  -- 002, Issue #14). Leer, wenn die Datei keine Höhen hatte — und zwar
+  -- ganz: Eine halbe Reihe ergäbe eine erfundene Zahl. Bewusst kein
+  -- LineStringZ: Der Abgleich rechnet flach und ist so gemessen.
+  -- Anstieg, Abstieg und Profil rechnet der Client (trail_elevation.dart).
+  ele real[],
+  constraint trail_recordings_ele_check check (
+    ele is null or (
+      array_length(ele, 1) = st_npoints(geom::geometry)
+      and array_position(ele, null) is null
+      and -500 <= all(ele) and 9000 >= all(ele)))
 );
 create index trail_recordings_geom_gix on public.trail_recordings using gist (geom);
 create index trail_recordings_trail_idx on public.trail_recordings (trail_id);
@@ -593,7 +604,10 @@ create or replace function public.contribute_recording(
   coords double precision[],
   source text,
   recorded_at timestamptz default null,
-  client_id uuid default null)
+  client_id uuid default null,
+  -- Eine Höhe je Punkt aus `coords`, oder null (Patch 002). Mit Vorgabe,
+  -- damit Clients vor 0.3.0 dieselbe Funktion ohne den Namen treffen.
+  eles double precision[] default null)
 returns uuid
 language plpgsql security definer set search_path = public, extensions as $$
 declare
@@ -616,6 +630,7 @@ declare
   ov_ba real[] := '{}';
   target uuid;
   q real;
+  ele_clean real[];
 begin
   if uid is null then
     raise exception 'Nicht angemeldet' using errcode = '28000';
@@ -634,6 +649,19 @@ begin
                  or coords[2 * i] not between -90 and 90) then
     raise exception 'Koordinate außerhalb von WGS84 (lon ±180, lat ±90)'
       using errcode = '22023';
+  end if;
+  -- Höhen: eine je Punkt oder gar keine. Die App schickt null, sobald
+  -- einem Punkt die Höhe fehlt; hier wird nur noch geprüft, nicht geraten.
+  if eles is not null then
+    if coalesce(array_length(eles, 1), 0) <> npts / 2 then
+      raise exception 'Höhen: % Werte für % Punkte', coalesce(array_length(eles, 1), 0), npts / 2
+        using errcode = '22023';
+    end if;
+    if array_position(eles, null) is not null
+       or exists (select 1 from unnest(eles) e where e not between -500 and 9000) then
+      raise exception 'Höhe fehlt oder liegt außerhalb von −500 bis 9000 m'
+        using errcode = '22023';
+    end if;
   end if;
 
   -- 2. Idempotenz (Ausgangskorb): derselbe Auftrag noch einmal ⇒ dieselbe
@@ -655,10 +683,20 @@ begin
       using errcode = '54000';
   end if;
 
-  select st_removerepeatedpoints(
-           st_setsrid(st_makeline(array_agg(st_makepoint(coords[2 * i - 1], coords[2 * i]) order by i)), 4326))
-    into line
-    from generate_series(1, npts / 2) i;
+  -- Doppelte Punkte fallen weg (Locus schreibt sie an Pausen) — samt
+  -- ihrer Höhe. Bis Patch 002 stand hier st_removerepeatedpoints; das
+  -- kürzt nur die Linie, und die Höhen liefen danach um einen Punkt
+  -- versetzt neben ihr her.
+  select st_setsrid(st_makeline(array_agg(st_makepoint(d.x, d.y) order by d.i)), 4326),
+         case when eles is null then null else array_agg(d.z::real order by d.i) end
+    into line, ele_clean
+    from (
+      select r.i, r.x, r.y, r.z,
+             lag(r.x) over (order by r.i) as px, lag(r.y) over (order by r.i) as py
+        from (select g.i, coords[2 * g.i - 1] as x, coords[2 * g.i] as y, eles[g.i] as z
+                from generate_series(1, npts / 2) as g(i)) r
+    ) d
+   where d.px is null or d.x <> d.px or d.y <> d.py;
   if st_npoints(line) < 2 then
     raise exception 'Mindestens zwei verschiedene Punkte erwartet' using errcode = '22023';
   end if;
@@ -715,9 +753,9 @@ begin
   q := case source when 'app' then 0.6 when 'import' then 0.4 else 0.1 end;
   begin
     insert into trail_recordings
-      (trail_id, user_id, geom, recorded_at, source, reversed, quality, client_id)
+      (trail_id, user_id, geom, recorded_at, source, reversed, quality, client_id, ele)
     values
-      (target, uid, geog, recorded_at, source, best_reversed, q, contribute_recording.client_id);
+      (target, uid, geog, recorded_at, source, best_reversed, q, contribute_recording.client_id, ele_clean);
   exception when unique_violation then
     -- Wettlauf zweier Wiedervorlagen desselben Auftrags: Die erste hat
     -- gewonnen, ihre Antwort gilt. Ein eben angelegter leerer Trail geht
@@ -743,9 +781,9 @@ end $$;
 
 -- Nur für Angemeldete. anon hätte die Funktion sonst über
 -- /rest/v1/rpc/contribute_recording (Default-Grant an PUBLIC).
-revoke all on function public.contribute_recording(double precision[], text, timestamptz, uuid)
+revoke all on function public.contribute_recording(double precision[], text, timestamptz, uuid, double precision[])
   from public, anon;
-grant execute on function public.contribute_recording(double precision[], text, timestamptz, uuid)
+grant execute on function public.contribute_recording(double precision[], text, timestamptz, uuid, double precision[])
   to authenticated;
 
 -- Buddy-Suche: exakte E-Mail oder Username-Präfix; gibt nie E-Mails zurück.
@@ -794,7 +832,8 @@ create view public.recordings_visible
 with (security_invoker = true) as
   select id, trail_id, user_id, source, recorded_at, reversed, quality, created_at,
          st_asgeojson(geom::geometry) as geojson,
-         st_length(geom) as length_m
+         st_length(geom) as length_m,
+         ele
     from public.trail_recordings;
 
 -- ============================================================
@@ -976,5 +1015,6 @@ create policy applied_patches_no_client on public.applied_patches
 -- tool/patch_guard.sh vergleicht Liste und Dateien und lässt keinen
 -- Unterschied durch.
 insert into public.applied_patches (filename) values
-  ('patch_001_feedback_bot_grants.sql')
+  ('patch_001_feedback_bot_grants.sql'),
+  ('patch_002_recording_elevation.sql')
 on conflict do nothing;

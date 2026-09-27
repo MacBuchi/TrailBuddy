@@ -545,7 +545,68 @@ begin
                         'wer fährt, hat offen vorgefunden: Status wieder offen (Entscheidung 6)');
 end $$;
 
-\echo -- 16. Aufräumjob und Kontolöschung
+\echo -- 16. Höhen je Punkt (Patch 002, Issue #14)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  xy double precision[] := tb_test.line(300, y0 => 12000);
+  c double precision[];
+  n integer; t uuid; e real[]; code text; ok boolean;
+begin
+  c := tb_test.coords(xy);
+  n := array_length(c, 1) / 2;
+  -- Punkt 3 doppelt, mit eigener (falscher) Höhe: Er fällt weg, und die
+  -- Höhen danach dürfen NICHT um einen Punkt verrutschen.
+  c := c[1:6] || c[5:6] || c[7:array_length(c, 1)];
+  perform tb_test.as_user(ua);
+  t := public.contribute_recording(c, 'import', null, null,
+         array(select 1000.0 - i from generate_series(1, 3) i)
+         || array[555.0]
+         || array(select 1000.0 - i from generate_series(4, n) i));
+  perform tb_test.as_owner();
+  select r.ele into e from public.trail_recordings r where r.trail_id = t and r.user_id = ua;
+  perform tb_test.check(array_length(e, 1) = n, format('doppelter Punkt samt Höhe entfernt: %s Höhen für %s Punkte', array_length(e, 1), n));
+  perform tb_test.check(e[3] = 997 and e[4] = 996 and e[n] = 1000 - n,
+                        format('Höhen bleiben bei ihren Punkten (%s, %s … %s)', e[3], e[4], e[n]));
+  perform tb_test.check(tb_test.count_as(ua, format('select count(*) from public.recordings_visible where trail_id = %L and array_length(ele, 1) = %s', t, n)) = 1,
+                        'die Sicht liefert die Höhen mit');
+
+  -- Ohne Höhen (Clients vor 0.3.0, Dateien ohne <ele>): Spalte leer.
+  t := tb_test.contribute(ua, tb_test.line(300, y0 => 13000));
+  perform tb_test.check((select r.ele is null from public.trail_recordings r where r.trail_id = t), 'ohne eles: ele ist null');
+
+  -- Falsche Anzahl, eine Lücke, Unsinn: abgelehnt, nicht geraten.
+  foreach code in array array['kurz', 'luecke', 'hoch'] loop
+    ok := false;
+    begin
+      perform tb_test.as_user(ua);
+      perform public.contribute_recording(tb_test.coords(tb_test.line(300, y0 => 14000)), 'import', null, null,
+        case code
+          when 'kurz' then array(select 500.0 from generate_series(1, n - 1))
+          when 'luecke' then array(select case when i = 5 then null else 500.0 end from generate_series(1, n) i)
+          else array(select 12000.0 from generate_series(1, n))
+        end);
+    exception when others then
+      ok := sqlstate = '22023';
+    end;
+    perform tb_test.as_owner();
+    perform tb_test.check(ok, format('Höhen „%s" ⇒ 22023', code));
+  end loop;
+
+  -- Der Check hält auch ohne die Funktion: Direkt als Eigentümer eine
+  -- zu kurze Reihe schreiben scheitert.
+  ok := false;
+  begin
+    update public.trail_recordings set ele = array[1.0, 2.0] where trail_id = t;
+  exception when check_violation then
+    ok := true;
+  end;
+  perform tb_test.check(ok, 'trail_recordings_ele_check verlangt eine Höhe je Punkt');
+  perform tb_test.check((select count(*) from pg_proc where proname = 'contribute_recording') = 1,
+                        'genau eine contribute_recording (keine alte Signatur daneben)');
+end $$;
+
+\echo -- 17. Aufräumjob und Kontolöschung
 do $$
 declare
   uc uuid := '33333333-3333-4333-8333-333333333333';
@@ -564,7 +625,7 @@ begin
   perform tb_test.check(exists (select 1 from public.trails where id = tb_test.t('base')), 'der Basis-Trail bleibt (A hat Beiträge)');
 end $$;
 
-\echo -- 17. Tageslimit
+\echo -- 18. Tageslimit
 do $$
 declare
   ub uuid := '22222222-2222-4222-8222-222222222222';
