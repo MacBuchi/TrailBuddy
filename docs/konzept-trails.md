@@ -179,7 +179,11 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   **Korrektur vom 2026-09-27:** Hier stand „plus dem Höhengitter"; das
   PilzBuddy-Gitter hat 90-m-Waben und 20-m-Stufen und ist für einen
   3-km-Trail mit Kehren zu grob. Es bleibt der spätere Rückfall für
-  Dateien ohne Höhen.
+  Dateien ohne Höhen. **Nachtragen (#16):** Wer die Originaldatei einer
+  eigenen Aufzeichnung ohne Höhen noch einmal importiert, bekommt die
+  Höhen an die BESTEHENDE Aufzeichnung (`attach_elevation`, nur wenn die
+  Linie Punkt für Punkt dieselbe ist) — kein zweiter Beleg, kein neuer
+  Abgleich, nicht im Tageslimit.
 - **Name** = eigener Name, sonst der Name des ältesten sichtbaren
   Beitrags; die anderen als „auch: …" (Muster Buddy-Alias in PilzBuddy).
 - **Schwierigkeit** = Median der sichtbaren S-Grade (Singletrail-Skala,

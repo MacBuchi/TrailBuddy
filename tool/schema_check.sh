@@ -336,6 +336,10 @@ check_rpc_protected "contribute_recording-RPC" "contribute_recording" \
 # obere ist der Aufruf der Clients vor 0.3.0, dieser der heutige.
 check_rpc_protected "contribute_recording-RPC mit Höhen" "contribute_recording" \
   '{"coords":[9.0,48.0,9.002,48.0],"source":"app","recorded_at":null,"client_id":null,"eles":[500,490]}'
+# Höhen nachtragen (Patch 003): nur die eigene Aufzeichnung, nur für
+# Angemeldete.
+check_rpc_protected "attach_elevation-RPC" "attach_elevation" \
+  '{"recording_id":"00000000-0000-4000-8000-000000000000","coords":[9.0,48.0,9.002,48.0],"eles":[500,490]}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"

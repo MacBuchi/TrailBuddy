@@ -139,8 +139,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Angezeigt wird in Trail-Richtung, aus der besten Aufzeichnung MIT
     Höhen** (`Trail.elevation`), nicht zwingend aus der besten Linie.
     Ohne Höhen sagt das Blatt „Keine Höhenangaben", nie „0 Hm".
-    Aufzeichnungen vor 0.3.0 haben keine; ein Weg zum Nachtragen ist
-    offen (eigenes Issue).
+    Aufzeichnungen vor 0.3.0 haben keine.
+  - **Nachtragen** (#16, Patch 003): Dieselbe Datei noch einmal
+    importiert legt keine zweite Aufzeichnung an. Der Import sucht die
+    gespeicherten Punkte der Reihe nach in der Datei (sie SIND
+    Originalpunkte; neu vereinfachen ergäbe seit 0.3.0 eine andere
+    Linie), Anfang und Ende müssen die der Datei sein
+    (`elevation_backfill.dart`). `attach_elevation` prüft auf dem Server
+    Punkt für Punkt ≤ 5 cm, nur eigene Aufzeichnungen ohne Höhen,
+    überschreibt nie, zählt nicht ins Tageslimit. Schon mit Höhen
+    Beigesteuertes steht im Import gesperrt da.
 - **Schwierigkeit** (#14, Teil 2): Singletrail-Skala S0–S5 je Beitrag,
   angezeigt als Median (bei Gleichstand der SCHWERERE — im Zweifel die
   Warnung), Spanne und Anzahl. Die Beschreibungen stehen an EINER Stelle

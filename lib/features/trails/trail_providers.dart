@@ -7,6 +7,7 @@ import '../../core/read_after_write.dart';
 import '../../data/providers.dart';
 import '../../data/trail_repository.dart';
 import '../../models/trail.dart';
+import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'trail_geometry.dart';
 
@@ -71,6 +72,18 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   Future<bool> saveDetails(TrailDetails details) async {
     await ref.read(trailRepositoryProvider).saveDetails(details);
     return reloadAfterWrite('Trail-Beitrag speichern');
+  }
+
+  /// Höhen einer eigenen Aufzeichnung nachtragen (#16). Kein Neuladen
+  /// hier: Der Import lädt einmal am Ende, nicht nach jeder Datei.
+  Future<bool> attachElevation(ExistingRecording existing) {
+    final eles = existing.eles;
+    if (eles == null) throw StateError('Datei ohne vollständige Höhen');
+    return ref.read(trailRepositoryProvider).attachElevation(
+          recordingId: existing.recording.id,
+          coords: flatCoords(existing.points),
+          eles: eles,
+        );
   }
 }
 

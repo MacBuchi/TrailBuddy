@@ -139,6 +139,48 @@ class FakeTrailRepository implements TrailRepository {
     return trailId;
   }
 
+  int attachCalls = 0;
+
+  /// Spiegelt `attach_elevation` (Patch 003): nur die eigene Aufzeichnung,
+  /// nur ohne Höhen, und nur, wenn [coords] Punkt für Punkt die
+  /// gespeicherte Linie ist (≤ 5 cm).
+  @override
+  Future<bool> attachElevation({
+    required String recordingId,
+    required List<double> coords,
+    required List<double> eles,
+  }) async {
+    attachCalls++;
+    final i = recordings
+        .indexWhere((r) => r.id == recordingId && r.userId == myId());
+    if (i < 0) throw StateError('P0002: Keine eigene Aufzeichnung');
+    final r = recordings[i];
+    if (r.ele != null) return false;
+    final n = r.points.length;
+    if (coords.length != 2 * n || eles.length != n) {
+      throw StateError('22023: Linie passt nicht');
+    }
+    for (var k = 0; k < n; k++) {
+      final d = haversineM(r.points[k].latitude, r.points[k].longitude,
+          coords[2 * k + 1], coords[2 * k]);
+      if (d > 0.05) throw StateError('22023: nicht die gespeicherte Linie');
+    }
+    recordings[i] = TrailRecording(
+      id: r.id,
+      trailId: r.trailId,
+      userId: r.userId,
+      source: r.source,
+      recordedAt: r.recordedAt,
+      reversed: r.reversed,
+      quality: r.quality,
+      createdAt: r.createdAt,
+      points: r.points,
+      lengthM: r.lengthM,
+      ele: List.of(eles),
+    );
+    return true;
+  }
+
   @override
   Future<void> saveDetails(TrailDetails d) async {
     final me = myId();

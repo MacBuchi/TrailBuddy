@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Höhen für ältere Trails nachtragen
+
+*Version 0.6.0, 2026-09-28*
+
+- **Einfach dieselbe Datei noch einmal importieren**: Trails, die du vor
+  Version 0.3.0 beigesteuert hast, haben noch keine Höhenmeter. Wählst du
+  die Original-GPX (oder den ganzen Zip) noch einmal, erkennt die App sie
+  und trägt die Höhen nach — ohne doppelten Trail und ohne dein
+  Tageslimit zu belasten.
+- **Nichts doppelt**: Was du schon beigesteuert hast, steht im Import als
+  „schon beigesteuert" und wird nicht noch einmal hochgeladen.
+
 ## Orte auf der Karte
 
 *Version 0.5.0, 2026-09-28*
