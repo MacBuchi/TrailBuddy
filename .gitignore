@@ -117,3 +117,8 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+# Rides and ride collections never enter this public repo (tool/private_info_check.py)
+*.gpx
+*.kml
+*.fit
+*.zip

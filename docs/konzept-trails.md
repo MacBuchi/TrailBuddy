@@ -217,20 +217,25 @@ gibt **nur die Trail-Kennung** zurück. Ob sie neu ist, sagt sie nicht.
    parallele Schenkel im Abstand von 10 bis 20 m — ein Korridortest
    allein hält den benachbarten Schenkel eines ANDEREN Trails für
    Deckung. Deshalb für die Kandidaten aus Stufe 2 zusätzlich die
-   diskrete Fréchet-Distanz (oder DTW) auf den abgetasteten Punkten:
-   Sie verlangt, dass die Punkte in derselben REIHENFOLGE nah
-   beieinander liegen. Als SQL unpraktisch — das ist PL/pgSQL oder eine
-   Edge Function; bei ≤ 1000 Punkten je Linie ist O(n·m) kein Problem.
+   diskrete Fréchet-Distanz auf den abgetasteten Punkten, **die im
+   Korridor liegen** — beide Seiten vorher beschnitten. Sie verlangt,
+   dass die Punkte in derselben REIHENFOLGE nah beieinander liegen. Das
+   Maximum über ALLE Punkte wäre falsch: Ein einzelner GPS-Sporn oder
+   ein grob gezeichneter Bogen sagt nichts über die Reihenfolge, treibt
+   das Maximum aber auf 40–90 m (gemessen an namensgleichen Trails).
+   Als SQL unpraktisch — das ist PL/pgSQL oder eine Edge Function; bei
+   ≤ 1200 Punkten je Linie ist O(n·m) kein Problem.
 
-**Startwerte** (zu messen, siehe Phase 0):
+**Schwellen, gemessen am 2026-09-27** (`docs/trail-abgleich-messung.md`,
+584 Tracks des Betreibers):
 
-| Größe | Startwert | Grund |
+| Größe | Wert | Grund |
 |---|---|---|
-| Korridor `d` | 15 m | GPS unter Blätterdach liegt 10–20 m daneben (gemessen in PilzBuddy, Pilztour). |
-| Deckung „gleich" | ≥ 0,8 beidseitig | Anfang und Ende dürfen schwanken (wo hört ein Trail auf), die Mitte nicht. |
-| Fréchet „gleich" | ≤ 2·d | Erlaubt Versatz, verbietet Schenkelsprünge. |
-| Mindestlänge Trail | 150 m | Darunter ist es eine Zufahrt oder ein Rauschen. |
-| Abtastung | 5 m | Kehren mit 10 m Radius bleiben sichtbar. |
+| Korridor `d` | 15 m | GPS unter Blätterdach liegt 10–20 m daneben; 10 und 15 m liefern dieselben Gleich-Paare, ab 20 m kommen Gabeln als „gleich" dazu. |
+| Deckung „gleich" | ≥ 0,8 beidseitig | Die Verteilung hat eine Lücke: 26 Paare unter 0,7, 7 über 0,9, 4 dazwischen — und die sind Trail und Variante. |
+| Fréchet „gleich" | ≤ 2·d, **auf den Punkten im Korridor** | Alle Gleichen ≤ 19,4 m, der nächste Wert 84 m. Ohne den Zuschnitt treibt ein einzelner Sporn das Maximum auf 40–90 m bei namensgleichen Trails. |
+| Mindestlänge Trail | 150 m | Darunter ist es eine Zufahrt oder ein Fragment; 12 von 584 Dateien. |
+| Abtastung | 5 m | Kehren mit 10 m Radius bleiben sichtbar; Locus-Exporte sind auf 13 m gedünnt, gezeichnete Routen haben 100-m-Schenkel. |
 
 ### 4.3 Richtung
 
@@ -361,9 +366,12 @@ Der Grund, warum das Konzept vor dem Code stehen muss: Die ersten
 Nutzer bringen Sammlungen mit. Der Import nimmt eine oder viele
 Dateien und entscheidet je Datei:
 
-- **Kurz und überwiegend bergab** (< 3 km, Höhenverlust > 2× Gewinn,
+- **Kurz und überwiegend bergab** (< 8 km, Höhenverlust > 2× Gewinn,
   aus dem Höhengitter oder den Höhen in der Datei) ⇒ ist ein Trail, wird
-  direkt Kandidat; Name aus `<name>` der Datei vorgeschlagen.
+  direkt Kandidat; Name aus `<name>` der Datei vorgeschlagen. Die 8 km
+  sind gemessen: Alpine Trails sind 3 bis 8 km lang, Fahrten beginnen
+  im Bestand bei 8 km; die wenigen langen Abfahrten darüber gehen als
+  Fahrt durchs Zerlege-Blatt, der harmlose Fehler.
 - **Sonst** ⇒ ist eine Fahrt, geht durch dasselbe Blatt wie 5.1.
 
 Dann für jeden bestätigten Kandidaten `contribute_recording`. Zwanzig
@@ -602,7 +610,9 @@ damit die nächste Diskussion nicht bei null beginnt.
 
 ## 11. Fahrplan
 
-- **Phase 0 — Messen, bevor gebaut wird.** Ein Python-Werkzeug
+- **Phase 0 — Messen, bevor gebaut wird. ERLEDIGT am 2026-09-27**,
+  Ergebnis in `docs/trail-abgleich-messung.md`; was sich dadurch am
+  Konzept geändert hat, steht dort unter „Folgen". Ein Python-Werkzeug
   `tool/trail_match.py` (nur Standardbibliothek, wie die Werkzeuge in
   PilzBuddy) nimmt die Locus-Tracks des Betreibers direkt aus dem Zip
   (Pfad aus der Umgebung, nie im Repo), rechnet Deckung und Fréchet für
@@ -628,5 +638,5 @@ damit die nächste Diskussion nicht bei null beginnt.
 - **Phase 5 — Community.** Airtime, Ranking unter Buddys, Fotos am
   Trail (Fundfoto-Baustein).
 
-Die Punkte aus Abschnitt 10 sind entschieden. Der erste Code ist das
-Messwerkzeug aus Phase 0.
+Die Punkte aus Abschnitt 10 sind entschieden, Phase 0 ist gemessen. Der
+nächste Schritt ist Phase 1.
