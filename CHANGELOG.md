@@ -18,7 +18,7 @@
 
 ## Idee oder Fehler melden
 
-*Version 0.2.0, 2026-09-27*
+*Version 0.2.0 und 0.2.1, 2026-09-27*
 
 - **Die Glühbirne auf der Karte** (und im Profil unter „Idee oder Fehler
   melden"): Wünsche und Fehler gehen direkt an den Entwickler.
