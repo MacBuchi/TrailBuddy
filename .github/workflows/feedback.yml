@@ -1,0 +1,52 @@
+name: Feedback Bot
+
+# Macht aus In-App-Feedback öffentliche GitHub-Issues (tool/feedback_bot.py)
+# und löscht Fehlerberichte nach 90 Tagen, wie die Datenschutzerklärung es
+# verspricht. Muster PilzBuddy, schlanker: kein Arten-PR, kein Name im Issue.
+#
+# **Kein Schlüssel, kein Lauf — sichtbar.** Fehlt SUPABASE_SERVICE_ROLE_KEY,
+# steht das in der Run-Summary und der Job bleibt grün; ein Lauf, der alle
+# zwei Stunden rot wird, wäre Rauschen. Der `secrets`-Kontext ist in `if:`
+# nicht verfügbar, deshalb ein Feststell-Schritt mit `env:`.
+on:
+  schedule:
+    - cron: "37 */2 * * *" # alle zwei Stunden
+  workflow_dispatch:
+
+# Zwei überlappende Läufe läsen dieselben Zeilen. Nicht abbrechen: ein halb
+# verarbeiteter Lauf wäre schlimmer als ein wartender.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  process:
+    name: Feedback verarbeiten
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Schlüssel vorhanden?
+        id: key
+        env:
+          KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: echo "have=$([ -n "$KEY" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Kein Schlüssel, kein Lauf
+        if: steps.key.outputs.have == 'false'
+        run: |
+          {
+            echo "### Feedback-Bot übersprungen — \`SUPABASE_SERVICE_ROLE_KEY\` fehlt"
+            echo ""
+            echo "Supabase-Dashboard → Project Settings → API Keys → Secret key"
+            echo "(sb_secret_…) → GitHub → Settings → Secrets → Actions."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Feedback in Issues verwandeln
+        if: steps.key.outputs.have == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 tool/feedback_bot.py

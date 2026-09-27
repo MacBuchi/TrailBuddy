@@ -13,6 +13,7 @@ import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/letter_avatar.dart';
 import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
+import '../feedback/feedback_dialog.dart';
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
 
@@ -429,6 +430,14 @@ class _AboutSection extends ConsumerWidget {
             trailing: const Icon(Icons.open_in_new, size: 18),
             onTap: () => _open(AppInfo.webAppUrl),
           ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.lightbulb_outline),
+          title: const Text('Idee oder Fehler melden'),
+          subtitle: const Text('Wird ein öffentlicher Eintrag auf GitHub'),
+          onTap: () => showFeedbackFlow(context, ref),
+        ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,

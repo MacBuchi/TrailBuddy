@@ -138,9 +138,30 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `de.mcbuchi.trailbuddy`. Jeder Build braucht `--flavor`. Backup-Ausschlüsse
   in `res/xml/`: Session-Token, `offline_maps/`, `outbox/`, `trail_cache/`,
   `rides/`, `updates/`.
+- **Feedback (die Glühbirne)**: `lib/features/feedback/feedback_dialog.dart`
+  (Karte unten links und Profil) schreibt in `public.feedback`;
+  `tool/feedback_bot.py` (`feedback.yml`, alle 2 h) macht daraus
+  ÖFFENTLICHE Issues mit Label `enhancement`/`bug` und löscht
+  `error_reports` nach 90 Tagen (Datenschutzerklärung). Drei Dinge, die
+  man wissen muss:
+  - **Kein Benutzername im Issue**, anders als PilzBuddy: Das Issue ist
+    öffentlich, wer schrieb, steht nur in der Datenbank. `@`-Erwähnungen
+    werden entschärft. Der Dialog bittet ausdrücklich um keine
+    Trailnamen oder Orte — ein Trail gehört nie in ein Issue (Konzept 4).
+    Meldungen zu einem einzelnen Trail sind ein eigener, noch offener Weg
+    (Hinweise an Buddys: #7).
+  - **Rechte des Service-Schlüssels stehen ausdrücklich im Schema**
+    (patch_001): `service_role` umgeht RLS, aber keine fehlenden Grants,
+    und das Live-Projekt gibt ohne automatische Freigabe keine von
+    selbst. `tool/grants_check.sql` prüft sie im Dry Run — der
+    API-Wächter sieht sie nicht, er fragt mit dem Publishable Key.
+  - **Kein Schlüssel, kein Lauf — sichtbar**: Fehlt
+    `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
+    grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   MapLibre-Engine für Android, Offline-Karten, Ausgangskorb, Aufzeichnung
-  (Phase 2), Nachrichten und Push, Feedback-Bot und Fehlerbericht-Digest,
+  (Phase 2), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.
 

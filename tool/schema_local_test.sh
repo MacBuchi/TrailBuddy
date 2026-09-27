@@ -70,8 +70,9 @@ echo "→ auth-Shim"
 "${PSQL[@]}" -d trailbuddy_test -f tool/auth_shim.sql
 echo "→ schema.sql (Frischinstallation, ein Durchlauf)"
 "${PSQL[@]}" -d trailbuddy_test -f supabase/schema.sql
-echo "→ matcher_check.sql"
-if "${PSQL[@]}" -d trailbuddy_test -f tool/matcher_check.sql; then
+echo "→ matcher_check.sql + grants_check.sql"
+if "${PSQL[@]}" -d trailbuddy_test -f tool/matcher_check.sql \
+   && "${PSQL[@]}" -d trailbuddy_test -f tool/grants_check.sql; then
   echo "PASS: schema.sql läuft auf einer leeren Datenbank durch, Matcher und Policies verhalten sich wie im Konzept."
 else
   echo "FAIL: siehe Meldung oben (Log: $DIR/postgres.log wird beim Aufräumen gelöscht — mit TB_TEST_KEEP=1 bleibt es)."

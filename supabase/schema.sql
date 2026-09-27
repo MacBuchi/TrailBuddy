@@ -920,6 +920,14 @@ grant select, insert, update, delete on public.trail_details to authenticated;
 grant select on public.recordings_visible to authenticated;
 -- KEIN Grant auf public.trails, KEINER auf app_internal.trail_overlaps.
 
+-- Der Feedback-Bot (tool/feedback_bot.py, patch_001) arbeitet mit dem
+-- Service-Schlüssel: Feedback lesen und abstempeln, Fehlerberichte nach
+-- 90 Tagen löschen. service_role umgeht RLS, aber NICHT fehlende Grants —
+-- und ein Projekt ohne automatische Tabellenfreigabe gibt ihm keine von
+-- selbst. Ausdrücklich, damit der Bot nicht an einer Vorgabe hängt.
+grant select, update on public.feedback to service_role;
+grant select, delete on public.error_reports to service_role;
+
 -- ============================================================
 -- Aufräumjob (nur wo pg_cron verfügbar ist)
 -- ============================================================
@@ -966,10 +974,7 @@ create policy applied_patches_no_client on public.applied_patches
 -- Regel: Ein neuer supabase/patch_NNN_*.sql gehört im selben PR (1) als
 -- Datei, (2) in die Struktur oben und (3) HIER in die Liste.
 -- tool/patch_guard.sh vergleicht Liste und Dateien und lässt keinen
--- Unterschied durch. Es gibt noch keinen Patch — die Liste ist leer, und
--- das Vergleichsergebnis „leer gegen leer" ist der Normalzustand bis zur
--- ersten Schemaänderung nach der Erstinstallation.
---
--- insert into public.applied_patches (filename) values
---   ('patch_001_<thema>.sql')
--- on conflict do nothing;
+-- Unterschied durch.
+insert into public.applied_patches (filename) values
+  ('patch_001_feedback_bot_grants.sql')
+on conflict do nothing;

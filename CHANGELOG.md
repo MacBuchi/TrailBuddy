@@ -2,6 +2,16 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Idee oder Fehler melden
+
+*Version 0.2.0, 2026-09-27*
+
+- **Die Glühbirne auf der Karte** (und im Profil unter „Idee oder Fehler
+  melden"): Wünsche und Fehler gehen direkt an den Entwickler.
+- Die Meldung wird ein **öffentlicher** Eintrag im GitHub-Projekt — mit
+  deinem Text, aber ohne deinen Namen. Bitte keine Trailnamen oder Orte
+  hineinschreiben; der Dialog erinnert daran.
+
 ## GPX-Import, der wirklich Dateien findet
 
 *Version 0.1.1, 2026-09-27*
