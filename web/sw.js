@@ -95,16 +95,21 @@ self.addEventListener('install', (event) => {
 // den neuen nach und räumt den alten erst danach ab.
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    const others = await previousCaches();
-    let keep = null;
-    for (const name of others) {
-      // `caches.keys()` liefert in Anlegereihenfolge — der letzte
-      // vollständige ist der jüngste vollständige.
-      if (await (await caches.open(name)).match(COMPLETE)) keep = name;
+    // Was bleibt, entscheidet der MERKER, nicht die Reihenfolge von
+    // `caches.keys()`. PilzBuddys Fassung las die Reihenfolge als
+    // Anlegereihenfolge — und Chromium liefert sie nicht immer so:
+    // Beim Bau dieses Workers stand der neue Cache in zwei von drei
+    // Läufen VOR dem alten (Chromium 1194 lokal, google-chrome auf dem
+    // Runner), `previousCaches()` war dann leer, der neue Cache hielt
+    // sich für vollständig, und der alte blieb für immer stehen.
+    // Vollständige frühere Caches bleiben, bis `topUp` sie umgelegt hat;
+    // unvollständige Reste älterer Stände gehen — ohne Merker startete
+    // aus ihnen ohnehin nichts.
+    for (const name of await otherCaches()) {
+      if (!(await caches.match(COMPLETE, {cacheName: name}))) {
+        await caches.delete(name);
+      }
     }
-    keep ??= others[others.length - 1] ?? null;
-    await Promise.all(
-        others.filter((name) => name !== keep).map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
   // Nicht in `waitUntil`: Solange das Aktivieren läuft, stehen die
@@ -158,26 +163,43 @@ async function networkFirst(request, isNavigation) {
 async function cachedCopy(request, isNavigation) {
   const names = [...(await previousCaches()), CACHE];
   for (const name of names) {
-    const cache = await caches.open(name);
-    const hit = await cache.match(request) ??
+    // `caches.match(…, {cacheName})` statt `caches.open(name).match(…)`:
+    // `open` LEGT AN, was es nicht findet. Löscht `topUp` gerade den alten
+    // Cache, während hier eine Anfrage nachschlägt, entstand aus dem
+    // eben gelöschten Namen ein leerer Cache ohne Merker — ein Zombie,
+    // der weder Rückfall noch Nachfüllen je wieder loswurde (beim Bau in
+    // einem von drei Läufen gesehen). `match` mit Namen liest nur.
+    const hit = await caches.match(request, {cacheName: name}) ??
         // Eine Navigation darf auch dann noch gelingen, wenn genau diese
         // Adresse nie im Cache lag — die App ist eine einzige Seite.
-        (isNavigation ? await cache.match('./') : undefined);
+        (isNavigation ? await caches.match('./', {cacheName: name}) : undefined);
     if (hit) return hit;
   }
   return null;
 }
 
-/// Die Caches FRÜHERER Builds — in Anlegereihenfolge vor dem eigenen.
+/// Die Caches FRÜHERER Builds: alle anderen mit Vollständig-Merker.
+///
 /// Nicht „alle anderen": Liegt der Cache eines NEUEREN Workers daneben,
 /// der noch wartet (bei knappem Netz aktiviert der Browser ihn erst, wenn
 /// dieser hier alle offenen Anfragen los ist), nähme der Rückfall sonst
-/// Dateien aus beiden Ständen. Ohne Netz startete die Mischung nicht —
-/// beim Bau so gemessen.
+/// Dateien aus beiden Ständen — und ohne Netz startete die Mischung nicht
+/// (in PilzBuddy beim Bau gemessen). Ein wartender Worker hat seinen
+/// Merker noch nicht; ein früherer, den `topUp` noch nicht umgelegt hat,
+/// hat ihn. Auf die Reihenfolge von `caches.keys()` verlässt sich hier
+/// nichts mehr (siehe `activate`).
+async function otherCaches() {
+  return (await caches.keys())
+      .filter((n) => n.startsWith('trailbuddy-') && n !== CACHE);
+}
+
 async function previousCaches() {
-  const names = (await caches.keys()).filter((n) => n.startsWith('trailbuddy-'));
-  const own = names.indexOf(CACHE);
-  return own < 0 ? names.filter((n) => n !== CACHE) : names.slice(0, own);
+  const complete = [];
+  for (const name of await otherCaches()) {
+    // Lesend, ohne `open` — siehe `cachedCopy`.
+    if (await caches.match(COMPLETE, {cacheName: name})) complete.push(name);
+  }
+  return complete;
 }
 
 async function fetchAndCache(request) {
@@ -187,7 +209,14 @@ async function fetchAndCache(request) {
   // als Kopie zu behalten hieße, sie später ohne Netz zu wiederholen.
   if (response.status === 200 && cacheable(request.url)) {
     const copy = response.clone();
-    caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
+    // Nur ablegen, solange der eigene Cache noch existiert. Ein Worker,
+    // den ein neuer gerade abgelöst hat, beantwortet noch offene Anfragen
+    // — sein Cache ist dann schon gelöscht, und `open` legte ihn als
+    // leeren Zombie ohne Merker neu an (beim Bau in einem von drei
+    // Läufen gesehen). Dasselbe Tor in `warm` und `topUp`.
+    ownCacheExists()
+        .then((exists) => exists && caches.open(CACHE).then((cache) => cache.put(request, copy)))
+        .catch(() => {});
   }
   return response;
 }
@@ -205,7 +234,14 @@ function queue(job) {
   return warming;
 }
 
+/// Existiert der eigene Cache noch? `false`, sobald ein Nachfolger ihn
+/// umgelegt und gelöscht hat — dann ist dieser Worker Geschichte.
+function ownCacheExists() {
+  return caches.has(CACHE);
+}
+
 async function warm(urls) {
+  if (!(await ownCacheExists())) return;
   const cache = await caches.open(CACHE);
   for (const url of urls) {
     try {
@@ -232,7 +268,26 @@ async function warm(urls) {
 /// vollen Dateien. Was der Server nicht mehr kennt (404), gehört nicht
 /// mehr zur App. Scheitert eine Anfrage, bleibt der alte Cache stehen,
 /// und der nächste Lauf versucht es wieder.
+/// Zombies wegräumen: leere Caches ohne Merker. Sie entstehen, wenn ein
+/// abgelöster Worker nach dem Löschen seines Caches noch einmal `open`
+/// ruft (`has` sagte eben noch ja) — das Fenster ist winzig und trotzdem
+/// beim Bau in jedem dritten Lauf getroffen worden. Kennzeichen: kein
+/// Merker UND keine Hülle. Der Cache eines gerade installierenden
+/// Nachfolgers trägt die Hülle binnen Millisekunden (`install` legt sie
+/// zuerst ab), ein Zombie nie. Nur lesend geprüft, damit die Prüfung
+/// nicht selbst anlegt, was sie sucht.
+async function sweepZombies() {
+  for (const name of await otherCaches()) {
+    if (await caches.match(COMPLETE, {cacheName: name})) continue;
+    if (await caches.match('./', {cacheName: name})) continue;
+    if (await caches.match('flutter_bootstrap.js', {cacheName: name})) continue;
+    await caches.delete(name);
+  }
+}
+
 async function topUp() {
+  if (!(await ownCacheExists())) return;
+  await sweepZombies();
   const previous = await previousCaches();
   const cache = await caches.open(CACHE);
   if (previous.length === 0) {
@@ -241,6 +296,9 @@ async function topUp() {
   }
   let complete = true;
   for (const name of previous) {
+    // Hier ist `open` in Ordnung: Der Name kommt aus `previousCaches()`
+    // mit Merker, und nur DIESER Lauf löscht — die Warteschlange lässt
+    // kein zweites Nachfüllen daneben laufen.
     const old = await caches.open(name);
     for (const request of await old.keys()) {
       if (request.url === COMPLETE || !cacheable(request.url)) continue;
@@ -275,6 +333,9 @@ async function topUp() {
   if (!complete) return;
   await markComplete(cache);
   await Promise.all(previous.map((name) => caches.delete(name)));
+  // Der abgelöste Worker kann JETZT noch einen Zombie anlegen — kurz
+  // danach noch einmal nachsehen.
+  setTimeout(() => queue(sweepZombies), 2000);
 }
 
 function markComplete(cache) {

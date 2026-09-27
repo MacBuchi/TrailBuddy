@@ -63,6 +63,12 @@ let blockTopUp = false;
 // die Kennung des Nachfüllens trägt; der Browser fragt beim normalen
 // Laden ebenfalls mit ETag nach.
 let notModified = 0;
+// Wie oft das Nachfüllen eine Datei VOLL laden musste, obwohl sie sich
+// nicht geändert hat. Die Zusage ist nicht „viele 304" (PilzBuddy prüfte
+// >= 5 und hat viele Assets, die die Seite beim Start nicht lädt —
+// TrailBuddy hat davon zwei), sondern: Nichts Unverändertes wird neu
+// geladen. `flutter_bootstrap.js` ändert sich je Deploy und zählt nicht.
+let topUpFull = 0;
 const SHELL_PATHS = new Set([
   '/index.html', '/flutter_bootstrap.js', '/main.dart.js',
   '/manifest.json', '/favicon.png', '/icons/Icon-192.png', '/sw.js',
@@ -91,6 +97,7 @@ const handler = async (req, res) => {
       res.writeHead(304, {etag}).end();
       return;
     }
+    if (req.headers['x-trailbuddy-topup'] && path !== '/flutter_bootstrap.js') topUpFull++;
     res.writeHead(200, {
       'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
       etag,
@@ -522,10 +529,15 @@ try {
   // Seite holte sonst fast alles selbst, und gemessen wäre nur der Rest.
   await startServer();
   notModified = 0;
+  topUpFull = 0;
   await evaluate(send,
       "navigator.serviceWorker.controller.postMessage({type: 'warm', urls: []})");
+  // Länger als der 30-s-Timeout, den der Worker je Nachfüll-Anfrage hat:
+  // Eine beim halben Update hängen gelassene Anfrage kann die Warteschlange
+  // des Workers noch bis dahin blockieren, und erst danach läuft das
+  // Nachfüllen für diesen Schritt.
   let caches2 = [];
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 80; i++) {
     await sleep(1000);
     caches2 = await evaluate(send, '(async () => (await caches.keys()))()');
     if (caches2.length === 1 && !before.includes(caches2[0])) break;
@@ -533,8 +545,11 @@ try {
   check(caches2.length === 1 && !before.includes(caches2[0]),
       `online räumt der neue Cache den alten ab (jetzt: ${JSON.stringify(caches2)})`);
   // Unverändertes (CanvasKit, Schriften) wird umgelegt, nicht neu geladen.
-  check(notModified >= 5,
-      `unveränderte Dateien kommen per 304 aus dem alten Cache (${notModified}×)`);
+  // Null Anfragen sind erlaubt: Lädt die Seite beim Update selbst schon
+  // alles, hat das Nachfüllen nichts mehr zu tun — und genau das ist bei
+  // einer kleinen App mit zwölf Dateien der Normalfall.
+  check(topUpFull === 0,
+      `unverändertes wird umgelegt, nie voll geladen (${notModified}× 304, ${topUpFull}× voll geladen)`);
   await send('Page.navigate', {url});
   await waitFor(send, APP, 'wieder online nach dem Update');
 
