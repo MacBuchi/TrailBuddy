@@ -26,6 +26,8 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -52,9 +54,16 @@ def api(method: str, path: str, body=None):
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(supabase_url() + path, data=data,
                                      headers=headers, method=method)
-    with urllib.request.urlopen(request, timeout=30) as response:
-        text = response.read().decode()
-        return json.loads(text) if text else None
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            text = response.read().decode()
+            return json.loads(text) if text else None
+    except urllib.error.HTTPError as e:
+        # PostgREST sagt im Rumpf, WAS nicht stimmt ("invalid input syntax
+        # for type timestamp …") — ohne ihn stand im Log nur „400". Der
+        # Rumpf enthält keine Daten, nur die Fehlermeldung.
+        raise SystemExit(f"{method} {path.split('?')[0]} → HTTP {e.code}: "
+                         f"{e.read().decode(errors='replace')[:500]}") from None
 
 
 def run(*cmd: str) -> str:
@@ -105,12 +114,19 @@ def ensure_labels() -> None:
 
 
 def retention_cutoff(now: datetime) -> str:
-    return (now - timedelta(days=ERROR_REPORT_RETENTION_DAYS)).isoformat()
+    # UTC mit „Z", nicht isoformat(): dessen „+00:00" steht sonst roh in
+    # der Adresse, und ein „+" in einer Query heißt Leerzeichen — PostgREST
+    # bekam ein ungültiges Datum und antwortete 400 (erster Live-Lauf).
+    cutoff = now.astimezone(timezone.utc) - timedelta(days=ERROR_REPORT_RETENTION_DAYS)
+    return cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def purge_path(cutoff: str) -> str:
+    return "/rest/v1/error_reports?created_at=lt." + urllib.parse.quote(cutoff, safe="")
 
 
 def purge_error_reports() -> None:
-    cutoff = retention_cutoff(datetime.now(timezone.utc))
-    api("DELETE", f"/rest/v1/error_reports?created_at=lt.{cutoff}")
+    api("DELETE", purge_path(retention_cutoff(datetime.now(timezone.utc))))
     print(f"error_reports older than {ERROR_REPORT_RETENTION_DAYS} days deleted.")
 
 
@@ -156,8 +172,11 @@ def self_test() -> None:
     assert issue_label(bug) == "bug"
     assert "aus Version" not in issue_body(bug), "no invented version"
 
-    cutoff = retention_cutoff(datetime(2026, 9, 27, tzinfo=timezone.utc))
-    assert cutoff.startswith("2026-06-29"), cutoff
+    cutoff = retention_cutoff(datetime(2026, 9, 27, 18, 0, tzinfo=timezone.utc))
+    assert cutoff == "2026-06-29T18:00:00Z", cutoff
+    # Kein rohes „+" in der Adresse — das war der 400 im ersten Live-Lauf.
+    path = purge_path(cutoff)
+    assert "+" not in path and path.endswith("lt.2026-06-29T18%3A00%3A00Z"), path
 
     assert supabase_url().startswith("https://") and supabase_url().endswith(".supabase.co")
     print("feedback_bot self-test: ok")
