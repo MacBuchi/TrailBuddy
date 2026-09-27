@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Schwierigkeit nach der Singletrail-Skala
+
+*Version 0.4.0, 2026-09-27*
+
+- **S0 bis S5, von euch eingeschätzt**: Das Trail-Blatt zeigt den Wert
+  deiner Buddys, die Spanne und wie viele eingeschätzt haben — zum
+  Beispiel „S2 · S1–S3 · 4 Einschätzungen". Ein Tipp darauf zeigt, wer
+  was gesagt hat.
+- **Deine Einschätzung mit einem Tipp** direkt im Blatt, bei Trails, die
+  du selbst gefahren bist. Noch ein Tipp nimmt sie zurück.
+- **Was heißt S3?** Das „?" neben der Auswahl erklärt jede Stufe in einem
+  Satz, auch im Dialog „Mein Beitrag".
+
 ## Höhenmeter und Höhenprofil
 
 *Version 0.3.0, 2026-09-27*

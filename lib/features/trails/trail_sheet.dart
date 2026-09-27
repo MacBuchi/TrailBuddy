@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/errors.dart';
+import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
 import 'elevation_profile_chart.dart';
+import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
@@ -99,7 +102,12 @@ class _TrailSheet extends ConsumerWidget {
                           (gain: elevation.gainM, loss: elevation.lossM)))),
                   Chip(label: Text(formatMeanGrade(elevation.meanDescentPct))),
                 ],
-                if (trail.grade != null) Chip(label: Text(gradeLabel(trail.grade!))),
+                if (trail.grade != null)
+                  ActionChip(
+                    key: const ValueKey('grade-chip'),
+                    label: Text(gradeSummary(trail)!),
+                    onPressed: () => showGradeVotesSheet(context, trail),
+                  ),
                 if (mine?.kind != null) Chip(label: Text(mine!.kind!.label)),
                 if (trail.status.warns)
                   Chip(
@@ -134,6 +142,10 @@ class _TrailSheet extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(mine.description!),
               ),
+            if (trail.isOwn) ...[
+              const SizedBox(height: 12),
+              OwnGradePicker(trail: trail),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -172,4 +184,133 @@ String _profileCaption(ElevationProfile p) {
     parts.add('steilstes Stück ${steepest.round()} % auf ${kSteepestWindowM.round()} m');
   }
   return parts.join(' · ');
+}
+
+/// „S2 · S1–S3 · 4 Einschätzungen" — Median, Spanne (nur wenn es eine
+/// gibt) und wie viele es sind. Eine Einschätzung ist eine Meinung, vier
+/// sind ein Bild; die Zahl sagt, welches von beiden man sieht.
+String? gradeSummary(Trail trail) {
+  final median = trail.grade;
+  final range = trail.gradeRange;
+  if (median == null || range == null) return null;
+  final n = trail.gradeVotes.length;
+  return [
+    gradeLabel(median),
+    if (range.min != range.max) '${gradeLabel(range.min)}–${gradeLabel(range.max)}',
+    '$n ${n == 1 ? 'Einschätzung' : 'Einschätzungen'}',
+  ].join(' · ');
+}
+
+/// Wer hat was gesagt — nur sichtbare Beiträge, also die eigenen und die
+/// der Buddys (dieselbe Liste, aus der der Median kommt).
+Future<void> showGradeVotesSheet(BuildContext context, Trail trail) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) {
+      final theme = Theme.of(sheetContext);
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Schwierigkeit', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(gradeSummary(trail) ?? 'Noch keine Einschätzung',
+                  style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 8),
+              for (final d in trail.gradeVotes)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    radius: 18,
+                    child: Text(gradeLabel(d.grade!)),
+                  ),
+                  title: Text(d.userId == trail.myId ? 'Du' : (d.username ?? 'Buddy')),
+                  subtitle: Text(singletrailGrade(d.grade!).short),
+                ),
+              TextButton.icon(
+                onPressed: () =>
+                    showSingletrailScaleSheet(sheetContext, highlight: trail.grade),
+                icon: const Icon(Icons.help_outline),
+                label: const Text('Was bedeuten S0 bis S5?'),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Die eigene Einschätzung direkt im Blatt: ein Tipp auf S0–S5 speichert,
+/// ein zweiter Tipp auf dieselbe Stufe nimmt sie zurück. Nur für Trails,
+/// die man selbst belegt hat — ohne Beleg kein Beitrag (Konzept 3).
+class OwnGradePicker extends ConsumerStatefulWidget {
+  const OwnGradePicker({super.key, required this.trail});
+  final Trail trail;
+
+  @override
+  ConsumerState<OwnGradePicker> createState() => _OwnGradePickerState();
+}
+
+class _OwnGradePickerState extends ConsumerState<OwnGradePicker> {
+  bool _saving = false;
+
+  Future<void> _set(int? grade) async {
+    final trail = widget.trail;
+    final current = trail.myDetails ??
+        TrailDetails(trailId: trail.id, userId: trail.myId);
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final fresh = await ref.read(trailsProvider.notifier).saveDetails(
+          grade == null ? current.copyWith(clearGrade: true) : current.copyWith(grade: grade));
+      if (!fresh) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Einschätzung gespeichert$staleAfterWriteHint')));
+      }
+    } catch (e, st) {
+      logError('Trail-Einschätzung speichern', e, st);
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mine = widget.trail.myDetails?.grade;
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Deine Einschätzung', style: theme.textTheme.titleSmall),
+            SingletrailScaleButton(highlight: mine),
+          ],
+        ),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            for (final g in kSingletrailScale)
+              ChoiceChip(
+                key: ValueKey('own-grade-${g.value}'),
+                label: Text(g.label),
+                tooltip: g.short,
+                selected: mine == g.value,
+                onSelected: _saving
+                    ? null
+                    : (on) => _set(on ? g.value : null),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }
