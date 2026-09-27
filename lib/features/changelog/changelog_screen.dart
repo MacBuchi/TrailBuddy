@@ -1,0 +1,143 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
+import '../../core/app_colors.dart';
+import 'changelog_parser.dart';
+
+/// Pfad der mitgelieferten Änderungsliste (Asset-Eintrag in `pubspec.yaml`).
+const changelogAsset = 'CHANGELOG.md';
+
+/// Zeigt die Versionshistorie aus der mitgelieferten `CHANGELOG.md`.
+///
+/// Die Datei liegt im Binary, die Ansicht funktioniert also ohne Empfang —
+/// das ist der Unterschied zum Update-Banner, das die Release-Notes des
+/// *nächsten* Updates über das Netz holt. Deshalb ist sie auch im
+/// Play-Build sichtbar: Sie beschreibt die installierte App und verweist
+/// auf keinen Download.
+class ChangelogScreen extends StatelessWidget {
+  const ChangelogScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Was ist neu')),
+      body: FutureBuilder<String>(
+        future: rootBundle.loadString(changelogAsset),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            // Sollte nie passieren — die Datei ist mitgeliefert. Falls doch,
+            // ist eine Erklärung besser als ein leerer Bildschirm.
+            return const _Message('Die Änderungsliste konnte nicht geladen '
+                'werden. Alle Änderungen stehen auch auf der Projektseite '
+                'unter „GitHub-Projekt & Dokumentation".');
+          }
+          final markdown = snapshot.data;
+          if (markdown == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return _ChangelogBody(lines: parseChangelog(markdown));
+        },
+      ),
+    );
+  }
+}
+
+class _ChangelogBody extends StatelessWidget {
+  const _ChangelogBody({required this.lines});
+
+  final List<ChangelogLine> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    // Alles vor der ersten Überschrift überspringen: Titel und Vorspann der
+    // Datei richten sich an Leser auf GitHub und erklären unter anderem den
+    // Weg zu genau diesem Bildschirm.
+    final body = lines
+        .skipWhile((line) => line.kind != ChangelogLineKind.section)
+        .toList();
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      itemCount: body.length,
+      itemBuilder: (context, index) => _ChangelogLineView(line: body[index]),
+    );
+  }
+}
+
+class _ChangelogLineView extends StatelessWidget {
+  const _ChangelogLineView({required this.line});
+
+  final ChangelogLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7);
+
+    switch (line.kind) {
+      case ChangelogLineKind.section:
+        return Padding(
+          padding: const EdgeInsets.only(top: 24, bottom: 2),
+          child: Text(
+            line.text,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(color: AppColors.trailGreen),
+          ),
+        );
+      case ChangelogLineKind.meta:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            line.text,
+            style: theme.textTheme.bodySmall?.copyWith(color: muted),
+          ),
+        );
+      case ChangelogLineKind.bullet:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('• ', style: theme.textTheme.bodyMedium),
+              Expanded(child: _richText(context, line)),
+            ],
+          ),
+        );
+      case ChangelogLineKind.title:
+      case ChangelogLineKind.text:
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _richText(context, line),
+        );
+    }
+  }
+
+  Widget _richText(BuildContext context, ChangelogLine line) {
+    final base = Theme.of(context).textTheme.bodyMedium;
+    return Text.rich(
+      TextSpan(
+        children: [
+          for (final segment in line.segments)
+            TextSpan(
+              text: segment.text,
+              style: segment.bold
+                  ? base?.copyWith(fontWeight: FontWeight.bold)
+                  : base,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Message extends StatelessWidget {
+  const _Message(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      );
+}

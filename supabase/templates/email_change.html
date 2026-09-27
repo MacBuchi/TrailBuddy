@@ -1,0 +1,47 @@
+<!--
+  Mail beim Ändern der E-Mail-Adresse (Issue #193). Versionierte Kopie
+  der Vorlage aus dem Supabase-Dashboard (Authentication → Emails →
+  Templates → Change Email Address); das Dashboard ist die wirksame
+  Quelle, hier steht sie, damit sie sichtbar ist und der lokale Stack
+  dieselbe Mail schickt. Änderungen also IMMER an beiden Stellen.
+
+  Mit „Secure email change" gehen ZWEI Mails raus — eine an die alte,
+  eine an die neue Adresse, mit je eigenem Code. GoTrue nutzt für beide
+  DIESE Vorlage. Wie bei Reset und Registrierung: {{ .Token }} und KEIN
+  {{ .ConfirmationURL }} — der Link wäre an das anfordernde Gerät
+  gebunden. Der Anker ohne href verhindert die Telefonnummer-Erkennung
+  der Mail-Programme; Aufbau und Farben wie recovery.html (#192).
+-->
+<div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 480px; color: #1c1b1f; line-height: 1.5;">
+  <h2 style="color: #2E7D32; font-size: 20px; margin: 0 0 16px;">
+    E-Mail-Adresse ändern
+  </h2>
+
+  <p style="margin: 0 0 16px;">
+    Für dein TrailBuddy-Konto wurde eine neue E-Mail-Adresse angegeben.
+    Zur Bestätigung gehören zwei Codes — einer aus der Mail an deine
+    bisherige, einer aus der an deine neue Adresse. Dieser hier:
+  </p>
+
+  <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px;
+            background: #FFF6E3; color: #2E7D32; padding: 16px;
+            text-align: center; border-radius: 8px; margin: 0 0 16px;">
+    <a style="color: #2E7D32; text-decoration: none;">{{ .Token }}</a>
+  </p>
+
+  <p style="margin: 0 0 16px;">
+    Gib beide Codes in der App ein. Der Code gilt eine Stunde.
+  </p>
+
+  <p style="margin: 0 0 16px; color: #49454f; font-size: 14px;">
+    Du hast das nicht angefordert? Dann ist nichts passiert — ohne beide
+    Codes bleibt deine Adresse unverändert. Diese Mail kannst du löschen.
+  </p>
+
+  <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;">
+
+  <p style="color: #79747e; font-size: 12px; margin: 0;">
+    TrailBuddy — deine Trails, mit deinen Buddys geteilt. Diese Nachricht
+    wurde automatisch verschickt, eine Antwort darauf liest niemand.
+  </p>
+</div>

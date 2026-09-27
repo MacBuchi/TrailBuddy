@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Play-Flavor: Selbst-Updates verstoßen gegen „Device and Network
+         Abuse", im Store aktualisiert Play selbst. Der Dart-Pfad ist über
+         AppDistribution.showsUpdateHints (Build-Flag PLAY_BUILD) ohnehin
+         aus; diese Zeile nimmt die zugehörige Berechtigung aus dem
+         gemergten Manifest, damit im AAB keine Berechtigung ohne Funktion
+         steht. Das Flavor-Manifest hat Vorrang vor `main`.
+
+         In einem XML-Kommentar sind zwei aufeinanderfolgende Bindestriche
+         verboten; die Schreibweise des dart-define-Schalters gehört hier
+         deshalb NICHT hinein (PilzBuddy ist genau daran gescheitert).
+
+         Bewusst NICHTS weiter in dieser Datei: Jede Zeile gilt nur für den
+         Play-Build und driftet still von den GitHub-Installationen ab. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove"/>
+</manifest>

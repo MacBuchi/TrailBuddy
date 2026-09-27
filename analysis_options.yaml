@@ -1,0 +1,51 @@
+# Statische Analyse. Läuft lokal über `flutter analyze` und in CI als
+# Pflicht-Check („Analyze & Test").
+#
+# Die Grundlage ist `flutter_lints`; alles darunter ist bewusst gesetzt
+# (#226) und von `test/analysis_options_test.dart` bewacht — sonst
+# verschwände eine Regel still aus dieser Datei, während `flutter analyze`
+# weiter grün meldet.
+#
+# **Gemessen, nicht geschätzt** (2026-08-10, Flutter 3.41.2): Das ganze
+# Regelwerk zusammen kostete beim Einschalten SIEBEN Funde, davon zwei in
+# `lib/`. `strict-casts`, `strict-raw-types`, `avoid_print`,
+# `use_build_context_synchronously` und `prefer_final_locals` waren von
+# Anfang an bei null — der Code hielt sie längst ein, nur ungeprüft. Das
+# Issue rechnete mit „five findings to two hundred"; wer die Zahlen das
+# nächste Mal in Zweifel zieht, misst mit `flutter analyze` nach, statt zu
+# schätzen.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    # Impliziter Cast von `dynamic` und rohe Generics gelten als Fehler.
+    # Beides trifft vor allem Code, der JSON auspackt — und genau dort
+    # kommen die Daten von außen.
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    # `print` gehört nicht in eine ausgelieferte App; für Diagnose gibt es
+    # `logError` (`lib/core/errors.dart`), das den Fehler auch meldet.
+    avoid_print: error
+    # **Die wichtigste Zeile dieser Datei.** CLAUDE.md verlangt
+    # „`mounted`/`context.mounted` nach jedem `await` prüfen"; unter
+    # `flutter_lints` allein ist das eine WARNUNG, die Regel also von
+    # Aufmerksamkeit durchgesetzt statt von CI. Ein BuildContext über
+    # einen await hinweg ist im Release-Build ein Absturz, den niemand
+    # nachstellt.
+    use_build_context_synchronously: error
+  exclude:
+    - build/**
+    - android/**
+    - web/**
+
+linter:
+  rules:
+    # Ein vergessenes `await` ist der Fehler, der nicht auffällt: Die
+    # Zusage läuft, niemand wartet, ein Fehlschlag landet als
+    # unbehandelte Ausnahme im Wochendigest statt an der Aufrufstelle.
+    # Absicht schreibt man mit `unawaited(...)` hin — das steht in diesem
+    # Projekt ohnehin an jeder Stelle, an der etwas nachlaufen soll.
+    - unawaited_futures
+    - prefer_const_constructors
+    - prefer_final_locals

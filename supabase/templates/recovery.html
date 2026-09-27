@@ -1,0 +1,56 @@
+<!--
+  Reset-Mail („Passwort vergessen"). Diese Datei ist die versionierte Kopie
+  der Vorlage, die im Supabase-Dashboard unter Authentication → Emails →
+  Templates → Reset Password hinterlegt ist. Das Dashboard ist die
+  wirksame Quelle; hier steht sie, damit sie überhaupt sichtbar und
+  vergleichbar ist — und damit der lokale Stack dieselbe Mail verschickt.
+  Änderungen also IMMER an beiden Stellen.
+
+  Entscheidend: {{ .Token }} und KEIN {{ .ConfirmationURL }}. Der Link wäre
+  an das Gerät gebunden, das den Reset angefordert hat (PKCE-Verifier im
+  lokalen Speicher) und stirbt beim Öffnen im Browser — Begründung in
+  CLAUDE.md und AuthRepository.sendPasswordResetCode.
+
+  Der Code steckt in einem <a> OHNE href: Mail-Programme (allen voran
+  iOS Mail) erkennen sechs Ziffern sonst als Telefonnummer und machen
+  einen blauen Anruf-Link daraus. In einen bestehenden Anker greifen die
+  Erkenner nicht hinein, und Kopieren bleibt sauber — unsichtbare
+  Trennzeichen im Code wären keine Lösung, sie kämen beim Einfügen in
+  der App mit. Aufbau nach dem Muster der FWApp-Mails, Farben aus
+  lib/core/app_colors.dart (Farben aus PilzBuddy übernommen: #2E7D32, #FFF6E3).
+  Achtung Wächter: tool/auth_reset_check.sh fischt die ERSTE
+  Sechsziffernfolge aus dem Body — vor dem Code darf keine rein
+  numerische Hexfarbe o. Ä. stehen.
+-->
+<div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; max-width: 480px; color: #1c1b1f; line-height: 1.5;">
+  <h2 style="color: #2E7D32; font-size: 20px; margin: 0 0 16px;">
+    Passwort zurücksetzen
+  </h2>
+
+  <p style="margin: 0 0 16px;">
+    Für dein TrailBuddy-Konto wurde ein neues Passwort angefordert. Gib
+    diesen Code in der App ein:
+  </p>
+
+  <p style="font-size: 32px; font-weight: 700; letter-spacing: 6px;
+            background: #FFF6E3; color: #2E7D32; padding: 16px;
+            text-align: center; border-radius: 8px; margin: 0 0 16px;">
+    <a style="color: #2E7D32; text-decoration: none;">{{ .Token }}</a>
+  </p>
+
+  <p style="margin: 0 0 16px;">
+    Der Code gilt eine Stunde. Danach einfach einen neuen anfordern.
+  </p>
+
+  <p style="margin: 0 0 16px; color: #49454f; font-size: 14px;">
+    Du hast das nicht angefordert? Dann ist nichts passiert — ohne den
+    Code bleibt dein Passwort unverändert. Diese Mail kannst du löschen.
+  </p>
+
+  <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;">
+
+  <p style="color: #79747e; font-size: 12px; margin: 0;">
+    TrailBuddy — deine Trails, mit deinen Buddys geteilt. Diese Nachricht
+    wurde automatisch verschickt, eine Antwort darauf liest niemand.
+  </p>
+</div>

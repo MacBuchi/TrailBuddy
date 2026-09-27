@@ -1,0 +1,168 @@
+import 'package:latlong2/latlong.dart';
+import 'package:trailbuddy/data/trail_repository.dart';
+import 'package:trailbuddy/features/trails/trail_geometry.dart';
+import 'package:trailbuddy/features/trails/trail_providers.dart';
+import 'package:trailbuddy/models/trail.dart';
+
+/// Spiegelt die RLS der Trail-Tabellen (Konzept 3): sichtbar ist ein
+/// Beleg, wenn er mir gehört oder einem Buddy, dessen Beitrag zu diesem
+/// Trail nicht `private` ist. Den Abgleich ersetzt eine Vorgabe
+/// ([matcher]) — die Geometrie prüft `tool/matcher_check.sql` gegen die
+/// echte Datenbank, hier geht es um die App drumherum.
+class FakeTrailRepository implements TrailRepository {
+  FakeTrailRepository({required this.myId, this.areFriends});
+
+  final String Function() myId;
+  final bool Function(String a, String b)? areFriends;
+
+  final recordings = <TrailRecording>[];
+  final details = <TrailDetails>[];
+  final usernames = <String, String>{};
+
+  /// Liefert die Trail-Kennung, an die eine beigesteuerte Linie gehängt
+  /// wird; `null` heißt neuer Trail.
+  String? Function(List<double> coords)? matcher;
+
+  int contributeCalls = 0;
+  Object? failNextContribute;
+  Object? failFetch;
+
+  bool _visible(String userId, String trailId) {
+    final me = myId();
+    if (userId == me) return true;
+    if (!(areFriends?.call(me, userId) ?? false)) return false;
+    final d = details.where((x) => x.userId == userId && x.trailId == trailId).firstOrNull;
+    return d == null || d.visibility == TrailVisibility.buddies;
+  }
+
+  @override
+  Future<List<TrailRecording>> fetchRecordings() async {
+    if (failFetch != null) throw failFetch!;
+    return [for (final r in recordings) if (_visible(r.userId, r.trailId)) r];
+  }
+
+  @override
+  Future<List<TrailDetails>> fetchDetails() async {
+    if (failFetch != null) throw failFetch!;
+    final me = myId();
+    return [
+      for (final d in details)
+        if (d.userId == me ||
+            ((areFriends?.call(me, d.userId) ?? false) &&
+                d.visibility == TrailVisibility.buddies))
+          TrailDetails(
+            trailId: d.trailId,
+            userId: d.userId,
+            username: usernames[d.userId],
+            name: d.name,
+            description: d.description,
+            grade: d.grade,
+            kind: d.kind,
+            visibility: d.visibility,
+            status: d.status,
+            statusAt: d.statusAt,
+            updatedAt: d.updatedAt,
+          ),
+    ];
+  }
+
+  @override
+  Future<String> contribute({
+    required List<double> coords,
+    required RecordingSource source,
+    DateTime? recordedAt,
+    required String clientId,
+  }) async {
+    contributeCalls++;
+    if (failNextContribute != null) {
+      final e = failNextContribute!;
+      failNextContribute = null;
+      throw e;
+    }
+    final me = myId();
+    final existing = recordings
+        .where((r) => r.userId == me && r.id == 'rec-$clientId')
+        .firstOrNull;
+    if (existing != null) return existing.trailId;
+    final trailId = matcher?.call(coords) ?? 'trail-${newClientId()}';
+    final points = <LatLng>[
+      for (var i = 0; i + 1 < coords.length; i += 2) LatLng(coords[i + 1], coords[i]),
+    ];
+    var length = 0.0;
+    for (var i = 1; i < points.length; i++) {
+      length += haversineM(points[i - 1].latitude, points[i - 1].longitude,
+          points[i].latitude, points[i].longitude);
+    }
+    if (length < kTrailMinLengthM) {
+      throw StateError('Linie kürzer als ${kTrailMinLengthM.round()} m');
+    }
+    recordings.add(TrailRecording(
+      id: 'rec-$clientId',
+      trailId: trailId,
+      userId: me,
+      source: source,
+      recordedAt: recordedAt,
+      reversed: false,
+      quality: switch (source) {
+        RecordingSource.app => 0.6,
+        RecordingSource.import => 0.4,
+        RecordingSource.planned => 0.1,
+      },
+      createdAt: DateTime.now(),
+      points: points,
+      lengthM: length,
+    ));
+    if (!details.any((d) => d.trailId == trailId && d.userId == me)) {
+      details.add(TrailDetails(trailId: trailId, userId: me));
+    }
+    return trailId;
+  }
+
+  @override
+  Future<void> saveDetails(TrailDetails d) async {
+    final me = myId();
+    details.removeWhere((x) => x.trailId == d.trailId && x.userId == me);
+    details.add(TrailDetails(
+      trailId: d.trailId,
+      userId: me,
+      name: d.name,
+      description: d.description,
+      grade: d.grade,
+      kind: d.kind,
+      visibility: d.visibility,
+      status: d.status,
+      statusAt: d.statusAt,
+      updatedAt: DateTime.now(),
+    ));
+  }
+
+  /// Ein fertiger Beleg von [userId] für Tests — eine 1-km-Linie nach
+  /// Norden ab [lat]/[lon].
+  String seedTrail(String userId,
+      {String? name, double lat = 48.0, double lon = 9.0, double quality = 0.4,
+      TrailStatus status = TrailStatus.open, DateTime? statusAt,
+      TrailVisibility visibility = TrailVisibility.buddies, String? trailId}) {
+    final id = trailId ?? 'trail-${newClientId()}';
+    recordings.add(TrailRecording(
+      id: 'rec-${newClientId()}',
+      trailId: id,
+      userId: userId,
+      source: RecordingSource.import,
+      recordedAt: null,
+      reversed: false,
+      quality: quality,
+      createdAt: DateTime(2026, 1, 1).add(Duration(seconds: recordings.length)),
+      points: [LatLng(lat, lon), LatLng(lat + 0.005, lon), LatLng(lat + 0.009, lon)],
+      lengthM: 1000,
+    ));
+    details.add(TrailDetails(
+      trailId: id,
+      userId: userId,
+      name: name,
+      status: status,
+      statusAt: statusAt,
+      visibility: visibility,
+    ));
+    return id;
+  }
+}

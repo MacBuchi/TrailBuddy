@@ -1,0 +1,53 @@
+-- Ersatz für das Supabase-Schema `auth` — NUR für lokale und CI-Läufe des
+-- Matcher-Tests (tool/schema_local_test.sh) auf einem nackten Postgres.
+-- NIE in ein Supabase-Projekt einspielen: Dort legt GoTrue das Schema an,
+-- und dieses hier würde es überschreiben.
+--
+-- Was schema.sql von `auth` braucht, und nicht mehr:
+--   - auth.users(id, email, raw_user_meta_data): Ziel des Fremdschlüssels
+--     von profiles, Quelle des Benutzernamens im Trigger handle_new_user
+--     (raw_user_meta_data->>'username', wie in PilzBuddy).
+--   - auth.uid(): liest `sub` aus den JWT-Claims, die PostgREST als GUC
+--     `request.jwt.claims` setzt. Der Test setzt sie mit set_config().
+--   - die Rollen anon und authenticated (nologin), auf die Grants und
+--     Policies zielen.
+--
+-- Dazu die Vorgabe des Supabase-Stacks, ohne die der Test das Falsche
+-- prüfte: `auto_expose_new_tables` gibt anon und authenticated auf JEDER
+-- neuen Tabelle in public alle Rechte (Default Privileges). Der Test
+-- „trails ist für authenticated nicht lesbar" beweist nur dann etwas,
+-- wenn diese Vorgabe hier genauso gilt und schema.sql sie ausdrücklich
+-- zurücknimmt.
+create schema if not exists auth;
+
+create table if not exists auth.users (
+  id uuid primary key,
+  email text,
+  raw_user_meta_data jsonb not null default '{}'::jsonb
+);
+
+create or replace function auth.uid()
+returns uuid
+language sql stable set search_path = '' as $$
+  select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid;
+$$;
+
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then
+    create role anon nologin;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+end $$;
+
+grant usage on schema public to anon, authenticated;
+grant usage on schema auth to anon, authenticated;
+grant execute on function auth.uid() to anon, authenticated;
+alter default privileges in schema public
+  grant all on tables to anon, authenticated;
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated;
+alter default privileges in schema public
+  grant execute on functions to anon, authenticated;

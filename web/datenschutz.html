@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<!--
+  Datenschutzerklärung für TrailBuddy — Stand der Phase 1 (Konto, Buddys,
+  Trail-Aufzeichnungen aus GPX-Dateien, Karte, Update-Prüfung). Muster und
+  Struktur aus PilzBuddy; jeder Abschnitt beschreibt, was die App WIRKLICH
+  tut. `test/privacy_policy_test.dart` prüft jeden Host, den der Code
+  anspricht, gegen diese Seite: Ein neues Netzziel ohne Absatz hier macht
+  CI rot. Was hier NICHT steht, tut die App nicht — kommt es dazu
+  (Aufzeichnung, Push, Fotos), kommt der Absatz im selben PR.
+
+  Entwurf zur juristischen Prüfung vor dem Play-Store-Eintrag (Konzept,
+  Entscheidung 7).
+-->
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrailBuddy — Datenschutzerklärung</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.6; max-width: 42rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; color: #22302c; background: #f3f7f5; }
+    h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+    h2 { font-size: 1.15rem; margin-top: 2rem; }
+    h3 { font-size: 1rem; margin-top: 1.5rem; }
+    .lead { color: #5b6e67; margin-top: 0; }
+    .note { background: #e2efea; border-left: 4px solid #1f6f5f; padding: .75rem 1rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+    th, td { text-align: left; vertical-align: top; padding: .4rem .5rem; border-bottom: 1px solid #c9d8d2; }
+    a { color: #1f6f5f; }
+    @media (prefers-color-scheme: dark) { body { color: #e4ebe8; background: #1b211f; } .lead { color: #a7b8b1; } .note { background: #26302c; border-left-color: #5fa892; } th, td { border-bottom-color: #3a4642; } a { color: #7fcbb5; } }
+  </style>
+</head>
+<body>
+  <h1>TrailBuddy — Datenschutzerklärung</h1>
+  <p class="lead">Stand: 27. September 2026. Gilt für die Android-App und die
+    Web-App unter macbuchi.github.io/trailbuddy/.</p>
+
+  <h2>Verantwortlicher</h2>
+  <p>Marcus Bucher, Schumannstr. 7, 74906 Bad Rappenau, Deutschland.
+    Kontakt: <a href="mailto:pilzbuddy@proton.me">pilzbuddy@proton.me</a>.
+    Vollständige Angaben im <a href="impressum.html">Impressum</a>.</p>
+
+  <h2>Der kurze Überblick</h2>
+  <ul>
+    <li>TrailBuddy speichert dein Konto (E-Mail, Benutzername), deine
+      Buddy-Verbindungen und die <strong>Trail-Aufzeichnungen</strong>, die
+      du beisteuerst: die Linie eines Trails mit Zeitpunkt und Quelle.</li>
+    <li><strong>Ganze Fahrten verlassen dein Gerät nie.</strong> Beigesteuert
+      werden nur die Ausschnitte, die du als Trail auswählst.</li>
+    <li>Sichtbar sind deine Trails nur für dich und die Buddys, mit denen
+      du verbunden bist. Es gibt keine öffentliche Karte, keine Suche
+      nach Trails und keine Auswertung über alle Nutzer.</li>
+    <li>Die Daten liegen bei Supabase (Auftragsverarbeiter, Region
+      EU-West). Beim Kartenabruf geht deine IP-Adresse an die Server von
+      OpenStreetMap, bei der Update-Prüfung an GitHub.</li>
+    <li>Keine Werbung, kein Tracking, keine Weitergabe an Dritte zu deren
+      Zwecken.</li>
+  </ul>
+
+  <h2>Welche Daten, wozu, auf welcher Grundlage</h2>
+  <table>
+    <tr><th>Daten</th><th>Wozu</th><th>Grundlage</th></tr>
+    <tr><td>E-Mail-Adresse, Passwort (gehasht), Benutzername</td>
+        <td>Konto anlegen, anmelden, Passwort zurücksetzen (per Code aus
+          der Bestätigungsmail), Buddys finden (exakte Adresse oder
+          Benutzername)</td>
+        <td>Vertrag, Art. 6 Abs. 1 b DSGVO</td></tr>
+    <tr><td>Buddy-Verbindungen und Anfragen, eigene Namen für Buddys</td>
+        <td>Festlegen, wer deine Trails sieht</td>
+        <td>Vertrag</td></tr>
+    <tr><td>Trail-Aufzeichnungen: Linie (Koordinaten), Zeitpunkt der
+          Aufzeichnung, Quelle (aufgezeichnet, importiert, geplant)</td>
+        <td>Deinen Buddys zeigen, was du gefahren bist; Abgleich mit
+          bekannten Trails, damit derselbe Trail nur einmal existiert</td>
+        <td>Vertrag; die Auswahl, was beigesteuert wird, triffst du je
+          Datei</td></tr>
+    <tr><td>Beiträge zu Trails: Name, Beschreibung, Schwierigkeit, Art,
+          Zustand, Sichtbarkeit</td>
+        <td>Anzeige im eigenen Netz</td>
+        <td>Vertrag</td></tr>
+    <tr><td>Fehlerberichte: Fehlermeldung, Stack, App-Version, Plattform,
+          ggf. deine Nutzer-Kennung</td>
+        <td>Fehler finden, die in der App gefangen wurden</td>
+        <td>Berechtigtes Interesse, Art. 6 Abs. 1 f DSGVO</td></tr>
+    <tr><td>Feedback (Text, App-Version)</td>
+        <td>Wünsche und Fehlermeldungen der Nutzer</td>
+        <td>Einwilligung durch Absenden</td></tr>
+  </table>
+
+  <h3>Was eine Aufzeichnung ist — und was nicht</h3>
+  <p>Eine Aufzeichnung ist ein Stück Weg: Anfang, Ende, Richtung, die
+    Linie dazwischen und der Zeitpunkt. Sie kann verraten, wo und wann du
+    unterwegs warst. Deshalb wird sie nur an die Buddys weitergegeben, mit
+    denen du verbunden bist, und nur, wenn dein Beitrag nicht auf „Nur für
+    mich" steht. <strong>Die vollständige Fahrt</strong> — von der Haustür
+    bis zur Haustür — bleibt auf deinem Gerät und wird weder übertragen
+    noch gesichert.</p>
+  <p>Der Server gleicht jede beigesteuerte Linie mit bereits bekannten
+    Trails ab, auch mit solchen, die du nicht sehen kannst. Du erfährst
+    dabei nichts über andere: Der Abgleich bestätigt nur, was du selbst
+    hochgeladen hast. Erst wenn ein Buddy denselben Trail belegt hat, siehst
+    du seinen Beitrag.</p>
+
+  <h2>Feedback wird öffentlich</h2>
+  <p>Feedback aus der App kann als Eintrag im öffentlichen GitHub-Projekt
+    veröffentlicht werden, zusammen mit deinem Benutzernamen. Schreibe dort
+    nichts, was nicht <strong>öffentlich</strong> stehen soll. Durch das
+    Löschen des Kontos verschwindet ein veröffentlichter Eintrag nicht;
+    wende dich dafür an den Betreiber.</p>
+
+  <h2>Wer die Daten verarbeitet</h2>
+  <h3>Supabase (Auftragsverarbeiter)</h3>
+  <p>Datenbank und Anmeldung laufen bei Supabase Inc. auf Servern in der
+    Region EU-West (AWS, Irland). Supabase verarbeitet die Daten
+    ausschließlich im Auftrag; die Zugriffsregeln (wer welche Zeile sieht)
+    werden in der Datenbank selbst durchgesetzt.</p>
+
+  <h3>Brevo (Auftragsverarbeiter, Versand der Konto-Mails)</h3>
+  <p>Die <strong>Bestätigungsmail</strong> bei der Registrierung, der Code
+    zum Zurücksetzen des Passworts und die Codes beim Adresswechsel gehen
+    über Brevo (Sendinblue GmbH, Berlin). Brevo erhält dafür deine
+    E-Mail-Adresse und den Inhalt der Mail.</p>
+
+  <h3>Verbindungen, die die App aufbaut</h3>
+  <ul>
+    <li><strong>tile.openstreetmap.org</strong> — die Kartenkacheln. Bei
+      jedem Kartenausschnitt geht deine IP-Adresse samt dem angeforderten
+      Ausschnitt an die Server der OpenStreetMap Foundation.</li>
+    <li><strong>api.github.com</strong> und <strong>github.com</strong> —
+      die Update-Prüfung fragt die Release-Liste des Projekts ab und lädt
+      auf Wunsch die App-Datei. GitHub sieht dabei deine IP-Adresse. In
+      der Play-Store-Fassung entfällt das.</li>
+    <li><strong>macbuchi.github.io</strong> — die Web-App selbst, diese
+      Seite und die Rechtsseiten werden von GitHub Pages ausgeliefert.</li>
+    <li><strong>fonts.gstatic.com</strong> — die Web-App lädt die
+      Standardschrift Roboto von Google (Vorgabe von Flutter), bei jedem
+      Seitenaufruf, vor jeder Anmeldung. Google sieht dabei deine
+      IP-Adresse.</li>
+  </ul>
+
+  <h3>Was zusätzlich auf dem Gerät liegt</h3>
+  <p>Sitzungs-Token, Einstellungen, ein Zwischenspeicher der Trails deines
+    Netzes und deine Fahrten. Nichts davon wird über das Android-Backup in
+    Googles Cloud gesichert; die App schließt diese Dateien ausdrücklich
+    aus.</p>
+
+  <h2>Speicherdauer</h2>
+  <ul>
+    <li>Konto, Buddys, Aufzeichnungen und Beiträge: bis du sie löschst
+      oder das Konto löschst.</li>
+    <li>Fehlerberichte: 90 Tage.</li>
+    <li>Feedback: unbegrenzt, siehe oben.</li>
+  </ul>
+
+  <h2>Konto löschen</h2>
+  <p>In der App unter Profil → <strong>Konto löschen</strong>, oder ohne
+    App nach der Anleitung unter <a href="konto-loeschen.html">Konto
+    löschen</a>. Die Löschung wirkt sofort und entfernt Profil,
+    Aufzeichnungen, Beiträge und Verbindungen.</p>
+
+  <h2>Deine Rechte</h2>
+  <p>Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit
+    und Widerspruch nach Art. 15 bis 21 DSGVO — per E-Mail an die oben
+    genannte Adresse. Beschwerden nimmt die zuständige
+    Datenschutzaufsichtsbehörde entgegen, für den Verantwortlichen der
+    Landesbeauftragte für den Datenschutz und die Informationsfreiheit
+    Baden-Württemberg.</p>
+
+  <h2>Änderungen</h2>
+  <p>Diese Erklärung wird angepasst, wenn die App neue Daten erhebt oder
+    neue Verbindungen aufbaut. Die jeweils gültige Fassung steht unter
+    dieser Adresse; größere Änderungen nennt der Changelog in der App.</p>
+
+  <p><a href="./">← Zurück zu TrailBuddy</a></p>
+</body>
+</html>

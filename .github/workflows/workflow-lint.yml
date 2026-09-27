@@ -1,0 +1,57 @@
+name: Workflow Lint
+
+# Statische Prüfung der Workflows selbst — nicht des App-Codes. In diesen
+# Dateien werden später der Android-Keystore und Datenbank-Zugangsdaten
+# verarbeitet; eine gekaperte Third-Party-Action oder eine
+# Template-Injection in einem `run:`-Block liest sie direkt aus.
+#
+# Werkzeug ist zizmor. Übernommen aus PilzBuddy samt dessen Befund: Dort
+# blieb `continue-on-error`, weil `contents: write` auf Workflow-Ebene in
+# release.yml als hoher Befund offen ist und sich nur an einem echten
+# Release prüfen lässt. Hier gilt dasselbe, bis das erste Release lief.
+# Bewusst ohne actionlint (üblicher Installationsweg ist `curl | bash`).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Über PyPI statt über die Action: Eine Action, die die anderen
+      # Actions auf Pinning prüft, müsste sonst selbst ungepinnt hier
+      # stehen. Die Version ist bewusst gedeckelt — ein neuer Audit in
+      # einer neuen zizmor-Fassung soll nicht unangekündigt die Befundlage
+      # ändern.
+      - name: zizmor installieren
+        run: pipx install 'zizmor>=1.0,<2.0'
+
+      - name: zizmor
+        continue-on-error: true # siehe Kopf
+        # Ohne Token bricht der Lauf ab, statt Befunde zu melden: Audits wie
+        # `ref-confusion` und `impostor-commit` fragen GitHub, und ohne
+        # Anmeldung antwortet der 401 — „fatal: no audit was performed"
+        # (lokal nachgestellt). Gerade `impostor-commit` ist der Audit, der
+        # die SHA-Pins gegenprüft, also genau der, den man hier will.
+        # `GITHUB_TOKEN` reicht dafür und braucht im öffentlichen Repo keine
+        # zusätzliche Berechtigung.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: zizmor --persona regular .github/workflows/

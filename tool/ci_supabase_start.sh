@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+### ci_supabase_start.sh – Den lokalen Supabase-Stack in CI starten, robust
+### gegen Drosselung der Image-Registries. Genutzt vom Schema Dry Run
+### (ci.yml). Übernommen aus PilzBuddy (dort aus FWApp), angepasst an die
+### Dienste, die TrailBuddy braucht.
+###
+### Drei Dinge, jedes mit Grund:
+###
+### 1. Die Registry-Vorgabe der Action wird aufgehoben. `supabase/setup-cli`
+###    setzt SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io — und eine gesetzte
+###    Registry schaltet die Ausweichkette der CLI ab (public.ecr.aws →
+###    ghcr.io → Docker Hub). Am 2026-09-23 drosselte ghcr.io die Runner
+###    („toomanyrequests"): PilzBuddys Schema Dry Run scheiterte viermal
+###    hintereinander am Start des Stacks, ohne dass ein Test lief.
+### 2. Nur die Dienste, die der Dry Run braucht — weniger Images heißt
+###    weniger Downloads, die gedrosselt werden können. `config.toml`
+###    schaltet Studio, Realtime, Analytics und den Pooler schon ab; hier
+###    fallen zusätzlich weg:
+###      - imgproxy       (Bildumwandlung, nutzt kein Test)
+###      - postgres-meta  (nur für Studio)
+###      - vector         (Log-Sammler)
+###      - edge-runtime   (keine Functions)
+###      - storage-api    (keine Buckets — anders als PilzBuddy; kommt
+###                        Storage, hier UND in config.toml einschalten)
+###    Es BLEIBEN: db (mit PostGIS), kong, gotrue, postgrest und mailpit
+###    (`auth_reset_check.sh` liest dort die Codes).
+###    ⚠️ `-x` will die IMAGE-Namen. Die Namen aus `supabase start --help`
+###    nimmt die CLI stillschweigend an und startet die Dienste trotzdem
+###    (in FWApp mit `docker ps` nachgesehen).
+### 3. Drei Versuche mit wachsender Pause. Eine Drosselung ist
+###    vorübergehend.
+set -euo pipefail
+
+unset SUPABASE_INTERNAL_IMAGE_REGISTRY
+
+for versuch in 1 2 3; do
+  if supabase start -x imgproxy,postgres-meta,vector,edge-runtime,storage-api,logflare,realtime,studio; then
+    exit 0
+  fi
+  echo "::warning::supabase start scheiterte (Versuch $versuch/3) — neuer Versuch in $((versuch * 30)) s"
+  supabase stop --no-backup || true
+  sleep $((versuch * 30))
+done
+echo "::error::supabase start scheiterte dreimal"
+exit 1
