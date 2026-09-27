@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Orte auf der Karte
+
+*Version 0.5.0, 2026-09-28*
+
+- **Trinkwasser, Einkehr, Rad-Service**: Die Karte zeigt ab Zoomstufe 12
+  Orte aus OpenStreetMap als Stecknadeln — Café, Biergarten, Hütte,
+  Brunnen und Quelle, Reparaturstation, Radladen, E-Bike-Ladestation,
+  Unterstand, Toilette, Aussichtspunkt und Parkplatz.
+- **Du wählst, was du siehst**: Der Knopf unten links schaltet die vier
+  Gruppen einzeln an und aus. Am Anfang ist nur Wasser an.
+- **Ein Tipp auf eine Nadel** zeigt Name, Öffnungszeiten und bei Quellen,
+  ob das Wasser als trinkbar eingetragen ist.
+
 ## Höhenmeter an echten Fahrten abgestimmt
 
 *Version 0.4.1, 2026-09-27*

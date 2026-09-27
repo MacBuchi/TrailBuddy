@@ -32,7 +32,7 @@
 </head>
 <body>
   <h1>TrailBuddy — Datenschutzerklärung</h1>
-  <p class="lead">Stand: 27. September 2026. Gilt für die Android-App und die
+  <p class="lead">Stand: 28. September 2026. Gilt für die Android-App und die
     Web-App unter macbuchi.github.io/trailbuddy/.</p>
 
   <h2>Verantwortlicher</h2>
@@ -52,7 +52,8 @@
       nach Trails und keine Auswertung über alle Nutzer.</li>
     <li>Die Daten liegen bei Supabase (Auftragsverarbeiter, Region
       Frankfurt am Main). Beim Kartenabruf geht deine IP-Adresse an die Server von
-      OpenStreetMap, bei der Update-Prüfung an GitHub.</li>
+      OpenStreetMap, für die Orte auf der Karte an die Overpass-API des
+      FOSSGIS e.V., bei der Update-Prüfung an GitHub.</li>
     <li>Keine Werbung, kein Tracking, keine Weitergabe an Dritte zu deren
       Zwecken.</li>
   </ul>
@@ -135,6 +136,14 @@
     <li><strong>tile.openstreetmap.org</strong> — die Kartenkacheln. Bei
       jedem Kartenausschnitt geht deine IP-Adresse samt dem angeforderten
       Ausschnitt an die Server der OpenStreetMap Foundation.</li>
+    <li><strong>overpass-api.de</strong> — die Orte auf der Karte
+      (Einkehr, Wasser, Rad-Service, Sonstiges). Nur solange im Filter
+      eine Gruppe eingeschaltet ist — anfangs ist das „Wasser" — und erst
+      ab Zoomstufe 12: Dann gehen deine IP-Adresse, der Rahmen um den
+      sichtbaren Kartenausschnitt und die eingeschalteten Gruppen an die
+      Overpass-API des FOSSGIS e.V. (Deutschland). Keine Trails, keine
+      Fahrten, keine Kontodaten. Ganz ausschalten lässt sich das, indem
+      man im Filter alle Gruppen abwählt.</li>
     <li><strong>api.github.com</strong> und <strong>github.com</strong> —
       die Update-Prüfung fragt die Release-Liste des Projekts ab und lädt
       auf Wunsch die App-Datei. GitHub sieht dabei deine IP-Adresse. In

@@ -30,6 +30,13 @@ abstract interface class Settings {
   bool get prereleaseUpdatesEnabled;
 
   Future<void> setPrereleaseUpdatesEnabled(bool value);
+
+  /// Die eingeschalteten Orte-Gruppen der Karte (`PoiGroup.name`), oder
+  /// null, solange nie etwas umgelegt wurde — dann gilt die Vorgabe.
+  /// Leer heißt „alles aus", nicht „Vorgabe".
+  List<String>? get poiGroups;
+
+  Future<void> setPoiGroups(List<String> groups);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -47,6 +54,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setPrereleaseUpdatesEnabled(bool value) =>
       _prefs.setBool(_prereleaseUpdatesEnabledKey, value);
+
+  static const _poiGroupsKey = 'poi_groups';
+
+  @override
+  List<String>? get poiGroups => _prefs.getStringList(_poiGroupsKey);
+
+  @override
+  Future<void> setPoiGroups(List<String> groups) =>
+      _prefs.setStringList(_poiGroupsKey, groups);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

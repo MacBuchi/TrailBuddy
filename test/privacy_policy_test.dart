@@ -49,6 +49,8 @@ void main() {
   test('die Erklärung benennt die heiklen Punkte', () {
     final html = _read(_privacy);
     expect(html, contains('tile.openstreetmap.org'));
+    expect(html, contains('overpass-api.de'));
+    expect(html, contains('FOSSGIS'));
     expect(html, contains('Trail-Aufzeichnungen'));
     expect(html, contains('verlassen dein Gerät nie'),
         reason: 'Entscheidung 4 im Konzept: Fahrten bleiben lokal');
@@ -66,6 +68,8 @@ void main() {
     /// Ziele, die die App von sich aus abruft — MÜSSEN in der Erklärung stehen.
     const fetched = {
       'tile.openstreetmap.org',
+      // Orte auf der Karte (#12), nur mit eingeschaltetem Filter.
+      'overpass-api.de',
       'api.github.com',
       'github.com',
       'macbuchi.github.io',

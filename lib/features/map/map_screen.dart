@@ -10,11 +10,15 @@ import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
 import 'map_providers.dart';
+import 'poi_layer.dart';
+import 'poi_source.dart';
 
 /// Die Karte: OSM-Raster, darüber die Trails des eigenen Netzes als
 /// Linien. Eigene grün, nur von Buddys belegte blau, gesperrte oder
 /// zerstörte in Warnfarbe — die Farbe sagt, was ICH damit zu tun habe,
-/// nicht, wie gut der Trail ist.
+/// nicht, wie gut der Trail ist. Darunter, auf Wunsch, Orte aus
+/// OpenStreetMap als Stecknadeln (#12) — unter den Trails, damit ein
+/// Tipp auf eine Linie nie an einer Nadel hängen bleibt.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -53,6 +57,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget build(BuildContext context) {
     final trailsAsync = ref.watch(trailsProvider);
     final trails = trailsAsync.valueOrNull ?? const <Trail>[];
+    final poiUnavailable = ref.watch(poiGroupsProvider).isNotEmpty &&
+        ref.watch(poiControllerProvider.select((s) => s.unavailable));
 
     // Einmal auf das Netz zoomen, sobald es da ist; danach nie wieder
     // von selbst — wer die Karte verschoben hat, will nicht zurückgeholt
@@ -100,6 +106,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 userAgentPackageName: 'de.mcbuchi.trailbuddy',
                 tileProvider: ref.watch(mapTileProviderProvider),
               ),
+              const PoiLayer(),
               PolylineLayer<String>(
                 hitNotifier: _hits,
                 polylines: [
@@ -127,17 +134,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           const UpdateBanner(),
           // Die Glühbirne (PilzBuddy-Muster): melden kann man immer, also
           // steht sie immer da — klein, unten links, wo weder die
-          // Attribution (rechts) noch die Banner (oben) liegen.
+          // Attribution (rechts) noch die Banner (oben) liegen. Der
+          // Orte-Filter steht aus demselben Grund darüber.
           SafeArea(
             child: Align(
               alignment: Alignment.bottomLeft,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: FloatingActionButton.small(
-                  heroTag: 'feedback',
-                  tooltip: 'Idee oder Fehler melden',
-                  onPressed: () => showFeedbackFlow(context, ref),
-                  child: const Icon(Icons.lightbulb_outline),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (poiUnavailable)
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          child: Text('Orte gerade nicht erreichbar'),
+                        ),
+                      ),
+                    FloatingActionButton.small(
+                      heroTag: 'poi-filter',
+                      tooltip: 'Orte auf der Karte',
+                      onPressed: () => showPoiFilterSheet(context),
+                      child: const Icon(Icons.place_outlined),
+                    ),
+                    const SizedBox(height: 8),
+                    FloatingActionButton.small(
+                      heroTag: 'feedback',
+                      tooltip: 'Idee oder Fehler melden',
+                      onPressed: () => showFeedbackFlow(context, ref),
+                      child: const Icon(Icons.lightbulb_outline),
+                    ),
+                  ],
                 ),
               ),
             ),
