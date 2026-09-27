@@ -190,4 +190,16 @@ void main() {
     final config = File('supabase/config.toml').readAsStringSync();
     expect(config, contains('auto_expose_new_tables = false'));
   });
+
+  test('Workflows mit Pflicht-Checks starten auf JEDEM PR', () {
+    // Ein Pflicht-Check hinter einem Pfadfilter meldet sich auf einem PR,
+    // der die Pfade nicht berührt, nie — der PR bleibt „blocked", obwohl
+    // alles grün ist (so passiert mit Workflow Lint an PR #6).
+    for (final name in ['ci.yml', 'security.yml', 'workflow-lint.yml']) {
+      final text = File('.github/workflows/$name').readAsStringSync();
+      final code = text.split('\n').map((l) => l.split('#').first).join('\n');
+      expect(RegExp(r'^\s*(paths|paths-ignore):', multiLine: true).hasMatch(code), isFalse,
+          reason: '$name trägt einen Pfadfilter');
+    }
+  });
 }
