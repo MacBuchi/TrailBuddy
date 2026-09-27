@@ -31,13 +31,31 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 
 - Kein direkter Push auf `main`: Feature-Branch → PR → CI grün → Squash-Merge.
   (Branch-Schutz und Squash-Vorgabe: Repo-Einstellungen, vom Betreiber.)
-- Commit-/PR-Titel: Conventional Commits. Auf GitHub Englisch (Commits,
-  PRs, Issues); Deutsch für UI-Strings, Nutzer-Doku und die Kommunikation
-  mit dem Betreiber.
+- **Conventional Commits** für Commit- und PR-Titel:
+  `<typ>(<bereich>): <was>`, Typen `feat`, `fix`, `perf`, `refactor`,
+  `docs`, `test`, `ci`, `build`, `chore`; der Bereich ist optional
+  (`import`, `trails`, `map`, `auth`, `web`, `db` …). Der PR-Titel IST der
+  Commit auf `main` (Squash-Merge, Vorgabe „Pull request title"), also
+  zählt er, nicht die Commits auf dem Branch. Auf GitHub Englisch
+  (Commits, PRs, Issues); Deutsch für UI-Strings, Nutzer-Doku und die
+  Kommunikation mit dem Betreiber.
+- **Semantic Versioning** in `pubspec.yaml` (`MAJOR.MINOR.PATCH+BUILD`),
+  abgeleitet aus dem Typ des PRs — dieselbe Praxis wie PilzBuddy:
+  - `feat` ⇒ MINOR (`0.1.1 → 0.2.0`), `fix`/`perf` ⇒ PATCH
+    (`0.1.0 → 0.1.1`). Andere Typen bumpen nur, wenn sie ins Binary
+    gehen (Version Guard), dann als PATCH.
+  - `BUILD` steigt bei JEDEM Bump um eins und nie zurück — Android
+    lehnt eine APK mit kleinerem `versionCode` ab.
+  - **Vor 1.0.0** ist MAJOR 0 und ein Bruch trotzdem nur MINOR. 1.0.0
+    kommt mit dem Play-Store-Eintrag (Konzept 10, Punkt 7), nicht mit
+    einer Schemaänderung: Ältere Clients schützt
+    `minimum_supported_version`, nicht die Versionsnummer.
+  - Mehrere Themen in einem PR: der höchste Typ entscheidet.
 - **Version Guard** (ci.yml): Code-Änderung ohne Bump in `pubspec.yaml`
   blockiert den Merge, sobald es einen Release-Tag gibt. Ausgenommen sind
   `*.md` (außer `CHANGELOG.md`, die liegt als Asset im Binary), `.github/`,
-  `tool/`, `supabase/`, `docs/`. Beide Teile erhöhen (`0.1.0+1 → 0.1.1+2`).
+  `tool/`, `supabase/`, `docs/`. Er prüft, DASS gebumpt wurde; WELCHE Stelle
+  nach den Regeln oben, ist Sache des PRs.
 - **Changelog**: `CHANGELOG.md` wird in der App unter „Was ist neu" gezeigt.
   `test/changelog_test.dart` verlangt die pubspec-Version darin. Erlaubte
   Auszeichnung wie in PilzBuddy: `##`, kursive Metazeile, Absätze,

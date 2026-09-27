@@ -14,10 +14,11 @@ name: Workflow Lint
 on:
   push:
     branches: [main]
+  # Ohne Pfadfilter: Der Check ist Pflicht für `main`, und ein Pflicht-
+  # Check, der auf einem PR gar nicht startet, meldet sich nie — GitHub
+  # hält den PR dann für immer als „blocked" fest (PR #6, der nur Dart
+  # anfasste). Der Lauf kostet ~10 s.
   pull_request:
-    paths:
-      - ".github/workflows/**"
-      - ".github/dependabot.yml"
   workflow_dispatch:
 
 permissions:
