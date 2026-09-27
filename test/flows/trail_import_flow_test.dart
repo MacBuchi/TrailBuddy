@@ -2,8 +2,12 @@
 // lesen, beisteuern, in der Liste wiederfinden. Der Abgleich selbst ist
 // Sache der Datenbank (tool/matcher_check.sql); hier zählt, was die App
 // aus einer Datei macht und was sie dem Nutzer sagt.
+import 'dart:convert';
+
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:trailbuddy/features/trails/gpx_files.dart';
 import 'package:trailbuddy/features/trails/trail_geometry.dart';
 import 'package:trailbuddy/features/trails/trail_import_screen.dart';
 
@@ -37,9 +41,9 @@ void main() {
     backend.signInAs(anna.id);
     final trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '');
     final files = [
-      PickedGpx(name: 'wurzel.gpx', text: gpx('Wurzeltrail', 1200)),
-      PickedGpx(name: 'runde.gpx', text: gpx('Sonntagsrunde', 12000, eleStart: 300, eleEnd: 320)),
-      const PickedGpx(name: 'kaputt.gpx', text: '<kml/>'),
+      PickedFile.text('wurzel.gpx', gpx('Wurzeltrail', 1200)),
+      PickedFile.text('runde.gpx', gpx('Sonntagsrunde', 12000, eleStart: 300, eleEnd: 320)),
+      PickedFile.text('kaputt.gpx', '<kml/>'),
     ];
     await pumpApp(tester, backend, trails: trails, extraOverrides: [
       gpxPickerProvider.overrideWithValue(() async => files),
@@ -50,7 +54,7 @@ void main() {
     await settle(tester);
     expect(find.text('GPX importieren'), findsWidgets);
 
-    await tester.tap(find.text('GPX-Dateien wählen'));
+    await tester.tap(find.text('GPX- oder Zip-Dateien wählen'));
     await settle(tester);
 
     // Zwei Spuren gefunden, eine davon als Trail; die Fahrt ist erklärt, die
@@ -84,8 +88,8 @@ void main() {
     backend.signInAs(anna.id);
     final trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '');
     final files = [
-      PickedGpx(name: 'plan.gpx', text: gpx('Geplante Linie', 900, timed: false)),
-      PickedGpx(name: 'zwei.gpx', text: gpx('Zweiter', 800)),
+      PickedFile.text('plan.gpx', gpx('Geplante Linie', 900, timed: false)),
+      PickedFile.text('zwei.gpx', gpx('Zweiter', 800)),
     ];
     await pumpApp(tester, backend, trails: trails, extraOverrides: [
       gpxPickerProvider.overrideWithValue(() async => files),
@@ -93,7 +97,7 @@ void main() {
     await openTab(tester, 'Trails');
     await tester.tap(find.byTooltip('GPX importieren'));
     await settle(tester);
-    await tester.tap(find.text('GPX-Dateien wählen'));
+    await tester.tap(find.text('GPX- oder Zip-Dateien wählen'));
     await settle(tester);
     expect(find.textContaining('geplant (keine Fahrzeiten)'), findsOneWidget);
 
@@ -106,5 +110,70 @@ void main() {
     expect(trails.recordings.single.source, RecordingSource.import);
     // Der gescheiterte Kandidat bleibt in der Liste, der andere ist weg.
     expect(find.byType(CheckboxListTile), findsOneWidget);
+  });
+
+  testWidgets('ein Locus-Zip wird ausgepackt, ein Foto daneben benannt', (tester) async {
+    // Der Feldbefund zu v0.1.0: Auf Android waren GPX und Zip in der
+    // Auswahl ausgegraut. Die Auswahl filtert dort jetzt nicht mehr, also
+    // kommt auch Fremdes an — und muss mit Namen abgewiesen werden.
+    final backend = FakeBackend();
+    final anna = backend.addUser(username: 'anna');
+    backend.signInAs(anna.id);
+    final trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '');
+    final zip = Archive()
+      ..addFile(ArchiveFile.string('Tracks/eins.gpx', gpx('Erster', 700)))
+      ..addFile(ArchiveFile.string('Tracks/zwei.gpx', gpx('Zweiter', 900)))
+      ..addFile(ArchiveFile.string('__MACOSX/Tracks/._eins.gpx', 'Ressourcengabel'))
+      ..addFile(ArchiveFile.string('Tracks/liesmich.txt', 'hallo'));
+    final files = [
+      PickedFile(name: 'Trails.zip', bytes: ZipEncoder().encodeBytes(zip)),
+      PickedFile.text('foto.jpg', 'kein xml'),
+    ];
+    await pumpApp(tester, backend, trails: trails, extraOverrides: [
+      gpxPickerProvider.overrideWithValue(() async => files),
+    ]);
+    await openTab(tester, 'Trails');
+    await tester.tap(find.byTooltip('GPX importieren'));
+    await settle(tester);
+    await tester.tap(find.text('GPX- oder Zip-Dateien wählen'));
+    await settle(tester);
+
+    expect(find.text('2 Spuren gefunden, 2 davon als Trail'), findsOneWidget);
+    expect(find.text('Erster'), findsOneWidget);
+    expect(find.text('Zweiter'), findsOneWidget);
+    expect(find.text('foto.jpg: weder GPX noch Zip.'), findsOneWidget);
+    // Die Ressourcengabel ist kein Fehler, sie fällt still weg.
+    expect(find.textContaining('._eins'), findsNothing);
+    expect(utf8.decode(files.last.bytes), 'kein xml');
+  });
+
+  testWidgets('am Tageslimit hält der Import an, der Rest bleibt für morgen', (tester) async {
+    final backend = FakeBackend();
+    final anna = backend.addUser(username: 'anna');
+    backend.signInAs(anna.id);
+    final trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '')
+      ..dailyLimit = 2;
+    final files = [
+      for (var i = 1; i <= 4; i++) PickedFile.text('t$i.gpx', gpx('Trail $i', 600 + i * 50)),
+    ];
+    await pumpApp(tester, backend, trails: trails, extraOverrides: [
+      gpxPickerProvider.overrideWithValue(() async => files),
+    ]);
+    await openTab(tester, 'Trails');
+    await tester.tap(find.byTooltip('GPX importieren'));
+    await settle(tester);
+    await tester.tap(find.text('GPX- oder Zip-Dateien wählen'));
+    await settle(tester);
+    await tester.scrollUntilVisible(find.text('4 beisteuern'), 200);
+    await tester.tap(find.text('4 beisteuern'));
+    await settle(tester, frames: 20);
+
+    expect(trails.recordings, hasLength(2));
+    // Nach dem ersten „nein" kein weiterer Versuch: 3 Aufrufe, nicht 4.
+    expect(trails.contributeCalls, 3);
+    expect(find.text('2 beisteuern'), findsOneWidget);
+    expect(find.byType(CheckboxListTile), findsNWidgets(2));
+    await tester.scrollUntilVisible(find.text('2 beigesteuert, 0 fehlgeschlagen.'), -200);
+    expect(find.textContaining('Für heute ist das Limit erreicht'), findsOneWidget);
   });
 }

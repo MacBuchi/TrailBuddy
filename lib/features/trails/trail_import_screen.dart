@@ -1,29 +1,33 @@
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
 import 'gpx.dart';
+import 'gpx_files.dart';
 import 'trail_geometry.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
 
-/// Eine ausgewählte Datei — Name und Inhalt, mehr braucht der Import nicht.
-class PickedGpx {
-  const PickedGpx({required this.name, required this.text});
-  final String name;
-  final String text;
-}
-
 /// Dateiauswahl als Provider, damit Tests Dateien einhängen, ohne den
 /// System-Dialog zu öffnen.
-final gpxPickerProvider = Provider<Future<List<PickedGpx>> Function()>((ref) {
+///
+/// **Auf Android ohne Typfilter.** Der System-Dialog (SAF) filtert nach
+/// MIME-Typen, und für `.gpx` gibt es keinen registrierten — Dateimanager
+/// melden `application/octet-stream` oder gar nichts. Mit einem Filter auf
+/// `application/gpx+xml` waren GPX- UND Zip-Dateien ausgegraut, die
+/// Auswahl scheiterte, bevor die App eine Datei sah (Feldbefund v0.1.0,
+/// dieselbe Lehre wie im PilzBuddy-Import). Geprüft wird deshalb danach,
+/// in [gpxFilesFrom]. Im Browser filtert die Endung bequem vor.
+final gpxPickerProvider = Provider<Future<List<PickedFile>> Function()>((ref) {
   return () async {
-    final files = await openFiles(acceptedTypeGroups: const [
-      XTypeGroup(label: 'GPX', extensions: ['gpx'], mimeTypes: ['application/gpx+xml']),
-    ]);
+    const typeGroups = kIsWeb
+        ? [XTypeGroup(label: 'GPX oder Zip', extensions: ['gpx', 'zip'])]
+        : [XTypeGroup(label: 'Alle Dateien', mimeTypes: ['*/*'])];
+    final files = await openFiles(acceptedTypeGroups: typeGroups);
     return [
-      for (final f in files) PickedGpx(name: f.name, text: await f.readAsString()),
+      for (final f in files) PickedFile(name: f.name, bytes: await f.readAsBytes()),
     ];
   };
 });
@@ -42,6 +46,11 @@ class ImportCandidate {
   final ({double gain, double loss})? elevation;
   final TrackKind kind;
   final RecordingSource source;
+
+  /// EINE Kennung je Kandidat, beim Einlesen vergeben: Ein zweiter
+  /// Versuch nach einem Abriss trägt dieselbe, und der Server antwortet
+  /// mit der Aufzeichnung von damals statt eine zweite anzulegen.
+  final String clientId = newClientId();
 
   bool get contributable => kind == TrackKind.trail;
 }
@@ -62,17 +71,25 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   ({int ok, int failed})? _result;
 
   Future<void> _pick() async {
-    final List<PickedGpx> files;
+    final List<PickedFile> picked;
     try {
-      files = await ref.read(gpxPickerProvider)();
+      picked = await ref.read(gpxPickerProvider)();
     } catch (e, st) {
       logError('GPX auswählen', e, st);
       if (mounted) setState(() => _errors.add('Dateiauswahl fehlgeschlagen.'));
       return;
     }
     if (!mounted) return;
+    final files = <PickedGpx>[];
+    final unreadable = <String>[];
+    for (final p in picked) {
+      final r = gpxFilesFrom(p);
+      files.addAll(r.files);
+      unreadable.addAll(r.errors);
+    }
     setState(() {
       _result = null;
+      _errors.addAll(unreadable);
       for (final f in files) {
         try {
           for (final t in parseGpx(f.text, fallbackName: f.name)) {
@@ -96,13 +113,19 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     });
     var ok = 0;
     var failed = 0;
+    var limitHit = false;
     final succeeded = <ImportCandidate>{};
     final notifier = ref.read(trailsProvider.notifier);
     for (final c in chosen) {
       try {
-        await notifier.contribute(c.track);
+        await notifier.contribute(c.track, clientId: c.clientId);
         succeeded.add(c);
         ok++;
+      } on DailyLimitException {
+        // Kein Fehlerbericht: das ist die Regel, kein Defekt. Alle weiteren
+        // scheiterten genauso, also hier aufhören.
+        limitHit = true;
+        break;
       } catch (e, st) {
         logError('Trail beisteuern', e, st);
         failed++;
@@ -116,6 +139,10 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     setState(() {
       _busy = false;
       _result = (ok: ok, failed: failed);
+      if (limitHit) {
+        _errors.add('Für heute ist das Limit erreicht. Die übrigen bleiben '
+            'angehakt — morgen einfach noch einmal „beisteuern".');
+      }
       // Gescheiterte bleiben angehakt stehen — ein zweiter Versuch ist
       // ein Tipp, und die Kennung des Auftrags macht ihn idempotent.
       _candidates.removeWhere(succeeded.contains);
@@ -151,7 +178,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
           FilledButton.icon(
             onPressed: _busy ? null : _pick,
             icon: const Icon(Icons.folder_open),
-            label: const Text('GPX-Dateien wählen'),
+            label: const Text('GPX- oder Zip-Dateien wählen'),
           ),
           for (final e in _errors)
             Padding(

@@ -1,4 +1,5 @@
 import 'package:latlong2/latlong.dart';
+import 'package:trailbuddy/core/errors.dart';
 import 'package:trailbuddy/data/trail_repository.dart';
 import 'package:trailbuddy/features/trails/trail_geometry.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
@@ -24,6 +25,11 @@ class FakeTrailRepository implements TrailRepository {
   String? Function(List<double> coords)? matcher;
 
   int contributeCalls = 0;
+
+  /// Spiegelt `match_params().daily_limit`: so viele eigene Aufzeichnungen
+  /// nimmt der Server an, danach wirft das echte Repository
+  /// [DailyLimitException] (SQLSTATE 54000). `null` = kein Limit.
+  int? dailyLimit;
   Object? failNextContribute;
   Object? failFetch;
 
@@ -84,6 +90,11 @@ class FakeTrailRepository implements TrailRepository {
         .where((r) => r.userId == me && r.id == 'rec-$clientId')
         .firstOrNull;
     if (existing != null) return existing.trailId;
+    // Wie in der RPC: erst die Wiederholung beantworten, dann das Limit.
+    if (dailyLimit != null &&
+        recordings.where((r) => r.userId == me).length >= dailyLimit!) {
+      throw const DailyLimitException();
+    }
     final trailId = matcher?.call(coords) ?? 'trail-${newClientId()}';
     final points = <LatLng>[
       for (var i = 0; i + 1 < coords.length; i += 2) LatLng(coords[i + 1], coords[i]),

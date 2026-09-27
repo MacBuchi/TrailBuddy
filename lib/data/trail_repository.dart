@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/errors.dart';
 import '../features/trails/trail_geometry.dart';
 import '../models/trail.dart';
 import 'session.dart';
@@ -61,13 +62,18 @@ class SupabaseTrailRepository implements TrailRepository {
     required String clientId,
   }) async {
     _client.requireUid;
-    final result = await _client.rpc<dynamic>('contribute_recording', params: {
-      'coords': coords,
-      'source': source.name,
-      'recorded_at': recordedAt?.toUtc().toIso8601String(),
-      'client_id': clientId,
-    });
-    return result as String;
+    try {
+      final result = await _client.rpc<dynamic>('contribute_recording', params: {
+        'coords': coords,
+        'source': source.name,
+        'recorded_at': recordedAt?.toUtc().toIso8601String(),
+        'client_id': clientId,
+      });
+      return result as String;
+    } on PostgrestException catch (e) {
+      if (e.code == '54000') throw const DailyLimitException();
+      rethrow;
+    }
   }
 
   @override

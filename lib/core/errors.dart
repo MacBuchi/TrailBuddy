@@ -106,6 +106,20 @@ class WriteRejectedException implements Exception {
   String toString() => 'WriteRejectedException: $what';
 }
 
+/// Der Server nimmt heute keine weitere Aufzeichnung an
+/// (`contribute_recording`, SQLSTATE 54000, `match_params().daily_limit`).
+///
+/// Eigener Typ, weil der Import davon anders abhängt als von einem
+/// Fehlschlag: Ab hier scheitert JEDER weitere Versuch gleich, also hört
+/// er auf, statt dreihundert Zeilen „fehlgeschlagen" zu sammeln — und die
+/// übrigen bleiben angehakt für morgen.
+class DailyLimitException implements Exception {
+  const DailyLimitException();
+
+  @override
+  String toString() => 'DailyLimitException: Tageslimit für Aufzeichnungen erreicht';
+}
+
 /// Sieht dieser Fehler nach fehlendem Empfang aus?
 ///
 /// Bewusst eng: Ein Schema- oder Rechtefehler darf sich nie hinter einer
@@ -188,6 +202,9 @@ String friendlyError(Object error) {
   // Der Fall: ein Eintrag, dessen Freigabe inzwischen endete. Die Policy
   // lässt ihn dann vielleicht noch löschen, aber nicht mehr ändern —
   // deshalb nennt der Text beide Möglichkeiten, statt eine zu raten.
+  if (error is DailyLimitException) {
+    return 'Für heute ist das Limit erreicht — morgen geht es weiter.';
+  }
   if (error is WriteRejectedException) {
     return 'Das ließ sich nicht speichern — der Eintrag gehört dir nicht '
         'mehr oder wird nicht mehr mit dir geteilt.';
