@@ -24,6 +24,16 @@ abstract class TrailRepository {
     required String clientId,
   });
 
+  /// Trägt die Höhen einer EIGENEN Aufzeichnung ohne Höhen nach
+  /// (`attach_elevation`, Patch 003). [coords] ist die gespeicherte Linie,
+  /// wie der Client sie in der Originaldatei wiedergefunden hat; der
+  /// Server prüft, dass sie es ist. false: Sie hatte schon Höhen.
+  Future<bool> attachElevation({
+    required String recordingId,
+    required List<double> coords,
+    required List<double> eles,
+  });
+
   Future<void> saveDetails(TrailDetails details);
 }
 
@@ -78,6 +88,21 @@ class SupabaseTrailRepository implements TrailRepository {
       if (e.code == '54000') throw const DailyLimitException();
       rethrow;
     }
+  }
+
+  @override
+  Future<bool> attachElevation({
+    required String recordingId,
+    required List<double> coords,
+    required List<double> eles,
+  }) async {
+    _client.requireUid;
+    final result = await _client.rpc<dynamic>('attach_elevation', params: {
+      'recording_id': recordingId,
+      'coords': coords,
+      'eles': eles,
+    });
+    return result as bool;
   }
 
   @override

@@ -123,7 +123,11 @@ class _TrailSheet extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(_profileCaption(elevation), style: theme.textTheme.bodySmall),
             ] else
-              Text('Keine Höhenangaben — die Datei hatte keine.',
+              Text(
+                  trail.isOwn
+                      ? 'Keine Höhenangaben. Hat deine GPX-Datei welche, '
+                          'importiere sie noch einmal — sie werden nachgetragen.'
+                      : 'Keine Höhenangaben.',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 8),

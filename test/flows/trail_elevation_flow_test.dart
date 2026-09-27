@@ -94,7 +94,8 @@ void main() {
     await settle(tester, frames: 20);
     await tester.tap(find.text('Flachland'));
     await settle(tester);
-    expect(find.text('Keine Höhenangaben — die Datei hatte keine.'), findsOneWidget);
+    expect(find.textContaining('Keine Höhenangaben. Hat deine GPX-Datei welche'),
+        findsOneWidget);
     expect(find.byKey(const ValueKey('elevation-profile')), findsNothing);
     expect(find.textContaining('Hm'), findsNothing);
   });

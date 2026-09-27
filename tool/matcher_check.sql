@@ -644,4 +644,60 @@ begin
   perform tb_test.check(ok, format('die 51. Aufzeichnung an einem Tag wird abgelehnt (%s)', code));
 end $$;
 
+\echo -- 19. Höhen nachtragen (Patch 003, Issue #16)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  ub uuid := '22222222-2222-4222-8222-222222222222';
+  c double precision[] := tb_test.coords(tb_test.line(200, y0 => 25000));
+  n integer := array_length(c, 1) / 2;
+  h double precision[] := array(select (700.0 - i)::double precision from generate_series(1, n) i);
+  rid uuid; recs bigint; trails bigint; code text; ok boolean; wrote boolean;
+begin
+  -- Bernd steht nach Block 18 am Tageslimit: Nachtragen muss trotzdem gehen.
+  select r.id into rid from public.trail_recordings r
+   where r.user_id = ub and r.ele is null
+     and st_dwithin(r.geom, st_setsrid(st_makepoint(c[1], c[2]), 4326)::geography, 0.01);
+  perform tb_test.check(rid is not null, 'Bernds Aufzeichnung ohne Höhen gefunden');
+  select count(*) into recs from public.trail_recordings;
+  select count(*) into trails from public.trails;
+
+  -- Abgelehnt: fremde Aufzeichnung, verschobene Linie, falsche Anzahl.
+  foreach code in array array['fremd', 'versetzt', 'kurz'] loop
+    ok := false;
+    begin
+      perform tb_test.as_user(case code when 'fremd' then ua else ub end);
+      perform public.attach_elevation(rid,
+        case code
+          when 'versetzt' then tb_test.coords(tb_test.shift(tb_test.line(200, y0 => 25000), 0, 1))
+          when 'kurz' then c[1:array_length(c, 1) - 2]
+          else c
+        end,
+        case code when 'kurz' then h[1:n - 1] else h end);
+    exception when others then
+      ok := sqlstate = case code when 'fremd' then 'P0002' else '22023' end;
+    end;
+    perform tb_test.as_owner();
+    perform tb_test.check(ok, format('nachtragen „%s" abgelehnt', code));
+  end loop;
+  perform tb_test.check((select ele is null from public.trail_recordings where id = rid), 'nach den Ablehnungen noch ohne Höhen');
+
+  perform tb_test.as_user(ub);
+  wrote := public.attach_elevation(rid, c, h);
+  perform tb_test.as_owner();
+  perform tb_test.check(wrote, 'dieselbe Linie: Höhen eingetragen, trotz Tageslimit');
+  perform tb_test.check((select ele[1] = 699 and ele[n] = 700 - n and array_length(ele, 1) = n
+                           from public.trail_recordings where id = rid), 'eine Höhe je Punkt, in Reihenfolge');
+  perform tb_test.check((select count(*) from public.trail_recordings) = recs
+                        and (select count(*) from public.trails) = trails,
+                        'keine neue Aufzeichnung, kein neuer Trail');
+
+  -- Wiederholung: kein Fehler, aber auch kein Überschreiben.
+  perform tb_test.as_user(ub);
+  wrote := public.attach_elevation(rid, c, array(select 100.0::double precision from generate_series(1, n)));
+  perform tb_test.as_owner();
+  perform tb_test.check(not wrote and (select ele[1] = 699 from public.trail_recordings where id = rid),
+                        'hat sie schon Höhen: false, nichts überschrieben');
+end $$;
+
 \echo -- Alle Prüfungen bestanden.
