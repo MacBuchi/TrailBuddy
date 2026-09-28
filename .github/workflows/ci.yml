@@ -48,6 +48,7 @@ jobs:
           python3 tool/elevation_measure.py --self-test > /dev/null
           bash tool/schema_check.sh --self-test > /dev/null
           python3 tool/feedback_bot.py --self-test > /dev/null
+          python3 tool/official_trails.py --self-test > /dev/null
       - name: Nothing private in the repository
         run: python3 tool/private_info_check.py
 

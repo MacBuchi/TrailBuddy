@@ -17,7 +17,11 @@ dezentralen Weg in Abschnitt 12). Die Schwellen des Abgleichs sind gemessen
 (`docs/trail-abgleich-messung.md`), nicht geraten. Wer Code ändert, der dem
 Konzept widerspricht, ändert das Konzept im selben PR — oder den Code.
 Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
-`docs/konzept-offizielle-trails.md`.
+`docs/konzept-offizielle-trails.md`. Gebaut von `official-trails.yml`
+(`tool/official_trails.py`, Quellen in `tool/official/sources.json`)
+auf den Branch `official-trails-data` — nie als Release (die
+Update-Prüfung nähme es im Vorab-Kanal für eine App-Version). Dort
+liegen nur öffentliche Daten Dritter, keine Nutzerdaten.
 
 **Nichts Privates in dieses Repo — es ist öffentlich.** Keine absoluten
 Pfade des Betreiber-Rechners, keine privaten Mailadressen, keine GPX- oder

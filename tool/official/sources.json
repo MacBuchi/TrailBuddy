@@ -1,0 +1,15 @@
+{
+  "_comment": "Quellen der Ebene „Offizielle Trails“ (docs/konzept-offizielle-trails.md, Abschnitt 4). Nur, was offiziell ist UND ohne Rückfrage verwendet werden darf. Jede Quelle braucht einen Leser in tool/official_trails.py (READERS).",
+  "sources": {
+    "tirol": {
+      "region": "tirol",
+      "name": "Land Tirol – Radrouten in Tirol",
+      "attribution": "Land Tirol",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "url": "https://www.tirol.gv.at/sport/radfahren/mountainbike/",
+      "reader": "tirol_wfs",
+      "fetch": "https://dservices3.arcgis.com/hG7UfxX49PQ8XkXh/arcgis/services/Radrouten_Tirol/WFSServer?service=WFS&version=2.0.0&request=GetFeature&typeNames=Radrouten_Tirol:Radrouten_Tirol&outputFormat=GEOJSON"
+    }
+  }
+}
