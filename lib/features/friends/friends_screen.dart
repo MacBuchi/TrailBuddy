@@ -74,6 +74,23 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     }
   }
 
+  /// Annehmen — und danach sagen, was sich auf der Karte tut (Konzept 6):
+  /// „14 Trails gemeinsam, 8 neu von Jan, 5 neu für Jan". Erst nach dem
+  /// Annehmen, nie davor. Kommen die Zahlen nicht (Neuladen gescheitert),
+  /// bleibt es beim Annehmen; die Liste zeigt den Buddy ohnehin.
+  Future<void> _accept(FriendshipEntry f) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final uid = ref.read(currentUserIdProvider) ?? '';
+    final name = f.otherUsername(uid);
+    final summary = await ref.read(friendshipsProvider.notifier).accept(f.id);
+    if (!mounted || summary == null) return;
+    messenger.showSnackBar(SnackBar(
+      key: const ValueKey('connect-summary'),
+      content: Text(summary.sentence(name)),
+      duration: const Duration(seconds: 8),
+    ));
+  }
+
   Future<void> _sendRequest(ProfileSearchResult result) async {
     try {
       await ref.read(friendshipsProvider.notifier).sendRequest(result.id);
@@ -196,8 +213,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        onPressed: () =>
-                            ref.read(friendshipsProvider.notifier).accept(f.id),
+                        onPressed: () => _accept(f),
                         icon: const Icon(Icons.check_circle,
                             color: AppColors.trailGreen),
                         tooltip: 'Annehmen',

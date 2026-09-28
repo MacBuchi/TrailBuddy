@@ -446,7 +446,11 @@ Nichts, was gelöst werden müsste. Nach dem Annehmen:
 - Trails, die nur einer belegt hat, erscheinen beim anderen neu.
 - Eine Zusammenfassung nach dem Annehmen — nicht davor —: „14 Trails
   gemeinsam, 8 neu von Jan, 5 neu für Jan". Vor dem Annehmen wäre die
-  Zahl ein Orakel über den Bestand eines Fremden.
+  Zahl ein Orakel über den Bestand eines Fremden. (Seit 0.22.0, #33
+  Teil 1: gerechnet auf dem Gerät aus dem sichtbaren Stand vor und nach
+  dem Neuladen; „neu für Jan" sind eigene, nicht private Trails ohne
+  seinen Beleg — was er über andere Buddys schon sah, ist von hier aus
+  nicht zu wissen.)
 - Overlap-Kanten zwischen zwei jetzt sichtbaren Trails werden als
   Vorschlag gezeigt: „Sind das dieselben? Beide Linien ansehen".
 
