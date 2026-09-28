@@ -9,6 +9,7 @@ import 'core/errors.dart';
 import 'core/settings.dart';
 import 'core/supabase_config.dart';
 import 'data/error_report_repository.dart';
+import 'features/rides/ride_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +55,12 @@ Future<void> main() async {
   // Aufruf liest eine kleine lokale Datei — er darf den Start aufhalten,
   // ein sichtbares Umschalten nicht.
   final settings = PrefsSettings(await SharedPreferences.getInstance());
+
+  // Der Port, über den das Service-Isolate der Fahrt seine Messpunkte
+  // an die Karte meldet (#28). Ohne diese Zeile ist die Rückrichtung
+  // stumm — PilzBuddy #465. `test/rides/ride_live_bridge_test.dart`
+  // prüft, dass sie hier steht.
+  initRideCommunication();
 
   runApp(ProviderScope(
     overrides: [settingsProvider.overrideWithValue(settings)],

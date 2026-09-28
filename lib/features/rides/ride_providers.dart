@@ -1,0 +1,254 @@
+// Die laufende Fahrt (#28): Zustand, Takt, Foreground-Service.
+//
+// Der Zustand ist die AUFGEZEICHNETE Fahrt selbst (`RecordedRide?`) und
+// kein eigenes Statusobjekt: „läuft" heißt genau „es liegt eine Fahrt
+// auf der Platte, die noch nicht abgeschlossen ist". Zwei Wahrheiten —
+// eine im Speicher, eine auf der Platte — liefen beim ersten
+// Prozess-Kill auseinander, und der ist hier der Normalfall.
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../core/errors.dart';
+import '../../data/providers.dart';
+import 'ride_service.dart';
+import 'ride_store.dart';
+import 'ride_task_handler.dart';
+import 'ride_track.dart';
+
+/// Gibt es die Aufzeichnung auf dieser Plattform? Im Browser nicht: Dort
+/// gibt es kein Service-Isolate, und ein Tab im Hintergrund bekommt
+/// keine Positionen — eine Fahrt, die nur läuft, solange man hinsieht,
+/// wäre keine. Als Provider, damit ein Test beide Fälle sehen kann.
+final rideRecordingAvailableProvider = Provider<bool>((ref) => !kIsWeb);
+
+/// Der Mess-Takt. 5 s: Bei 20 km/h sind das 28 m zwischen zwei Punkten
+/// — für Kehren knapp, aber der Korridor des Abgleichs ist 15 m breit
+/// und die Vereinfachung vor dem Beisteuern (3 m) dünnt ohnehin aus. Ein
+/// engerer Takt kostet Akku, ohne dass der Abgleich davon hätte.
+const kRideTickInterval = Duration(seconds: 5);
+
+/// Nach dieser Zeit hört eine Fahrt von selbst auf aufzuzeichnen. Wer
+/// das Beenden vergisst, hätte sonst GPS bis zum leeren Akku — und
+/// morgen eine Fahrt quer durchs Wohnzimmer. Die Fahrt bleibt offen und
+/// abschließbar, sie wächst nur nicht weiter.
+const kRideMaxDuration = Duration(hours: 12);
+
+/// Woher ein einzelner Fix kommt. Test-Naht: Ohne sie ginge jeder
+/// Flow-Test, der eine Fahrt startet, an echtes Plattform-IO.
+typedef RideFix = Future<RidePoint?> Function();
+
+final rideFixProvider = Provider<RideFix>((ref) => _platformFix);
+
+/// Darf aufgezeichnet werden? `null` heißt ja, sonst der Grund. Die
+/// EINE Stelle neben „Meine Position", die nach der Standortberechtigung
+/// fragt — nach einem Tipp, nie beim Start.
+typedef RidePermissionCheck = Future<RideStartResult?> Function();
+
+final ridePermissionProvider = Provider<RidePermissionCheck>((ref) => _platformPermission);
+
+Future<RideStartResult?> _platformPermission() async {
+  try {
+    if (!await Geolocator.isLocationServiceEnabled()) return RideStartResult.noService;
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return RideStartResult.noPermission;
+    }
+    return null;
+  } catch (e, stackTrace) {
+    logError('Fahrt: Standort prüfen', e, stackTrace);
+    return RideStartResult.failed;
+  }
+}
+
+Future<RidePoint?> _platformFix() async {
+  try {
+    final p = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best, timeLimit: Duration(seconds: 20)),
+    );
+    return RidePoint(
+        lat: p.latitude,
+        lng: p.longitude,
+        at: p.timestamp.toUtc(),
+        accuracyM: p.accuracy,
+        altM: p.altitude);
+  } catch (_) {
+    return null;
+  }
+}
+
+final rideStoreProvider = Provider<RideStore>((ref) => FileRideStore());
+
+/// Die Brücke zum Service-Isolate: scharf schalten und entschärfen.
+/// Eigene Naht, weil dahinter `path_provider` und SharedPreferences
+/// stecken — im Widget-Test gibt es beide nicht.
+abstract interface class RideServiceBridge {
+  Future<void> arm({required String uid});
+  Future<void> disarm();
+}
+
+class PlatformRideServiceBridge implements RideServiceBridge {
+  const PlatformRideServiceBridge();
+
+  @override
+  Future<void> arm({required String uid}) async {
+    // Der Pfad wird EINMAL hier aufgelöst: Er ist eine Konstante des
+    // Geräts, und drüben je Takt einen Kanal zu bemühen wäre eine
+    // Fehlerquelle mehr.
+    await FlutterForegroundTask.saveData(
+        key: kRideDataDir, value: (await getApplicationSupportDirectory()).path);
+    await FlutterForegroundTask.saveData(key: kRideDataUid, value: uid);
+    await FlutterForegroundTask.saveData(key: kRideDataActive, value: true);
+  }
+
+  @override
+  Future<void> disarm() => FlutterForegroundTask.saveData(key: kRideDataActive, value: false);
+}
+
+final rideServiceBridgeProvider =
+    Provider<RideServiceBridge>((ref) => const PlatformRideServiceBridge());
+
+enum RideStartResult { started, noPermission, noService, failed }
+
+class RideNotifier extends Notifier<RecordedRide?> {
+  @override
+  RecordedRide? build() => null;
+
+  bool get isRunning => state != null;
+
+  /// Holt eine unterbrochene Fahrt zurück und zeichnet weiter auf.
+  /// Aufgerufen beim Kartenstart: Wer unterwegs ist und dessen App
+  /// zwischendurch weggeräumt wurde, hat die Fahrt nicht beendet.
+  Future<void> restore() async {
+    if (state != null) return;
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return;
+    final ride = await ref.read(rideStoreProvider).readActive(uid: uid);
+    if (ride == null) return;
+    state = ride;
+    if (_withinMaxDuration(ride)) {
+      // Der Service läuft nach einem Wegwischen weiter; hier wird nur
+      // wieder angemeldet, was ohnehin gilt. Läuft er nicht mehr
+      // (Neustart des Geräts), setzt das ihn wieder auf.
+      await _arm(uid);
+    } else {
+      await _disarm();
+    }
+  }
+
+  Future<RideStartResult> start() async {
+    if (state != null) return RideStartResult.started;
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return RideStartResult.failed;
+
+    // Erst die Berechtigung, dann die Datei: Eine begonnene Fahrt, die
+    // nie einen Fix bekommt, sähe aus wie eine Aufzeichnung und wäre
+    // keine.
+    final denial = await ref.read(ridePermissionProvider)();
+    if (denial != null) return denial;
+
+    final startedAt = DateTime.now().toUtc();
+    try {
+      await ref.read(rideStoreProvider).begin(uid: uid, startedAt: startedAt);
+    } catch (e, stackTrace) {
+      logError('Fahrt beginnen', e, stackTrace);
+      return RideStartResult.failed;
+    }
+    state = (startedAt: startedAt, points: const []);
+    await _arm(uid);
+    // Der erste Punkt sofort und aus DIESEM Isolate — der Takt des
+    // Service beginnt erst nach dem eingestellten Abstand.
+    unawaited(_firstFix());
+    return RideStartResult.started;
+  }
+
+  /// Beendet die Aufzeichnung und speichert die Fahrt auf dem Gerät.
+  /// Gibt sie zurück; `null`, wenn keine lief. Gespeichert wird VOR dem
+  /// Abschluss-Blatt: Wer es wegwischt, verliert nichts.
+  Future<Ride?> stop() async {
+    final ride = state;
+    await _disarm();
+    state = null;
+    if (ride == null) return null;
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return null;
+    return ref.read(rideStoreProvider).finish(uid: uid, endedAt: DateTime.now().toUtc());
+  }
+
+  Future<void> _arm(String uid) async {
+    await ref.read(rideServiceBridgeProvider).arm(uid: uid);
+    await ref.read(rideServiceProvider).start(
+          title: 'Fahrt wird aufgezeichnet',
+          text: 'TrailBuddy zeichnet deinen Weg auf. Die Fahrt bleibt auf dem Gerät.',
+          every: kRideTickInterval,
+        );
+  }
+
+  Future<void> _disarm() async {
+    await ref.read(rideServiceProvider).stop();
+    await ref.read(rideServiceBridgeProvider).disarm();
+  }
+
+  bool _withinMaxDuration(RecordedRide ride) =>
+      DateTime.now().toUtc().difference(ride.startedAt) < kRideMaxDuration;
+
+  Future<void> _firstFix() async {
+    final point = await ref.read(rideFixProvider)();
+    if (point == null || state == null) return;
+    await ref.read(rideStoreProvider).appendPoint(point);
+    acceptTick(point);
+  }
+
+  /// Nimmt einen Punkt an, den das Service-Isolate gemeldet hat. Nur für
+  /// die Anzeige: Geschrieben hat ihn der Service schon.
+  void acceptTick(RidePoint point) {
+    final current = state;
+    if (current == null) return;
+    state = (startedAt: current.startedAt, points: [...current.points, point]);
+  }
+
+  /// Hört die Aufzeichnung auf, weil die Fahrt zu lange läuft? Der
+  /// Service selbst kennt die Grenze nicht, er misst, solange die Brücke
+  /// „aktiv" sagt.
+  Future<void> stopIfExpired() async {
+    final ride = state;
+    if (ride == null || _withinMaxDuration(ride)) return;
+    await _disarm();
+  }
+}
+
+final rideProvider = NotifierProvider<RideNotifier, RecordedRide?>(RideNotifier.new);
+
+/// Die gespeicherten Fahrten dieses Kontos, neueste zuerst.
+class RidesNotifier extends AsyncNotifier<List<Ride>> {
+  @override
+  Future<List<Ride>> build() async {
+    final uid = ref.watch(currentUserIdProvider);
+    if (uid == null) return const [];
+    // Eine beendete Fahrt kommt dazu — neu gelesen wird beim Wechsel
+    // „läuft"/„läuft nicht", nicht bei jedem Messpunkt.
+    ref.watch(rideProvider.select((r) => r == null));
+    return ref.read(rideStoreProvider).list(uid: uid);
+  }
+
+  Future<void> delete(String id) async {
+    await ref.read(rideStoreProvider).delete(id);
+    ref.invalidateSelf();
+    await future;
+  }
+}
+
+final ridesProvider = AsyncNotifierProvider<RidesNotifier, List<Ride>>(RidesNotifier.new);
+
+/// Wunsch der Liste an die Karte: diese gespeicherte Fahrt zeigen. Die
+/// Karte zeichnet sie, bis der Nutzer sie wegtippt.
+final mapFocusRideProvider = StateProvider<Ride?>((ref) => null);

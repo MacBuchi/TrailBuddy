@@ -31,4 +31,10 @@ abstract final class AppColors {
   /// Die eigene Position: ein dunkler Punkt mit weißem Ring. Nicht das
   /// übliche Blau — Blau heißt hier „von einem Buddy".
   static const positionDot = Color(0xFF263238);
+
+  /// Die eigene Fahrt (#28): die laufende Spur und eine gespeicherte
+  /// Fahrt auf der Karte. Derselbe dunkle Ton wie der Positionspunkt —
+  /// „das bin ich, gerade jetzt" —, nicht Grün: Grün heißt „mein Trail",
+  /// und eine Fahrt ist noch keiner.
+  static const rideTrack = Color(0xFF455A64);
 }

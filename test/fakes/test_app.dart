@@ -19,11 +19,14 @@ import 'package:trailbuddy/features/map/map_providers.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
 import 'package:trailbuddy/features/map/position_provider.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
+import 'package:trailbuddy/features/rides/ride_providers.dart';
+import 'package:trailbuddy/features/rides/ride_service.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
 import 'fake_backend.dart';
 import 'fake_official_trails.dart';
 import 'fake_pois.dart';
+import 'fake_rides.dart';
 import 'fake_settings.dart';
 import 'fake_trails.dart';
 
@@ -81,6 +84,10 @@ List<Override> overridesFor(FakeBackend backend,
         MemoryOfficialTrailsCache? officialCache,
         Position? position,
         FakePositionFix? positionFix,
+        FakeRideStore? rideStore,
+        FakeRideFix? rideFix,
+        FakeRideServiceBridge? rideBridge,
+        FakeRideService? rideService,
         List<Override> extra = const []}) =>
     [
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
@@ -114,6 +121,15 @@ List<Override> overridesFor(FakeBackend backend,
       positionStreamProvider.overrideWith((ref) => Stream.value(position)),
       positionFixProvider
           .overrideWithValue((positionFix ?? FakePositionFix(position)).call),
+      // Die Fahrt (#28): im Speicher statt auf der Platte, ohne
+      // Foreground-Service und ohne Berechtigungsdialog. Ohne diese
+      // Zeilen ginge jeder Kartentest beim ersten Frame (`restore`) an
+      // `path_provider`.
+      rideStoreProvider.overrideWithValue(rideStore ?? FakeRideStore()),
+      rideFixProvider.overrideWithValue((rideFix ?? FakeRideFix()).call),
+      rideServiceBridgeProvider.overrideWithValue(rideBridge ?? FakeRideServiceBridge()),
+      rideServiceProvider.overrideWithValue(rideService ?? FakeRideService()),
+      ridePermissionProvider.overrideWithValue(() async => null),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
@@ -136,6 +152,10 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     MemoryOfficialTrailsCache? officialCache,
     Position? position,
     FakePositionFix? positionFix,
+    FakeRideStore? rideStore,
+    FakeRideFix? rideFix,
+    FakeRideServiceBridge? rideBridge,
+    FakeRideService? rideService,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -149,6 +169,10 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         officialCache: officialCache,
         position: position,
         positionFix: positionFix,
+        rideStore: rideStore,
+        rideFix: rideFix,
+        rideBridge: rideBridge,
+        rideService: rideService,
         extra: extraOverrides),
     child: const TrailBuddyApp(),
   ));

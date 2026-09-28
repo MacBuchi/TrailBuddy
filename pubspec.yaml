@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.12.0+16
+version: 0.13.0+17
 
 environment:
   sdk: ^3.11.0
@@ -36,6 +36,11 @@ dependencies:
   path_provider: ^2.1.5
   archive: ^4.3.0
   geolocator: ^14.0.2
+  # Fahrt aufzeichnen (#28): Foreground-Service vom Typ `location`, die
+  # Messung läuft in dessen eigenem Isolate (überlebt das Wegwischen der
+  # App). Kein Web — nur über bedingten Import in
+  # lib/features/rides/ride_service.dart eingebunden.
+  flutter_foreground_task: ^11.0.3
 
 dev_dependencies:
   flutter_test:

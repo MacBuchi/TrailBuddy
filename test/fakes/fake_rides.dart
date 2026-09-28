@@ -1,0 +1,113 @@
+// Die Fahrt im Test (#28): im Speicher statt auf der Platte, Fix-Quelle
+// und Service steuerbar. Ohne diese Fakes ginge JEDER Kartentest an
+// echtes Plattform-IO — der Karten-Screen holt beim ersten Frame eine
+// unterbrochene Fahrt zurück (`restore`).
+import 'package:trailbuddy/features/rides/ride_providers.dart';
+import 'package:trailbuddy/features/rides/ride_service.dart';
+import 'package:trailbuddy/features/rides/ride_store.dart';
+import 'package:trailbuddy/features/rides/ride_track.dart';
+
+class FakeRideStore implements RideStore {
+  String? uid;
+  DateTime? startedAt;
+  final points = <RidePoint>[];
+  final rides = <Ride>[];
+
+  /// Lässt [begin] scheitern — „eine Fahrt, die gar nicht aufzeichnen
+  /// kann, darf nicht starten".
+  bool failOnBegin = false;
+
+  @override
+  Future<void> begin({required String uid, required DateTime startedAt}) async {
+    if (failOnBegin) throw Exception('kein Platz (Fake)');
+    this.uid = uid;
+    this.startedAt = startedAt;
+    points.clear();
+  }
+
+  @override
+  Future<void> appendPoint(RidePoint point) async => points.add(point);
+
+  @override
+  Future<RecordedRide?> readActive({required String uid}) async {
+    if (startedAt == null || this.uid != uid) return null;
+    return (startedAt: startedAt!, points: List.of(points));
+  }
+
+  @override
+  Future<Ride?> finish({required String uid, required DateTime endedAt}) async {
+    if (startedAt == null || this.uid != uid) return null;
+    final ride = Ride(
+        id: startedAt!.toIso8601String().replaceAll(RegExp(r'[-:.]'), ''),
+        startedAt: startedAt!,
+        endedAt: endedAt,
+        points: List.of(points));
+    rides.insert(0, ride);
+    startedAt = null;
+    points.clear();
+    return ride;
+  }
+
+  @override
+  Future<void> discardActive() async {
+    startedAt = null;
+    points.clear();
+  }
+
+  @override
+  Future<List<Ride>> list({required String uid}) async =>
+      [for (final r in rides) if (this.uid == uid) r];
+
+  @override
+  Future<void> delete(String id) async => rides.removeWhere((r) => r.id == id);
+}
+
+/// Die Brücke zum Service-Isolate im Test: merkt sich nur, was gesagt
+/// wurde.
+class FakeRideServiceBridge implements RideServiceBridge {
+  bool armed = false;
+  String? uid;
+  int arms = 0;
+
+  @override
+  Future<void> arm({required String uid}) async {
+    armed = true;
+    arms++;
+    this.uid = uid;
+  }
+
+  @override
+  Future<void> disarm() async => armed = false;
+}
+
+/// Der Foreground-Service im Test: protokolliert statt einen
+/// Platform-Channel anzufassen.
+class FakeRideService implements RideService {
+  bool running = false;
+  int starts = 0;
+  Duration? every;
+  final titles = <String>[];
+
+  @override
+  Future<void> start({required String title, required String text, required Duration every}) async {
+    if (!running) starts++;
+    running = true;
+    this.every = every;
+    titles.add(title);
+  }
+
+  @override
+  Future<void> stop() async => running = false;
+}
+
+/// Eine steuerbare Fix-Quelle. Vorgabe `null` — „kein Fix" ist im Wald
+/// der Normalfall; ein Test, der eine Position braucht, setzt sie.
+class FakeRideFix {
+  RidePoint? next;
+  int calls = 0;
+
+  Future<RidePoint?> call() async {
+    calls++;
+    return next;
+  }
+}

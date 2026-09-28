@@ -684,8 +684,10 @@ Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
   Zerlege-Blatt, Trails auf der Karte, Trail-Blatt mit Beitrag. Damit
   ist der Bestand des Betreibers und zweier Buddys drin, und die
   Verschmelzung ist im Feld prüfbar.
-- **Phase 2 — Aufzeichnen.** Fahrt-Aufzeichnung aus der Pilztour,
-  Kandidaten-Heuristik, Ausgangskorb.
+- **Phase 2 — Aufzeichnen.** Fahrt-Aufzeichnung aus der Pilztour
+  (#28, seit 0.13.0: Aufzeichnen, Liste „Meine Fahrten", Wiederaufnahme
+  nach Prozess-Kill), Kandidaten-Heuristik und Zerlege-Blatt (#29),
+  Ausgangskorb (#30).
 - **Phase 3 — Offline und Austausch.** Offline-Karten, Trails im
   Zwischenspeicher, Nachrichten, Statusmeldungen, Zusammenführen im
   Netz.

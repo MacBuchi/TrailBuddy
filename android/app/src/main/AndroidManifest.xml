@@ -13,6 +13,21 @@
          die Aufzeichnung (Phase 2) bringt ihren Vordergrunddienst mit. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Fahrt aufzeichnen (#28): ein Foreground-Service vom Typ `location`
+         hält den Prozess wach und trägt das Isolate, das misst — auch mit
+         dem Telefon in der Tasche. Ab Android 14 prüft das System je
+         Service-Typ die passende Berechtigung; ohne FOREGROUND_SERVICE_LOCATION
+         liefert der Dienst im Hintergrund keine Standorte mehr.
+         **Ausdrücklich NICHT ACCESS_BACKGROUND_LOCATION**: Die Aufnahme
+         startet der Nutzer, und die Dauerbenachrichtigung ist die
+         Offenlegung. POST_NOTIFICATIONS, damit sie ab Android 13 sichtbar
+         ist. RECEIVE_BOOT_COMPLETED bringt das Plugin für autoRunOnBoot mit;
+         wir starten nie beim Booten, also raus. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
+        tools:node="remove"/>
     <application
         android:label="TrailBuddy"
         android:name="${applicationName}"
@@ -37,6 +52,25 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Der Foreground-Service der Fahrt (flutter_foreground_task). Der
+             Klassenname stammt aus dem Paket und darf nicht geändert werden.
+             Nur `location`: Es gibt (noch) keinen zweiten Nutzer; kommen
+             Offline-Karten, wird daraus `dataSync|location` wie in
+             PilzBuddy. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="location"
+            android:exported="false"/>
+        <!-- Das Symbol der Meldung. Android wertet ein Statusleisten-Symbol
+             NUR über den Alphakanal aus; das Launcher-Icon würde ein weißer
+             Klotz (PilzBuddy #331). Das Plugin sucht das Drawable
+             ausschließlich über diesen Meta-Data-Namen; ein Tippfehler
+             liefert stumm die Ressourcen-id 0 — der Name steht deshalb als
+             Konstante in Dart (ride_service_android.dart), ein Test hält
+             beide Seiten zusammen. -->
+        <meta-data
+            android:name="de.mcbuchi.trailbuddy.RIDE_NOTIFICATION_ICON"
+            android:resource="@drawable/ic_notification" />
         <!-- Reicht die geladene Update-APK an den System-Installer heraus
              (content-URI mit Leseerlaubnis; `file://` ist ab Android 7
              verboten). `exported="false"`: nur wer die Erlaubnis bekommt,
