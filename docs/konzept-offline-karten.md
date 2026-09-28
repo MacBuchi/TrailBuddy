@@ -150,7 +150,7 @@ und Blatt bleiben, wie sie sind.
 
 ### 3.5 Die Wege-Ebene für das Zerlege-Blatt
 
-Das Zerlege-Blatt (#29) liest aus den gespeicherten Kacheln die Ebene
+Das Zerlege-Blatt (#29, **seit 0.20.0**) liest aus den gespeicherten Kacheln die Ebene
 `roads` (`kind == "path"` mit `kind_detail`, dazu `service`, `minor`) und
 misst je Fahrtabschnitt den Abstand zur nächsten Straße oder zum
 nächsten Forstweg. Das setzt voraus, dass der Bereich der Fahrt bis
@@ -202,7 +202,9 @@ ohne sie geht.
    in 3.4): `poi-data.yml`, `tool/poi_extract.py`, Manifest `pois.json`.
    Offline werden sie mit Schritt 3: die Dateien der Zellen eines
    Bereichs kommen mit dem Bereich mit.
-5. Danach #29 mit der Wege-Ebene.
+5. **#29 mit der Wege-Ebene** (**seit 0.20.0**): `road_index.dart`
+   liest die z13-Kacheln der Fahrt aus den Bereichen; jede Kachel muss
+   in einem liegen, sonst gelten die Wege als unbekannt.
 
 Jeder Schritt ein PR, jeder mit Datenschutzerklärung und CLAUDE.md im
 selben PR, wo sich ein Netzziel oder eine Datenkategorie ändert.

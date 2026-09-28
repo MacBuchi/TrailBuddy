@@ -39,7 +39,7 @@ void main() {
     runner = OutboxRunner(
         repository: repo,
         outbox: box,
-        adoptName: (trailId, name) async => adopted.add((trailId, name)));
+        adoptDetails: (trailId, name, grade) async => adopted.add((trailId, name)));
   });
 
   test('sendet der Reihe nach, übernimmt den Namen, räumt den Korb', () async {

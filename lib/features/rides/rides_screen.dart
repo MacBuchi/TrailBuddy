@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../core/geo.dart';
 import '../../core/router_branches.dart';
 import 'ride_providers.dart';
+import 'ride_split_sheet.dart';
 import 'ride_track.dart';
 
 class RidesScreen extends ConsumerWidget {
@@ -42,7 +43,8 @@ class RidesScreen extends ConsumerWidget {
                 padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(
                   'Fahrten liegen nur auf diesem Gerät. Beigesteuert wird '
-                  'nie eine ganze Fahrt, nur ein Stück, das einen Trail belegt.',
+                  'nie eine ganze Fahrt, nur ein Stück, das einen Trail belegt '
+                  '— „Zerlegen" zeigt, welche.',
                 ),
               ),
               for (final r in rides) _RideTile(r),
@@ -93,11 +95,23 @@ class _RideTile extends ConsumerWidget {
       title: Text(_date.format(ride.startedAt.toLocal())),
       subtitle: Text('${formatMeters(ride.lengthM)} · '
           '${rideDurationLabel(ride.duration)} · ${ride.points.length} Punkte'),
-      trailing: IconButton(
-        tooltip: 'Fahrt löschen',
-        icon: const Icon(Icons.delete_outline),
-        onPressed: () => _delete(context, ref),
-      ),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          key: ValueKey('ride-split-${ride.id}'),
+          tooltip: 'Fahrt zerlegen',
+          icon: const Icon(Icons.content_cut),
+          onPressed: () {
+            // Erst der Reiter, dann der Wunsch — wie „auf der Karte zeigen".
+            StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);
+            ref.read(mapSplitRequestProvider.notifier).state = SplitRequest.fromRide(ride);
+          },
+        ),
+        IconButton(
+          tooltip: 'Fahrt löschen',
+          icon: const Icon(Icons.delete_outline),
+          onPressed: () => _delete(context, ref),
+        ),
+      ]),
       onTap: () {
         // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
         StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);

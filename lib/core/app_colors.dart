@@ -38,6 +38,12 @@ abstract final class AppColors {
   /// und eine Fahrt ist noch keiner.
   static const rideTrack = Color(0xFF455A64);
 
+  /// Ein Kandidat für einen neuen Trail im Zerlege-Blatt (#29): ein
+  /// Stück der Fahrt, das noch kein Trail ist — weder Grün (meiner) noch
+  /// Blau (Buddy) noch Orange (Warnung), sondern eine Frage. Das
+  /// bekannte, wieder gefahrene Stück trägt Grün.
+  static const candidate = Color(0xFFC2185B);
+
   /// Der Landton der Karte, wo (noch) keine Kachel liegt — derselbe Wert
   /// wie die `earth`-Fläche des erzeugten Kartenstils, damit die Fläche
   /// nach „Karte lädt" aussieht und nicht nach „kaputt". Beide Engines

@@ -104,12 +104,17 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// Karte. Wirft, wenn das SCHREIBEN aus einem anderen Grund scheitert;
   /// ein gescheitertes Neuladen meldet der Rückgabewert von
   /// [reloadAfterWrite] beim Aufrufer.
-  Future<ContributeResult> contribute(GpxTrack track, {String? clientId}) async {
+  ///
+  /// [source] steht fest, wenn die Spur aus der eigenen Aufzeichnung
+  /// kommt (`app`, Zerlege-Blatt #29); sonst entscheidet die Datei
+  /// ([sourceOf]). [grade] geht mit dem Namen in den eigenen Beitrag.
+  Future<ContributeResult> contribute(GpxTrack track,
+      {String? clientId, RecordingSource? source, int? grade}) async {
     final repo = ref.read(trailRepositoryProvider);
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
     final pts = simplify(track.points);
-    final source = sourceOf(track.points);
+    source ??= sourceOf(track.points);
     final recordedAt =
         source == RecordingSource.planned ? null : track.points.first.time;
     // Der Auftrag entsteht VOR dem Sendeversuch, mit seiner Kennung: So
@@ -123,6 +128,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       source: source,
       recordedAt: recordedAt,
       name: track.name,
+      grade: grade,
     );
     try {
       final trailId = await repo.contribute(
@@ -132,7 +138,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         recordedAt: job.recordedAt,
         clientId: job.id,
       );
-      await adoptName(trailId, track.name);
+      await adoptDetails(trailId, track.name, grade: grade);
       return (trailId: trailId, queued: false);
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
@@ -172,21 +178,26 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// bleibt: Der Import überschreibt nicht, was jemand bewusst eingetragen
   /// hat. Kein Neuladen hier (der Import lädt einmal am Ende). Gibt
   /// zurück, ob geschrieben wurde.
-  Future<bool> adoptName(String trailId, String fileName) async {
+  Future<bool> adoptName(String trailId, String fileName) => adoptDetails(trailId, fileName);
+
+  /// Wie [adoptName], dazu der S-Grad aus dem Zerlege-Blatt (#29): Der
+  /// wird immer gesetzt — wer ihn gewählt hat, hat ihn gerade gefahren.
+  /// EIN Schreibvorgang für beides.
+  Future<bool> adoptDetails(String trailId, String fileName, {int? grade}) async {
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
     final name = clampTrailName(fileName);
-    if (name.isEmpty) return false;
     final existing = state.valueOrNull
         ?.where((t) => t.id == trailId)
         .firstOrNull
         ?.myDetails;
-    if (existing != null && (existing.name ?? '').trim().isNotEmpty) {
-      return false;
-    }
-    await ref.read(trailRepositoryProvider).saveDetails(
-        (existing ?? TrailDetails(trailId: trailId, userId: myId))
-            .copyWith(name: name));
+    final keepName = existing != null && (existing.name ?? '').trim().isNotEmpty;
+    final writesName = name.isNotEmpty && !keepName;
+    if (!writesName && grade == null) return false;
+    var details = existing ?? TrailDetails(trailId: trailId, userId: myId);
+    if (writesName) details = details.copyWith(name: name);
+    if (grade != null) details = details.copyWith(grade: grade);
+    await ref.read(trailRepositoryProvider).saveDetails(details);
     return true;
   }
 
@@ -268,7 +279,8 @@ final trailsCachedAtProvider =
 final outboxRunnerProvider = Provider<OutboxRunner>((ref) => OutboxRunner(
       repository: ref.watch(trailRepositoryProvider),
       outbox: ref.watch(outboxProvider),
-      adoptName: (trailId, name) => ref.read(trailsProvider.notifier).adoptName(trailId, name),
+      adoptDetails: (trailId, name, grade) =>
+          ref.read(trailsProvider.notifier).adoptDetails(trailId, name, grade: grade),
     ));
 
 final trailByIdProvider = Provider.family<Trail?, String>((ref, id) =>

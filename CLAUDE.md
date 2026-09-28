@@ -140,9 +140,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   gruppiert im Client (`buildTrails`). Eine Aggregation über alle Nutzer
   darf es nicht geben (Konzept 12).
 - **Importregel**: < 8 km und Verlust > 2 × Gewinn ⇒ Trail, sonst Fahrt.
-  Fahrten können in Phase 1 nicht beigesteuert werden (Zerlegen kommt mit
-  der Aufzeichnung, Phase 2). Ohne Zeiten oder mit > 60 km/h Median ⇒
-  `planned`.
+  Eine Fahrt geht über die Schere im Import auf die Karte ins
+  Zerlege-Blatt (#29, seit 0.20.0). Ohne Zeiten oder mit > 60 km/h
+  Median ⇒ `planned`.
 - **Höhen** (Patch 002, #14): `trail_recordings.ele` trägt eine Höhe je
   Punkt der Linie oder ist leer — ganz oder gar nicht, der Check
   `trail_recordings_ele_check` hält Anzahl und Bereich fest. Vier Dinge,
@@ -256,9 +256,12 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   einen Speicher-Cache ein. „Auch ausgeschildert als …" im Trail-Blatt
   (`official_match.dart`, `OfficialSignposts`): Deckung wie im Abgleich
   (15 m, 0,8, Abtastung 5 m) — **dritter Spiegel der Schwellen**
-  neben SQL und `tool/trail_match.py`, im selben PR mitändern. Ohne
-  Fréchet (nichts wird verschmolzen); Varianten zählen nicht gegen
-  „derselbe". Das Blatt lädt die Region des Trails selbst nach.
+  neben SQL und `tool/trail_match.py`, im selben PR mitändern; seit
+  0.20.0 stehen sie als `kMatch*` in `lib/core/line_geometry.dart`,
+  zusammen mit Projektion, Abtastung und Gitter, geteilt mit dem
+  Zerlege-Blatt. Ohne Fréchet (nichts wird verschmolzen); Varianten
+  zählen nicht gegen „derselbe". Das Blatt lädt die Region des Trails
+  selbst nach.
 - **Eigene Position** (`lib/features/map/position_provider.dart`,
   PilzBuddy-Muster): Der Strom (`positionStreamProvider`) fragt NIE nach
   der Berechtigung, nur der Knopf „Meine Position" über
@@ -314,6 +317,45 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `FakeRideStore`, `FakeRideFix`, `FakeRideServiceBridge` und
   `FakeRideService` ein, sonst ginge jeder Kartentest über `restore()`
   an `path_provider`.
+- **Das Zerlege-Blatt** (#29, Konzept 5.1, `ride_split.dart` pur,
+  `road_index.dart`, `ride_split_sheet.dart`, seit 0.20.0): nach der
+  Aufzeichnung, aus „Meine Fahrten" (Schere) und aus dem GPX-Import für
+  Fahrten — EIN Blatt, EIN `SplitRequest`. Sechs Dinge, die man wissen
+  muss:
+  - **Bekannt heißt: mit den Schwellen des Abgleichs gedeckt** (15 m,
+    0,8, beidseitig, `kMatch*`), das Stück der Fahrt im Korridor wird
+    als Aufzeichnung beigesteuert („wieder gefahren"), ohne Namen und
+    ohne Beitrag — der Trail hat schon einen. Kein Fréchet auf dem
+    Gerät: Verschmelzen tut der Server; was das Blatt „bekannt" nennt,
+    soll er auch verschmelzen, sonst legte er still einen Trail daneben.
+  - **Kandidaten brauchen die Wege, und die kommen NUR aus gespeicherten
+    Bereichen** (`loadRoads`: z13-Kacheln der Fahrt, Ebene `roads`,
+    Straße = `highway`/`major_road`/`medium_road`/`minor_road`/`other`
+    plus `path`+`track`; Pfade, Fußwege, Schienen nicht). Jede Kachel
+    muss in einem Bereich liegen — `partial` heißt unbekannt, kein halber
+    Kandidat. Ohne Wege keine Kandidaten (Betreiber, 2026-09-28: keine
+    Gefälle-allein-Regel), das Blatt sagt es und nennt den Weg.
+    `vector_tile` ist dafür direkte Abhängigkeit (es steckt ohnehin in
+    `vector_map_tiles`).
+  - **Das Gefälle kommt aus der GPS-Höhe** (Median über 7 Punkte,
+    Abfahrt von Gipfel bis Talsohle, Ende bei 15 m Gegenanstieg,
+    mindestens 30 Hm und 150 m; > 70 % der 5-m-Abtastpunkte abseits;
+    Enden auf die Straße gestutzt). Beigesteuert wird die GPS-Höhe
+    NICHT (`SplitRequest.stripElevation`, #28-Regel); Dateihöhen einer
+    GPX-Fahrt schon. Ein Höhengitter gibt es in TrailBuddy nicht — das
+    Konzept sagt „Höhengitter, offline", gebaut ist die Höhe der Spur.
+  - **Unscharfe Fixe (> 30 m) fallen vor allem weg** und werden gezählt;
+    ein 15-m-Korridor gegen einen ±40-m-Fix ist Rauschen.
+  - **Die Karte zeichnet die Vorschau** (`rideSplitPreviewProvider`,
+    Fahrt blass, bekannt grün, Kandidat `AppColors.candidate`, abgewählt
+    gestrichelt); die Griffe sind ein `RangeSlider` je Kandidat, die
+    Linie folgt. Aufgeräumt wird NACH dem `await` des Blatts, nicht im
+    `dispose` (dort ist `ref` tot). Die Knöpfe stehen fest unter der
+    faulen Liste — im Test muss man das Blatt hochziehen, bevor ein
+    Kandidat gebaut ist (`sheetScrollTo`).
+  - **Name und S-Grad gehen in EINEM Schreibvorgang** in den eigenen
+    Beitrag (`adoptDetails`, auch im Ausgangskorb: `ContributeJob.grade`).
+    Heimzone (300 m) ist ein Hinweis am Kandidaten, kein Riegel.
 - **Ausgangskorb** (#30, `lib/data/outbox*.dart` +
   `lib/features/trails/outbox_providers.dart`, seit 0.14.0; PilzBuddy
   #267 als Vorlage): Genau ZWEI Aufträge — Aufzeichnung beisteuern
@@ -563,7 +605,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
-  liegen", Konzept 3.2), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  liegen", Konzept 3.2), Ausgangskorb und Zwischenspeicher im Browser,
+  Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

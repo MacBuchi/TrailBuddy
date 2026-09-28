@@ -76,6 +76,7 @@ sealed class OutboxJob {
                 .firstWhere((s) => s.name == json['source'], orElse: () => RecordingSource.import),
             recordedAt: DateTime.tryParse(json['recorded_at'] as String? ?? '')?.toUtc(),
             name: json['name'] as String?,
+            grade: json['grade'] as int?,
             attempts: attempts,
             failure: failure,
           );
@@ -109,6 +110,7 @@ class ContributeJob extends OutboxJob {
     required this.source,
     this.recordedAt,
     this.name,
+    this.grade,
     super.attempts,
     super.failure,
   });
@@ -119,6 +121,10 @@ class ContributeJob extends OutboxJob {
   final RecordingSource source;
   final DateTime? recordedAt;
   final String? name;
+
+  /// Der S-Grad aus dem Zerlege-Blatt (#29), der mit dem Namen in den
+  /// eigenen Beitrag geht — null, wenn keiner gewählt war.
+  final int? grade;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -132,6 +138,7 @@ class ContributeJob extends OutboxJob {
         'source': source.name,
         'recorded_at': recordedAt?.toUtc().toIso8601String(),
         'name': name,
+        'grade': grade,
       };
 
   @override
@@ -144,6 +151,7 @@ class ContributeJob extends OutboxJob {
         source: source,
         recordedAt: recordedAt,
         name: name,
+        grade: grade,
         attempts: attempts ?? this.attempts,
         failure: clearFailure ? null : (failure ?? this.failure),
       );

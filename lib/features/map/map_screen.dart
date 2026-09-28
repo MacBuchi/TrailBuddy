@@ -11,7 +11,7 @@ import '../../core/geo.dart';
 import '../../models/trail.dart';
 import '../feedback/feedback_dialog.dart';
 import '../rides/ride_providers.dart';
-import '../rides/ride_summary_sheet.dart';
+import '../rides/ride_split_sheet.dart';
 import '../rides/ride_task_handler.dart';
 import '../rides/ride_track.dart';
 import '../official/official_trails.dart';
@@ -209,9 +209,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               'nichts gespeichert.')));
       return;
     }
-    final discard = await showRideSummarySheet(context, ride);
+    _fittedOnce = true;
+    _fitPoints([for (final p in ride.points) LatLng(p.lat, p.lng)]);
+    final discard = await showRideSplitSheet(context, SplitRequest.fromRide(ride), offerDiscard: true);
     if (!mounted || !discard) return;
     await ref.read(ridesProvider.notifier).delete(ride.id);
+  }
+
+  /// „Fahrt zerlegen" aus „Meine Fahrten" oder dem GPX-Import (#29):
+  /// die Spur einpassen, das Blatt öffnen.
+  void _openSplit(SplitRequest request) {
+    _fittedOnce = true;
+    _fitPoints([for (final p in request.track.points) LatLng(p.lat, p.lon)]);
+    unawaited(showRideSplitSheet(context, request));
   }
 
   @override
@@ -228,6 +238,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final official = ref.watch(officialTrailsControllerProvider);
     final ride = ref.watch(rideProvider);
     final focusRide = ref.watch(mapFocusRideProvider);
+    final splitPreview = ref.watch(rideSplitPreviewProvider);
     final canRecord = ref.watch(rideRecordingAvailableProvider);
     final cachedAt = ref.watch(trailsCachedAtProvider);
 
@@ -269,6 +280,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (mounted) _fitPoints([for (final p in r.points) LatLng(p.lat, p.lng)]);
       });
     });
+    ref.listen(mapSplitRequestProvider, (_, request) {
+      if (request == null) return;
+      ref.read(mapSplitRequestProvider.notifier).state = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openSplit(request);
+      });
+    });
     // „Auf der Karte zeigen" aus „Meine Bereiche" (Konzept-Schritt 3).
     ref.listen(mapFocusAreaProvider, (_, area) {
       if (area == null) return;
@@ -302,7 +320,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // ein Tipp trifft zuerst das Netz.
         if (officialOn && camera != null && camera.zoom >= kOfficialMinZoom)
           ...officialPolylines(official),
-        if (focusRide != null) _ridePolyline(focusRide.points),
+        // Während das Zerlege-Blatt offen ist, zeichnet es die Fahrt
+        // selbst — in Abschnitten, mit den Griffen.
+        if (splitPreview.isNotEmpty)
+          ...splitPreview
+        else if (focusRide != null)
+          _ridePolyline(focusRide.points),
         if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
         for (final t in trails)
           MapViewPolyline(

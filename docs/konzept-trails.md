@@ -399,6 +399,17 @@ die innerhalb 300 m vom Start- oder Endpunkt der Fahrt beginnen oder
 enden, werden markiert („beginnt nahe deinem Start") — kein Riegel, ein
 Hinweis, weil ein Trail durchaus an der Haustür beginnen kann.
 
+**Gebaut in 0.20.0 (#29), mit drei Abweichungen vom Text oben:**
+(1) Das Gefälle kommt nicht aus einem Höhengitter — das hat TrailBuddy
+nicht —, sondern aus der GPS-Höhe der Aufzeichnung (geglättet), bei
+GPX-Fahrten aus der Datei; beigesteuert wird die GPS-Höhe nicht (#28).
+(2) „Abseits von Forst- und Fahrstraßen" liest die App ausschließlich
+aus gespeicherten Bereichen (Zoom 13); ohne Bereich über der ganzen
+Fahrt gibt es keine Kandidaten, und das Blatt sagt es — keine
+Gefälle-allein-Regel (Betreiber, 2026-09-28). (3) Der lokale Abgleich
+für „bekannt" rechnet die beidseitige Deckung, keinen Fréchet: Ob
+verschmolzen wird, entscheidet weiter allein der Server.
+
 ### 5.2 GPX-Import (der Bestand)
 
 Der Grund, warum das Konzept vor dem Code stehen muss: Die ersten
@@ -411,7 +422,8 @@ Dateien und entscheidet je Datei:
   sind gemessen: Alpine Trails sind 3 bis 8 km lang, Fahrten beginnen
   im Bestand bei 8 km; die wenigen langen Abfahrten darüber gehen als
   Fahrt durchs Zerlege-Blatt, der harmlose Fehler.
-- **Sonst** ⇒ ist eine Fahrt, geht durch dasselbe Blatt wie 5.1.
+- **Sonst** ⇒ ist eine Fahrt, geht durch dasselbe Blatt wie 5.1 (seit
+  0.20.0: die Schere neben der Spur im Import führt auf die Karte).
 
 Dann für jeden bestätigten Kandidaten `contribute_recording`. Zwanzig
 Dateien sind zwanzig Aufrufe; das Ergebnis ist eine Karte, auf der
@@ -686,7 +698,9 @@ Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
   Verschmelzung ist im Feld prüfbar.
 - **Phase 2 — Aufzeichnen.** Fahrt-Aufzeichnung aus der Pilztour
   (#28, seit 0.13.0: Aufzeichnen, Liste „Meine Fahrten", Wiederaufnahme
-  nach Prozess-Kill), Kandidaten-Heuristik und Zerlege-Blatt (#29),
+  nach Prozess-Kill), Kandidaten-Heuristik und Zerlege-Blatt (#29, seit
+  0.20.0: bekannte Trails, Kandidaten mit Griffen, auch für
+  GPX-Fahrten),
   Ausgangskorb (#30, seit 0.14.0: Beisteuern und Beitrag ohne Netz,
   wartende Trails gestrichelt, Android; Web bewusst noch ohne).
 - **Phase 3 — Offline und Austausch.** Offline-Karten (#31), Trails im

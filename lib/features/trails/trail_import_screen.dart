@@ -2,10 +2,13 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/errors.dart';
 import '../../data/providers.dart';
+import '../../core/router_branches.dart';
 import '../../models/trail.dart';
+import '../rides/ride_split_sheet.dart';
 import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'gpx_files.dart';
@@ -256,9 +259,10 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
           Text(
             'Kurze Spuren, die überwiegend bergab führen, werden als Trail '
             'beigesteuert. Ganze Fahrten (ab 8 km oder mit mehr Auf- als '
-            'Abstieg) müssen erst zerlegt werden — das kommt in einem '
-            'späteren Stand. Was du beisteuerst, sehen deine Buddys; der '
-            'Server gleicht es still mit bekannten Trails ab.',
+            'Abstieg) zerlegst du auf der Karte in bekannte Trails und '
+            'Kandidaten — die Schere neben der Spur. Was du beisteuerst, '
+            'sehen deine Buddys; der Server gleicht es still mit bekannten '
+            'Trails ab.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -304,6 +308,22 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
                 title: Text(c.track.name),
                 subtitle: Text(_describe(c)),
                 controlAffinity: ListTileControlAffinity.leading,
+                // Eine Fahrt geht durch das Zerlege-Blatt (Konzept 5.2),
+                // auf der Karte — dort sieht man, was die Griffe tun.
+                secondary: c.existing == null && c.kind == TrackKind.ride
+                    ? IconButton(
+                        key: ValueKey('import-split-${c.clientId}'),
+                        tooltip: 'Fahrt zerlegen',
+                        icon: const Icon(Icons.content_cut),
+                        onPressed: _busy
+                            ? null
+                            : () {
+                                StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);
+                                ref.read(mapSplitRequestProvider.notifier).state =
+                                    SplitRequest.fromGpx(c.track);
+                              },
+                      )
+                    : null,
               ),
             const SizedBox(height: 12),
             if (_busy)
@@ -349,7 +369,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     });
     parts.add(switch (c.kind) {
       TrackKind.trail => 'Trail',
-      TrackKind.ride => 'Fahrt — zerlegen kommt später',
+      TrackKind.ride => 'Fahrt — auf der Karte zerlegen',
       TrackKind.fragment => 'zu kurz für einen Trail',
     });
     return parts.join(' · ');
