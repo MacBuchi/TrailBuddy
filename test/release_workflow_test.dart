@@ -278,6 +278,33 @@ void main() {
     expect(mapData, contains('max-age=300'));
   });
 
+  test('die Orte kommen vom selben Host, je Zelle und Gruppe, und CI liest sie zurück', () {
+    // poi-data.yml (Konzept 3.4, Weg 3): Manifest `pois.json` und
+    // Dateien `pois-<build>/<zeile>_<spalte>.<gruppe>.json` neben dem
+    // Archiv. Die App baut dieselben Namen (`poiCellFileName`,
+    // `kPoiManifestUrl`); der Workflow prüft die öffentliche Kopie mit
+    // Origin-Header und vergleicht je Gruppe eine Datei Byte für Byte.
+    final poiData = File('.github/workflows/poi-data.yml').readAsStringSync();
+    final providers = File('lib/features/map/map_providers.dart').readAsStringSync();
+    final host = RegExp(r"kMapTilesBase = '([^']+)'").firstMatch(providers)!.group(1)!;
+    expect(providers, contains("kPoiManifestUrl = '\$kMapTilesBase/pois.json'"));
+    expect(poiData, contains('PUBLIC_BASE: $host'));
+    expect(poiData, contains("R2_PREFIX: ${host.split('/').last}"));
+    expect(poiData, contains("steps.r2.outputs.present == 'true'"));
+    expect(poiData, contains('.eu.r2.cloudflarestorage.com'));
+    expect(poiData, contains('pois-\${BUILD}/'));
+    expect(poiData, contains('max-age=31536000, immutable'));
+    expect(poiData, contains('max-age=300'));
+    expect(poiData, contains('access-control-allow-origin'));
+    expect(poiData, contains("cell.replace(',', '_')"));
+    expect(poiData, contains('tool/poi_extract.py build'));
+    // Die Arten kommen aus EINER Liste; das Werkzeug liest sie von dort.
+    final tool = File('tool/poi_extract.py').readAsStringSync();
+    expect(tool, contains('"pois", "kinds.json"'));
+    expect(tool, contains('CELL_LAT = 0.1'));
+    expect(tool, contains('CELL_LON = 0.15'));
+  });
+
   test('jedes Werkzeug mit Selbsttest läuft in CI (sonst verrottet es still)', () {
     final ci = File('.github/workflows/ci.yml').readAsStringSync();
     final tools = Directory('tool')

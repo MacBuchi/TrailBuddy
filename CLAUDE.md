@@ -182,18 +182,46 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   überall aufrufbar, wo man einen Grad angibt: Auswahl im Beitrag und
   Chips im Blatt. Die Einschätzung im Blatt gibt es nur für selbst
   belegte Trails (Konzept 3: ohne Beleg kein Beitrag).
-- **Orte auf der Karte** (#12, `lib/features/map/poi*.dart`): live von
-  `overpass-api.de` (FOSSGIS), erst ab Zoom 12, geladen in einem festen
-  Raster (0,1° × 0,15°), jede Zelle je Gruppe einmal pro App-Lauf; der
-  Filter ist gerätelokal (`Settings.poiGroups`, Vorgabe nur „Wasser" —
-  Entscheidung des Betreibers). Ist alles aus, geht KEINE Anfrage raus;
-  der Test-Harness hängt `FakePoiSource` ein, weil die Karte beim
-  Einpassen auf einen Trail über Zoom 12 liegt. Die Nadeln liegen UNTER
-  den Trail-Linien und tragen nie eine der Trail-Farben. Eine Art hat
-  mehrere Tag-Regeln, die ERSTE passende Art gewinnt (Biergarten vor
-  Gasthaus: `biergarten=yes`); das Kuchenstück ist gezeichnet
-  (`PoiGlyph`, Material hat keins). Der Detailfilter
-  (`Settings.poiHiddenKinds`) blendet nur aus, geladen wird je Gruppe.
+- **Orte auf der Karte** (#12, `lib/features/map/poi*.dart`): seit
+  0.18.0 als fertige Dateien vom EIGENEN Kartenhost (Konzept
+  `docs/konzept-offline-karten.md` 3.4, Weg 3 — Betreiber, 2026-09-28),
+  vorher live von `overpass-api.de`. `poi-data.yml` (monatlich am 2.,
+  von Hand mit `plan`/`publish`) liest die Geofabrik-Extrakte (DACH +
+  Liechtenstein) mit `osmium`, `tool/poi_extract.py` behält die 15
+  Arten und schreibt je Rasterzelle und Gruppe EINE Datei
+  (`pois-<build>/<zeile>_<spalte>.<gruppe>.json`) plus das Manifest
+  `pois.json`, das den Bau und die Zellen mit Inhalt nennt; Upload nach
+  R2 neben das Archiv, dann Rücklesen der öffentlichen Kopie mit
+  Origin-Header und Byte-Vergleich je Gruppe. Fünf Dinge, die man wissen
+  muss:
+  - **Warum nicht aus den Kacheln:** Protomaps schreibt Hütte,
+    Gasthaus, Trinkwasser & Co. erst ab Zoom 15 in die Kacheln (in der
+    Quelle nachgelesen, 2026-09-28), unser Archiv endet bei 13, und der
+    Stil zeigte sie ohnehin erst ab 16 und nur als Text. Ein
+    Zoom-15-Archiv wäre ein Vielfaches je gespeichertem Bereich.
+  - **Die Arten stehen ZWEIMAL** — `PoiKind` in `poi.dart` und
+    `tool/pois/kinds.json` für das Werkzeug; `test/map/poi_test.dart`
+    hält Reihenfolge, Regeln und Gruppen zusammen. Die ERSTE passende
+    Art gewinnt (Biergarten vor Gasthaus: `biergarten=yes`); Parkplätze
+    ohne `access=private/no`; Ladesäulen nur mit `bicycle=yes`.
+  - **Das Manifest gilt je App-Lauf, eine Zelle je Gruppe wird einmal
+    gefragt**, und nur, wenn das Manifest sie nennt — eine leere Zelle
+    kostet keine Anfrage. Erst ab Zoom 12, Raster 0,1° × 0,15° (dasselbe
+    `floor()` auf denselben Doubles in Dart und Python); der Filter ist
+    gerätelokal (`Settings.poiGroups`, Vorgabe nur „Wasser"). Ist alles
+    aus, geht KEINE Anfrage raus. Die kleinen Dateien liegen im
+    Edge-Cache (anders als das Archiv, #55); kein neues Netzziel, der
+    Host steht schon in der Datenschutzerklärung.
+  - **Ohne veröffentlichten Bau gibt es keine Orte**: 404 auf das
+    Manifest heißt „Orte gerade nicht erreichbar", bis `poi-data.yml`
+    einmal auf `main` gelaufen ist. Ein Bau mit unter 100 000 Orten
+    wird nicht veröffentlicht (kaputter Extrakt); der vorige Bau bleibt
+    einen Lauf lang liegen.
+  - Der Test-Harness hängt `FakePoiSource` ein, weil die Karte beim
+    Einpassen auf einen Trail über Zoom 12 liegt. Die Nadeln liegen über
+    den Trail-Linien (Fassade) und tragen nie eine der Trail-Farben; das
+    Kuchenstück ist gezeichnet (`PoiGlyph`). Der Detailfilter
+    (`Settings.poiHiddenKinds`) blendet nur aus, geladen wird je Gruppe.
 - **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
   freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
   den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie
@@ -410,7 +438,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Präfix je App — PilzBuddy kann später denselben Host nutzen. **Der
     Bucket hat EU-Jurisdiktion, und sein S3-Endpunkt heißt deshalb
     `<account>.eu.r2.cloudflarestorage.com`** — ohne `.eu` findet der
-    Upload den Bucket nicht (Betreiber, 2026-09-28).
+    Upload den Bucket nicht (Betreiber, 2026-09-28). **Bot Fight Mode
+    ist für die Zone `mcbuchi.de` AUS** (#55): Im Free-Plan gilt er
+    zonenweit ohne Ausnahme je Hostname und stellte dem Runner eine
+    Managed Challenge (`403`, `cf-mitigated: challenge`), die kein
+    Client der App lösen kann; der Verify-Schritt nennt sie seither mit
+    Ray-ID. DDoS-Schutz ist davon unberührt. Was bleibt, ist ein
+    Kostenrisiko (das Archiv ist zu groß für den Edge-Cache, jede
+    Range-Anfrage ist eine R2-Class-B-Operation) — die Rate-Limiting-
+    Regel und die Nutzungsbenachrichtigung stehen in #55, die Zahlen in
+    `docs/konzept-offline-karten.md` Abschnitt 7.
   - **Der Stil ist ERZEUGT, die Übersicht auch** (`assets/map_style/`,
     `assets/offline_maps/overview_dach.pmtiles`, Zoom 0–7, ~9 MB;
     Glyphs `assets/map_glyphs/`, SIL OFL). `tool/transform_map_style.py`
@@ -475,7 +512,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   Offline-Karten über die Übersicht hinaus (Schritte 3–4 in
-  `docs/konzept-offline-karten.md`: Bereiche speichern, Orte offline), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  `docs/konzept-offline-karten.md`: Bereiche speichern, und die
+  Orte-Dateien der Zellen mit dem Bereich mitnehmen), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

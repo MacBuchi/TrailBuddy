@@ -131,7 +131,7 @@ void main() {
     expect(pois.calls, isEmpty);
   });
 
-  testWidgets('Overpass nicht erreichbar: die Karte sagt es', (tester) async {
+  testWidgets('Orte-Host nicht erreichbar: die Karte sagt es', (tester) async {
     pois.failWith = const PoiUnavailable(504);
     await start(tester);
     expect(find.text('Orte gerade nicht erreichbar'), findsOneWidget);

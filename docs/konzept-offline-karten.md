@@ -122,6 +122,32 @@ Zwei Wege, die Reihenfolge ist eine **Messung**:
 Beides gilt für Browser und Android gleich; die Zellen-Kopie hätte
 dieselbe `TileStore`-Nachbarschaft in IndexedDB bzw. als Datei.
 
+**Gemessen am 2026-09-28, und die Antwort ist keiner von beiden.** Weg 1
+scheitert an der Quelle, nicht am Stil: Protomaps schreibt Hütte,
+Gasthaus, Biergarten, Café, Trinkwasser, Wasserstelle, Unterstand,
+Aussichtspunkt, Reparaturstation, Radladen, Toilette und Parkplatz erst
+ab **Zoom 15** in die Kacheln (Punkte ohne Namen ab 16; nur Quellen ab
+15 und Gipfel ab 13 liegen tiefer — nachgelesen in der
+`Pois`-Ebene des Basemap-Profils). Unser Archiv endet bei 13, und bei
+14 wäre es nicht anders. Selbst mit Zoom 15 zeigte der Stil sie erst ab
+16 (`min_zoom + 1` in der Kachel) und nur als Text, ohne Sprites. Weg 2
+hätte Overpass zur Dauerquelle gemacht, mit Kopien je Gerät.
+
+**Weg 3, entschieden (Abschnitt 7): eine eigene Orte-Datei auf dem
+Kartenhost.** `poi-data.yml` liest monatlich die Geofabrik-Extrakte
+(DACH + Liechtenstein) mit `osmium`, `tool/poi_extract.py` behält die
+15 Arten aus `tool/pois/kinds.json` und schreibt je Rasterzelle (das
+Raster der App, 0,1° × 0,15°) und Gruppe eine kleine JSON-Datei nach
+`tiles.mcbuchi.de/trailbuddy/pois-<build>/`, dazu `pois.json` mit dem
+Bau und den Zellen, die Inhalt haben. Die App (seit 0.18.0) holt das
+Manifest einmal je Lauf und dann nur die Dateien der berührten Zellen
+für die eingeschalteten Gruppen. Was das bringt: kein fremder
+Live-Dienst mehr, die Rasterzelle statt des genauen Ausschnitts als
+einzige Information, die den Host erreicht, Edge-Cache für die kleinen
+Dateien, und für Schritt 3 sind die Orte eines Bereichs schlicht die
+Dateien seiner Zellen — dieselbe Ablage wie die Kacheln. Nadeln, Filter
+und Blatt bleiben, wie sie sind.
+
 ### 3.5 Die Wege-Ebene für das Zerlege-Blatt
 
 Das Zerlege-Blatt (#29) liest aus den gespeicherten Kacheln die Ebene
@@ -163,11 +189,15 @@ ohne sie geht.
    `dach.json`) und liest die ÖFFENTLICHE Kopie wie die App zurück (206,
    `accept-ranges`, CORS, Stichprobe gegen die Quelle). Beide Engines
    lesen daraus; OSM ist aus der Datenschutzerklärung, Cloudflare drin.
-   Monatlicher Lauf. Zoomziel 13 (Entscheidung, Abschnitt 7).
+   Monatlicher Lauf. Zoomziel 13 (Entscheidung, Abschnitt 7). Erster
+   veröffentlichter Stand am 2026-09-28, siehe Abschnitt 7.
 3. **Bereiche speichern**: `TileStore` (IndexedDB, Datei), Auswahl,
    Größe vorher, Fortschritt, Liste „Meine Bereiche", „Gesehenes bleibt
    liegen", Hinweis bei geräumtem Speicher.
-4. **Orte offline**: erst die Messung (3.4), dann der Weg.
+4. **Orte vom eigenen Host** (**seit 0.18.0**, Messung und Entscheidung
+   in 3.4): `poi-data.yml`, `tool/poi_extract.py`, Manifest `pois.json`.
+   Offline werden sie mit Schritt 3: die Dateien der Zellen eines
+   Bereichs kommen mit dem Bereich mit.
 5. Danach #29 mit der Wege-Ebene.
 
 Jeder Schritt ein PR, jeder mit Datenschutzerklärung und CLAUDE.md im
@@ -190,6 +220,40 @@ ein Viertel der Fläche) und bleibt die Messung aus 3.4. Der Bucket hat
 EU-Jurisdiktion (Standort WEUR); sein S3-Endpunkt trägt deshalb `.eu.`
 Offen bleibt das iPhone im Browser. Die drei Ausgänge unten bleiben als Begründung
 stehen.
+
+**Erster Stand veröffentlicht am 2026-09-28** (dritter Lauf von
+`map-data.yml`): `dach-20260928.pmtiles`, 2,8 GB, Zoom 0–13 aus dem
+Protomaps-Tagesbau 20260928; 80 Kacheln des Auszugs und 40 der
+öffentlichen Kopie byte-gleich mit der Quelle, 206 mit `accept-ranges`
+und CORS-Header wie die App sie braucht. Die beiden Läufe davor haben
+je einen Fehler gezeigt, der jetzt im Workflow benannt ist (#53 eine
+Variable, die den eigenen Schritt nicht erreichte; #54 die
+Bot-Challenge unten).
+
+**Orte vom eigenen Host statt aus den Kacheln oder von Overpass**
+(Betreiber, 2026-09-28: „Weg 3 finde ich auch am besten"): Die Messung
+in 3.4 hat ergeben, dass die Kacheln die Orte erst ab Zoom 15 tragen;
+ein Archiv bis 15 hätte jeden gespeicherten Bereich vervielfacht. Der
+Betreiber hatte auf dem Pixel 7 Pro die Onlinekarte gutgeheißen und
+Orte vermisst — ab Werk ist nur „Wasser" eingeschaltet, und die kamen
+bis dahin live von Overpass.
+
+**Bot Fight Mode ist für die Zone `mcbuchi.de` AUS** (Betreiber,
+2026-09-28, Issue #55). Cloudflares Free-Plan kennt den Schalter nur
+zonenweit, ohne Ausnahme je Hostname, und er stellte dem CI-Runner
+eine Managed Challenge (`403`, `cf-mitigated: challenge`, Ray-ID
+`a423bd14c8a51492`) — die kann kein Client der App lösen, weder
+`curl` noch MapLibre noch `PmTilesArchive.fromUri`. Der Schutz gegen
+DDoS ist davon unberührt (eigener, immer aktiver Dienst). Was bleibt,
+ist ein KOSTENrisiko, kein Sicherheitsrisiko: Das 2,8-GB-Archiv liegt
+über der 512-MB-Grenze des Edge-Caches im Free-Plan, jede Range-Anfrage
+geht also als Class-B-Operation an R2 (10 Mio. je Monat frei, danach
+0,36 $ je Mio.; Egress bleibt frei). Dagegen stehen die drei Punkte in
+#55: eine Rate-Limiting-Regel für `tiles.mcbuchi.de` mit GEMESSENER
+Schwelle (nicht geraten — ein Kartenschwenk sind Dutzende Anfragen),
+eine Nutzungsbenachrichtigung im Cloudflare-Konto, und dieser Absatz.
+Wer den Schalter wieder umlegt, macht die Karte für alle aus, ohne
+dass CI es vor dem nächsten Monatslauf sieht.
 
 1. **Der Host.** Drei Ausgänge, wie in PilzBuddy #496 beschrieben:
    - **Objektspeicher (Cloudflare R2)**: kein Größenlimit je Datei, CORS

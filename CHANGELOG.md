@@ -4,8 +4,15 @@
 
 ## Karte
 
-*Versionen 0.16.0 und 0.17.0, 2026-09-28*
+*Versionen 0.16.0, 0.17.0 und 0.18.0, 2026-09-28*
 
+- **Die Orte auf der Karte kommen jetzt auch vom eigenen Kartenspeicher**
+  (0.18.0): Einkehr, Wasser, Rad-Service und Sonstiges liegen als fertige
+  Dateien je Rasterzelle neben der Karte, einmal im Monat frisch aus
+  OpenStreetMap. Die App lädt nur die Zellen, die dein Ausschnitt
+  berührt, und fragt keinen fremden Dienst mehr live — schneller, und
+  ohne dass dein genauer Ausschnitt irgendwohin geht. Filter, Nadeln und
+  das Blatt beim Antippen bleiben, wie sie waren.
 - **Die Karte kommt jetzt von unserem eigenen Kartenspeicher** (0.17.0):
   eine Vektorkarte von Deutschland, Österreich und der Schweiz bis
   Zoomstufe 13, mit Forstwegen, Pfaden und Steigen als eigene Linien
