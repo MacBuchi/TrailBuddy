@@ -187,7 +187,11 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf build/maps && mkdir -p build/maps
-          file="dach-${SOURCE_BUILD}.pmtiles"
+          # `export`, because the manifest writer below is a child process:
+          # $GITHUB_ENV reaches only the LATER steps, not this one (the
+          # first publish run failed here with KeyError: 'file' after a
+          # successful extract).
+          export file="dach-${SOURCE_BUILD}.pmtiles"
           echo "file=$file" >> "$GITHUB_ENV"
           pmtiles extract "$SOURCE" "build/maps/$file" \
             "--bbox=$DACH_BBOX" "--maxzoom=$MAXZOOM"
