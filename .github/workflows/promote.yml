@@ -1,0 +1,130 @@
+# Ein Prerelease zum stabilen Release befördern und die Web-App
+# veröffentlichen (Muster PilzBuddy #262).
+#
+# **Warum von Hand.** Jeder Merge mit Versions-Bump baut ein Prerelease
+# (release.yml); die App sieht davon nichts, weil `update_check.dart`
+# `/releases/latest` fragt und GitHub dort keine Prereleases liefert.
+# Dieser Workflow ist der bewusste Handgriff, der einen Stand freigibt.
+#
+# **Zwei Dinge passieren zusammen:**
+#
+# 1. Das Release verliert die Prerelease-Markierung und wird „latest" —
+#    erst dadurch meldet sich die App auf Android.
+# 2. GitHub Pages wird aus genau diesem Tag gebaut (Branch `gh-pages`).
+#    Das Web hängt an EINER Adresse; deployte jeder Merge, bekämen
+#    Web-Nutzer jede Zwischenversion. Mit der Web-App kommen auch die
+#    Rechtsseiten (`web/datenschutz.html`, `impressum.html`,
+#    `konto-loeschen.html`), auf die die App verlinkt.
+#
+# **Die Adresse ist `macbuchi.github.io/trailbuddy/`** und Pages
+# unterscheidet Groß- und Kleinschreibung: Das Repo muss deshalb
+# `trailbuddy` heißen (klein), passend zu `--base-href /trailbuddy/`.
+#
+# **Was hier NICHT passiert: Migrationen.** Die spielt der Schema Check
+# beim Merge ein; die Datenbank läuft dem stabilen Client voraus.
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version ohne v, z. B. 0.11.0 (leer = neuestes Prerelease)'
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Promote to stable
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Version bestimmen
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WANTED: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WANTED" ]; then
+            version="${WANTED#v}"
+          else
+            # Neuestes Prerelease, nach Erstellzeit — bei monoton
+            # steigenden Versionen dasselbe wie nach SemVer.
+            version=$(gh release list --limit 30 --exclude-drafts \
+              --json tagName,isPrerelease \
+              --jq '[.[] | select(.isPrerelease)] | .[0].tagName // ""')
+            version="${version#v}"
+          fi
+          if [ -z "$version" ]; then
+            echo "::error::Kein Prerelease gefunden und keine Version angegeben."
+            exit 1
+          fi
+          if ! gh release view "v$version" >/dev/null 2>&1; then
+            echo "::error::Kein Release v$version."
+            exit 1
+          fi
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Befördere v$version"
+
+      - name: Release stabil schalten
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pick.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --prerelease=false --latest
+          gh release view "$TAG" --json tagName,isPrerelease
+
+      # Pages aus dem BEFÖRDERTEN Tag, nicht aus main: Sonst läge auf der
+      # Web-Adresse der Entwicklungsstand, während Android auf stabil
+      # zeigt.
+      - name: Auf den Tag wechseln
+        env:
+          TAG: ${{ steps.pick.outputs.tag }}
+        run: git checkout "$TAG"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+      - run: flutter pub get
+      # `--no-web-resources-cdn`: Ohne den Flag holt der Loader CanvasKit
+      # von www.gstatic.com — offline tot, und die IP jedes Besuchers ginge
+      # an Google. Die Dateien liegen ohnehin im Build.
+      - run: flutter build web --release --base-href /trailbuddy/ --no-web-resources-cdn
+      # Derselbe Prüfer wie im CI-Job „Build Web": Was hier rausgeht, muss
+      # ohne Netz starten.
+      - name: Der Service Worker startet die App ohne Server
+        run: node tool/check_service_worker.mjs build/web
+      # SPA-Fallback: GitHub Pages liefert 404.html bei Deep-Links.
+      - run: cp build/web/index.html build/web/404.html
+      - uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          force_orphan: true
+
+      - name: Zusammenfassung
+        env:
+          TAG: ${{ steps.pick.outputs.tag }}
+        run: |
+          {
+            echo "### $TAG ist stabil"
+            echo "- Android: \`/releases/latest\` zeigt jetzt auf $TAG."
+            echo "- Web: Branch \`gh-pages\` neu gebaut. Pages muss in den"
+            echo "  Repo-Einstellungen auf \`gh-pages\` / Wurzel stehen;"
+            echo "  Adresse: https://macbuchi.github.io/trailbuddy/"
+          } >> "$GITHUB_STEP_SUMMARY"
