@@ -81,11 +81,15 @@ class AreaBounds {
 /// Eine Kachel im Web-Mercator-Raster.
 typedef TileXYZ = ({int z, int x, int y});
 
+/// Die Breite, an der Web-Mercator endet — eine Konstante mit Namen, damit
+/// der Privat-Wächter sie nicht für ein Koordinatenpaar hält.
+const _maxMercatorLat = 85.05112878;
+
 /// Spalte und Zeile der Kachel, in der [lon]/[lat] bei Zoom [z] liegt.
 ({int x, int y}) tileAt(double lat, double lon, int z) {
   final n = 1 << z;
   final x = ((lon + 180) / 360 * n).floor().clamp(0, n - 1);
-  final latRad = lat.clamp(-85.05112878, 85.05112878) * math.pi / 180;
+  final latRad = lat.clamp(-_maxMercatorLat, _maxMercatorLat) * math.pi / 180;
   final y = ((1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) / 2 * n)
       .floor()
       .clamp(0, n - 1);
