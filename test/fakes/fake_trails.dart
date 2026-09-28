@@ -185,6 +185,11 @@ class FakeTrailRepository implements TrailRepository {
   @override
   Future<void> saveDetails(TrailDetails d) async {
     final me = myId();
+    // Spiegelt den Check an trail_details.name (1–80 Zeichen).
+    final name = d.name;
+    if (name != null && (name.isEmpty || name.length > 80)) {
+      throw StateError('23514: Name mit ${name.length} Zeichen');
+    }
     details.removeWhere((x) => x.trailId == d.trailId && x.userId == me);
     details.add(TrailDetails(
       trailId: d.trailId,

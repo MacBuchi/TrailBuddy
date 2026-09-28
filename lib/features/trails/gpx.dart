@@ -70,7 +70,24 @@ List<GpxTrack> parseGpx(String xml, {String fallbackName = 'Ohne Namen'}) {
 String? _name(XmlElement parent) {
   final el = parent.getElement('name');
   final text = el?.innerText.trim();
-  return (text == null || text.isEmpty) ? null : text;
+  return (text == null || text.isEmpty) ? null : decodeTrackName(text);
+}
+
+final _percentEscape = RegExp(r'%[0-9A-Fa-f]{2}');
+
+/// Manche Apps (Locus beim Export von Trailforks-Spuren) schreiben den
+/// Namen URL-kodiert: „DREI%20EICHEN%20-%20…". Dekodiert wird nur, was
+/// wie ein Escape aussieht und sich sauber dekodieren lässt — ein Name
+/// wie „100 % Flow" bleibt, wie er ist.
+String decodeTrackName(String name) {
+  if (!_percentEscape.hasMatch(name)) return name;
+  try {
+    return Uri.decodeComponent(name).trim();
+  } on ArgumentError {
+    return name;
+  } on FormatException {
+    return name;
+  }
 }
 
 void _collect(Iterable<XmlElement> elements, List<TrackPoint> into) {

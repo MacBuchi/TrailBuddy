@@ -37,7 +37,8 @@ final gpxPickerProvider = Provider<Future<List<PickedFile>> Function()>((ref) {
 
 /// Ein Kandidat aus einer Datei, mit der Einordnung nach Konzept 5.2.
 class ImportCandidate {
-  ImportCandidate(this.file, this.track, {this.existing})
+  ImportCandidate(this.file, this.track,
+      {this.existing, this.existingNameMissing = false})
       : lengthM = trackLengthM(track.points),
         // Aus der VEREINFACHTEN Spur, also aus genau dem, was hochgeht:
         // Das Blatt rechnet danach mit denselben Punkten, und die Zahl
@@ -65,8 +66,20 @@ class ImportCandidate {
 
   bool get backfill => existing?.canBackfill ?? false;
 
+  /// Die schon beigesteuerte Aufzeichnung hat keinen eigenen Namen — etwa
+  /// weil der Name aus der Datei vor 0.9.1 zu lang war und das Speichern
+  /// scheiterte. Dann übernimmt ein zweiter Import ihn.
+  final bool existingNameMissing;
+
+  bool get adoptsName =>
+      existing != null && existingNameMissing && track.name.trim().isNotEmpty;
+
+  /// Etwas an einer schon beigesteuerten Aufzeichnung nachtragen (Höhen
+  /// oder Name) — nie eine zweite anlegen.
+  bool get completesExisting => backfill || adoptsName;
+
   bool get contributable =>
-      existing == null ? kind == TrackKind.trail : backfill;
+      existing == null ? kind == TrackKind.trail : completesExisting;
 }
 
 class TrailImportScreen extends ConsumerStatefulWidget {
@@ -82,7 +95,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   final _errors = <String>[];
   bool _busy = false;
   int _done = 0;
-  ({int ok, int backfilled, int failed})? _result;
+  ({int ok, int backfilled, int named, int failed})? _result;
 
   Future<void> _pick() async {
     final List<PickedFile> picked;
@@ -125,8 +138,18 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
       for (final f in files) {
         try {
           for (final t in parseGpx(f.text, fallbackName: f.name)) {
+            final existing = own.isEmpty ? null : findOwnRecording(t, own);
             final c = ImportCandidate(f.name, t,
-                existing: own.isEmpty ? null : findOwnRecording(t, own));
+                existing: existing,
+                existingNameMissing: existing != null &&
+                    (trails
+                                .where((x) => x.id == existing.recording.trailId)
+                                .firstOrNull
+                                ?.myDetails
+                                ?.name ??
+                            '')
+                        .trim()
+                        .isEmpty);
             _candidates.add(c);
             if (c.contributable) _selected.add(c);
           }
@@ -146,17 +169,25 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     });
     var ok = 0;
     var backfilled = 0;
+    var named = 0;
     var failed = 0;
     var limitHit = false;
     final succeeded = <ImportCandidate>{};
     final notifier = ref.read(trailsProvider.notifier);
     for (final c in chosen) {
       try {
-        if (c.backfill) {
+        if (c.completesExisting) {
           // Zählt nicht ins Tageslimit, legt nichts Neues an. false heißt:
           // hatte inzwischen schon Höhen — auch das ist erledigt.
-          await notifier.attachElevation(c.existing!);
-          backfilled++;
+          if (c.backfill) {
+            await notifier.attachElevation(c.existing!);
+            backfilled++;
+          }
+          if (c.adoptsName &&
+              await notifier.adoptName(
+                  c.existing!.recording.trailId, c.track.name)) {
+            named++;
+          }
         } else {
           await notifier.contribute(c.track, clientId: c.clientId);
           ok++;
@@ -173,13 +204,13 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
         _errors.add('${c.track.name}: ${friendlyError(e)}');
       }
       if (!mounted) return;
-      setState(() => _done = ok + backfilled + failed);
+      setState(() => _done++);
     }
     final fresh = await notifier.reloadAfterWrite('Trails nach Import laden');
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _result = (ok: ok, backfilled: backfilled, failed: failed);
+      _result = (ok: ok, backfilled: backfilled, named: named, failed: failed);
       if (limitHit) {
         _errors.add('Für heute ist das Limit erreicht. Die übrigen bleiben '
             'angehakt — morgen einfach noch einmal „beisteuern".');
@@ -193,6 +224,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
       content: Text(
         '$ok ${ok == 1 ? 'Trail' : 'Trails'} beigesteuert'
         '${backfilled > 0 ? ', $backfilled mit nachgetragenen Höhen' : ''}'
+        '${named > 0 ? ', $named ${named == 1 ? 'Name' : 'Namen'} übernommen' : ''}'
         '${failed > 0 ? ', $failed fehlgeschlagen' : ''}'
         '${fresh ? '' : ' — sichtbar, sobald die Liste wieder lädt.'}',
       ),
@@ -203,8 +235,8 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectable =
-        _candidates.where((c) => c.contributable && !c.backfill).length;
-    final backfills = _candidates.where((c) => c.backfill).length;
+        _candidates.where((c) => c.contributable && c.existing == null).length;
+    final backfills = _candidates.where((c) => c.completesExisting).length;
     return Scaffold(
       appBar: AppBar(title: const Text('GPX importieren')),
       body: ListView(
@@ -235,6 +267,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
               child: Text(
                 '${_result!.ok} beigesteuert, '
                 '${_result!.backfilled > 0 ? '${_result!.backfilled} Höhen nachgetragen, ' : ''}'
+                '${_result!.named > 0 ? '${_result!.named} Namen übernommen, ' : ''}'
                 '${_result!.failed} fehlgeschlagen.',
                 style: theme.textTheme.titleSmall,
               ),
@@ -243,7 +276,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
             const SizedBox(height: 16),
             Text(
                 '${_candidates.length} Spuren gefunden, $selectable davon als Trail'
-                '${backfills > 0 ? ', $backfills zum Nachtragen der Höhen' : ''}',
+                '${backfills > 0 ? ', $backfills zum Nachtragen' : ''}',
                 style: theme.textTheme.titleSmall),
             for (final c in _candidates)
               CheckboxListTile(
@@ -270,7 +303,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
             FilledButton.icon(
               onPressed: _busy || _selected.isEmpty ? null : _contribute,
               icon: const Icon(Icons.cloud_upload_outlined),
-              label: Text(_selected.any((c) => c.backfill)
+              label: Text(_selected.any((c) => c.completesExisting)
                   ? '${_selected.length} übernehmen'
                   : '${_selected.length} beisteuern'),
             ),
@@ -284,11 +317,15 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     final parts = <String>[formatLength(c.lengthM)];
     final existing = c.existing;
     if (existing != null) {
-      parts.add(c.backfill
-          ? 'schon beigesteuert — Höhen werden nachgetragen'
-          : existing.recording.ele != null
-              ? 'schon beigesteuert'
-              : 'schon beigesteuert, die Datei hat keine Höhen');
+      parts.add(c.backfill && c.adoptsName
+          ? 'schon beigesteuert — Höhen und Name werden nachgetragen'
+          : c.backfill
+              ? 'schon beigesteuert — Höhen werden nachgetragen'
+              : c.adoptsName
+                  ? 'schon beigesteuert — Name wird übernommen'
+                  : existing.recording.ele != null
+                      ? 'schon beigesteuert'
+                      : 'schon beigesteuert, die Datei hat keine Höhen');
       return parts.join(' · ');
     }
     final el = c.elevation;

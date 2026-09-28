@@ -69,6 +69,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
           children: [
             TextField(
               controller: _name,
+              maxLength: kTrailNameMaxLength,
               decoration: const InputDecoration(labelText: 'Name'),
               textCapitalization: TextCapitalization.sentences,
             ),

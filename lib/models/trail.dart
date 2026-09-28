@@ -80,6 +80,22 @@ class TrailRecording {
   }
 }
 
+/// Höchstlänge eines Trail-Namens — dieselbe wie der Check an
+/// `trail_details.name` im Schema.
+const kTrailNameMaxLength = 80;
+
+/// Ein Name aus einer Datei, so gekürzt, dass der Server ihn annimmt:
+/// möglichst an einem Wortende, mit „…". Ohne das scheiterte der ganze
+/// Import einer Spur an ihrem Namen, obwohl die Aufzeichnung längst lag.
+String clampTrailName(String name) {
+  final n = name.trim();
+  if (n.length <= kTrailNameMaxLength) return n;
+  var cut = n.substring(0, kTrailNameMaxLength - 1);
+  final space = cut.lastIndexOf(' ');
+  if (space >= kTrailNameMaxLength * 3 ~/ 4) cut = cut.substring(0, space);
+  return '${cut.trimRight()}…';
+}
+
 /// Singletrail-Skala S0–S5, die in DACH übliche Schwierigkeitsangabe.
 String gradeLabel(int grade) => 'S$grade';
 
