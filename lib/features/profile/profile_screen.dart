@@ -17,6 +17,7 @@ import '../feedback/feedback_dialog.dart';
 import '../trails/trail_providers.dart' show trailCacheProvider;
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
+import 'push_providers.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -98,6 +99,8 @@ class ProfileScreen extends ConsumerWidget {
           const ChangeEmailTile(),
           const _ChangePasswordTile(),
           const SignOutOtherDevicesTile(),
+          const Divider(height: 40),
+          const _PushSection(),
           const Divider(height: 40),
           const _AboutSection(),
           const Divider(height: 40),
@@ -378,6 +381,61 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
 
 /// Dezente „Über"-Sektion am Ende des Profils: Version, Update-Status
 /// und die öffentlichen Links der App.
+/// Benachrichtigungen (#34). Die Systemberechtigung wird ERST hier
+/// erfragt, nicht beim Start: Ein Dialog, bevor die Karte auch nur zu
+/// sehen war, ist die zuverlässigste Art, ein „Nein für immer" zu
+/// bekommen. Der Schalter zeigt das Ergebnis, nicht den Wunsch — wer
+/// ablehnt, sieht ihn zurückspringen.
+class _PushSection extends ConsumerWidget {
+  const _PushSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(pushEnabledProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Benachrichtigungen',
+            style: Theme.of(context).textTheme.titleMedium),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.notifications_outlined),
+          title: const Text('Benachrichtigungen'),
+          subtitle: const Text(
+              'Wenn ein Buddy einen Trail meldet, den du siehst — Status '
+              'oder Hinweis. Gilt nur für dieses Gerät. In der Meldung '
+              'steht nie ein Trailname, kein Name und kein Hinweistext; '
+              'die holt die App erst beim Öffnen.'),
+          value: enabled,
+          onChanged: (value) async {
+            final problem =
+                await ref.read(pushEnabledProvider.notifier).set(value);
+            if (!context.mounted || problem == null) return;
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(problem)));
+          },
+        ),
+        if (enabled)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.send_outlined),
+            title: const Text('Testnachricht senden'),
+            subtitle: const Text(
+                'Kommt sie an, funktioniert die ganze Kette bis zu '
+                'diesem Gerät.'),
+            onTap: () async {
+              final problem =
+                  await ref.read(pushEnabledProvider.notifier).sendTest();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(problem ?? 'Testnachricht ist unterwegs.')));
+            },
+          ),
+      ],
+    );
+  }
+}
+
 class _AboutSection extends ConsumerWidget {
   const _AboutSection();
 

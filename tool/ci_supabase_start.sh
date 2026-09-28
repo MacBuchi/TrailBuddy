@@ -19,7 +19,9 @@
 ###      - imgproxy       (Bildumwandlung, nutzt kein Test)
 ###      - postgres-meta  (nur für Studio)
 ###      - vector         (Log-Sammler)
-###      - edge-runtime   (keine Functions)
+###      - edge-runtime   (push_flush_check.sh schickt absichtlich an
+###                        eine Adresse, die ins Leere zeigt — die
+###                        Function selbst wird im Dry Run nie gerufen)
 ###      - storage-api    (keine Buckets — anders als PilzBuddy; kommt
 ###                        Storage, hier UND in config.toml einschalten)
 ###    Es BLEIBEN: db (mit PostGIS), kong, gotrue, postgrest und mailpit

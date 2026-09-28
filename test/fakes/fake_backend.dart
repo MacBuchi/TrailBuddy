@@ -17,6 +17,7 @@ import 'package:trailbuddy/data/auth_repository.dart';
 import 'package:trailbuddy/data/feedback_repository.dart';
 import 'package:trailbuddy/data/friend_repository.dart';
 import 'package:trailbuddy/data/profile_repository.dart';
+import 'package:trailbuddy/data/push_repository.dart';
 import 'package:trailbuddy/models/friendship.dart';
 import 'package:trailbuddy/models/profile.dart';
 
@@ -68,6 +69,10 @@ class FakeBackend {
   final aliases = <({String owner, String friend}), String>{};
 
   final feedback = <Map<String, dynamic>>[];
+
+  /// `push_devices`: Token → Konto (Patch 008). Ein Token gehört zu genau
+  /// einem Konto, wie die Tabelle.
+  final pushDevices = <String, String>{};
 
   /// Adressen, für die ein Reset-Code angefordert wurde — auch solche ohne
   /// Konto, denn die App darf beide Fälle nicht unterscheiden.
@@ -622,6 +627,45 @@ class FakeFeedbackRepository implements FeedbackRepository {
       'message': message.trim(),
       'app_version': appVersion,
     });
+  }
+}
+
+/// Das Geräteregister für Push (#34). Die Tests prüfen, DASS ein Gerät
+/// eingetragen wird und dass eine Testnachricht hinausgeht — nicht, wie
+/// eine Benachrichtigung aussieht.
+class FakePushRepository implements PushRepository {
+  FakePushRepository(this.backend);
+
+  final FakeBackend backend;
+
+  /// Die Token, für die eine Testnachricht angefordert wurde.
+  final tests = <String>[];
+
+  Object? failNextRegister;
+
+  @override
+  Future<void> register(String token) async {
+    final error = failNextRegister;
+    if (error != null) {
+      failNextRegister = null;
+      throw error;
+    }
+    backend.pushDevices[token] = backend.currentUserId!;
+  }
+
+  @override
+  Future<void> unregister(String token) async {
+    backend.pushDevices.remove(token);
+  }
+
+  @override
+  Future<void> sendTest(String token) async {
+    if (backend.pushDevices[token] != backend.currentUserId) {
+      // Genau das, was die Edge Function über die RLS entscheidet: Ein
+      // fremdes Token geht niemanden etwas an.
+      throw StateError('unknown device');
+    }
+    tests.add(token);
   }
 }
 

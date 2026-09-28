@@ -37,6 +37,10 @@ class FakeTrailRepository implements TrailRepository {
   Object? failNextContribute;
   Object? failFetch;
 
+  /// Hält den nächsten Abruf an, bis das Future erfüllt ist — für den
+  /// Fall „Fokus-Wunsch, bevor die Trails da sind" (Push, Kaltstart).
+  Future<void>? fetchGate;
+
   bool _visible(String userId, String trailId) {
     final me = myId();
     if (userId == me) return true;
@@ -47,6 +51,11 @@ class FakeTrailRepository implements TrailRepository {
 
   @override
   Future<List<TrailRecording>> fetchRecordings() async {
+    final gate = fetchGate;
+    if (gate != null) {
+      fetchGate = null;
+      await gate;
+    }
     if (failFetch != null) throw failFetch!;
     return [for (final r in recordings) if (_visible(r.userId, r.trailId)) r];
   }

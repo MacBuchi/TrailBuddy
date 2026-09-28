@@ -8,8 +8,9 @@
 # Bewusst minimal: nur Datenbank, Auth, PostgREST. schema.sql braucht Auth
 # zwingend (references auth.users, auth.uid() in Policies, Trigger auf
 # auth.users) und PostGIS (bringt das Postgres-Image mit) — alles andere
-# kostet auf dem CI-Runner nur Startzeit. Kein Storage (keine Fotos), keine
-# Edge Functions (kein Push).
+# kostet auf dem CI-Runner nur Startzeit. Kein Storage (keine Fotos); die
+# Edge Runtime steht für `send-push` in der Konfiguration, läuft im Dry
+# Run aber nicht (siehe unten).
 project_id = "TrailBuddy"
 
 # ⚠️ EIGENER PORTBLOCK, NICHT DIE VORGABE (54321 ff.).
@@ -106,9 +107,20 @@ enabled = false
 enabled = false
 
 [edge_runtime]
-# Aus: keine Functions (kein Push). Mit den Functions kommt die
-# Begründung, warum eine davon `verify_jwt = false` braucht — nicht vorher.
-enabled = false
+# An, seit es die Function `send-push` gibt (Patch 008, #34). Der Dry Run
+# startet die Runtime trotzdem nicht (tool/ci_supabase_start.sh): Die
+# Function wird dort nicht aufgerufen, push_flush_check.sh schickt
+# absichtlich an eine Adresse, die ins Leere zeigt.
+enabled = true
+
+# send-push prüft seine beiden Aufrufer SELBST (PilzBuddy #277): Der
+# Versand-Job weist sich mit `x-push-secret` aus und hat gar kein JWT —
+# mit `verify_jwt = true` käme er nie durch. Der andere Weg,
+# „Testnachricht an mein Gerät", schickt sehr wohl eines, und die Function
+# fragt damit `push_devices` ab; ob das Token der Aufruferin gehört,
+# entscheidet also die RLS. Beides steht im Kopf der Function.
+[functions.send-push]
+verify_jwt = false
 
 [analytics]
 enabled = false

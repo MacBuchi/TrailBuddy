@@ -9,7 +9,8 @@ class FakeSettings implements Settings {
       this.poiGroups,
       this.poiHiddenKinds,
       this.seenNoteIds,
-      this.officialTrailsEnabled = true});
+      this.officialTrailsEnabled = true,
+      this.pushToken});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -25,6 +26,14 @@ class FakeSettings implements Settings {
 
   @override
   bool officialTrailsEnabled;
+
+  @override
+  String? pushToken;
+
+  @override
+  Future<void> setPushToken(String? value) async {
+    pushToken = value;
+  }
 
   @override
   Future<void> setOfficialTrailsEnabled(bool value) async {

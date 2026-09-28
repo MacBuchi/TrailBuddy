@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:trailbuddy/app.dart';
 import 'package:trailbuddy/core/app_info.dart';
 import 'package:trailbuddy/core/connectivity.dart';
+import 'package:trailbuddy/core/push_messaging.dart';
 import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
@@ -89,6 +91,8 @@ List<Override> overridesFor(FakeBackend backend,
         MemoryAreaStore? areaStore,
         FakeKeepAlive? keepAlive,
         Stream<List<ConnectivityResult>>? connectivity,
+        FakePushRepository? push,
+        Stream<RemoteMessage>? pushMessages,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
@@ -161,6 +165,21 @@ List<Override> overridesFor(FakeBackend backend,
       connectivityProvider.overrideWith(
           (ref) => connectivity ?? Stream.value(const [ConnectivityResult.wifi])),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
+      // Push (#34): Im Widget-Test gibt es weder FCM noch
+      // Berechtigungsdialoge. Ohne diese Naht liefe ein Test, der den
+      // Schalter im Profil antippt, in echtes Plattform-IO — und das löst
+      // in der Fake-Zone NIE auf. Vorgabe ist ein Token: Der interessante
+      // Weg ist „eingeschaltet"; wer die Ablehnung prüfen will,
+      // überschreibt gezielt. Und die Ströme: `PushListener` hängt sich
+      // beim ersten Frame an `onMessage`, also in JEDEM Test.
+      pushRepositoryProvider
+          .overrideWithValue(push ?? FakePushRepository(backend)),
+      pushTokenProvider.overrideWithValue(
+          () async => (token: 'test-token', denied: false, unavailable: false)),
+      pushMessageListenerProvider
+          .overrideWithValue(() => pushMessages ?? const Stream.empty()),
+      pushTapListenerProvider.overrideWithValue(() => const Stream.empty()),
+      pushInitialMessageProvider.overrideWithValue(() async => null),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
       appConfigRepositoryProvider
@@ -191,6 +210,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     MemoryAreaStore? areaStore,
     FakeKeepAlive? keepAlive,
     Stream<List<ConnectivityResult>>? connectivity,
+    FakePushRepository? push,
+    Stream<RemoteMessage>? pushMessages,
     bool useRealMap = false,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
@@ -214,6 +235,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         areaStore: areaStore,
         keepAlive: keepAlive,
         connectivity: connectivity,
+        push: push,
+        pushMessages: pushMessages,
         useRealMap: useRealMap,
         extra: extraOverrides),
     child: const TrailBuddyApp(),

@@ -83,6 +83,14 @@ void main() {
       // Das Live-Projekt (lib/core/supabase_config.dart).
       'ibxrjgvwouuoydhdkfmf.supabase.co',
     };
+    /// Ziele, die erst nach dem EINSCHALTEN einer Funktion abgerufen
+    /// werden — müssen trotzdem in der Erklärung stehen. Der Push-Weg
+    /// (#34): Firebase im Browser lädt sein SDK von www.gstatic.com,
+    /// FCM selbst liegt hinter fcm.googleapis.com (Edge Function, nicht
+    /// in lib/ — hier nur, damit die Erklärung Google nennt).
+    const afterConsent = {
+      'www.gstatic.com',
+    };
     /// Ziele, die erst der Nutzer mit einem Tipp öffnet.
     const onTapOnly = {
       'www.openstreetmap.org',
@@ -119,13 +127,17 @@ void main() {
       }
     }
     final unknown = found.keys
-        .where((h) => !fetched.contains(h) && !onTapOnly.contains(h) && !textOnly.contains(h))
+        .where((h) => !fetched.contains(h) && !afterConsent.contains(h) && !onTapOnly.contains(h) && !textOnly.contains(h))
         .toList();
     expect(unknown, isEmpty,
         reason: 'Neue Hosts ohne Einordnung: ${unknown.map((h) => '$h (${found[h]!.join(', ')})').join('; ')}. '
             'In diesem Test einordnen UND, wenn abgerufen, in web/datenschutz.html erklären.');
-    for (final h in fetched) {
+    for (final h in {...fetched, ...afterConsent}) {
       expect(privacy, contains(h), reason: '$h wird abgerufen und fehlt in der Erklärung');
     }
+    expect(privacy, contains('Firebase Cloud Messaging'),
+        reason: 'Push (#34) läuft über Google — die Erklärung muss es nennen');
+    expect(privacy, contains('niemals einen Trailnamen'),
+        reason: 'die Zusage, dass kein Inhalt über Google läuft, steht in push_flush — hier ihr Spiegel');
   });
 }

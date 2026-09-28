@@ -7,6 +7,17 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Push (#34): Das Google-Services-Plugin liest google-services.json und
+// bricht den Build ab, wenn die Datei fehlt. Sie kommt aus der
+// Firebase-Konsole des Betreibers (Projekt für de.mcbuchi.trailbuddy) und
+// ist öffentlich (nur Kennungen, keine Geheimnisse) — bis sie im Repo
+// liegt, baut die App OHNE Firebase, und der Schalter im Profil sagt das.
+// Ein Build, der an einer noch nicht angelegten Konsole scheitert, wäre
+// ein roter CI-Lauf für alle anderen Änderungen.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 // Release-Signing aus android/key.properties (lokal bzw. von CI aus den
 // Secrets ANDROID_KEYSTORE_* erzeugt); ohne die Datei fällt der Build auf
 // Debug-Signing zurück. Muster aus PilzBuddy.

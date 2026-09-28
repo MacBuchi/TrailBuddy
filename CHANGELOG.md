@@ -2,6 +2,27 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Benachrichtigungen
+
+*Version 0.23.0, 2026-09-28*
+
+- **Wenn ein Buddy einen Trail meldet, sagt es dir dein Telefon**: Ein
+  Schalter im Profil („Benachrichtigungen", ab Werk aus) trägt dieses
+  Gerät ein. Meldet danach ein Buddy einen Trail, den du siehst, als
+  gesperrt, zerstört, verändert oder wieder offen — oder schreibt einen
+  Hinweis dazu —, bekommst du eine Meldung; mehrere Meldungen in kurzer
+  Zeit werden zu einer. Antippen zeigt den Trail auf der Karte, bei
+  mehreren die Liste.
+- **In der Meldung steht kein Inhalt.** Kein Trailname, kein Name, keine
+  Koordinate, nicht der Text des Hinweises — eine Meldung läuft über
+  Googles Server, und ein Trail verlässt sein Netz nicht. Was passiert
+  ist und wo, zeigt die App erst beim Öffnen. Die Datenschutzerklärung
+  nennt den neuen Weg.
+- „Testnachricht senden" prüft die ganze Kette bis zu diesem Gerät.
+  Solange der Betreiber das Firebase-Projekt noch nicht angelegt hat,
+  sagt der Schalter, dass Benachrichtigungen in diesem Build noch nicht
+  eingerichtet sind.
+
 ## Buddys
 
 *Version 0.22.0, 2026-09-28*

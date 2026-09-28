@@ -59,6 +59,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       MapViewController(initialCenter: _dachCenter, initialZoom: _initialZoom);
   bool _fittedOnce = false;
 
+  /// Ein Fokus-Wunsch (`mapFocusTrailProvider`) auf einen Trail, der
+  /// noch nicht in der Liste ist — etwa aus einer Push-Benachrichtigung
+  /// beim Kaltstart, bevor die Trails geladen sind. Eingelöst, sobald er
+  /// kommt; ein Wunsch auf einen Trail, den man nie sieht, verfällt.
+  String? _pendingFocus;
+
   /// Die Kamera beim letzten Stillstand — daran hängen Orte und
   /// offizielle Trails (welche Zellen, welcher Ausschnitt).
   MapViewCamera? _camera;
@@ -82,6 +88,34 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // die Karte, solange die App lebt. Der Port dafür entsteht in
     // `main()` (`initRideCommunication`).
     FlutterForegroundTask.addTaskDataCallback(_onRideTick);
+    // Ein Fokus-Wunsch, der VOR dem Aufbau gestellt wurde (Route
+    // `/trail/<id>` aus einer Push): `ref.listen` sieht nur Änderungen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _takeFocusWish();
+    });
+  }
+
+  void _takeFocusWish() {
+    final id = ref.read(mapFocusTrailProvider);
+    if (id == null) return;
+    ref.read(mapFocusTrailProvider.notifier).state = null;
+    if (!_focusOn(id)) _pendingFocus = id;
+  }
+
+  /// Auf den Trail zoomen, wenn er da ist. `false`, wenn nicht.
+  ///
+  /// Direkt aus der Liste, nicht über `trailByIdProvider`: Im Listener
+  /// von `trailsProvider` ist die Familie noch nicht nachgezogen und
+  /// antwortete mit dem alten Stand (gemessen: null, obwohl die Liste
+  /// den Trail trug).
+  bool _focusOn(String id) {
+    final t = ref.read(trailsProvider).valueOrNull?.where((x) => x.id == id).firstOrNull;
+    if (t == null) return false;
+    _fittedOnce = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fitTo([t]);
+    });
+    return true;
   }
 
   void _onRideTick(Object data) {
@@ -247,6 +281,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // werden.
     ref.listen(trailsProvider, (_, next) {
       final list = next.valueOrNull;
+      // Ein wartender Fokus-Wunsch geht vor dem Einpassen auf das Netz.
+      final pending = _pendingFocus;
+      if (pending != null && list != null && _focusOn(pending)) {
+        _pendingFocus = null;
+      }
       if (!_fittedOnce && list != null && list.isNotEmpty) {
         _fittedOnce = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -256,14 +295,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
     ref.listen(mapFocusTrailProvider, (_, id) {
       if (id == null) return;
-      final t = ref.read(trailByIdProvider(id));
-      if (t != null) {
-        _fittedOnce = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _fitTo([t]);
-        });
-      }
-      ref.read(mapFocusTrailProvider.notifier).state = null;
+      _takeFocusWish();
     });
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#30). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne

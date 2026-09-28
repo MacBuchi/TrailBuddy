@@ -84,6 +84,12 @@ jobs:
       # gebauten Ordner, Webserver wird dabei wirklich abgeschaltet.
       - name: Der Service Worker startet die App ohne Server
         run: node tool/check_service_worker.mjs build/web
+      # Der Web-Push-Worker entscheidet, ob eine Meldung im Browser
+      # erscheint; FCM quittiert auch dann „ok", wenn danach nichts
+      # passiert. Echter Chrome, echtes push-Ereignis, Freigabe und
+      # Vorschau auf einem Ursprung (PilzBuddy 1.203.0).
+      - name: Der Push-Worker zeigt und übergibt Meldungen richtig
+        run: node tool/check_push_worker.mjs
       - uses: actions/upload-artifact@v7
         with:
           name: web-build
@@ -169,6 +175,13 @@ jobs:
         run: psql "postgresql://postgres:postgres@127.0.0.1:54522/postgres" -v ON_ERROR_STOP=1 -q -f tool/matcher_check.sql
       - name: Rechte des Service-Schlüssels (Bestand)
         run: psql "postgresql://postgres:postgres@127.0.0.1:54522/postgres" -v ON_ERROR_STOP=1 -q -f tool/grants_check.sql
+      # PL/pgSQL prüft den Rumpf erst beim Aufruf; live ruft ihn der
+      # Cron-Job jede Minute, und ein Fehler darin legte alle
+      # Benachrichtigungen still. Zurückgerollt, es geht nichts hinaus.
+      - name: Push-Versand wirklich aufrufen (push_flush)
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54522/postgres
+        run: bash tool/push_flush_check.sh
       - name: Datenbank auf null zurücksetzen
         run: supabase db reset
       # Derselbe Weg wie beim ersten Lauf gegen ein leeres Live-Projekt:
