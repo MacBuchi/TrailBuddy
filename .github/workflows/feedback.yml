@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: "37 */2 * * *" # alle zwei Stunden
   workflow_dispatch:
+    inputs:
+      digest_week:
+        description: "Nur ansehen: den Fehlerbericht-Digest einer vergangenen ISO-Woche (z. B. 2026-W40) in die Run-Summary schreiben — kein Issue, keine Bereinigung"
+        required: false
+        type: string
 
 # Zwei überlappende Läufe läsen dieselben Zeilen. Nicht abbrechen: ein halb
 # verarbeiteter Lauf wäre schlimmer als ein wartender.
@@ -44,8 +49,19 @@ jobs:
             echo "Supabase-Dashboard → Project Settings → API Keys → Secret key"
             echo "(sb_secret_…) → GitHub → Settings → Secrets → Actions."
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Digest einer vergangenen Woche ansehen
+        if: steps.key.outputs.have == 'true' && inputs.digest_week != ''
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEEK: ${{ inputs.digest_week }}
+        run: |
+          {
+            echo "## Error reports $WEEK"
+            echo
+            python3 tool/feedback_bot.py --digest-week "$WEEK"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Feedback in Issues verwandeln
-        if: steps.key.outputs.have == 'true'
+        if: steps.key.outputs.have == 'true' && inputs.digest_week == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
