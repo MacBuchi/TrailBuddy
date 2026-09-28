@@ -163,7 +163,8 @@ ohne sie geht.
    `dach.json`) und liest die ÖFFENTLICHE Kopie wie die App zurück (206,
    `accept-ranges`, CORS, Stichprobe gegen die Quelle). Beide Engines
    lesen daraus; OSM ist aus der Datenschutzerklärung, Cloudflare drin.
-   Monatlicher Lauf. Zoomziel 13 (Entscheidung, Abschnitt 7).
+   Monatlicher Lauf. Zoomziel 13 (Entscheidung, Abschnitt 7). Erster
+   veröffentlichter Stand am 2026-09-28, siehe Abschnitt 7.
 3. **Bereiche speichern**: `TileStore` (IndexedDB, Datei), Auswahl,
    Größe vorher, Fortschritt, Liste „Meine Bereiche", „Gesehenes bleibt
    liegen", Hinweis bei geräumtem Speicher.
@@ -190,6 +191,32 @@ ein Viertel der Fläche) und bleibt die Messung aus 3.4. Der Bucket hat
 EU-Jurisdiktion (Standort WEUR); sein S3-Endpunkt trägt deshalb `.eu.`
 Offen bleibt das iPhone im Browser. Die drei Ausgänge unten bleiben als Begründung
 stehen.
+
+**Erster Stand veröffentlicht am 2026-09-28** (dritter Lauf von
+`map-data.yml`): `dach-20260928.pmtiles`, 2,8 GB, Zoom 0–13 aus dem
+Protomaps-Tagesbau 20260928; 80 Kacheln des Auszugs und 40 der
+öffentlichen Kopie byte-gleich mit der Quelle, 206 mit `accept-ranges`
+und CORS-Header wie die App sie braucht. Die beiden Läufe davor haben
+je einen Fehler gezeigt, der jetzt im Workflow benannt ist (#53 eine
+Variable, die den eigenen Schritt nicht erreichte; #54 die
+Bot-Challenge unten).
+
+**Bot Fight Mode ist für die Zone `mcbuchi.de` AUS** (Betreiber,
+2026-09-28, Issue #55). Cloudflares Free-Plan kennt den Schalter nur
+zonenweit, ohne Ausnahme je Hostname, und er stellte dem CI-Runner
+eine Managed Challenge (`403`, `cf-mitigated: challenge`, Ray-ID
+`a423bd14c8a51492`) — die kann kein Client der App lösen, weder
+`curl` noch MapLibre noch `PmTilesArchive.fromUri`. Der Schutz gegen
+DDoS ist davon unberührt (eigener, immer aktiver Dienst). Was bleibt,
+ist ein KOSTENrisiko, kein Sicherheitsrisiko: Das 2,8-GB-Archiv liegt
+über der 512-MB-Grenze des Edge-Caches im Free-Plan, jede Range-Anfrage
+geht also als Class-B-Operation an R2 (10 Mio. je Monat frei, danach
+0,36 $ je Mio.; Egress bleibt frei). Dagegen stehen die drei Punkte in
+#55: eine Rate-Limiting-Regel für `tiles.mcbuchi.de` mit GEMESSENER
+Schwelle (nicht geraten — ein Kartenschwenk sind Dutzende Anfragen),
+eine Nutzungsbenachrichtigung im Cloudflare-Konto, und dieser Absatz.
+Wer den Schalter wieder umlegt, macht die Karte für alle aus, ohne
+dass CI es vor dem nächsten Monatslauf sieht.
 
 1. **Der Host.** Drei Ausgänge, wie in PilzBuddy #496 beschrieben:
    - **Objektspeicher (Cloudflare R2)**: kein Größenlimit je Datei, CORS
