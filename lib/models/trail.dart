@@ -218,6 +218,52 @@ class TrailDetails {
       );
 }
 
+/// Ein Hinweis zu einem Trail für Buddys (Issue #7, Patch 004/005):
+/// „Baum liegt quer". Schreiben darf jeder, der den Trail sieht; sehen
+/// seine direkten Buddys, die den Trail auch sehen. Kein Bearbeiten — das
+/// Alter steht dabei.
+class TrailNote {
+  const TrailNote({
+    required this.id,
+    required this.trailId,
+    required this.userId,
+    required this.body,
+    required this.createdAt,
+    this.username,
+  });
+
+  final String id;
+  final String trailId;
+  final String userId;
+  final String body;
+  final DateTime createdAt;
+
+  /// Aus dem Embed `author:profiles(...)`.
+  final String? username;
+
+  factory TrailNote.fromJson(Map<String, dynamic> json) {
+    final author = json['author'];
+    return TrailNote(
+      id: json['id'] as String,
+      trailId: json['trail_id'] as String,
+      userId: json['user_id'] as String,
+      body: json['body'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      username: author is Map ? author['username'] as String? : null,
+    );
+  }
+}
+
+/// So lange gilt ein Hinweis eines Buddys als neu: Liste und Karte heben
+/// den Trail hervor, bis man ihn im Blatt gesehen hat. Danach steht er
+/// nur noch dort, mit seinem Alter.
+const kFreshNoteDays = 7;
+
+/// Nach so vielen Tagen verschwindet ein Hinweis — außer dem jüngsten
+/// (Entscheidung des Betreibers). Der Server räumt je Autor auf
+/// (`sweep_old_notes`), das Blatt zeigt von den alten nur den jüngsten.
+const kNoteRetentionDays = 90;
+
 /// Ein Trail, wie ICH ihn sehe: die Kennung plus alle sichtbaren Belege
 /// und Beiträge. Alles Angezeigte ist daraus GERECHNET (Konzept 3):
 /// beste sichtbare Linie, eigener Name vor dem des ältesten Beitrags,
@@ -228,12 +274,17 @@ class Trail {
     required this.recordings,
     required this.details,
     required this.myId,
+    this.notes = const [],
   }) : assert(recordings.isNotEmpty, 'ein Trail ohne sichtbaren Beleg');
 
   final String id;
   final List<TrailRecording> recordings;
   final List<TrailDetails> details;
   final String myId;
+
+  /// Die sichtbaren Hinweise, in beliebiger Reihenfolge — angezeigt über
+  /// [notesShown].
+  final List<TrailNote> notes;
 
   bool get isOwn => recordings.any((r) => r.userId == myId);
 
@@ -352,6 +403,32 @@ class Trail {
 
   TrailStatus get status => latestStatus?.status ?? TrailStatus.open;
 
+  /// Was das Blatt zeigt, neueste zuerst: alles aus den letzten
+  /// [kNoteRetentionDays] Tagen, und immer den jüngsten — der bleibt
+  /// stehen, bis ihn jemand entfernt.
+  List<TrailNote> notesShown({DateTime? now}) {
+    final sorted = List.of(notes)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final since = (now ?? DateTime.now())
+        .subtract(const Duration(days: kNoteRetentionDays));
+    return [
+      for (var i = 0; i < sorted.length; i++)
+        if (i == 0 || sorted[i].createdAt.isAfter(since)) sorted[i],
+    ];
+  }
+
+  /// Ein Buddy hat in den letzten [kFreshNoteDays] Tagen etwas dazu
+  /// geschrieben, das auf diesem Gerät noch nicht im Blatt zu sehen war
+  /// ([seen]). Eigene Hinweise zählen nicht — die sind nichts Neues.
+  bool hasFreshNote({DateTime? now, Set<String> seen = const {}}) =>
+      notes.any((n) => isFreshNote(n, now: now, seen: seen));
+
+  bool isFreshNote(TrailNote n, {DateTime? now, Set<String> seen = const {}}) {
+    final since =
+        (now ?? DateTime.now()).subtract(const Duration(days: kFreshNoteDays));
+    return n.userId != myId && n.createdAt.isAfter(since) && !seen.contains(n.id);
+  }
+
   /// Wer den Trail belegt hat, ohne mich — für „3 Buddys kennen ihn".
   Set<String> get buddyIds =>
       {for (final r in recordings) if (r.userId != myId) r.userId};
@@ -364,6 +441,7 @@ List<Trail> buildTrails({
   required List<TrailRecording> recordings,
   required List<TrailDetails> details,
   required String myId,
+  List<TrailNote> notes = const [],
 }) {
   final byTrail = <String, List<TrailRecording>>{};
   for (final r in recordings) {
@@ -373,6 +451,10 @@ List<Trail> buildTrails({
   for (final d in details) {
     detailsByTrail.putIfAbsent(d.trailId, () => []).add(d);
   }
+  final notesByTrail = <String, List<TrailNote>>{};
+  for (final n in notes) {
+    notesByTrail.putIfAbsent(n.trailId, () => []).add(n);
+  }
   return [
     for (final e in byTrail.entries)
       Trail(
@@ -380,6 +462,7 @@ List<Trail> buildTrails({
         recordings: e.value,
         details: detailsByTrail[e.key] ?? const [],
         myId: myId,
+        notes: notesByTrail[e.key] ?? const [],
       ),
   ]..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
 }

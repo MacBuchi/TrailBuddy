@@ -199,6 +199,24 @@ create table public.trail_details (
 );
 create index trail_details_user_idx on public.trail_details (user_id);
 
+-- Hinweise zu einem Trail für Buddys (Patch 004/005, Issue #7): „Baum
+-- liegt quer". Schreiben darf jeder, der den Trail sieht; mehrere je
+-- Person, ohne Bearbeiten (das Alter soll stimmen). Nach 90 Tagen räumt
+-- sweep_old_notes() auf, der jüngste je Autor und Trail bleibt.
+create table public.trail_notes (
+  id uuid primary key default gen_random_uuid(),
+  trail_id uuid not null,
+  user_id uuid not null,
+  body text not null check (char_length(btrim(body)) between 1 and 500),
+  created_at timestamptz not null default now(),
+  constraint trail_notes_user_id_fkey foreign key (user_id)
+    references public.profiles(id) on delete cascade,
+  constraint trail_notes_trail_id_fkey foreign key (trail_id)
+    references public.trails(id) on delete cascade
+);
+create index trail_notes_trail_idx on public.trail_notes (trail_id);
+create index trail_notes_user_idx on public.trail_notes (trail_id, user_id);
+
 -- ============================================================
 -- Profil automatisch bei Registrierung anlegen
 -- (Username kommt aus den Signup-Metadaten der App)
@@ -281,6 +299,18 @@ returns boolean language sql stable security definer set search_path = public as
        from trail_details d
       where d.trail_id = trail and d.user_id = contributor),
     true);
+$$;
+
+-- Sieht [uid] den Trail? Dieselbe Regel wie recordings_select, als
+-- Definer, damit die Policies der Hinweise sie direkt fragen können.
+create or replace function app_internal.can_see_trail(uid uuid, trail uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from trail_recordings r
+     where r.trail_id = trail
+       and (r.user_id = uid
+         or (app_internal.are_friends(r.user_id, uid)
+             and app_internal.contributor_shares(r.user_id, trail))));
 $$;
 
 -- ------------------------------------------------------------
@@ -536,6 +566,28 @@ begin
   return n;
 end $$;
 revoke all on function app_internal.sweep_orphan_trails() from public, anon, authenticated;
+
+-- Hinweise älter als 90 Tage verschwinden (Entscheidung 2026-09-28),
+-- außer dem jüngsten eines Autors zu einem Trail: der bleibt, bis ihn
+-- jemand entfernt. Je Autor statt je Trail, weil „der jüngste über alle
+-- Netze" eine Rechnung über Netzgrenzen wäre (Konzept 12); jeder Leser
+-- behält so trotzdem seinen jüngsten sichtbaren Hinweis.
+create or replace function app_internal.sweep_old_notes()
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare
+  n integer;
+begin
+  delete from trail_notes old
+   where old.created_at < now() - interval '90 days'
+     and exists (select 1 from trail_notes newer
+                  where newer.trail_id = old.trail_id
+                    and newer.user_id = old.user_id
+                    and newer.created_at > old.created_at);
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function app_internal.sweep_old_notes() from public, anon, authenticated;
 
 -- updated_at am Beitrag pflegt die Datenbank, nicht der Client.
 create or replace function app_internal.touch_updated_at()
@@ -919,6 +971,7 @@ alter table public.app_config        enable row level security;
 alter table public.trails            enable row level security;
 alter table public.trail_recordings  enable row level security;
 alter table public.trail_details     enable row level security;
+alter table public.trail_notes       enable row level security;
 alter table app_internal.trail_overlaps enable row level security;
 
 -- Ausdrücklich gesperrt (PilzBuddy Patch 037): RLS ohne Policy verweigert
@@ -1004,6 +1057,25 @@ create policy td_friend_select on public.trail_details for select
      and visibility = 'buddies'
      and app_internal.are_friends(user_id, auth.uid()));
 
+-- trail_notes (Patch 005): sehen der Autor und seine direkten Buddys,
+-- die den Trail selbst sehen (nicht, wenn der Autor dort „privat" steht);
+-- schreiben jeder, der den Trail sieht; entfernen jeder, der den Hinweis
+-- sieht — wer am Trail steht, soll „erledigt" sagen können. Kein update:
+-- ein korrigierter Hinweis ist ein neuer, sonst stimmte sein Alter nicht.
+create policy notes_select on public.trail_notes for select
+  using (user_id = auth.uid()
+     or (app_internal.are_friends(user_id, auth.uid())
+         and app_internal.contributor_shares(user_id, trail_id)
+         and app_internal.can_see_trail(auth.uid(), trail_id)));
+create policy notes_insert on public.trail_notes for insert
+  with check (user_id = auth.uid()
+     and app_internal.can_see_trail(auth.uid(), trail_id));
+create policy notes_delete on public.trail_notes for delete
+  using (user_id = auth.uid()
+     or (app_internal.are_friends(user_id, auth.uid())
+         and app_internal.contributor_shares(user_id, trail_id)
+         and app_internal.can_see_trail(auth.uid(), trail_id)));
+
 -- ============================================================
 -- Grants — ausdrücklich, nicht über auto_expose
 -- ============================================================
@@ -1026,6 +1098,7 @@ grant insert on public.error_reports to anon, authenticated;
 grant insert, select on public.feedback to authenticated;
 grant select, delete on public.trail_recordings to authenticated;   -- insert nur per RPC
 grant select, insert, update, delete on public.trail_details to authenticated;
+grant select, insert, delete on public.trail_notes to authenticated;
 grant select on public.recordings_visible to authenticated;
 -- KEIN Grant auf public.trails, KEINER auf app_internal.trail_overlaps.
 
@@ -1051,8 +1124,10 @@ begin
     create extension if not exists pg_cron;
     execute $cron$select cron.schedule('trails-sweep', '23 3 * * *',
               'select app_internal.sweep_orphan_trails()')$cron$;
+    execute $cron$select cron.schedule('notes-sweep', '37 3 * * *',
+              'select app_internal.sweep_old_notes()')$cron$;
   else
-    raise notice 'pg_cron nicht verfügbar — sweep_orphan_trails() ist nicht eingeplant (lokaler Testlauf).';
+    raise notice 'pg_cron nicht verfügbar — sweep_orphan_trails() und sweep_old_notes() sind nicht eingeplant (lokaler Testlauf).';
   end if;
 end $$;
 
@@ -1087,5 +1162,7 @@ create policy applied_patches_no_client on public.applied_patches
 insert into public.applied_patches (filename) values
   ('patch_001_feedback_bot_grants.sql'),
   ('patch_002_recording_elevation.sql'),
-  ('patch_003_attach_elevation.sql')
+  ('patch_003_attach_elevation.sql'),
+  ('patch_004_trail_notes.sql'),
+  ('patch_005_trail_notes_open.sql')
 on conflict do nothing;

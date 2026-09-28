@@ -5,7 +5,10 @@ import 'package:trailbuddy/core/settings.dart';
 /// Instanz einfach an den zweiten `pumpApp`-Aufruf weiter.
 class FakeSettings implements Settings {
   FakeSettings(
-      {this.prereleaseUpdatesEnabled = false, this.poiGroups, this.poiHiddenKinds});
+      {this.prereleaseUpdatesEnabled = false,
+      this.poiGroups,
+      this.poiHiddenKinds,
+      this.seenNoteIds});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -15,6 +18,14 @@ class FakeSettings implements Settings {
 
   @override
   List<String>? poiHiddenKinds;
+
+  @override
+  List<String>? seenNoteIds;
+
+  @override
+  Future<void> setSeenNoteIds(List<String> ids) async {
+    seenNoteIds = ids;
+  }
 
   @override
   Future<void> setPrereleaseUpdatesEnabled(bool value) async {

@@ -49,14 +49,15 @@ class TrailsScreen extends ConsumerWidget {
                 ),
               ]);
             }
+            final seen = ref.watch(seenNotesProvider);
             final own = trails.where((t) => t.isOwn).toList();
             final buddies = trails.where((t) => !t.isOwn).toList();
             return ListView(
               children: [
                 if (own.isNotEmpty) _Header('Meine Trails (${own.length})'),
-                for (final t in own) _TrailTile(t),
+                for (final t in own) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
                 if (buddies.isNotEmpty) _Header('Von Buddys (${buddies.length})'),
-                for (final t in buddies) _TrailTile(t),
+                for (final t in buddies) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
               ],
             );
           },
@@ -78,8 +79,11 @@ class _Header extends StatelessWidget {
 }
 
 class _TrailTile extends StatelessWidget {
-  const _TrailTile(this.trail);
+  const _TrailTile(this.trail, {required this.fresh});
   final Trail trail;
+
+  /// Neuer, noch nicht gesehener Hinweis eines Buddys (#7).
+  final bool fresh;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +94,14 @@ class _TrailTile extends StatelessWidget {
       if (trail.buddyIds.isNotEmpty)
         '${trail.buddyIds.length} ${trail.buddyIds.length == 1 ? 'Buddy' : 'Buddys'}',
     ];
+    // Neuer Hinweis eines Buddys (#7): die Zeile getönt, ein Symbol am
+    // Ende und das Wort dazu — Farbe allein wäre nicht für alle lesbar.
     return ListTile(
+      tileColor: fresh ? AppColors.noteYellow.withValues(alpha: 0.18) : null,
+      trailing: fresh
+          ? const Icon(Icons.mark_chat_unread_outlined,
+              semanticLabel: 'neuer Hinweis')
+          : null,
       leading: Icon(
         trail.status.warns ? Icons.warning_amber : Icons.route,
         color: trail.status.warns
@@ -101,6 +112,7 @@ class _TrailTile extends StatelessWidget {
       subtitle: Text([
         parts.join(' · '),
         if (trail.status.warns) trail.status.label,
+        if (fresh) 'neuer Hinweis',
       ].join(' — ')),
       onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
     );

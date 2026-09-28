@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Hinweise für Buddys
+
+*Version 0.8.0, 2026-09-28*
+
+- **„Baum liegt quer nach der zweiten Kehre"**: Zu jedem Trail, den du
+  siehst, kannst du im Trail-Blatt einen Hinweis schreiben. Deine Buddys,
+  die den Trail auch sehen, finden ihn dort mit Datum.
+- **Neues fällt auf**: Hat ein Buddy in den letzten sieben Tagen einen
+  Hinweis geschrieben, leuchtet der Trail auf der Karte gelb umrandet, und
+  in der Liste steht „neuer Hinweis" — bis du das Trail-Blatt geöffnet
+  hast.
+- **Erledigt?** Ist der Baum weggeräumt, kann jeder, der den Hinweis
+  sieht, ihn entfernen. Nach drei Monaten verschwinden alte Hinweise von
+  selbst; der jüngste bleibt stehen, bis ihn jemand entfernt.
+- **Status mit Grund**: Wer den Zustand eines Trails ändert (etwa auf
+  gesperrt), kann gleich dazuschreiben, warum.
+
 ## Orte: eigene Symbole und Detailfilter
 
 *Version 0.7.0, 2026-09-28*

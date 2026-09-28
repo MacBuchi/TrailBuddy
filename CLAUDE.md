@@ -168,6 +168,22 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Gasthaus: `biergarten=yes`); das Kuchenstück ist gezeichnet
   (`PoiGlyph`, Material hat keins). Der Detailfilter
   (`Settings.poiHiddenKinds`) blendet nur aus, geladen wird je Gruppe.
+- **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
+  freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
+  den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie
+  `recordings_select`); sehen der Autor und seine direkten Buddys, die
+  den Trail sehen, nicht bei „privat" (`contributor_shares`); entfernen
+  jeder, der den Hinweis sieht („erledigt"); KEIN Bearbeiten (das Alter
+  soll stimmen). Aufbewahrung 90 Tage (`sweep_old_notes`, pg_cron), der
+  jüngste je AUTOR und Trail bleibt — je Autor, weil „der jüngste über
+  alle Netze" eine Rechnung über Netzgrenzen wäre (Konzept 12); das
+  Blatt zeigt von den alten nur den jüngsten (`Trail.notesShown`). Ein
+  Hinweis eines Buddys jünger als `kFreshNoteDays` (7), der auf diesem
+  Gerät noch nicht im Blatt zu sehen war (`Settings.seenNoteIds`), hebt
+  den Trail hervor — gelber Rand auf der Karte, getönte Zeile mit „neuer
+  Hinweis" in der Liste; eigene zählen nie. Beim Ändern des Status
+  bietet „Mein Beitrag" einen Hinweis an. Entscheidungen des Betreibers
+  vom 2026-09-28; `matcher_check.sql` Block 20 prüft RLS und Aufräumen.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
@@ -199,8 +215,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     öffentlich, wer schrieb, steht nur in der Datenbank. `@`-Erwähnungen
     werden entschärft. Der Dialog bittet ausdrücklich um keine
     Trailnamen oder Orte — ein Trail gehört nie in ein Issue (Konzept 4).
-    Meldungen zu einem einzelnen Trail sind ein eigener, noch offener Weg
-    (Hinweise an Buddys: #7).
+    Was an einem einzelnen Trail los ist, gehört in einen Hinweis an
+    Buddys (#7), nie in ein Issue.
   - **Rechte des Service-Schlüssels stehen ausdrücklich im Schema**
     (patch_001): `service_role` umgeht RLS, aber keine fehlenden Grants,
     und das Live-Projekt gibt ohne automatische Freigabe keine von
