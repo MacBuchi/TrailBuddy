@@ -7,12 +7,14 @@ import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 import '../../../core/connectivity.dart';
 import '../base_map_providers.dart';
 import '../finite_camera_constraint.dart';
-import '../map_providers.dart';
+import '../online_map.dart';
 import 'map_view.dart';
 
 /// Die flutter_map-Engine: der Web-Pfad und der Rückfall auf Android,
-/// wenn der MapLibre-Style nicht baut. Online das OSM-Raster; ohne
-/// Empfang darunter die mitgelieferte Übersicht als Vektorkarte.
+/// wenn der MapLibre-Style nicht baut. Online die Vektorkarte vom Host
+/// (`online_map.dart`, kachelweise per Range-Anfrage); darunter die
+/// mitgelieferte Übersicht, sobald kein Empfang besteht oder die
+/// Online-Karte nicht aufgeht.
 class FlutterMapView extends ConsumerStatefulWidget {
   const FlutterMapView({
     super.key,
@@ -91,8 +93,13 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
   Widget build(BuildContext context) {
     final config = widget.config;
     final layers = widget.layers;
-    // Die Übersicht NUR ohne Empfang — siehe base_map_providers.dart.
-    final showBaseMap = ref.watch(noConnectivityProvider);
+    // Die Online-Karte — null, solange kein Manifest da ist oder das
+    // Archiv nicht aufgeht (dann bleibt die Übersicht die Karte).
+    final online = ref.watch(onlineMapStyleProvider).valueOrNull;
+    // Die Übersicht nur, wenn sie gebraucht wird: ohne Empfang oder ohne
+    // Online-Karte — siehe base_map_providers.dart. Dieselbe Regel wie in
+    // der MapLibre-Engine (maplibre_style_provider.dart).
+    final showBaseMap = online == null || ref.watch(noConnectivityProvider);
     final baseStyle =
         showBaseMap ? ref.watch(baseMapStyleProvider).valueOrNull : null;
 
@@ -150,11 +157,21 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             layerMode: vmt.VectorTileLayerMode.raster,
             maximumTileSubstitutionDifference: 1,
           ),
-        TileLayer(
-          urlTemplate: kOsmTileUrl,
-          userAgentPackageName: 'de.mcbuchi.trailbuddy',
-          tileProvider: ref.watch(mapTileProviderProvider),
-        ),
+        if (online != null)
+          vmt.VectorTileLayer(
+            // Der Schlüssel hängt an der QUELLE (PilzBuddy #144): Ein
+            // neues Archiv (neues Manifest) bekommt einen frischen Layer
+            // mit frischen Caches, statt Kacheln aus dem geschlossenen
+            // alten zu verlangen.
+            key: ValueKey(online.tileProviders),
+            tileProviders: online.tileProviders,
+            theme: online.theme,
+            // Vektor-Modus rendert scharf in jeder Zoomstufe; die Daten
+            // enden bei Zoom 13, darüber wird skaliert.
+            layerMode: vmt.VectorTileLayerMode.vector,
+            maximumZoom: 19,
+            maximumTileSubstitutionDifference: 1,
+          ),
         if (layers.circles.isNotEmpty)
           CircleLayer(circles: [
             for (final c in layers.circles)
@@ -202,8 +219,7 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
           animationConfig: const ScaleRAWA(),
           attributions: [
             const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
-            if (baseStyle != null)
-              const TextSourceAttribution('Protomaps (Übersichtskarte)'),
+            const TextSourceAttribution('Protomaps', prependCopyright: false),
             for (final text in config.attributions)
               TextSourceAttribution(text, prependCopyright: false),
           ],

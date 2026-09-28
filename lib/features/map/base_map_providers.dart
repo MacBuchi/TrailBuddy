@@ -14,11 +14,12 @@ import 'pmtiles_tile_provider.dart';
 /// für die flutter_map-Engine: Renderthema plus Kachelquelle.
 ///
 /// Sie ist die unterste Schicht der Karte, sobald kein Empfang besteht
-/// (`docs/konzept-offline-karten.md`, Baustein 3.3): Dann kommt keine
-/// OSM-Kachel, und ohne sie läge unter dem Finger nackter Landton. Unter
-/// funktionierenden Online-Kacheln liegt sie bewusst NICHT — zwei
-/// Kartenstile nebeneinander sähen kaputter aus als die leere Fläche
-/// (PilzBuddy #137).
+/// oder die Online-Karte nicht aufgeht (`docs/konzept-offline-karten.md`,
+/// Baustein 3.3): Dann kommt keine Kachel vom Host, und ohne sie läge
+/// unter dem Finger nackter Landton. Seit Schritt 2 liest die Online-
+/// Karte denselben Stil aus demselben Archivformat — die Übersicht darf
+/// deshalb auch UNTER ihr liegen, es sind nicht mehr zwei Kartenstile
+/// nebeneinander (PilzBuddy #137 galt für OSM-Raster über Protomaps).
 class BaseMapStyle {
   const BaseMapStyle({required this.theme, required this.tileProviders});
 
@@ -66,6 +67,24 @@ final _baseThemeProvider = FutureProvider<vtr.Theme>((ref) async {
   final text = await rootBundle.loadString(kMapStyleAsset);
   return vtr.ThemeReader().read(jsonDecode(text) as Map<String, dynamic>);
 });
+
+/// Dasselbe Thema ohne die `background`-Ebene — für die Online-Karte,
+/// unter der die Übersicht liegt. Die Ebene malt deckend über die volle
+/// Kachelfläche, auch für Kacheln ganz ohne Daten, und deckte sonst die
+/// Übersicht genau dort zu, wo sie gebraucht wird. Das Asset bleibt
+/// unangetastet, gefiltert wird beim Laden.
+final baseThemeWithoutBackgroundProvider = FutureProvider<vtr.Theme>((ref) async {
+  final text = await rootBundle.loadString(kMapStyleAsset);
+  return vtr.ThemeReader().read(styleWithoutBackground(jsonDecode(text) as Map<String, dynamic>));
+});
+
+/// Entfernt die `background`-Ebene aus einem Style-JSON (Kopie).
+Map<String, dynamic> styleWithoutBackground(Map<String, dynamic> style) => {
+      ...style,
+      'layers': (style['layers'] as List)
+          .where((layer) => (layer as Map)['type'] != 'background')
+          .toList(),
+    };
 
 final baseMapStyleProvider = FutureProvider<BaseMapStyle?>((ref) async {
   try {

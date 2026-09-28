@@ -156,9 +156,14 @@ ohne sie geht.
    Wege-Hervorhebung, Wächter für erzeugte Assets, DACH-Übersicht als
    unterste Ebene. Online noch gegen die bisherige Rasterquelle, offline
    die Übersicht.
-2. **Host und Schnitt**: CI schneidet DACH Zoom 0–14 und legt es auf den
-   Host (Entscheidung, Abschnitt 7); die Onlinekarte liest daraus. OSM
-   fliegt aus der Datenschutzerklärung, der Host kommt hinein.
+2. **Host und Schnitt** (**seit 0.17.0**): `map-data.yml` schneidet
+   DACH Zoom 0–13 aus dem täglichen Protomaps-Build, prüft den Auszug
+   gegen die Quelle, lädt ihn nach Cloudflare R2
+   (`tiles.mcbuchi.de/trailbuddy/dach-<build>.pmtiles`, Zeiger in
+   `dach.json`) und liest die ÖFFENTLICHE Kopie wie die App zurück (206,
+   `accept-ranges`, CORS, Stichprobe gegen die Quelle). Beide Engines
+   lesen daraus; OSM ist aus der Datenschutzerklärung, Cloudflare drin.
+   Monatlicher Lauf. Zoomziel 13 (Entscheidung, Abschnitt 7).
 3. **Bereiche speichern**: `TileStore` (IndexedDB, Datei), Auswahl,
    Größe vorher, Fortschritt, Liste „Meine Bereiche", „Gesehenes bleibt
    liegen", Hinweis bei geräumtem Speicher.
@@ -169,6 +174,15 @@ Jeder Schritt ein PR, jeder mit Datenschutzerklärung und CLAUDE.md im
 selben PR, wo sich ein Netzziel oder eine Datenkategorie ändert.
 
 ## 7. Entscheidungen des Betreibers
+
+**Entschieden am 2026-09-28:** Host ist **Cloudflare R2** (Bucket
+`buddy-tiles`, mit Platz für PilzBuddy unter eigenem Präfix) hinter der
+eigenen Domain `tiles.mcbuchi.de`; **Zoomziel 13** (Forstwege ab z12,
+Pfade, Steige, Fußwege ab z13 in den Kacheln — PilzBuddy-Messung; der
+erzeugte Stil zeichnet ab z14 nur noch kleine Bäche; 2,9 statt 5,5 GB;
+der Schnitt lässt sich in CI jederzeit auf 14 wiederholen). Offen bleibt
+das iPhone im Browser. Die drei Ausgänge unten bleiben als Begründung
+stehen.
 
 1. **Der Host.** Drei Ausgänge, wie in PilzBuddy #496 beschrieben:
    - **Objektspeicher (Cloudflare R2)**: kein Größenlimit je Datei, CORS

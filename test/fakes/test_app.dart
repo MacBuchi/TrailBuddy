@@ -1,15 +1,13 @@
 // Startet die komplette App gegen das In-Memory-Backend: alle
-// Repository-Provider werden mit Fakes überschrieben, der Karten-Kachel-
-// Provider liefert ein transparentes 1×1-PNG (keine OSM-Requests) und der
-// Update-Check ist stillgelegt. Damit laufen echte End-to-End-Abläufe
+// Repository-Provider werden mit Fakes überschrieben, die Karte ist eine
+// Fake ohne Kacheln (kein Netz, kein Kartenhost) und der Update-Check ist
+// stillgelegt. Damit laufen echte End-to-End-Abläufe
 // (Login → Karte → Buddys → Profil) als schnelle Widget-Tests.
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,7 +18,7 @@ import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
 import 'package:trailbuddy/features/map/base_map_providers.dart';
-import 'package:trailbuddy/features/map/map_providers.dart';
+import 'package:trailbuddy/features/map/online_map.dart';
 import 'package:trailbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
@@ -40,16 +38,6 @@ import 'fake_rides.dart';
 import 'fake_settings.dart';
 import 'fake_trail_cache.dart';
 import 'fake_trails.dart';
-
-/// 1×1 transparentes PNG als Offline-Kartenkachel.
-final Uint8List kTransparentTile = Uint8List.fromList(const [
-  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, //
-  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, //
-  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, //
-  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, //
-  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, //
-  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
-]);
 
 /// Test-Position ohne Geolocator-Plugin (alle Pflichtfelder gefüllt).
 Position fakePosition(double lat, double lon, {double accuracy = 8}) => Position(
@@ -77,12 +65,6 @@ class FakePositionFix {
     calls++;
     return next;
   }
-}
-
-class FakeTileProvider extends TileProvider {
-  @override
-  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>
-      MemoryImage(kTransparentTile);
 }
 
 List<Override> overridesFor(FakeBackend backend,
@@ -134,8 +116,9 @@ List<Override> overridesFor(FakeBackend backend,
           FakeTrailRepository(
               myId: () => backend.currentUserId ?? '',
               areFriends: backend.areFriends)),
-      // Kein Netz in Tests: Die Kacheln sind transparente 1×1-PNGs.
-      mapTileProviderProvider.overrideWithValue(FakeTileProvider()),
+      // Kein Netz in Tests: kein Manifest vom Kartenhost, also keine
+      // Online-Karte — und die Übersicht kommt aus keinem Asset (oben).
+      mapManifestLoaderProvider.overrideWithValue(() async => null),
       // Und keine Overpass-Abfragen: Eine Karte, die auf einen Trail
       // zoomt, liegt über Zoom 12 und fragte sonst wirklich an.
       poiSourceProvider.overrideWithValue(pois ?? FakePoiSource()),

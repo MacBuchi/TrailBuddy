@@ -40,9 +40,16 @@ Map<String, dynamic> _baseStyle() => {
 
 const _overview = MapStyleSource(
   id: 'overview',
-  filePath: '/data/app/offline_maps/overview_dach.pmtiles',
+  url: 'file:///data/app/offline_maps/overview_dach.pmtiles',
   minZoom: 0,
   maxZoom: 7,
+);
+
+const _online = MapStyleSource(
+  id: 'online',
+  url: 'https://tiles.example.org/trailbuddy/dach-20260928.pmtiles',
+  minZoom: 0,
+  maxZoom: 13,
 );
 
 const _osm = MapRasterSource(
@@ -78,19 +85,29 @@ void main() {
     expect(layers.first['paint'], {'background-color': '#e2dfda'});
   });
 
-  test('Vektorquelle: pmtiles-URL, Zoombereich aus dem Header, Ebenen umgehängt', () {
-    final style = _compose();
+  test('Vektorquellen: pmtiles-URL (Datei oder Host), Zoombereich, Ebenen umgehängt', () {
+    final style = _compose(sources: const [_overview, _online]);
     final sources = style['sources'] as Map<String, dynamic>;
-    expect(sources.keys, ['overview']);
+    expect(sources.keys, ['overview', 'online'], reason: 'Reihenfolge = Schichtung');
     final overview = sources['overview'] as Map<String, dynamic>;
     expect(overview['url'], 'pmtiles://file:///data/app/offline_maps/overview_dach.pmtiles');
     expect(overview['minzoom'], 0);
     expect(overview['maxzoom'], 7);
-    expect(overview['attribution'], contains('OpenStreetMap'));
+    expect(overview['attribution'], '© OpenStreetMap contributors · Protomaps');
+    final online = sources['online'] as Map<String, dynamic>;
+    expect(online['url'], 'pmtiles://https://tiles.example.org/trailbuddy/dach-20260928.pmtiles');
+    expect(online['maxzoom'], 13);
+    expect(online.containsKey('attribution'), isFalse, reason: 'nur an der ersten Quelle');
     expect(sources.containsKey('protomaps'), isFalse, reason: 'ersetzt, nicht ergänzt');
     final ids = _layers(style).map((l) => l['id']).toList();
-    expect(ids, ['hintergrund', 'overview/earth', 'overview/places']);
-    expect(_layers(style)[1]['source'], 'overview');
+    expect(ids, [
+      'hintergrund',
+      'overview/earth',
+      'overview/places',
+      'online/earth',
+      'online/places',
+    ]);
+    expect(_layers(style)[3]['source'], 'online');
   });
 
   test('Schriftnamen werden auf die eigenen Stacks umgeschrieben — auch im case', () {
@@ -125,7 +142,7 @@ void main() {
   test('die Quellen der offiziellen Trails hängen an der ersten Quelle mit', () {
     final style = _compose(raster: const [_osm], extra: const ['Land Tirol (CC BY 4.0)']);
     final overview = (style['sources'] as Map)['overview'] as Map;
-    expect(overview['attribution'], '© OpenStreetMap contributors · Land Tirol (CC BY 4.0)');
+    expect(overview['attribution'], '© OpenStreetMap contributors · Protomaps · Land Tirol (CC BY 4.0)');
     final osm = (style['sources'] as Map)['osm'] as Map;
     expect(osm.containsKey('attribution'), isFalse);
   });

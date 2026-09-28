@@ -512,7 +512,7 @@ class _AboutSection extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Kartendaten: © OpenStreetMap-Mitwirkende',
+          'Kartendaten: © OpenStreetMap-Mitwirkende · Protomaps (ODbL)',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],

@@ -48,7 +48,8 @@ void main() {
 
   test('die Erklärung benennt die heiklen Punkte', () {
     final html = _read(_privacy);
-    expect(html, contains('tile.openstreetmap.org'));
+    expect(html, contains('tiles.mcbuchi.de'));
+    expect(html, contains('Cloudflare'));
     expect(html, contains('overpass-api.de'));
     expect(html, contains('FOSSGIS'));
     expect(html, contains('Offizielle Trails'));
@@ -70,7 +71,8 @@ void main() {
   test('kein neues Netzziel ohne Eintrag in der Datenschutzerklärung', () {
     /// Ziele, die die App von sich aus abruft — MÜSSEN in der Erklärung stehen.
     const fetched = {
-      'tile.openstreetmap.org',
+      // Die Karte selbst (#31): das DACH-Archiv auf Cloudflare R2.
+      'tiles.mcbuchi.de',
       // Orte auf der Karte (#12), nur mit eingeschaltetem Filter.
       'overpass-api.de',
       // Offizielle Trails (#13), Daten-Branch, nur mit eingeschalteter Ebene.
