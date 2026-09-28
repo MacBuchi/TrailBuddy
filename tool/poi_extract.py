@@ -185,20 +185,33 @@ def read_geojsonseq(stream):
             yield feature
 
 
-def place_of(feature, kinds):
-    """A feature to the record the app reads — None if it is nothing we
-    show, has no position or no id."""
+def unique_id_of(feature):
+    """osmium writes the `--add-unique-id` as the GeoJSON Feature's own
+    `id` member, NOT as a property — the first publish run dropped all
+    2.7 million candidates because this read only `properties.id`
+    (2026-09-28). Accept the feature member first, the two property
+    spellings as fallbacks (a hand-made fixture, `--attributes=id`)."""
     props = feature.get("properties") or {}
-    tags = {str(k): str(v) for k, v in props.items() if k != "id"}
+    for value in (feature.get("id"), props.get("id"), props.get("@id")):
+        if value is not None and str(value) != "":
+            return str(value)
+    return ""
+
+
+def place_of(feature, kinds):
+    """A feature to the record the app reads — or the reason it is not
+    one: `"no_kind"`, `"no_position"`, `"no_id"`."""
+    props = feature.get("properties") or {}
+    tags = {str(k): str(v) for k, v in props.items() if k not in ("id", "@id")}
     kind = kind_of(tags, kinds)
     if kind is None:
-        return None
+        return "no_kind"
     center = center_of(feature.get("geometry") or {})
     if center is None:
-        return None
-    ident = osm_id(str(props.get("id", "")))
+        return "no_position"
+    ident = osm_id(unique_id_of(feature))
     if ident is None:
-        return None
+        return "no_id"
     lat, lon = center
     record = {
         "id": ident,
@@ -233,11 +246,14 @@ def build(features, kinds, groups, build_id, out_dir, sources=()):
     prefix = f"pois-{build_id}"
     by_file = {}   # (cell, group) -> {id: record}
     counts = {k["kind"]: 0 for k in kinds}
-    dropped = 0
+    dropped = {"no_kind": 0, "no_position": 0, "no_id": 0}
+    samples = []   # the first raw features, shown when nothing survives
     for feature in features:
         placed = place_of(feature, kinds)
-        if placed is None:
-            dropped += 1
+        if isinstance(placed, str):
+            dropped[placed] += 1
+            if len(samples) < 3:
+                samples.append(feature)
             continue
         group, record = placed
         cell = cell_of(record["lat"], record["lng"])
@@ -279,6 +295,12 @@ def build(features, kinds, groups, build_id, out_dir, sources=()):
         "bytes": total_bytes,
         "dropped": dropped,
     }
+    if not by_file and samples:
+        # Nothing survived: say what osmium actually delivered, so the
+        # log explains the failure instead of just counting it.
+        print("no place survived — the first raw features were:")
+        for feature in samples:
+            print(json.dumps(feature, ensure_ascii=False)[:600])
     with open(os.path.join(out_dir, "pois.json"), "w", encoding="utf-8") as handle:
         handle.write(json.dumps(manifest, ensure_ascii=False, sort_keys=True,
                                 indent=1) + "\n")
@@ -290,8 +312,10 @@ def summary_md(manifest, kinds):
         f"## Places built: `{manifest['prefix']}`",
         "",
         f"- {manifest['files']} files, {manifest['bytes'] / 1e6:.1f} MB, "
-        f"{sum(manifest['counts'].values())} places; "
-        f"{manifest['dropped']} candidates dropped (no kind, no position)",
+        f"{sum(manifest['counts'].values())} places; dropped: "
+        f"{manifest['dropped']['no_kind']} without a kind of ours, "
+        f"{manifest['dropped']['no_position']} without a position, "
+        f"{manifest['dropped']['no_id']} without an id",
         f"- sources: {', '.join(manifest['sources']) or '-'}",
         "",
         "| group | cells | kind | places |",
@@ -329,17 +353,17 @@ def osmium_features(pbf_paths, kinds, workdir, runner=subprocess.run):
 
 _FIXTURE = "\n".join([
     # A named spring, a node.
-    '\x1e{"type":"Feature","properties":{"id":"n1","natural":"spring",'
+    '\x1e{"type":"Feature","id":"n1","properties":{"natural":"spring",'
     '"name":"Kalte Quelle","drinking_water":"no"},'
     '"geometry":{"type":"Point","coordinates":[9.01,47.51]}}',
     # A Biergarten as a closed way (area, even a-id) with opening hours;
     # the tag says restaurant, biergarten=yes wins.
-    '{"type":"Feature","properties":{"id":"a4","amenity":"restaurant",'
+    '{"type":"Feature","id":"a4","properties":{"amenity":"restaurant",'
     '"biergarten":"yes","opening_hours":"Mo-Su 11:00-22:00"},'
     '"geometry":{"type":"Polygon","coordinates":[[[9.02,47.52],[9.04,47.52],'
     '[9.04,47.54],[9.02,47.54],[9.02,47.52]]]}}',
     # A multipolygon relation (odd a-id): parking, public.
-    '{"type":"Feature","properties":{"id":"a7","amenity":"parking"},'
+    '{"type":"Feature","id":"a7","properties":{"amenity":"parking"},'
     '"geometry":{"type":"MultiPolygon","coordinates":[[[[9.1,47.6],[9.2,47.6],'
     '[9.2,47.7],[9.1,47.7],[9.1,47.6]]]]}}',
     # Private parking: dropped.
@@ -348,7 +372,7 @@ _FIXTURE = "\n".join([
     # A charging station without bicycle=yes: dropped; with: kept.
     '{"type":"Feature","properties":{"id":"n9","amenity":"charging_station"},'
     '"geometry":{"type":"Point","coordinates":[9.12,47.62]}}',
-    '{"type":"Feature","properties":{"id":"n10","amenity":"charging_station",'
+    '{"type":"Feature","id":"n10","properties":{"amenity":"charging_station",'
     '"bicycle":"yes"},"geometry":{"type":"Point","coordinates":[9.12,47.62]}}',
     # A bench: not one of ours.
     '{"type":"Feature","properties":{"id":"n11","amenity":"bench"},'
@@ -356,8 +380,11 @@ _FIXTURE = "\n".join([
     # A drinking water node in a different cell.
     '{"type":"Feature","properties":{"id":"n12","amenity":"drinking_water"},'
     '"geometry":{"type":"Point","coordinates":[11.3,47.2]}}',
+    # A cafe without any id: dropped, counted as such.
+    '{"type":"Feature","properties":{"amenity":"cafe"},'
+    '"geometry":{"type":"Point","coordinates":[9.14,47.64]}}',
     # The spring again, as a second extract would deliver it: deduplicated.
-    '{"type":"Feature","properties":{"id":"n1","natural":"spring",'
+    '{"type":"Feature","id":"n1","properties":{"natural":"spring",'
     '"name":"Kalte Quelle","drinking_water":"no"},'
     '"geometry":{"type":"Point","coordinates":[9.01,47.51]}}',
     "",
@@ -403,7 +430,12 @@ def self_test():
 
     with tempfile.TemporaryDirectory() as tmp:
         features = list(read_geojsonseq(io.StringIO(_FIXTURE)))
-        assert len(features) == 9
+        assert len(features) == 10
+        # The id: feature member (osmium), property (fixtures), or none.
+        assert unique_id_of(features[0]) == "n1" and unique_id_of(features[7]) == "n12"
+        assert unique_id_of(features[8]) == ""
+        assert place_of(features[8], kinds) == "no_id"
+        assert place_of(features[6], kinds) == "no_kind"
         manifest = build(features, kinds, groups, "20260928", tmp, ["dach"])
         prefix = os.path.join(tmp, "pois-20260928")
         names = sorted(os.listdir(prefix))
@@ -431,7 +463,7 @@ def self_test():
                                      "bikeService": ["476,60"], "other": ["476,61"]}, manifest["cells"]
         assert manifest["counts"]["parking"] == 1 and manifest["counts"]["spring"] == 1
         assert manifest["counts"]["eBikeCharging"] == 1
-        assert manifest["dropped"] == 3, manifest["dropped"]   # private parking, car charger, bench
+        assert manifest["dropped"] == {"no_kind": 3, "no_position": 0, "no_id": 1}, manifest["dropped"]
         assert manifest["files"] == 5 and manifest["prefix"] == "pois-20260928"
         with open(os.path.join(tmp, "pois.json"), encoding="utf-8") as h:
             assert json.load(h) == manifest
@@ -463,7 +495,7 @@ def self_test():
             open(cmd[cmd.index("-o") + 1], "w").close()
     with tempfile.TemporaryDirectory() as tmp:
         got = list(osmium_features(["a.osm.pbf", "b.osm.pbf"], kinds, tmp, runner=fake_runner))
-    assert len(got) == 18 and len(calls) == 4
+    assert len(got) == 20 and len(calls) == 4
     assert calls[0][:2] == ["osmium", "tags-filter"] and calls[0][-len(expr):] == expr
     assert calls[1][:2] == ["osmium", "export"] and "--add-unique-id=type_id" in calls[1]
     print("poi_extract self-test: ok")
