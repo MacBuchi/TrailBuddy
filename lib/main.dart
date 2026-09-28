@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,8 @@ import 'core/errors.dart';
 import 'core/settings.dart';
 import 'core/supabase_config.dart';
 import 'data/error_report_repository.dart';
+import 'data/exit_info_repository.dart';
+import 'data/exit_reporting.dart';
 import 'features/rides/ride_service.dart';
 
 Future<void> main() async {
@@ -29,6 +33,15 @@ Future<void> main() async {
     setErrorSink((context, error, stackTrace) {
       reports.report(context, error, stackTrace).catchError((Object _) {});
     });
+  }
+
+  // Warum die App beim letzten Mal beendet wurde (#40): ANR, Absturz,
+  // Speichermangel aus Androids eigener Historie, nachträglich gemeldet.
+  // Ohne await und ohne Wirkung auf den Start; auf Web und Android < 11
+  // liefert die Historie nichts. Dieselbe Bedingung wie der Sink oben —
+  // ein Testlauf von der eigenen Maschine schreibt nichts.
+  if (!kIsWeb || reportsFromHost(Uri.base.host)) {
+    unawaited(ExitReporter(exits: ExitInfoRepository(), reports: reports).reportPending());
   }
 
   // Auch nicht gefangene Fehler melden. Android Vitals sieht davon nur die

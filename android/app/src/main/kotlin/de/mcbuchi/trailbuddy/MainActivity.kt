@@ -1,5 +1,8 @@
 package de.mcbuchi.trailbuddy
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -8,13 +11,26 @@ import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
+import java.util.zip.GZIPInputStream
 
 /**
- * Der einzige native Code im Projekt (Muster PilzBuddy): ein
- * MethodChannel, der die geladene Update-APK dem System-Installer
- * übergibt. Beendigungsgründe und Netz-Messung aus PilzBuddy kommen mit
- * ihren Features, nicht auf Vorrat — jede Zeile hier hat kein Test-Netz.
+ * Der einzige native Code im Projekt (Muster PilzBuddy), zwei Kanäle:
+ * die geladene Update-APK an den System-Installer geben, und lesen, warum
+ * die App beim letzten Mal beendet wurde (#40).
+ *
+ * Beendigungsgründe: Android führt seit Version 11 selbst Buch darüber,
+ * und eine App darf ihre EIGENEN Einträge ohne jede Berechtigung lesen.
+ * Das schließt die Lücke, die `error_reports` prinzipbedingt hat: Dort
+ * landet nur, was die App überlebt — ein ANR oder Absturz hinterlässt
+ * nichts. Bewusst zwei Methoden statt einer: Die Übersicht ist billig,
+ * der ANR-Thread-Dump ist es nicht (Rohdatei ~1,8 MB). Dart holt ihn nur
+ * für Einträge, die es noch nicht gemeldet hat.
+ *
+ * Jede Zeile hier hat kein Test-Netz; die Dart-Seite
+ * (`lib/data/exit_reporting.dart`, `tombstone.dart`) hat eines.
  */
 class MainActivity : FlutterActivity() {
 
@@ -23,6 +39,19 @@ class MainActivity : FlutterActivity() {
          *  Der Name steht in Dart in `lib/data/apk_installer.dart`; ein Test
          *  hält beide zusammen. */
         const val INSTALL_CHANNEL = "de.mcbuchi.trailbuddy/apk_install"
+
+        /** Beendigungsgründe; der Name steht in `lib/data/exit_info_repository.dart`. */
+        const val EXIT_CHANNEL = "de.mcbuchi.trailbuddy/exit_info"
+
+        /**
+         * Genug für den Haupt-Thread — und zugleich die Grenze der Spalte
+         * `stack` (4000 Zeichen; `ErrorReportRepository` schneidet auf
+         * dieselbe Zahl, mehr ginge still verloren).
+         */
+        const val TRACE_CHARS = 4000
+
+        /** Obergrenze beim Lesen, damit ein Riesen-Dump nichts blockiert. */
+        const val TRACE_BYTES = 4 * 1024 * 1024
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -43,6 +72,17 @@ class MainActivity : FlutterActivity() {
                             installApk(path, result)
                         }
                     }
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, EXIT_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "exitReasons" ->
+                        result.success(exitReasons(call.argument<Int>("limit") ?: 10))
+                    "exitTrace" ->
+                        result.success(exitTrace(call.argument<Long>("timestamp") ?: 0L))
                     else -> result.notImplemented()
                 }
             }
@@ -93,5 +133,127 @@ class MainActivity : FlutterActivity() {
             // Dart fällt daraufhin auf den Browser-Download zurück.
             result.error("install_failed", e.message, null)
         }
+    }
+
+    // ---- Beendigungsgründe (#40, PilzBuddy #147/#394) ----
+
+    /** Übersicht ohne Thread-Dump — billig genug für jeden App-Start. */
+    private fun exitReasons(limit: Int): List<Map<String, Any?>> {
+        val infos = historicalExits(limit) ?: return emptyList()
+        return infos.map { info ->
+            mapOf(
+                "timestamp" to info.timestamp,
+                "reason" to info.reason,
+                "reasonName" to reasonName(info.reason),
+                "description" to info.description,
+                "importance" to info.importance,
+                // getRss() und getPss() liefern BEREITS kB — hier nichts
+                // teilen, `AppExit.summary` rechnet in MB um (PilzBuddy
+                // #151: ein zweites / 1024 machte aus 1,9 GB „2 MB").
+                "rssKb" to info.rss,
+                "pssKb" to info.pss,
+                "hasTrace" to hasTrace(info),
+            )
+        }
+    }
+
+    /**
+     * Hat Android zu diesem Eintrag etwas hinterlegt? ANR: ein Text-Dump.
+     * Nativer Absturz: ab API 31 ein Tombstone als Protobuf.
+     */
+    private fun hasTrace(info: ApplicationExitInfo): Boolean = when (info.reason) {
+        ApplicationExitInfo.REASON_ANR -> true
+        ApplicationExitInfo.REASON_CRASH_NATIVE ->
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        else -> false
+    }
+
+    /**
+     * Der Dump zu einem Eintrag: beim ANR der Haupt-Thread-Abschnitt als
+     * Text, beim nativen Absturz das rohe Tombstone.
+     *
+     * **Das Tombstone wird hier NICHT gelesen, nur durchgereicht.** Es ist
+     * ein Protobuf, und das Auseinandernehmen gehört auf die Dart-Seite
+     * (`lib/data/tombstone.dart`): Diese Datei hat keinen Test, drüben ist
+     * der Leser mit erfundenen Tombstones prüfbar.
+     */
+    private fun exitTrace(timestamp: Long): Any? {
+        val info = historicalExits(20)?.firstOrNull { it.timestamp == timestamp }
+            ?: return null
+        if (!hasTrace(info)) return null
+        return try {
+            info.traceInputStream?.use { stream ->
+                if (info.reason == ApplicationExitInfo.REASON_ANR) {
+                    mainThreadSection(readTrace(stream))
+                } else {
+                    // Als ByteArray über den Kanal — Dart bekommt eine Uint8List.
+                    readRaw(stream)
+                }
+            }
+        } catch (e: Exception) {
+            // Der Dump ist ein Extra; der Eintrag selbst ist die halbe Antwort.
+            null
+        }
+    }
+
+    private fun readRaw(stream: InputStream): ByteArray {
+        val buffer = ByteArrayOutputStream()
+        val chunk = ByteArray(64 * 1024)
+        var total = 0
+        while (total < TRACE_BYTES) {
+            val read = stream.read(chunk)
+            if (read <= 0) break
+            buffer.write(chunk, 0, read)
+            total += read
+        }
+        return buffer.toByteArray()
+    }
+
+    private fun historicalExits(limit: Int): List<ApplicationExitInfo>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return try {
+            val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            manager.getHistoricalProcessExitReasons(packageName, 0, limit)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Android liefert den ANR-Dump gzip-gepackt; erkannt an der Signatur. */
+    private fun readTrace(stream: InputStream): String {
+        val raw = readRaw(stream)
+        val gzipped = raw.size > 1 &&
+            raw[0] == 0x1f.toByte() && raw[1] == 0x8b.toByte()
+        return if (gzipped) {
+            GZIPInputStream(raw.inputStream()).use { it.readBytes().decodeToString() }
+        } else {
+            raw.decodeToString()
+        }
+    }
+
+    /** Nur der Haupt-Thread: Alle Threads passen weder in die Spalte noch in einen Digest. */
+    private fun mainThreadSection(dump: String): String {
+        val start = dump.indexOf("\"main\"")
+        if (start < 0) return dump.take(TRACE_CHARS)
+        val end = dump.indexOf("\n\n", start)
+        val section = if (end > start) dump.substring(start, end) else dump.substring(start)
+        return section.take(TRACE_CHARS)
+    }
+
+    private fun reasonName(reason: Int): String = when (reason) {
+        ApplicationExitInfo.REASON_ANR -> "ANR"
+        ApplicationExitInfo.REASON_CRASH -> "CRASH"
+        ApplicationExitInfo.REASON_CRASH_NATIVE -> "CRASH_NATIVE"
+        ApplicationExitInfo.REASON_LOW_MEMORY -> "LOW_MEMORY"
+        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "EXCESSIVE_RESOURCE_USAGE"
+        ApplicationExitInfo.REASON_SIGNALED -> "SIGNALED"
+        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "DEPENDENCY_DIED"
+        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "INITIALIZATION_FAILURE"
+        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "PERMISSION_CHANGE"
+        ApplicationExitInfo.REASON_USER_REQUESTED -> "USER_REQUESTED"
+        ApplicationExitInfo.REASON_USER_STOPPED -> "USER_STOPPED"
+        ApplicationExitInfo.REASON_EXIT_SELF -> "EXIT_SELF"
+        ApplicationExitInfo.REASON_OTHER -> "OTHER"
+        else -> "UNKNOWN_$reason"
     }
 }

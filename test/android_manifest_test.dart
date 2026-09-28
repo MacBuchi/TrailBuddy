@@ -32,6 +32,20 @@ void main() {
     expect(kotlin, contains('FileProvider.getUriForFile'));
   });
 
+  test('der Beendigungs-Kanal heißt in Kotlin und Dart gleich, das Tombstone liest Dart', () {
+    // #40: Ein Tippfehler auf einer Seite hieße „keine Historie" — ohne
+    // Fehlermeldung, für immer. Und das Tombstone (Protobuf) gehört auf
+    // die Dart-Seite, die einen Test hat; Kotlin reicht es nur durch.
+    final kotlin = File('android/app/src/main/kotlin/${appId.replaceAll('.', '/')}/MainActivity.kt').readAsStringSync();
+    final dart = File('lib/data/exit_info_repository.dart').readAsStringSync();
+    final channel = RegExp(r"kExitInfoChannel = '([\w./]+)'").firstMatch(dart)!.group(1)!;
+    expect(channel, startsWith('$appId/'));
+    expect(kotlin, contains('"$channel"'));
+    expect(kotlin, contains('getHistoricalProcessExitReasons'));
+    expect(kotlin, isNot(contains('Tombstone.parseFrom')));
+    expect(kotlin, isNot(contains('import com.google.protobuf')));
+  });
+
   test('zwei Flavors, eine App: play nimmt den Update-Weg heraus', () {
     expect(gradle, contains('create("github")'));
     expect(gradle, contains('create("play")'));

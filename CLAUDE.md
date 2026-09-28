@@ -587,8 +587,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   (Karte unten links und Profil) schreibt in `public.feedback`;
   `tool/feedback_bot.py` (`feedback.yml`, alle 2 h) macht daraus
   ÖFFENTLICHE Issues mit Label `enhancement`/`bug` und löscht
-  `error_reports` nach 90 Tagen (Datenschutzerklärung). Drei Dinge, die
-  man wissen muss:
+  `error_reports` nach 90 Tagen (Datenschutzerklärung). Auf demselben
+  Tick der **Fehlerbericht-Digest** (#40, seit 0.21.0): ein Issue je
+  ISO-Woche (Label `ops`, Titel `Error reports JJJJ-Wnn`), bei jedem
+  Lauf neu geschrieben statt kommentiert; keine Fehler ⇒ kein Issue.
+  Jede Gruppe zeigt den obersten Frame im EIGENEN Code (`top_frame`,
+  `package:trailbuddy/`), sonst den obersten überhaupt (ANR-Dump). Eine
+  vergangene Woche rendert `--digest-week 2026-W40` (liest nur), im
+  Workflow über die Eingabe `digest_week` in die Run-Summary.
+  `--test-digest` läuft in CI mit. Vier Dinge, die man wissen muss:
   - **Kein Benutzername im Issue**, anders als PilzBuddy: Das Issue ist
     öffentlich, wer schrieb, steht nur in der Datenbank. `@`-Erwähnungen
     werden entschärft. Der Dialog bittet ausdrücklich um keine
@@ -603,12 +610,32 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Kein Schlüssel, kein Lauf — sichtbar**: Fehlt
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
+  - **Auch der Digest nennt niemanden**: Kontext, Typ, Meldung, Frame —
+    keine `user_id`, kein Name; Meldungen werden wie Feedback entschärft
+    (`defuse`). Der Selbsttest hält es fest.
+- **Beendigungsgründe** (#40, seit 0.21.0; PilzBuddy #147/#394 als
+  Vorlage): Beim Start liest die App über den MethodChannel
+  `de.mcbuchi.trailbuddy/exit_info` (`kExitInfoChannel`) Androids eigene
+  Historie (`getHistoricalProcessExitReasons`, ab Android 11, keine
+  Berechtigung) und meldet ANR, Absturz, nativen Absturz, Speicher-Kill
+  nach `error_reports` — Kontext `App-Ende`, `created_at` ist der
+  TODESzeitpunkt. Beim ANR mit dem Haupt-Thread-Abschnitt des Dumps, beim
+  nativen Absturz mit dem Tombstone (ab API 31), das **in Dart gelesen
+  wird** (`lib/data/tombstone.dart`, wirft nie), nicht in Kotlin:
+  `MainActivity.kt` ist die einzige Datei ohne Test-Netz und reicht die
+  Bytes nur durch; der Manifest-Test verbietet dort ein
+  `Tombstone.parseFrom`. Normale Beendigungen (`USER_REQUESTED`,
+  `EXIT_SELF` …) werden NICHT gemeldet, sonst füllt jedes Wegwischen den
+  Digest. Ein Merker im App-Verzeichnis (`last_exit_report`) verhindert
+  Doppelmeldungen; sein Verlust kostet eine doppelte Zeile.
+  `getRss()`/`getPss()` liefern kB, `AppExit.summary` rechnet EINMAL in
+  MB um, und 0 heißt „nicht gemessen", nicht „0 MB". Web und Android < 11
+  liefern nichts. Tests: `test/exit_reporting_test.dart`,
+  `test/tombstone_test.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und Zwischenspeicher im Browser,
-  Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
-  einzelnen Trail,
-  Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
+  Nachrichten und Push, Meldung zu einem einzelnen Trail,
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.
 
 ## Code-Konventionen

@@ -2,6 +2,20 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Wenn die App abstürzt
+
+*Version 0.21.0, 2026-09-28*
+
+- **Ein Absturz meldet sich beim nächsten Start selbst**: Wird die App
+  von Android beendet — weil sie nicht mehr reagiert hat, abgestürzt ist
+  oder der Speicher knapp war —, liest sie das beim nächsten Öffnen aus
+  Androids eigener Liste und schickt den Grund als Fehlerbericht: mit
+  Speicherwerten und einem Auszug des Thread-Dumps, aber ohne deine
+  Trails, deine Position oder deine Fahrt. Normales Beenden (wegwischen,
+  Neustart) wird nicht gemeldet. Nur Android ab Version 11.
+- Fehlerberichte werden wie bisher nach 90 Tagen gelöscht; der Betreiber
+  sieht sie als wöchentliche Zusammenfassung ohne Nutzerkennung.
+
 ## Fahrt zerlegen
 
 *Version 0.20.0, 2026-09-28*

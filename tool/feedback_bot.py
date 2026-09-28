@@ -6,10 +6,18 @@ public GitHub issue per row (label `enhancement` or `bug`) and stamps the
 row with processed_at. On the same tick it deletes `error_reports` older
 than 90 days — the privacy policy promises that, so something has to do it.
 
+On the same tick it keeps `public.error_reports` visible: one issue per
+ISO week (label `ops`, title `Error reports YYYY-Wnn`), rewritten in place
+on every run — no errors, no issue (#40). Since the app reports Android's
+exit reasons on the next start (ANR, crash, memory kill; context
+`App-Ende`), the digest is the one place where a crash in the field
+becomes visible without a USB cable.
+
 Differences to PilzBuddy, both on purpose:
 - No username in the issue. The issue is public; who wrote it stays in
-  the database (user_id), where only the operator reads it.
-- No species PRs, no photos, no weekly error digest (yet).
+  the database (user_id), where only the operator reads it. The digest
+  shows contexts, types, messages and the top frame — never a user id.
+- No species PRs, no photos.
 
 @-mentions in the text are defused: a public issue must not ping people
 because someone typed their handle into the app.
@@ -18,8 +26,12 @@ Required environment: SUPABASE_SERVICE_ROLE_KEY, GH_TOKEN (the workflow
 provides both). The project URL comes from lib/core/supabase_config.dart,
 the same file the app and tool/schema_check.sh read, so it cannot drift.
 
-Self-test without any network access:
+Self-tests without any network access:
     python3 tool/feedback_bot.py --self-test
+    python3 tool/feedback_bot.py --test-digest
+
+A past week, read-only (rows stay 90 days):
+    python3 tool/feedback_bot.py --digest-week 2026-W40
 """
 import json
 import os
@@ -34,6 +46,9 @@ from datetime import datetime, timedelta, timezone
 CONFIG = "lib/core/supabase_config.dart"
 ERROR_REPORT_RETENTION_DAYS = 90
 TITLE_CHARS = 60
+# A stack frame inside our own code looks like this; the digest prefers it
+# over framework frames.
+APP_FRAME = "package:trailbuddy/"
 
 
 def supabase_url() -> str:
@@ -108,9 +123,164 @@ def issue_exists(title: str) -> bool:
 def ensure_labels() -> None:
     # New repositories usually have both; a missing label would fail every
     # `gh issue create` below, so make sure instead of assuming.
-    for name, color in (("bug", "d73a4a"), ("enhancement", "a2eeef")):
+    for name, color in (("bug", "d73a4a"), ("enhancement", "a2eeef"), ("ops", "5319E7")):
         subprocess.run(["gh", "label", "create", name, "--color", color, "--force"],
                        check=False, capture_output=True)
+
+
+# --- the weekly error digest (#40, PilzBuddy's tool/feedback_bot.py) ---
+
+def top_frame(stack: str | None) -> str | None:
+    """The one line of a stack trace worth putting in the digest.
+
+    Prefers the topmost frame inside our own code: a Dart stack almost
+    always starts in the framework, and `#0 List.reduce` says nothing about
+    which of our widgets got there. Without such a frame the topmost of any
+    kind will do — an ANR thread dump or a tombstone has no other kind.
+    (PilzBuddy: 61 rows of `Infinity or NaN toInt` in one week, and nobody
+    could name the file — the stack was in the table all along.)
+    """
+    if not stack:
+        return None
+    lines = [line.strip() for line in stack.splitlines() if line.strip()]
+    for line in lines:
+        if APP_FRAME in line:
+            return line[:200]
+    for line in lines:
+        if line.startswith("#") or " pc " in line:
+            return line[:200]
+    return None
+
+
+def digest_body(rows: list[dict], week: str) -> str:
+    """Group error reports by (context, error_type) into an issue body.
+
+    Grouped here rather than in the query because PostgREST has no GROUP
+    BY. Nothing about a person goes in: no user id, no username.
+    """
+    groups: dict[tuple[str, str], dict] = {}
+    for row in rows:
+        key = (row.get("context") or "?", row.get("error_type") or "?")
+        group = groups.setdefault(key, {
+            "count": 0, "versions": set(), "platforms": set(), "example": "",
+            "frame": "",
+        })
+        group["count"] += 1
+        if row.get("app_version"):
+            group["versions"].add(row["app_version"])
+        if row.get("platform"):
+            group["platforms"].add(row["platform"])
+        if not group["example"] and row.get("message"):
+            group["example"] = defuse(row["message"].strip().replace("\n", " ")[:200])
+        frame = top_frame(row.get("stack"))
+        # A frame from our code beats one from the framework, even if it
+        # comes later: of ten rows in a group often only one carries a
+        # stack that reaches us.
+        if frame and (not group["frame"] or (APP_FRAME in frame
+                                             and APP_FRAME not in group["frame"])):
+            group["frame"] = defuse(frame)
+
+    ranked = sorted(groups.items(), key=lambda kv: -kv[1]["count"])
+    lines = [
+        f"{len(rows)} error reports reached `public.error_reports` in {week}.",
+        "",
+        "Caught errors the app **survived** (the user saw a snackbar and "
+        "carried on) and, under `App-Ende`, the reasons Android ended the "
+        "process last time (ANR, crash, memory kill) — reported on the next "
+        "start. Android Vitals sees neither for the GitHub APK.",
+        "",
+        "Each group shows its message and, where the stack reaches our own "
+        f"code, the topmost frame in it. Rows stay {ERROR_REPORT_RETENTION_DAYS} "
+        "days, so any past week can be re-rendered: "
+        "`python3 tool/feedback_bot.py --digest-week " + week + "`.",
+        "",
+        "| # | Context | Type | Versions | Platforms |",
+        "|--:|---|---|---|---|",
+    ]
+    for (context, error_type), group in ranked:
+        lines.append(
+            f"| {group['count']} | {context} | `{error_type}` | "
+            f"{', '.join(sorted(group['versions'])) or '–'} | "
+            f"{', '.join(sorted(group['platforms'])) or '–'} |"
+        )
+    lines.append("")
+    for (context, error_type), group in ranked:
+        if not group["example"] and not group["frame"]:
+            continue
+        lines.append(f"**{context} · {error_type}**")
+        if group["example"]:
+            lines.append(f"> {group['example']}")
+        if group["frame"]:
+            lines.append("")
+            lines.append(f"`{group['frame']}`")
+        lines.append("")
+    lines.append("_Automatically created by the feedback bot; "
+                 "updated in place while the week runs. Close when triaged._")
+    return "\n".join(lines)
+
+
+def _stamp(when: datetime) -> str:
+    # A literal Z, not isoformat(): its "+00:00" reads as a space in a query.
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def week_bounds(week: str) -> tuple[datetime, datetime]:
+    """Monday 00:00 UTC and the Monday after, for an ISO week label."""
+    match = re.fullmatch(r"(\d{4})-W(\d{1,2})", week)
+    if not match:
+        raise SystemExit(f"Not an ISO week label: {week} (expected 2026-W40)")
+    start = datetime.fromisocalendar(
+        int(match.group(1)), int(match.group(2)), 1).replace(tzinfo=timezone.utc)
+    return start, start + timedelta(days=7)
+
+
+def fetch_error_rows(start: datetime, end: datetime) -> list[dict]:
+    return api(
+        "GET",
+        f"/rest/v1/error_reports?created_at=gte.{_stamp(start)}"
+        f"&created_at=lt.{_stamp(end)}"
+        "&select=context,error_type,message,stack,app_version,platform,created_at"
+        "&order=created_at",
+    ) or []
+
+
+def print_past_digest(week: str) -> None:
+    """Render a past week to stdout. Reads only — touches no issue."""
+    start, end = week_bounds(week)
+    rows = fetch_error_rows(start, end)
+    if not rows:
+        print(f"No error reports in {week} "
+              f"(rows older than {ERROR_REPORT_RETENTION_DAYS} days are purged).")
+        return
+    print(digest_body(rows, week))
+
+
+def report_error_digest() -> None:
+    """One issue per ISO week, rewritten in place on every two-hourly tick.
+
+    Rewritten rather than commented on: 84 comments a week would bury the
+    numbers instead of showing them. No errors means no issue.
+    """
+    year, week_no, _ = datetime.now(timezone.utc).isocalendar()
+    week = f"{year}-W{week_no:02d}"
+    rows = fetch_error_rows(*week_bounds(week))
+    if not rows:
+        print(f"No error reports in {week}.")
+        return
+    title = f"Error reports {week}"
+    body = digest_body(rows, week)
+    ensure_labels()
+    existing = json.loads(run("gh", "issue", "list", "--state", "open",
+                              "--label", "ops", "--limit", "50",
+                              "--json", "number,title") or "[]")
+    match = next((i for i in existing if i["title"] == title), None)
+    if match:
+        run("gh", "issue", "edit", str(match["number"]), "--body", body)
+        print(f"Error digest updated: {title} ({len(rows)} reports)")
+    else:
+        run("gh", "issue", "create", "--title", title, "--body", body,
+            "--label", "ops")
+        print(f"Error digest created: {title} ({len(rows)} reports)")
 
 
 def retention_cutoff(now: datetime) -> str:
@@ -131,8 +301,9 @@ def purge_error_reports() -> None:
 
 
 def main() -> None:
-    # Before the early return below — otherwise the purge would only run
-    # on the rare tick that also has unprocessed feedback.
+    # Before the early return below — otherwise digest and purge would
+    # only run on the rare tick that also has unprocessed feedback.
+    report_error_digest()
     purge_error_reports()
 
     rows = api("GET", "/rest/v1/feedback?processed_at=is.null&order=created_at"
@@ -182,9 +353,64 @@ def self_test() -> None:
     print("feedback_bot self-test: ok")
 
 
+def self_test_digest() -> None:
+    """Grouping and body rendering without any network access."""
+    framework_stack = (
+        "#0      List.reduce (dart:core/list.dart:120:5)\n"
+        "#1      _Chart.build (package:flutter/src/widgets/framework.dart:12:3)")
+    app_stack = (
+        "#0      List.reduce (dart:core/list.dart:120:5)\n"
+        "#1      _TrailSheet.build "
+        "(package:trailbuddy/features/trails/trail_sheet.dart:707:38)")
+    rows = [
+        {"context": "Trails laden", "error_type": "PostgrestException",
+         "message": "column trails.foo does not exist", "stack": framework_stack,
+         "app_version": "0.20.0", "platform": "android"},
+        {"context": "Trails laden", "error_type": "PostgrestException",
+         "message": "column trails.foo does not exist", "stack": app_stack,
+         "app_version": "0.21.0", "platform": "web"},
+        {"context": "App-Ende", "error_type": "ANR",
+         "message": "RSS 1900 MB · PSS 1000 MB · importance 100 @someone",
+         "stack": '"main" prio=5 tid=1 Native\n'
+                  "  native: #00 pc 00984478  base.apk (offset 9c0000)",
+         "app_version": "0.21.0", "platform": "android"},
+    ]
+    body = digest_body(rows, "2026-W40")
+    assert "3 error reports" in body, body
+    # Most frequent group first — otherwise one reads the table to see
+    # what hurts most.
+    assert body.index("| 2 | Trails laden") < body.index("| 1 | App-Ende"), body
+    assert "0.20.0, 0.21.0" in body, body
+    assert "android, web" in body, body
+    # The frame from our code wins over the framework one, although the
+    # framework line comes first — that is the whole point.
+    assert "trail_sheet.dart:707:38" in body, body
+    assert "framework.dart:12:3" not in body, body
+    # An exit reason carries the memory line and the top native frame.
+    assert "RSS 1900 MB" in body, body
+    assert "native: #00 pc 00984478" in body, body
+    # A public issue pings nobody, whatever a message carries.
+    assert "@someone" not in body and "@\u200bsomeone" in body, body
+    assert "user_id" not in body and "username" not in body, "no person in a public issue"
+
+    assert top_frame("Error\n    at Object.wl (main.dart.js:1:2)") is None
+    assert top_frame(None) is None and top_frame("") is None
+
+    # Week bounds: 2026-W40 starts Monday, 28 September.
+    start, end = week_bounds("2026-W40")
+    assert (start.year, start.month, start.day) == (2026, 9, 28), start
+    assert (end - start).days == 7, (start, end)
+    assert _stamp(start) == "2026-09-28T00:00:00Z", _stamp(start)
+    print("feedback_bot digest self-test: ok")
+
+
 if __name__ == "__main__":
     if sys.argv[1:] == ["--self-test"]:
         self_test()
+    elif sys.argv[1:] == ["--test-digest"]:
+        self_test_digest()
+    elif len(sys.argv) == 3 and sys.argv[1] == "--digest-week":
+        print_past_digest(sys.argv[2])
     elif not sys.argv[1:]:
         main()
     else:
