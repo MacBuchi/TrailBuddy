@@ -661,6 +661,10 @@ damit die nächste Diskussion nicht bei null beginnt.
 
 ## 11. Fahrplan
 
+*Offizielle Trails (Behörden, Vereine, Bikeparks) sind eine getrennte
+Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
+(#13).*
+
 - **Phase 0 — Messen, bevor gebaut wird. ERLEDIGT am 2026-09-27**,
   Ergebnis in `docs/trail-abgleich-messung.md`; was sich dadurch am
   Konzept geändert hat, steht dort unter „Folgen". Ein Python-Werkzeug

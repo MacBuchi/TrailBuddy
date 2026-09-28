@@ -16,6 +16,8 @@ Entscheidungen des Betreibers in Abschnitt 10, die Regel für den
 dezentralen Weg in Abschnitt 12). Die Schwellen des Abgleichs sind gemessen
 (`docs/trail-abgleich-messung.md`), nicht geraten. Wer Code ändert, der dem
 Konzept widerspricht, ändert das Konzept im selben PR — oder den Code.
+Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
+`docs/konzept-offizielle-trails.md`.
 
 **Nichts Privates in dieses Repo — es ist öffentlich.** Keine absoluten
 Pfade des Betreiber-Rechners, keine privaten Mailadressen, keine GPX- oder
