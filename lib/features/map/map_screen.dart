@@ -17,9 +17,12 @@ import '../rides/ride_track.dart';
 import '../official/official_trails.dart';
 import '../official/official_trails_layer.dart';
 import '../official/official_trails_source.dart';
+import '../offline_areas/area_overlay.dart';
 import '../offline_areas/area_plan.dart';
 import '../offline_areas/area_providers.dart';
 import '../offline_areas/area_sheet.dart';
+import '../offline_areas/area_store.dart';
+import '../offline_areas/offline_maps_sheet.dart';
 import '../trails/outbox_providers.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
@@ -68,6 +71,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// Die Kamera beim letzten Stillstand — daran hängen Orte und
   /// offizielle Trails (welche Zellen, welcher Ausschnitt).
   MapViewCamera? _camera;
+
+  /// Der Scaffold der Karte — das persistente Blatt „Offline-Karten"
+  /// hängt an IHM, nicht an dem der Reiter-Hülle (offline_maps_sheet.dart).
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _loadDebounce;
   String? _requestedPois;
   String? _requestedOfficial;
@@ -100,6 +107,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (id == null) return;
     ref.read(mapFocusTrailProvider.notifier).state = null;
     if (!_focusOn(id)) _pendingFocus = id;
+  }
+
+  /// „Bereich speichern" mit dem AKTUELLEN Ausschnitt und den Trails.
+  void _openSaveArea(BuildContext context) {
+    final camera = _camera;
+    final trails = ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
+    showSaveAreaSheet(
+      context,
+      viewport: camera == null
+          ? null
+          : AreaBounds(
+              south: camera.bounds.south,
+              west: camera.bounds.west,
+              north: camera.bounds.north,
+              east: camera.bounds.east),
+      // Die Kacheln entlang der Trails, nicht ein Rechteck um alle (0.24.0).
+      aroundTrails: AreaShape.alongLines([for (final t in trails) t.points]),
+    );
   }
 
   /// Auf den Trail zoomen, wenn er da ist. `false`, wenn nicht.
@@ -336,7 +361,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final officialView = officialViewFor(camera, official, enabled: officialOn);
     _scheduleLoads(cells: cells, groups: groups, officialView: officialView);
 
+    // Offline-Karten (Stufe B): Solange das Blatt offen ist, liegt die
+    // Abdunkelung unter allem — gespeicherte Kacheln sind die Löcher.
+    // Beobachtet werden die Bereiche nur dann; sonst kostet jeder
+    // Kamera-Stillstand eine Rechnung, die niemand sieht.
+    final overlayOn = ref.watch(offlineOverlayProvider);
+    final overlayAreas =
+        overlayOn ? ref.watch(storedAreasProvider).valueOrNull ?? const <StoredArea>[] : null;
+    final mask = overlayAreas != null && camera != null
+        ? offlineCoverageMask(overlayAreas, camera.bounds, cameraZoom: camera.zoom)
+        : null;
+
     final layers = MapViewLayers(
+      polygons: [?mask],
       circles: [
         if (position != null && position.accuracy > 0)
           MapViewCircle(
@@ -389,6 +426,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
 
     return Scaffold(
+      key: _scaffoldKey,
       body: Stack(
         children: [
           MapView(
@@ -495,23 +533,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     FloatingActionButton.small(
                       heroTag: 'poi-filter',
                       tooltip: 'Ebenen und Orte',
-                      // „Bereich speichern" wohnt im Blatt, nicht als
+                      // „Offline-Karten" wohnt im Blatt, nicht als
                       // eigener Knopf: Die Spalte lief auf einem kleinen
-                      // Telefon quer sonst über (im Test gesehen).
+                      // Telefon sonst quer über (im Test gesehen).
                       onPressed: () => showPoiFilterSheet(
                         context,
-                        onSaveArea: () => showSaveAreaSheet(
-                          context,
-                          viewport: camera == null
-                              ? null
-                              : AreaBounds(
-                                  south: camera.bounds.south,
-                                  west: camera.bounds.west,
-                                  north: camera.bounds.north,
-                                  east: camera.bounds.east),
-                          // Die Kacheln entlang der Trails, nicht ein
-                          // Rechteck um alle (0.24.0).
-                          aroundTrails: AreaShape.alongLines([for (final t in trails) t.points]),
+                        onOfflineMaps: () => showOfflineMapsSheet(
+                          _scaffoldKey.currentState!,
+                          ref,
+                          // Ausschnitt und Trails vom ZEITPUNKT des
+                          // Speicherns, nicht vom Öffnen des Blatts — man
+                          // schiebt die Karte ja, während es offen ist.
+                          onSaveArea: () => _openSaveArea(context),
                         ),
                       ),
                       child: const Icon(Icons.layers_outlined),

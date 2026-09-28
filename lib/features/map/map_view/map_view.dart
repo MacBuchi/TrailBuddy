@@ -229,6 +229,26 @@ class MapViewPolyline {
       '${borderColor?.toARGB32() ?? ''}|$borderWidth';
 }
 
+/// Eine Fläche mit Löchern — die Abdunkelung außerhalb der gespeicherten
+/// Kacheln (Offline-Karten, Stufe B): EIN Polygon über dem Ausschnitt,
+/// die gespeicherten Kacheln sind die Löcher. Beide Engines können
+/// Löcher (flutter_map `holePointsList`, MapLibre innere Ringe).
+class MapViewPolygon {
+  const MapViewPolygon({
+    required this.points,
+    this.holes = const [],
+    required this.fillColor,
+    this.borderColor,
+    this.borderWidth = 0,
+  });
+
+  final List<LatLng> points;
+  final List<List<LatLng>> holes;
+  final Color fillColor;
+  final Color? borderColor;
+  final double borderWidth;
+}
+
 /// Eine Kreisfläche in METERN (der Genauigkeitskreis der Position).
 /// Kein Pixelradius: Der Kreis soll mit der Karte wachsen.
 class MapViewCircle {
@@ -248,17 +268,20 @@ class MapViewCircle {
 }
 
 /// Alles, was über der Karte liegt, in fester Zeichenreihenfolge (unten →
-/// oben): Kreise < Linien < Marker. Innerhalb jeder Liste gilt die
-/// Reihenfolge der Liste — der Screen legt offizielle Trails vor das
+/// oben): Polygone < Kreise < Linien < Marker. Innerhalb jeder Liste gilt
+/// die Reihenfolge der Liste — der Screen legt offizielle Trails vor das
 /// Netz, damit das Netz obenauf liegt, und die Orte vor die eigene
-/// Position.
+/// Position. Die Abdunkelung liegt ganz unten: Linien und Marker bleiben
+/// darüber lesbar.
 class MapViewLayers {
   const MapViewLayers({
+    this.polygons = const [],
     this.circles = const [],
     this.polylines = const [],
     this.markers = const [],
   });
 
+  final List<MapViewPolygon> polygons;
   final List<MapViewCircle> circles;
   final List<MapViewPolyline> polylines;
   final List<MapViewMarker> markers;

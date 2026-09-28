@@ -57,6 +57,12 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
   auf 40 779 Kacheln, die Obergrenze sind 40 000). Die App zählt die
   Kacheln von Zoom 8 bis zum Zoom des Hosts auf, die die Form berühren;
   ein Archiv braucht kein Rechteck, sein Rahmen im Header ist die Hülle.
+- **Sehen, was liegt** (seit 0.25.0, Stufe B): Das Blatt „Offline-Karten"
+  unter „Ebenen und Orte" dunkelt die Karte ab, solange es offen ist —
+  hell bleibt, was gespeichert ist (die Kacheln aus den Formen im Index,
+  zwei Stufen über dem Kamera-Zoom, bis zum Zoom des Bereichs). Die
+  Karte bleibt dabei bedienbar (persistentes Blatt am Scaffold der
+  Karte). Stufe C, Formen zeichnen (additiv/subtraktiv), ist offen.
 - **Größe vorher, exakt**: Das PMTiles-Verzeichnis nennt die Bytezahl
   jeder Kachel. „Diesen Bereich speichern — 12,4 MB" ist eine Messung,
   keine Schätzung. Faustzahl aus den PilzBuddy-Werten: 5,54 GB auf
