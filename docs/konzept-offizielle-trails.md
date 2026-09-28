@@ -28,11 +28,11 @@ sind öffentlich, und das Buddy-Modell bleibt unberührt.
    — dort ausdrücklich auch Vereins-Trails (Trailsurfers
    Baden-Württemberg e.V., Bikeländ Eberbach, Flowtrail Mosbach und
    weitere dieser Art).
-4. **Kein OpenStreetMap als Quelle.** Nur, was eine zuständige Stelle
-   ausweist oder betreibt: eine Behörde, ein Verein mit Genehmigung, ein
-   Bikepark. (Lesart von „nur Behördendaten" zusammen mit Punkt 3 — die
-   Vereine sind keine Behörden, bauen aber genehmigte Trails; bitte
-   bestätigen.)
+4. **Kein OpenStreetMap als Quelle — Klasse statt Masse.** Nur, was
+   eine zuständige Stelle ausweist oder betreibt: eine Behörde, ein
+   Verein mit Genehmigung, ein Bikepark. Lieber eine dünne Ebene, auf
+   die man sich verlassen kann, als eine volle mit Unbekanntem.
+5. **Die Ebene ist beim ersten Start an.**
 
 ## 3. Warum kein offizielles Konto
 
@@ -122,8 +122,8 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 
 ### 5.3 In der App
 
-- Eine Ebene „Offizielle Trails", ein- und ausschaltbar (Vorgabe:
-  offen, Abschnitt 6), gerätelokal wie der Orte-Filter.
+- Eine Ebene „Offizielle Trails", ein- und ausschaltbar (Vorgabe: an,
+  Entscheidung 5), gerätelokal wie der Orte-Filter.
 - Geladen wird eine Region erst, wenn der Ausschnitt ihren Rahmen
   berührt; gemerkt auf dem Gerät, neu geholt, wenn der Index einen neuen
   Stand nennt.
@@ -144,18 +144,17 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 
 ## 6. Vor dem Bauen zu klären
 
-1. **Vereine und Bikeparks:** Anfrage je Verein (Vorlage für eine kurze
-   Mail: was wir zeigen, mit welcher Quellenangabe, dass wir nichts
-   verkaufen, dass sie jederzeit widerrufen können). Ohne Zusage bleibt
-   der Verein draußen.
+1. **Vereine und Bikeparks:** Anfrage je Verein durch den Betreiber
+   (was wir zeigen, mit welcher Quellenangabe, dass nichts verkauft
+   wird, dass die Zusage jederzeit widerrufbar ist). Ohne Zusage bleibt
+   der Verein draußen; die Zusage liegt im DocuHub.
 2. **Tirol:** genauen Datensatz und Lizenz bestimmen, prüfen, ob die
    Singletrails als eigene Kategorie herauskommen.
 3. **Vorarlberg:** prüfen, ob Singletrails im Mountainbikenetz
    unterscheidbar sind.
 4. **Schweiz:** bei SchweizMobil anfragen, ob es Singletrail-Abschnitte
    als Daten gibt; sonst zunächst nur die Sperrungen (Abschnitt 7).
-5. **Vorgabe der Ebene:** an oder aus beim ersten Start?
-6. **Rechtlich** (Konzept 7): Die Ebene sagt „ausgewiesen laut Quelle",
+5. **Rechtlich** (Konzept 7): Die Ebene sagt „ausgewiesen laut Quelle",
    nie etwas über andere Trails. Ein Satz im Blatt, keine Kennzeichnung
    der übrigen Trails als „inoffiziell".
 
