@@ -2,10 +2,13 @@ package de.mcbuchi.trailbuddy
 
 import android.app.ActivityManager
 import android.app.ApplicationExitInfo
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -17,9 +20,10 @@ import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
 /**
- * Der einzige native Code im Projekt (Muster PilzBuddy), zwei Kanäle:
- * die geladene Update-APK an den System-Installer geben, und lesen, warum
- * die App beim letzten Mal beendet wurde (#40).
+ * Der einzige native Code im Projekt (Muster PilzBuddy): zwei
+ * MethodChannels — die geladene Update-APK an den System-Installer geben,
+ * und lesen, warum die App beim letzten Mal beendet wurde (#40) — und der
+ * Benachrichtigungs-Kanal für Push (#34).
  *
  * Beendigungsgründe: Android führt seit Version 11 selbst Buch darüber,
  * und eine App darf ihre EIGENEN Einträge ohne jede Berechtigung lesen.
@@ -52,6 +56,31 @@ class MainActivity : FlutterActivity() {
 
         /** Obergrenze beim Lesen, damit ein Riesen-Dump nichts blockiert. */
         const val TRACE_BYTES = 4 * 1024 * 1024
+    }
+
+    /**
+     * Der Kanal, auf dem FCM Meldungen anzeigt (#34). Sein Name steht im
+     * Manifest (`default_notification_channel_id`) und in strings.xml; der
+     * Manifest-Test hält alle drei zusammen.
+     *
+     * IMPORTANCE_HIGH, weil sich die Wichtigkeit nach dem ERSTEN Anlegen
+     * nicht mehr ändern lässt — leiser drehen kann der Nutzer selbst,
+     * lauter niemand (PilzBuddy #277). Wer die Stufe je ändern will,
+     * braucht eine NEUE Kanal-ID. Ohne diese Zeilen legte FCM still einen
+     * eigenen, leisen Kanal an: nur ein Symbol in der Statusleiste.
+     */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val channel = NotificationChannel(
+            getString(R.string.notification_channel_id),
+            getString(R.string.notification_channel_name),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = getString(R.string.notification_channel_description)
+        }
+        getSystemService(NotificationManager::class.java)
+            .createNotificationChannel(channel)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

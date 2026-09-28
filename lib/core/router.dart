@@ -15,6 +15,7 @@ import '../features/profile/profile_screen.dart';
 import '../features/offline_areas/areas_screen.dart';
 import '../features/rides/rides_screen.dart';
 import '../features/trails/trail_import_screen.dart';
+import '../features/trails/trail_providers.dart' show mapFocusTrailProvider;
 import '../features/trails/trails_screen.dart';
 import 'widgets/keyboard_inset_below_bar.dart';
 
@@ -60,6 +61,19 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      // Das Ziel einer Push-Benachrichtigung (#34, `push_routes.dart`):
+      // KEINE eigene Seite — der Trail liegt auf der Karte. Die Route
+      // stellt den Fokus-Wunsch (die Karte holt ihn beim Aufbau oder
+      // sobald der Trail geladen ist) und landet auf der Karte. Als Route
+      // statt als Aufruf, weil der Web-Worker die App aus dem Nichts
+      // unter `#/trail/<id>` öffnet.
+      GoRoute(
+          path: '/trail/:id',
+          redirect: (context, state) {
+            ref.read(mapFocusTrailProvider.notifier).state =
+                state.pathParameters['id'];
+            return '/';
+          }),
       GoRoute(
           path: '/signup', builder: (context, state) => const SignupScreen()),
       StatefulShellRoute.indexedStack(

@@ -101,6 +101,57 @@ void main() {
     expect(colors, {'#FFFFFFFF'});
   });
 
+  test('der Push-Kanal ist deklariert, angelegt und laut (#34)', () {
+    // Drei Stellen müssen zusammenpassen, und keine fällt beim Editieren
+    // auf: Ohne Manifest-Zeile legt FCM still einen eigenen, leisen
+    // Kanal an (nur ein Symbol in der Statusleiste, kein Banner —
+    // PilzBuddy #277); ohne `createNotificationChannel` zeigt das
+    // Manifest auf nichts; unterhalb von IMPORTANCE_HIGH gibt es kein
+    // Banner — und die Stufe lässt sich später NICHT mehr ändern.
+    const idName = 'notification_channel_id';
+    final declared = RegExp(
+            r'android:name="com\.google\.firebase\.messaging\.default_notification_channel_id"\s+android:value="([^"]+)"')
+        .allMatches(manifest)
+        .map((m) => m.group(1))
+        .toList();
+    expect(declared, ['@string/$idName'],
+        reason: 'Manifest nennt den Kanal nicht (oder mehrfach)');
+    final strings = File('android/app/src/main/res/values/strings.xml').readAsStringSync();
+    expect(strings, contains('name="$idName"'));
+    final kotlin = File('android/app/src/main/kotlin/${appId.replaceAll('.', '/')}/MainActivity.kt').readAsStringSync();
+    expect(kotlin, contains('createNotificationChannel'));
+    expect(kotlin, contains('R.string.$idName'));
+    expect(kotlin, contains('NotificationManager.IMPORTANCE_HIGH'));
+    // Symbol und Tönung: Ohne die Symbol-Zeile nähme FCM das
+    // Launcher-Icon — als Silhouette ein weißer Klotz (PilzBuddy #331).
+    expect(
+        RegExp(r'android:name="com\.google\.firebase\.messaging\.default_notification_icon"\s+android:resource="@drawable/ic_notification"')
+            .hasMatch(manifest),
+        isTrue);
+    expect(
+        RegExp(r'android:name="com\.google\.firebase\.messaging\.default_notification_color"\s+android:resource="@color/notification_color"')
+            .hasMatch(manifest),
+        isTrue);
+    expect(File('android/app/src/main/res/values/colors.xml').readAsStringSync(),
+        contains('name="notification_color"'));
+  });
+
+  test('google-services nur mit Datei — und die Datei kennt den Paketnamen', () {
+    // Das Plugin bricht den Build ab, wenn google-services.json fehlt; bis
+    // der Betreiber das Firebase-Projekt anlegt, baut die App ohne. Liegt
+    // die Datei da, muss sie DIESES Paket kennen, sonst scheitert Gradle.
+    expect(File('android/settings.gradle.kts').readAsStringSync(),
+        contains('id("com.google.gms.google-services")'));
+    final code = gradle.split('\n').where((l) => !l.trimLeft().startsWith('//')).join('\n');
+    expect(code, contains('if (file("google-services.json").exists())'));
+    expect(code, contains('apply(plugin = "com.google.gms.google-services")'));
+    final json = File('android/app/google-services.json');
+    if (json.existsSync()) {
+      expect(json.readAsStringSync(), contains('"package_name": "$appId"'),
+          reason: 'google-services.json kennt $appId nicht — neu aus der Firebase-Konsole holen');
+    }
+  });
+
   test('beide Backup-Regeln schließen dasselbe aus', () {
     Set<String> excludes(String path) => RegExp(r'<exclude domain="(\w+)" path="([^"]+)"')
         .allMatches(File(path).readAsStringSync())

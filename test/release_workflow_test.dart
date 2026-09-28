@@ -239,6 +239,32 @@ void main() {
     expect(ci, contains('tool/grants_check.sql'));
   });
 
+  test('Push (#34): Dry Run ruft push_flush auf, Build Web prüft den Worker, Functions deployt ein eigener Workflow', () {
+    // PL/pgSQL prüft den Rumpf erst beim Aufruf — ohne den Schritt legte
+    // ein Fehler in push_flush live jede Minute alle Meldungen still.
+    final ci = File('.github/workflows/ci.yml').readAsStringSync();
+    expect(ci, contains('bash tool/push_flush_check.sh'));
+    // Der Worker entscheidet, ob eine Meldung im Browser erscheint; FCM
+    // quittiert auch dann „ok", wenn danach nichts passiert.
+    expect(ci, contains('node tool/check_push_worker.mjs'));
+    // Edge Functions spielt der Schema Check NICHT ein; ohne eigenen
+    // Workflow läge `send-push` nur im Repo (PilzBuddy #277).
+    final deploy = File('.github/workflows/deploy-functions.yml').readAsStringSync();
+    expect(deploy, contains('supabase/functions/**'));
+    expect(deploy, contains('supabase functions deploy --project-ref'));
+    expect(deploy, contains("if: steps.token.outputs.have == 'true'"),
+        reason: 'ohne SUPABASE_ACCESS_TOKEN sichtbar überspringen, nie rot');
+    // Derselbe Projekt-Ref wie in der App — sonst deployt CI in ein
+    // Projekt, das die App nie fragt.
+    final config = File('lib/core/supabase_config.dart').readAsStringSync();
+    final ref = RegExp(r'https://([a-z]+)\.supabase\.co').firstMatch(config)!.group(1)!;
+    expect(deploy, contains('--project-ref $ref'));
+    // Die Function braucht `verify_jwt = false` — der Cron-Job hat kein JWT.
+    final toml = File('supabase/config.toml').readAsStringSync();
+    expect(toml, contains('[functions.send-push]\nverify_jwt = false'));
+    expect(File('supabase/functions/send-push/index.ts').existsSync(), isTrue);
+  });
+
   test('CI prüft die erzeugten Assets als eigenen Schritt', () {
     // Kartenstil und Übersichtskarte sind ERZEUGT; eine Handänderung
     // bestünde jeden anderen Check und wäre beim nächsten Erzeugen weg

@@ -73,6 +73,23 @@
         <meta-data
             android:name="de.mcbuchi.trailbuddy.RIDE_NOTIFICATION_ICON"
             android:resource="@drawable/ic_notification" />
+        <!-- Push (#34): der Kanal, auf dem FCM Meldungen anzeigt. Ohne
+             diese Zeile legt FCM still einen eigenen, LEISEN Kanal an —
+             nur ein Symbol in der Statusleiste, kein Banner (PilzBuddy
+             #277). Die Wichtigkeit lässt sich nach dem ersten Anlegen
+             NICHT mehr ändern; angelegt wird der Kanal in
+             MainActivity.onCreate mit IMPORTANCE_HIGH. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/notification_channel_id" />
+        <!-- Dasselbe Alpha-Symbol wie bei der Fahrt; ohne diese Zeile nähme
+             FCM das Launcher-Icon, als Silhouette ein weißer Klotz. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
         <!-- Reicht die geladene Update-APK an den System-Installer heraus
              (content-URI mit Leseerlaubnis; `file://` ist ab Android 7
              verboten). `exported="false"`: nur wer die Erlaubnis bekommt,

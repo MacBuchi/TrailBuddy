@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Der Benachrichtigungs-Kanal für Push (#34). Die ID steht hier,
+         im Manifest (FCM-Vorgabe) und in MainActivity.onCreate — der
+         Manifest-Test hält alle drei zusammen. Die Wichtigkeit merkt sich
+         Android beim ERSTEN Anlegen; wer sie je ändern will, braucht eine
+         NEUE ID. -->
+    <string name="notification_channel_id" translatable="false">trailbuddy_meldungen</string>
+    <string name="notification_channel_name">Meldungen</string>
+    <string name="notification_channel_description">Statusmeldungen und Hinweise deiner Buddys zu Trails, die du siehst.</string>
+</resources>

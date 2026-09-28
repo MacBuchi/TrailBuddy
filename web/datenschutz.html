@@ -6,7 +6,7 @@
   tut. `test/privacy_policy_test.dart` prüft jeden Host, den der Code
   anspricht, gegen diese Seite: Ein neues Netzziel ohne Absatz hier macht
   CI rot. Was hier NICHT steht, tut die App nicht — kommt es dazu
-  (Aufzeichnung, Push, Fotos), kommt der Absatz im selben PR.
+  (Fotos, Nachrichten), kommt der Absatz im selben PR.
 
   Entwurf zur juristischen Prüfung vor dem Play-Store-Eintrag (Konzept,
   Entscheidung 7).
@@ -99,6 +99,12 @@
     <tr><td>Feedback (Text, App-Version)</td>
         <td>Wünsche und Fehlermeldungen der Nutzer</td>
         <td>Einwilligung durch Absenden</td></tr>
+    <tr><td>Gerätekennung für Benachrichtigungen („Push-Token", nur wenn
+          du sie einschaltest)</td>
+        <td>Dir sagen, wenn ein Buddy einen Trail meldet, den du siehst
+          — siehe „Google (Benachrichtigungen)"</td>
+        <td>Einwilligung durch Einschalten, Art. 6 Abs. 1 a DSGVO;
+          Widerruf durch Ausschalten</td></tr>
   </table>
 
   <h3>Was eine Aufzeichnung ist — und was nicht</h3>
@@ -142,6 +148,35 @@
     zum Zurücksetzen des Passworts und die Codes beim Adresswechsel gehen
     über Brevo (Sendinblue GmbH, Berlin). Brevo erhält dafür deine
     E-Mail-Adresse und den Inhalt der Mail.</p>
+
+  <h3>Google (Auftragsverarbeiter, Benachrichtigungen)</h3>
+  <p>Benachrichtigungen sind <strong>ab Werk aus</strong>. Schaltest du sie
+    im Profil ein, wird <strong>Firebase Cloud Messaging</strong> von Google
+    eingebunden — der Dienst, über den Android und der Browser überhaupt
+    erst Meldungen zustellen können. Dabei erzeugt dein Gerät eine
+    zufällige Gerätekennung („Token"), die bei Google und bei uns
+    gespeichert wird; sie enthält weder deinen Namen noch deine
+    E-Mail-Adresse. Schaltest du die Benachrichtigungen wieder aus, wird
+    sie bei uns gelöscht und es kommt nichts mehr an.</p>
+  <p><strong>Was in einer Benachrichtigung steht — und was nicht.</strong>
+    Eine Meldung läuft über die Server von Google. Deshalb enthält sie
+    <strong>niemals einen Trailnamen, keinen Benutzernamen, keine
+    Koordinaten und nicht den Text eines Hinweises</strong> — nur, was
+    passiert ist („Ein Buddy meldet einen Trail als gesperrt", „Neuer
+    Hinweis von einem Buddy"), Anzahlen und eine interne Kennung des
+    Trails, mit der die App ihn nach dem Antippen selbst nachschlägt.
+    Google kann dabei die IP-Adresse deines Geräts verarbeiten, und die
+    Zustellung kann über Server außerhalb der Europäischen Union
+    laufen. Gemeldet wird dir nur, was du in der App ohnehin sehen
+    darfst: Statusmeldungen und Hinweise deiner direkten Buddys zu
+    Trails, die du siehst.</p>
+  <p><strong>Im Browser kommt ein Baustein von Google dazu.</strong>
+    Schaltest du die Benachrichtigungen in der Browser-Fassung ein, lädt
+    die Seite den dafür nötigen Programmteil von
+    <strong>www.gstatic.com</strong>, einem Server von Google; dabei
+    überträgt dein Browser technisch bedingt seine IP-Adresse dorthin.
+    Das geschieht <em>erst beim Einschalten</em> und nie davor. Die
+    Android-App bringt den Baustein mit und lädt ihn nicht nach.</p>
 
   <h3>Verbindungen, die die App aufbaut</h3>
   <ul>
@@ -239,6 +274,9 @@
       entfernt oder du das Konto löschst. Welche Hinweise du schon gelesen
       hast, merkt sich nur dein Gerät.</li>
     <li>Fehlerberichte: 90 Tage.</li>
+    <li>Gerätekennung für Benachrichtigungen: bis du sie ausschaltest, das
+      Konto löschst oder Google die Kennung für ungültig erklärt (etwa
+      nach dem Deinstallieren); dann wird sie bei uns entfernt.</li>
     <li>Feedback: unbegrenzt, siehe oben.</li>
   </ul>
 

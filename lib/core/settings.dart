@@ -55,6 +55,17 @@ abstract interface class Settings {
   bool get officialTrailsEnabled;
 
   Future<void> setOfficialTrailsEnabled(bool value);
+
+  /// Das FCM-Token, mit dem dieses Gerät in `push_devices` steht — oder
+  /// null, solange niemand Push eingeschaltet hat (#34).
+  ///
+  /// Gemerkt wird NUR das Token, nicht „an/aus": Ob dieses Gerät
+  /// Meldungen bekommt, steht in `push_devices`; ein zweites Flag hier
+  /// liefe beim ersten Abmelden auseinander. Gebraucht wird es zum
+  /// Austragen und für die Testnachricht.
+  String? get pushToken;
+
+  Future<void> setPushToken(String? value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -105,6 +116,16 @@ class PrefsSettings implements Settings {
   @override
   bool get officialTrailsEnabled =>
       _prefs.getBool(_officialTrailsEnabledKey) ?? true;
+
+  static const _pushTokenKey = 'push_token';
+
+  @override
+  String? get pushToken => _prefs.getString(_pushTokenKey);
+
+  @override
+  Future<void> setPushToken(String? value) => value == null
+      ? _prefs.remove(_pushTokenKey)
+      : _prefs.setString(_pushTokenKey, value);
 
   @override
   Future<void> setOfficialTrailsEnabled(bool value) =>

@@ -207,10 +207,16 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   Trail war. Nach 90 Tagen räumt der Server auf; der jüngste Hinweis
   eines Autors zu einem Trail bleibt, bis ihn jemand entfernt (je Autor,
   weil „der jüngste über alle Netze" eine Rechnung über Netzgrenzen
-  wäre). Beim Ändern des Status wird einer angeboten. Ohne Push (kommt
-  mit „Nachrichten") hebt die App Trails mit einem neuen, noch nicht
-  gelesenen Hinweis eines Buddys aus den letzten sieben Tagen in Karte
-  und Liste hervor; was gelesen ist, weiß nur das Gerät.
+  wäre). Beim Ändern des Status wird einer angeboten. Die App hebt
+  Trails mit einem neuen, noch nicht gelesenen Hinweis eines Buddys aus
+  den letzten sieben Tagen in Karte und Liste hervor; was gelesen ist,
+  weiß nur das Gerät. **Seit 0.23.0 (#34) dazu eine Push-Meldung** für
+  Statuswechsel und neue Hinweise — an die direkten Buddys des Autors,
+  die den Trail und seinen Beitrag sehen (dieselben Regeln wie die
+  Sichtbarkeit, je Buddy-Beziehung eine Zeile, keine Rechnung über alle;
+  Abschnitt 12), ohne Inhalt: kein Trailname, kein Name, kein
+  Hinweistext, nur Art, Statuswort, Anzahl und die opake Trail-Kennung
+  als Ziel.
 
 Eine zentrale Sicht (`trails_visible`) rechnet das serverseitig, damit
 Karte, Liste und Blatt dieselbe Antwort geben — dieselbe Regel wie in
@@ -709,8 +715,9 @@ Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
   wartende Trails gestrichelt, Android; Web bewusst noch ohne).
 - **Phase 3 — Offline und Austausch.** Offline-Karten (#31), Trails im
   Zwischenspeicher (#32, seit 0.15.0: Kopie des Netzes auf dem Gerät, nur
-  ohne Empfang gelesen), Nachrichten (#34), Statusmeldungen,
-  Zusammenführen im Netz (#33).
+  ohne Empfang gelesen), Push für Statusmeldungen und Hinweise (#34,
+  seit 0.23.0; Nachrichten zwischen Buddys noch offen), Zusammenführen
+  im Netz (#33).
 - **Phase 4 — Routing.** Nach eigener Messung (9).
 - **Phase 5 — Community.** Airtime, Ranking unter Buddys, Fotos am
   Trail (Fundfoto-Baustein).

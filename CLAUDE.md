@@ -641,11 +641,71 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   MB um, und 0 heißt „nicht gemessen", nicht „0 MB". Web und Android < 11
   liefern nichts. Tests: `test/exit_reporting_test.dart`,
   `test/tombstone_test.dart`.
+- **Push** (#34, seit 0.23.0, Patch 008; PilzBuddy #277/#564 als
+  Vorlage): eine Meldung, wenn ein Buddy einen Trail meldet (Status)
+  oder einen Hinweis schreibt — an die direkten Buddys des Autors, die
+  den Trail und seinen Beitrag sehen (`app_internal.push_recipients`,
+  Spiegel von `td_friend_select`/`notes_select`; je Buddy-Beziehung
+  eine Zeile im Korb, keine Rechnung über alle, Konzept 12). Acht Dinge,
+  die man wissen muss:
+  - **Die Meldung trägt KEINEN Inhalt**: kein Trailname, kein Name,
+    keine Koordinate, kein Hinweistext — nur Art, Statuswort, Anzahlen
+    und die opake Trail-Kennung als `route` (`/trail/<uuid>`, bei
+    mehreren `/trails`). Der Text steht an EINER Stelle, in
+    `push_flush`; `tool/push_flush_check.sh` prüft ihn Wort für Wort und
+    dass weder Name, Trailname noch Koordinate in der Nutzlast stehen.
+    Mehr Inhalt wäre eine Betreiber-Entscheidung samt Zeile in der
+    Datenschutzerklärung und im Profil-Schalter (PilzBuddy Patch 031).
+  - **Entprellt**: (Empfänger, Art, Trail) ist der Schlüssel in
+    `app_internal.push_outbox`, fünf Minuten Ruhe, gedeckelt auf 30
+    Minuten; je Empfänger EINE Meldung je Lauf. Ein erneutes Melden
+    desselben Status (nur `status_at`) löst nichts aus; zurück auf
+    „offen" schon (die gute Nachricht). Privat heißt: niemand.
+  - **Ohne Vault-Geheimnisse räumt `push_flush` nur ab** — die drei
+    Geheimnisse (`push_functions_url`, `push_job_secret`,
+    `push_service_key`) legt der Betreiber im SQL-Editor an (Anleitung in
+    patch_008); die Function braucht `FCM_SERVICE_ACCOUNT` (base64) und
+    `PUSH_JOB_SECRET` per `supabase secrets set`. `send-push` deployt
+    NUR `deploy-functions.yml` (Repo-Secret `SUPABASE_ACCESS_TOKEN`,
+    sonst sichtbar übersprungen) — der Schema Check spielt keine
+    Functions ein. `tool/push_flush_check.sh` ruft den Versand im Dry
+    Run WIRKLICH auf (zurückgerollt): PL/pgSQL prüft den Rumpf erst beim
+    Aufruf, und live läuft er jede Minute.
+  - **Firebase gibt es noch nicht.** `lib/core/push_config.dart` ist
+    leer (Web), `android/app/google-services.json` fehlt und das
+    Gradle-Plugin wird nur mit der Datei angewendet — der Build läuft
+    ohne, `requestPushToken` meldet `unavailable`, der Schalter sagt
+    „noch nicht eingerichtet". Web-Optionen und VAPID-Schlüssel gehören
+    zusammen gesetzt (Test). Firebase ausschließlich für Cloud Messaging.
+  - **Das Ziel ist eine Route, keine Seite**: `/trail/:id` setzt den
+    Fokus-Wunsch (`mapFocusTrailProvider`) und landet auf der Karte; die
+    Karte löst ihn beim Aufbau ODER sobald der Trail geladen ist
+    (`_pendingFocus`) — beim Kaltstart aus einer Push kommt der Wunsch
+    vor den Trails. Der Web-Worker öffnet die App unter `#/trail/<id>`.
+    Erlaubnisliste in `push_routes.dart`; alles andere bleibt liegen.
+  - **Der Schalter zeigt das ERGEBNIS, nicht den Wunsch**
+    (`PushEnabledNotifier`): Ablehnung, Funkloch und fehlende
+    Konfiguration bekommen je ihren Satz. Gemerkt wird nur das Token
+    (`Settings.pushToken`); die Wahrheit ist die Zeile in `push_devices`
+    (Token = Schlüssel, Kontowechsel zieht sie um).
+  - **Android**: Kanal `trailbuddy_meldungen` (Manifest, `strings.xml`,
+    `MainActivity.onCreate`, IMPORTANCE_HIGH — die Stufe lässt sich
+    nachträglich NICHT ändern, wer sie ändern will, braucht eine neue
+    ID), Symbol nur Alphakanal, Tönung `notification_color`. Der
+    Manifest-Test hält alles zusammen. Im Vordergrund zeigt Android
+    nichts — `PushListener` (in `app.dart`, über dem `UpdateGate`) zeigt
+    die Leiste, erst `clearSnackBars`, dann zeigen.
+  - **Web**: eigener Worker `web/push/firebase-messaging-sw.js` ohne
+    Firebase-SDK, Scope `push/` (der Basis-Scope gehört `sw.js`), Fokus
+    statt Sichtbarkeit und nur DIESE App (`APP_BASE`), Übergabe
+    `trailbuddy-push` (`kPushBridgeType`, ein Test hält beide zusammen).
+    `tool/check_push_worker.mjs` prüft ihn im echten Chrome (Job „Build
+    Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und Zwischenspeicher im Browser,
-  Nachrichten und Push, Meldung zu einem einzelnen Trail,
-  Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.
+  Nachrichten zwischen Buddys (#34, Rest), Meldung zu einem einzelnen
+  Trail, Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.
 
 ## Code-Konventionen
 
