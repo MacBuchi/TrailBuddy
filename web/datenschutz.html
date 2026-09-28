@@ -151,6 +151,15 @@
       Overpass-API des FOSSGIS e.V. (Deutschland). Keine Trails, keine
       Fahrten, keine Kontodaten. Ganz ausschalten lässt sich das, indem
       man im Filter alle Gruppen abwählt.</li>
+    <li><strong>raw.githubusercontent.com</strong> — die offiziellen
+      Trails auf der Karte (öffentliche Daten von Behörden, etwa dem Land
+      Tirol). Nur solange die Ebene „Offizielle Trails" an ist — anfangs
+      ist sie es — und erst ab Zoomstufe 8, wenn der Ausschnitt eine
+      Region berührt, für die es Daten gibt: Dann lädt die App die Datei
+      dieser Region von GitHub und merkt sie sich auf dem Gerät. GitHub
+      sieht dabei deine IP-Adresse und welche Region geladen wird. Keine
+      Trails deines Netzes, keine Fahrten, keine Kontodaten. Ausschalten
+      lässt sich das über den Schalter der Ebene.</li>
     <li><strong>api.github.com</strong> und <strong>github.com</strong> —
       die Update-Prüfung fragt die Release-Liste des Projekts ab und lädt
       auf Wunsch die App-Datei. GitHub sieht dabei deine IP-Adresse. In
@@ -165,7 +174,7 @@
 
   <h3>Was zusätzlich auf dem Gerät liegt</h3>
   <p>Sitzungs-Token, Einstellungen, ein Zwischenspeicher der Trails deines
-    Netzes und deine Fahrten. Nichts davon wird über das Android-Backup in
+    Netzes, die geladenen offiziellen Trails und deine Fahrten. Nichts davon wird über das Android-Backup in
     Googles Cloud gesichert; die App schließt diese Dateien ausdrücklich
     aus.</p>
 

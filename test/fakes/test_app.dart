@@ -16,9 +16,11 @@ import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
 import 'package:trailbuddy/features/map/map_providers.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
+import 'package:trailbuddy/features/official/official_trails_source.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
 import 'fake_backend.dart';
+import 'fake_official_trails.dart';
 import 'fake_pois.dart';
 import 'fake_settings.dart';
 import 'fake_trails.dart';
@@ -45,6 +47,8 @@ List<Override> overridesFor(FakeBackend backend,
         Settings? settings,
         FakeTrailRepository? trails,
         FakePoiSource? pois,
+        FakeOfficialTrailsSource? official,
+        MemoryOfficialTrailsCache? officialCache,
         List<Override> extra = const []}) =>
     [
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
@@ -67,6 +71,12 @@ List<Override> overridesFor(FakeBackend backend,
       // Und keine Overpass-Abfragen: Eine Karte, die auf einen Trail
       // zoomt, liegt über Zoom 12 und fragte sonst wirklich an.
       poiSourceProvider.overrideWithValue(pois ?? FakePoiSource()),
+      // Ebenso die offiziellen Trails: Vorgabe ist ein Index ohne
+      // Regionen, gemerkt wird im Speicher statt im App-Verzeichnis.
+      officialTrailsSourceProvider
+          .overrideWithValue(official ?? FakeOfficialTrailsSource()),
+      officialTrailsCacheProvider
+          .overrideWithValue(officialCache ?? MemoryOfficialTrailsCache()),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
@@ -85,6 +95,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     Settings? settings,
     FakeTrailRepository? trails,
     FakePoiSource? pois,
+    FakeOfficialTrailsSource? official,
+    MemoryOfficialTrailsCache? officialCache,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -94,6 +106,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         settings: settings,
         trails: trails,
         pois: pois,
+        official: official,
+        officialCache: officialCache,
         extra: extraOverrides),
     child: const TrailBuddyApp(),
   ));

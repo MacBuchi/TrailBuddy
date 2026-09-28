@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_colors.dart';
+import '../official/official_trails_source.dart';
 import 'poi.dart';
 import 'poi_source.dart';
 
@@ -257,9 +259,10 @@ Future<void> showPoiSheet(BuildContext context, Poi poi) =>
       },
     );
 
-/// Der Filter: vier Gruppen zum An- und Ausschalten, darunter je Gruppe
-/// ihre Arten als Chips (Detailfilter). Er sagt dazu, ab wann Orte
-/// erscheinen und wohin der Ausschnitt dafür geht.
+/// Der Filter: oben die Ebene „Offizielle Trails" (#13), darunter vier
+/// Gruppen von Orten zum An- und Ausschalten, je Gruppe ihre Arten als
+/// Chips (Detailfilter). Er sagt dazu, ab wann Orte erscheinen und wohin
+/// der Ausschnitt dafür geht.
 Future<void> showPoiFilterSheet(BuildContext context) =>
     showModalBottomSheet<void>(
       context: context,
@@ -276,6 +279,7 @@ class _PoiFilterSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final groups = ref.watch(poiGroupsProvider);
     final hidden = ref.watch(poiHiddenKindsProvider);
+    final official = ref.watch(officialTrailsEnabledProvider);
     final text = Theme.of(context).textTheme;
     return SafeArea(
       child: SingleChildScrollView(
@@ -284,7 +288,23 @@ class _PoiFilterSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Text('Ebenen', style: text.titleLarge),
+            ),
+            SwitchListTile(
+              key: const ValueKey('official-trails-switch'),
+              secondary: const CircleAvatar(
+                backgroundColor: AppColors.officialViolet,
+                child: Icon(Icons.verified_outlined, color: Colors.white, size: 20),
+              ),
+              title: const Text('Offizielle Trails'),
+              subtitle: const Text('Vom Land ausgewiesene Singletrails, '
+                  'gestrichelt — bisher Tirol'),
+              value: official,
+              onChanged: (v) => ref.read(officialTrailsEnabledProvider.notifier).set(v),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: Text('Orte auf der Karte', style: text.titleLarge),
             ),
             for (final g in PoiGroup.values) ...[

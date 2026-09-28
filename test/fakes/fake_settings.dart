@@ -8,7 +8,8 @@ class FakeSettings implements Settings {
       {this.prereleaseUpdatesEnabled = false,
       this.poiGroups,
       this.poiHiddenKinds,
-      this.seenNoteIds});
+      this.seenNoteIds,
+      this.officialTrailsEnabled = true});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -21,6 +22,14 @@ class FakeSettings implements Settings {
 
   @override
   List<String>? seenNoteIds;
+
+  @override
+  bool officialTrailsEnabled;
+
+  @override
+  Future<void> setOfficialTrailsEnabled(bool value) async {
+    officialTrailsEnabled = value;
+  }
 
   @override
   Future<void> setSeenNoteIds(List<String> ids) async {
