@@ -7,6 +7,12 @@
          Android. Der `play`-Flavor nimmt sie wieder heraus — Selbst-Updates
          verstoßen dort gegen „Device and Network Abuse". -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Die eigene Position als Punkt auf der Karte. Nur im Vordergrund,
+         gefragt erst beim Tipp auf „Meine Position"; die Position bleibt
+         auf dem Gerät. Ausdrücklich NICHT ACCESS_BACKGROUND_LOCATION —
+         die Aufzeichnung (Phase 2) bringt ihren Vordergrunddienst mit. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="TrailBuddy"
         android:name="${applicationName}"

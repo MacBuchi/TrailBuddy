@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
@@ -14,6 +15,7 @@ import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
 import 'map_providers.dart';
 import 'poi_layer.dart';
+import 'position_provider.dart';
 import 'poi_source.dart';
 
 /// Die Karte: OSM-Raster, darüber die Trails des eigenen Netzes als
@@ -53,6 +55,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return t.isOwn ? AppColors.trailGreen : AppColors.friendBlue;
   }
 
+  /// „Meine Position": die einzige Stelle, die nach der Berechtigung
+  /// fragt (`positionFixProvider`). Danach läuft der Punkt mit.
+  Future<void> _locateMe() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final fix = await ref.read(positionFixProvider)();
+    if (!mounted) return;
+    if (fix == null) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Position nicht verfügbar — Standort ist aus '
+              'oder für TrailBuddy nicht erlaubt.')));
+      return;
+    }
+    _fittedOnce = true;
+    final zoom = _controller.camera.zoom;
+    _controller.move(LatLng(fix.latitude, fix.longitude), zoom < 14 ? 15 : zoom);
+    ref.invalidate(positionStreamProvider);
+  }
+
   void _fitTo(List<Trail> trails) {
     final pts = [for (final t in trails) ...t.points];
     if (pts.isEmpty) return;
@@ -69,6 +89,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final poiUnavailable = ref.watch(poiGroupsProvider).isNotEmpty &&
         ref.watch(poiControllerProvider.select((s) => s.unavailable));
     final officialOn = ref.watch(officialTrailsEnabledProvider);
+    final position = ref.watch(positionStreamProvider).valueOrNull;
     final official = ref.watch(officialTrailsControllerProvider);
 
     // Einmal auf das Netz zoomen, sobald es da ist; danach nie wieder
@@ -103,6 +124,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             options: MapOptions(
               initialCenter: _dachCenter,
               initialZoom: 6,
+              // Norden bleibt oben: Eine gedrehte Karte passiert beim
+              // Zoomen mit zwei Fingern aus Versehen, und zurückdrehen
+              // kann man sie ohne Kompass nicht.
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
               onTap: (_, _) {
                 // Die Trails des Netzes liegen oben und gewinnen.
                 final id = _hits.value?.hitValues.firstOrNull;
@@ -140,6 +167,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                 ],
               ),
+              if (position != null) ..._positionLayers(position),
               RichAttributionWidget(
                 animationConfig: const ScaleRAWA(),
                 attributions: [
@@ -191,6 +219,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         ),
                       ),
                     FloatingActionButton.small(
+                      heroTag: 'locate',
+                      tooltip: 'Meine Position',
+                      onPressed: _locateMe,
+                      child: const Icon(Icons.my_location),
+                    ),
+                    const SizedBox(height: 8),
+                    FloatingActionButton.small(
                       heroTag: 'poi-filter',
                       tooltip: 'Ebenen und Orte',
                       onPressed: () => showPoiFilterSheet(context),
@@ -212,6 +247,56 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ),
     );
   }
+}
+
+/// Der Punkt der eigenen Position über allem, darunter ihr
+/// Genauigkeitskreis. Beides fängt keine Tipps ab — ein Tipp auf einen
+/// Trail unter dem Punkt soll den Trail treffen.
+List<Widget> _positionLayers(Position p) {
+  final at = LatLng(p.latitude, p.longitude);
+  return [
+    if (p.accuracy > 0)
+      IgnorePointer(
+        child: CircleLayer(circles: [
+          CircleMarker(
+            point: at,
+            radius: p.accuracy,
+            useRadiusInMeter: true,
+            color: AppColors.positionDot.withValues(alpha: 0.12),
+            borderColor: AppColors.positionDot.withValues(alpha: 0.35),
+            borderStrokeWidth: 1,
+          ),
+        ]),
+      ),
+    IgnorePointer(
+      child: MarkerLayer(markers: [
+        Marker(
+          key: const ValueKey('my-position'),
+          point: at,
+          width: 22,
+          height: 22,
+          child: const _PositionDot(),
+        ),
+      ]),
+    ),
+  ];
+}
+
+class _PositionDot extends StatelessWidget {
+  const _PositionDot();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'Deine Position',
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.positionDot,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.black38)],
+          ),
+        ),
+      );
 }
 
 class _EmptyHint extends StatelessWidget {

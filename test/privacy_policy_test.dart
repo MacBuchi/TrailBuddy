@@ -52,6 +52,8 @@ void main() {
     expect(html, contains('overpass-api.de'));
     expect(html, contains('FOSSGIS'));
     expect(html, contains('Offizielle Trails'));
+    expect(html, contains('Meine Position'),
+        reason: 'Standort nur nach Tipp, bleibt auf dem Gerät');
     expect(html, contains('Trail-Aufzeichnungen'));
     expect(html, contains('verlassen dein Gerät nie'),
         reason: 'Entscheidung 4 im Konzept: Fahrten bleiben lokal');

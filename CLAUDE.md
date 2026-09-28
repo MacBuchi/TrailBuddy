@@ -219,6 +219,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   neben SQL und `tool/trail_match.py`, im selben PR mitändern. Ohne
   Fréchet (nichts wird verschmolzen); Varianten zählen nicht gegen
   „derselbe". Das Blatt lädt die Region des Trails selbst nach.
+- **Eigene Position** (`lib/features/map/position_provider.dart`,
+  PilzBuddy-Muster): Der Strom (`positionStreamProvider`) fragt NIE nach
+  der Berechtigung, nur der Knopf „Meine Position" über
+  `positionFixProvider` — kein Systemdialog beim Start (Play: Prominent
+  Disclosure). Nur Vordergrund (`ACCESS_FINE/COARSE_LOCATION`, kein
+  Background); die Position verlässt das Gerät nicht. Punkt in
+  `AppColors.positionDot` (nicht Blau — Blau heißt Buddy), Punkt und
+  Kreis fangen keine Tipps ab. Die Karte dreht sich nicht
+  (`InteractiveFlag.rotate` aus). Der Harness hängt `fakePosition` /
+  `FakePositionFix` ein.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys

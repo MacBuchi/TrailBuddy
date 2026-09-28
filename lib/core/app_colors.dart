@@ -27,4 +27,8 @@ abstract final class AppColors {
   /// Gesperrte Teile grau, nicht orange: Orange ist die Meldung eines
   /// Buddys, die Sperre kommt von der Quelle.
   static const officialViolet = Color(0xFF7B1FA2);
+
+  /// Die eigene Position: ein dunkler Punkt mit weißem Ring. Nicht das
+  /// übliche Blau — Blau heißt hier „von einem Buddy".
+  static const positionDot = Color(0xFF263238);
 }
