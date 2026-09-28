@@ -19,7 +19,10 @@ import 'package:trailbuddy/core/connectivity.dart';
 import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
+import 'package:trailbuddy/features/map/base_map_providers.dart';
 import 'package:trailbuddy/features/map/map_providers.dart';
+import 'package:trailbuddy/features/map/map_view/flutter_map_view.dart';
+import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
 import 'package:trailbuddy/features/map/position_provider.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
@@ -29,6 +32,7 @@ import 'package:trailbuddy/features/trails/outbox_providers.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
 import 'fake_backend.dart';
+import 'fake_map_view.dart';
 import 'fake_official_trails.dart';
 import 'fake_outbox.dart';
 import 'fake_pois.dart';
@@ -98,8 +102,23 @@ List<Override> overridesFor(FakeBackend backend,
         FakeOutbox? outbox,
         FakeTrailCache? trailCache,
         Stream<List<ConnectivityResult>>? connectivity,
+        bool useRealMap = false,
         List<Override> extra = const []}) =>
     [
+      // Die Karten-Engine ist standardmäßig die Fake (Marker in einem
+      // Wrap, Kamera synchron simuliert, Tipps über die Trefferprüfung
+      // der Fassade) — die Flow-Suiten beweisen Verhalten, nicht
+      // Rendering. Tests, die flutter_map-Interna prüfen, pumpen mit
+      // `useRealMap: true`; die MapLibre-Platform-View ist im Widget-Test
+      // nicht renderbar, ihr Gate ist das Gerät.
+      mapViewBuilderProvider.overrideWithValue(useRealMap
+          ? (config, controller, layers) =>
+              FlutterMapView(config: config, controller: controller, layers: layers)
+          : (config, controller, layers) =>
+              FakeMapView(config: config, controller: controller, layers: layers)),
+      // Die Übersichtskarte kommt aus einem Asset, das der Test-Runner
+      // nicht liefert — und ohne Empfang würde die echte Karte sie öffnen.
+      overviewOpenerProvider.overrideWithValue(() async => null),
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(backend)),
       profileRepositoryProvider
@@ -177,6 +196,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeOutbox? outbox,
     FakeTrailCache? trailCache,
     Stream<List<ConnectivityResult>>? connectivity,
+    bool useRealMap = false,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -197,6 +217,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         outbox: outbox,
         trailCache: trailCache,
         connectivity: connectivity,
+        useRealMap: useRealMap,
         extra: extraOverrides),
     child: const TrailBuddyApp(),
   ));

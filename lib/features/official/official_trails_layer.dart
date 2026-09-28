@@ -1,87 +1,53 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/geo.dart';
+import '../map/map_view/map_view.dart';
 import '../trails/trail_sheet.dart' show formatElevation;
 import 'official_trails.dart';
 import 'official_trails_source.dart';
 
-/// Die offiziellen Trails als gestrichelte Linien — eine Ebene INNERHALB
-/// von `FlutterMap`, damit sie die Kamera kennt. Ab [kOfficialMinZoom]
-/// lädt sie, was der Ausschnitt braucht, kurz verzögert wie die Orte.
-/// Sie liegt über den Orten und unter den Trails des Netzes.
-class OfficialTrailsLayer extends ConsumerStatefulWidget {
-  const OfficialTrailsLayer({super.key, required this.hits});
+/// Die offiziellen Trails als gestrichelte Linien — seit der
+/// Kartenfassade (#31) keine Ebene INNERHALB der Engine mehr, sondern
+/// zwei pure Schritte für den Karten-Screen: [officialViewFor] sagt, ob
+/// und für welchen Ausschnitt nachzuladen ist, [officialPolylines] baut
+/// die Linien der Fassade. Sie liegen über den Orten und unter den
+/// Trails des Netzes (Reihenfolge im Screen).
 
-  /// Wird von der Karte gelesen: Ein Tipp, der keinen Trail des Netzes
-  /// trifft, öffnet den offiziellen darunter.
-  final LayerHitNotifier<OfficialTrail> hits;
-
-  @override
-  ConsumerState<OfficialTrailsLayer> createState() => _OfficialTrailsLayerState();
+/// Der Ausschnitt, für den der Controller nachladen soll — oder null:
+/// Ebene aus, unter [kOfficialMinZoom], oder alles Berührte schon da.
+/// Nur fragen, wenn der Ausschnitt eine noch fehlende Region berührt
+/// (oder der Index fehlt) — sonst wäre jedes Verschieben ein Aufruf.
+({double s, double w, double n, double e})? officialViewFor(
+  MapViewCamera? camera,
+  OfficialTrailsState state, {
+  required bool enabled,
+}) {
+  if (camera == null || !enabled || camera.zoom < kOfficialMinZoom) return null;
+  final b = camera.bounds;
+  final view = (s: b.south, w: b.west, n: b.north, e: b.east);
+  final index = state.index;
+  final missing = index == null ||
+      index.regions.any((r) =>
+          !state.byRegion.containsKey(r.id) && r.touches(view.s, view.w, view.n, view.e));
+  return missing ? view : null;
 }
 
-class _OfficialTrailsLayerState extends ConsumerState<OfficialTrailsLayer> {
-  Timer? _debounce;
-  String? _requested;
-
-  static const _delay = Duration(milliseconds: 500);
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final camera = MapCamera.of(context);
-    final enabled = ref.watch(officialTrailsEnabledProvider);
-    final state = ref.watch(officialTrailsControllerProvider);
-    if (!enabled || camera.zoom < kOfficialMinZoom) {
-      _debounce?.cancel();
-      _requested = null;
-      return const SizedBox.shrink();
-    }
-    final b = camera.visibleBounds;
-    final view = (s: b.south, w: b.west, n: b.north, e: b.east);
-    // Nur fragen, wenn der Ausschnitt eine noch fehlende Region berührt
-    // (oder der Index fehlt) — sonst wäre jedes Verschieben ein Aufruf.
-    final index = state.index;
-    final missing = index == null ||
-        index.regions.any((r) =>
-            !state.byRegion.containsKey(r.id) && r.touches(view.s, view.w, view.n, view.e));
-    // Je Ausschnitt EIN Versuch: Ohne Netz änderte sonst jede Antwort den
-    // Zustand, der Neuaufbau fragte wieder — alle halbe Sekunde.
-    final key = '${view.s},${view.w},${view.n},${view.e}';
-    if (missing && key != _requested) {
-      _requested = key;
-      _debounce?.cancel();
-      _debounce = Timer(_delay, () {
-        if (mounted) ref.read(officialTrailsControllerProvider.notifier).ensure(view);
-      });
-    }
-    return PolylineLayer<OfficialTrail>(
-      hitNotifier: widget.hits,
-      polylines: [
-        for (final t in state.trails)
-          for (final s in t.sections)
-            Polyline<OfficialTrail>(
-              points: s.points,
-              color: s.closed ? Colors.grey.shade600 : AppColors.officialViolet,
-              strokeWidth: s.variant ? 2.5 : 3.5,
-              pattern: StrokePattern.dashed(segments: const [10, 6]),
-              hitValue: t,
-            ),
-      ],
-    );
-  }
-}
+/// Die Linien: violett gestrichelt, gesperrte Teile grau, Varianten
+/// dünner; ein Tipp meldet den [OfficialTrail].
+List<MapViewPolyline> officialPolylines(OfficialTrailsState state) => [
+      for (final t in state.trails)
+        for (final s in t.sections)
+          MapViewPolyline(
+            points: s.points,
+            color: s.closed ? Colors.grey.shade600 : AppColors.officialViolet,
+            width: s.variant ? 2.5 : 3.5,
+            dash: const [10, 6],
+            hitValue: t,
+          ),
+    ];
 
 /// Die Aussage über den Status — immer mit der Quelle, denn sie kommt von
 /// dort und nicht von einem Buddy.

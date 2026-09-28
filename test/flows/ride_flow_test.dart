@@ -4,7 +4,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:trailbuddy/core/app_colors.dart';
+import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/features/rides/ride_providers.dart';
@@ -12,6 +13,7 @@ import 'package:trailbuddy/features/rides/ride_task_handler.dart';
 import 'package:trailbuddy/features/rides/ride_track.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_rides.dart';
 import '../fakes/test_app.dart';
 
@@ -65,7 +67,12 @@ void main() {
   }
 
   final button = find.byKey(const ValueKey('ride-button'));
-  final layer = find.byKey(const ValueKey('ride-layer'));
+  /// Die Spur auf der Karte: die Linien in der Fahrt-Farbe (ohne
+  /// Kennung — ein Tipp gilt weiter dem Trail).
+  List<MapViewPolyline> rideLines(WidgetTester tester) => [
+        for (final l in fakeMapLayers(tester).polylines)
+          if (l.hitValue == null && l.color.toARGB32() == AppColors.rideTrack.withValues(alpha: 0.75).toARGB32()) l,
+      ];
 
   testWidgets('aufzeichnen, beenden, behalten — und die Fahrt steht im Profil',
       (tester) async {
@@ -87,13 +94,12 @@ void main() {
     expect(service.every, kRideTickInterval);
     expect(service.titles.last, 'Fahrt wird aufgezeichnet');
     expect(store.points, hasLength(1), reason: 'der erste Fix kommt aus dem Main-Isolate');
-    expect(layer, findsNothing, reason: 'eine Linie braucht zwei Punkte');
+    expect(rideLines(tester), isEmpty, reason: 'eine Linie braucht zwei Punkte');
 
     await tick(tester, pt(1));
     await tick(tester, pt(2));
-    expect(layer, findsOneWidget);
-    final line = tester.widget<PolylineLayer>(layer).polylines.single;
-    expect(line.points, hasLength(3));
+    expect(rideLines(tester), hasLength(1));
+    expect(rideLines(tester).single.points, hasLength(3));
     expect(find.textContaining('Fahrt läuft · 100 m'), findsOneWidget);
 
     await drainSnackbars(tester);
@@ -108,7 +114,7 @@ void main() {
     await tester.tap(find.text('Behalten'));
     await settle(tester);
     expect(find.byKey(const ValueKey('ride-status')), findsNothing);
-    expect(layer, findsNothing);
+    expect(rideLines(tester), isEmpty);
     expect(store.rides, hasLength(1));
 
     await openTab(tester, 'Profil');
@@ -121,10 +127,10 @@ void main() {
     await tester.tap(find.byKey(ValueKey('ride-${store.rides.single.id}')));
     await settle(tester, frames: 12);
     expect(find.byKey(const ValueKey('focus-ride')), findsOneWidget);
-    expect(layer, findsOneWidget);
+    expect(rideLines(tester), hasLength(1));
     await tester.tap(find.byTooltip('Fahrt ausblenden'));
     await settle(tester);
-    expect(layer, findsNothing);
+    expect(rideLines(tester), isEmpty);
   });
 
   testWidgets('verwerfen löscht die Fahrt vom Gerät', (tester) async {
@@ -175,7 +181,7 @@ void main() {
     await settle(tester);
     expect(find.byTooltip('Fahrt beenden'), findsOneWidget);
     expect(find.byKey(const ValueKey('ride-status')), findsOneWidget);
-    expect(layer, findsOneWidget);
+    expect(rideLines(tester), hasLength(1));
     expect(bridge.armed, isTrue, reason: 'der Service wird wieder aufgesetzt');
     expect(service.running, isTrue);
     expect(fix.calls, 0, reason: 'kein neuer Start, kein erster Fix');

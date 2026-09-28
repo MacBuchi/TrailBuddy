@@ -15,7 +15,7 @@ const _gpx = '<gpx version="1.1"><trk><name>A</name><trkseg>'
 Uint8List _zip(Map<String, String> entries) {
   final a = Archive();
   entries.forEach((name, text) => a.addFile(ArchiveFile.string(name, text)));
-  return ZipEncoder().encodeBytes(a);
+  return Uint8List.fromList(ZipEncoder().encode(a)!);
 }
 
 void main() {

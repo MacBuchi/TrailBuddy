@@ -1,0 +1,22 @@
+{
+  "_": [
+    "Erzeugte Assets und wie man sie neu erzeugt — geprüft von",
+    "tool/generated_assets.py (--check in CI, --update nach echtem",
+    "Neu-Erzeugen). Die Prüfsummen stehen hier und nicht neben den",
+    "Assets, damit nichts davon versehentlich ins Binary wandert:",
+    "pubspec.yaml listet die Asset-Dateien einzeln auf."
+  ],
+  "assets": {
+    "assets/map_style/protomaps_light_de.json": {
+      "sha256": "30b102ce73221e96110d4d0f567cdaec2e66f91eb17f120e907ef739f3f6d803",
+      "regenerate": "Stil mit npm @protomaps/basemaps erzeugen (Flavor LIGHT, lang de), dann python3 tool/transform_map_style.py assets/map_style/protomaps_light_de.json",
+      "checks": {
+        "transform_noop": "tool/transform_map_style.py"
+      }
+    },
+    "assets/offline_maps/overview_dach.pmtiles": {
+      "sha256": "960e3854e86f3beb4e599ca2f38451d77aaac11d57db4a69d5b06fc01f604aa5",
+      "regenerate": "pmtiles extract <Protomaps-Daily-Build> assets/offline_maps/overview_dach.pmtiles --bbox=5.5,45.5,17.5,55.5 --maxzoom=7"
+    }
+  }
+}

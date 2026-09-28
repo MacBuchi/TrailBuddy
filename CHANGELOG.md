@@ -2,6 +2,21 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Karte
+
+*Version 0.16.0, 2026-09-28*
+
+- **Neue Karten-Engine auf Android**: Die Karte rendert jetzt nativ auf
+  der Grafikeinheit (MapLibre) — flüssiger beim Wischen und Zoomen,
+  besonders mit vielen Trails. Im Browser bleibt alles wie bisher.
+- **Eine Übersichtskarte ohne Empfang**: Fällt das Netz weg, liegt
+  unter deinen Trails eine mitgelieferte Übersicht von Deutschland,
+  Österreich und der Schweiz (Länder, Städte, große Straßen und Wege) —
+  statt einer leeren Fläche. Sie steckt in der App und braucht kein
+  Netz. Fein aufgelöste Karten für ganze Gebiete kommen als Nächstes.
+- **Tippen auf Linien und Orte** funktioniert auf beiden Plattformen
+  gleich: Liegt ein Trail über einer Stecknadel, gewinnt der Trail.
+
 ## Ohne Empfang
 
 *Version 0.15.0, 2026-09-28*

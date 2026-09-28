@@ -2,11 +2,11 @@
 // eigene Belege, Belege direkter Buddys, nichts von Fremden; ein Trail
 // mit zwei Namen; eine Statusmeldung mit Datum.
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/models/trail.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
 
@@ -69,9 +69,9 @@ void main() {
   testWidgets('Karte zeichnet genau die sichtbaren Trails', (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await settle(tester, frames: 20);
-    final layer = tester.widget<PolylineLayer<String>>(find.byType(PolylineLayer<String>));
-    expect(layer.polylines.length, 2);
-    expect(layer.polylines.map((p) => p.hitValue).toSet(), hasLength(2));
+    final lines = fakeMapLayers(tester).polylines.where((p) => p.hitValue is Trail);
+    expect(lines.length, 2);
+    expect(lines.map((p) => (p.hitValue as Trail).id).toSet(), hasLength(2));
   });
 
   testWidgets('Status melden: jüngste Meldung gewinnt und trägt ihr Datum', (tester) async {

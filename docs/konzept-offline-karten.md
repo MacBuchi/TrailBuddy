@@ -151,10 +151,11 @@ ohne sie geht.
 
 ## 6. Reihenfolge
 
-1. **Fassade und Engine** (aus #31): `map_view/`, MapLibre auf Android,
-   Vektor-Renderer im Web, erzeugter Stil mit Wege-Hervorhebung, Wächter
-   für erzeugte Assets, DACH-Übersicht als unterste Ebene. Online noch
-   gegen die bisherige Rasterquelle, offline die Übersicht.
+1. **Fassade und Engine** (aus #31, **seit 0.16.0**): `map_view/`,
+   MapLibre auf Android, Vektor-Renderer im Web, erzeugter Stil mit
+   Wege-Hervorhebung, Wächter für erzeugte Assets, DACH-Übersicht als
+   unterste Ebene. Online noch gegen die bisherige Rasterquelle, offline
+   die Übersicht.
 2. **Host und Schnitt**: CI schneidet DACH Zoom 0–14 und legt es auf den
    Host (Entscheidung, Abschnitt 7); die Onlinekarte liest daraus. OSM
    fliegt aus der Datenschutzerklärung, der Host kommt hinein.

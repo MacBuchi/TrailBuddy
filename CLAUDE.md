@@ -340,6 +340,72 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Ausgangskorb bleibt. Kein Korb/keine Kopie im Web, bewusst; IndexedDB
     (PilzBuddy #385) ist ein eigener Schritt. Der Harness hängt
     `FakeTrailCache` ein.
+- **Karten-Engine und Fassade** (#31 Schritt 1, `lib/features/map/map_view/`,
+  seit 0.16.0; PilzBuddy als Vorlage): `MapScreen` beschreibt nur noch,
+  WAS die Karte zeigt (`MapViewLayers`: Kreise < Linien < Marker), und
+  greift über `MapViewController` auf die Kamera zu. WIE gerendert wird,
+  entscheidet `mapViewBuilderProvider`: **Android MapLibre** (nativer
+  GPU-Renderer, `maplibre` 0.3.5 exakt gepinnt), **Web flutter_map** —
+  ohne Schalter, `kIsWeb` ist eine Kompilierzeit-Konstante. Web sieht
+  `package:maplibre` nie (bedingter Import, ein Test hält es fest).
+  `flutter_map_view.dart` bleibt im Android-Build: Baut der
+  MapLibre-Style nicht, fällt die Ansicht darauf zurück — ohne Style
+  lieber die alte Karte als gar keine. Sechs Dinge, die man wissen muss:
+  - **Tipps löst die FASSADE auf, nicht die Engine**
+    (`map_hit_test.dart`, pur). TrailBuddys Inhalt sind Linien, und die
+    beiden Engines treffen Linien verschieden. EINE Rechnung in Dart
+    (Web-Mercator ohne Drehung, 12 px plus halbe Strichbreite) gibt auf
+    beiden dieselbe Antwort: Linien zuerst (oberste gewinnt: Netz über
+    offiziellen Trails), dann Marker. Die Nadeln tragen deshalb KEINEN
+    `GestureDetector` mehr; `hitValue` ist ein `Trail`, `OfficialTrail`
+    oder `Poi`, die Fahrt und der Positionspunkt haben keinen.
+  - **Marker liegen immer ÜBER den Linien** — MapLibre kann Widgets nur
+    über Style-Ebenen zeichnen, flutter_map folgt, damit beide Engines
+    dasselbe Bild zeigen. Was ein Tipp trifft, entscheidet trotzdem die
+    Prüfung, nicht die Zeichenreihenfolge (Abweichung von „Nadeln unter
+    den Linien" aus #12).
+  - **Die Zoomstufe wird GERECHNET, nie gemeldet** (`MapViewCamera.zoom`
+    aus Fenster und Pixelbreite, 256er-Web-Mercator). MapLibre zählt in
+    512er-Kacheln, flutter_map in 256ern; dieselbe Zahl hieße zwei
+    Maßstäbe (PilzBuddy 1.98.0). Orte (ab 12) und offizielle Trails
+    (ab 8) hängen an der gerechneten. Die MapLibre-Seite rechnet an
+    `initZoom`/`minZoom`/`maxZoom` und in `zoom` je eins um.
+  - **Orte und offizielle Trails laden bei Kamera-STILLSTAND**
+    (`onCameraIdle` → `_camera` im Screen → `poiCellsFor` /
+    `officialViewFor`, pur), kurz verzögert, je Ausschnitt EIN Versuch.
+    Sie sind keine Ebenen innerhalb der Engine mehr (`MapCamera.of` gibt
+    es in MapLibre nicht).
+  - **MapLibre trägt Farbe, Breite und Strich am LAYER**, deshalb
+    gruppiert `polylineLayers` nach Stil (ein Netz kann hunderte Trails
+    haben; PilzBuddy legt eine Ebene je Linie an, das trägt hier nicht);
+    ein Rand wird zu einer breiteren Ebene darunter, ein Strichmuster in
+    Bildpunkten zu Vielfachen der Breite. Der Genauigkeitskreis ist ein
+    Polygon in Metern — `circle-radius` wäre ein Pixelmaß. `alignment`
+    wird gespiegelt (PilzBuddy #409: bei `topCenter` hängt die Nadel
+    sonst 40 px unter ihrem Ort). Marker werden bei Idle auf das
+    Sichtfenster plus 25 % gefiltert (`visibleMarkers`), weil
+    `WidgetLayer` jeden Marker in jedem Frame positioniert.
+  - **Der Stil ist ERZEUGT, die Übersicht auch** (`assets/map_style/`,
+    `assets/offline_maps/overview_dach.pmtiles`, Zoom 0–7, ~9 MB;
+    Glyphs `assets/map_glyphs/`, SIL OFL). `tool/transform_map_style.py`
+    (u. a. `emphasize_paths`: Forstwege und Pfade als eigene Ebenen —
+    Trails SIND die Wege) muss ein Fixpunkt bleiben;
+    `tool/generated_assets.py --check` prüft Prüfsummen und Fixpunkt in
+    CI, nach echtem Neu-Erzeugen `--update` im selben Commit. Die
+    Übersicht liegt NUR ohne Empfang unter dem OSM-Raster (beide
+    Engines dieselbe Regel: `noConnectivityProvider`; PilzBuddy #137 —
+    zwei Kartenstile nebeneinander sehen kaputter aus als eine leere
+    Fläche); auf dem Telefon aus einer materialisierten Datei, im
+    Browser aus dem Speicher (`fromBytes`). Kein neues Netzziel: Alles
+    liegt im Binary. `latlong2` 0.9 und `archive` 3.x, weil `pmtiles`
+    1.x daran hängt.
+  Widget-Tests fahren `FakeMapView` (`test/fakes/fake_map_view.dart`):
+  Marker-Kinder in einem `Wrap`, Kamera synchron simuliert, Tipps über
+  DIESELBE Trefferprüfung (`tapMapAt`, `fakeMapLayers`);
+  `useRealMap: true` pumpt die flutter_map-Engine für deren Interna. Die
+  MapLibre-Platform-View ist im Widget-Test nicht renderbar — ihr Gate
+  ist das Gerät, geprüft sind Composer, Style-Provider, Trefferprüfung
+  und die Textzusagen (`test/map/`).
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
@@ -382,8 +448,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
-  MapLibre-Engine für Android, Offline-Karten, Ausgangskorb und
-  Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  Offline-Karten über die Übersicht hinaus (Schritte 2–4 in
+  `docs/konzept-offline-karten.md`: Host und Schnitt, Bereiche, Orte
+  offline), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

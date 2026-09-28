@@ -4,6 +4,8 @@
 // aus einer Datei macht und was sie dem Nutzer sagt.
 import 'dart:convert';
 
+import 'dart:typed_data';
+
 import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -126,7 +128,7 @@ void main() {
       ..addFile(ArchiveFile.string('__MACOSX/Tracks/._eins.gpx', 'Ressourcengabel'))
       ..addFile(ArchiveFile.string('Tracks/liesmich.txt', 'hallo'));
     final files = [
-      PickedFile(name: 'Trails.zip', bytes: ZipEncoder().encodeBytes(zip)),
+      PickedFile(name: 'Trails.zip', bytes: Uint8List.fromList(ZipEncoder().encode(zip)!)),
       PickedFile.text('foto.jpg', 'kein xml'),
     ];
     await pumpApp(tester, backend, trails: trails, extraOverrides: [

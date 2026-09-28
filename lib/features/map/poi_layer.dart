@@ -1,82 +1,55 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
 import '../official/official_trails_source.dart';
+import 'map_view/map_view.dart';
 import 'poi.dart';
 import 'poi_source.dart';
 
-/// Die Orte als Stecknadeln — eine Ebene INNERHALB von `FlutterMap`, damit
-/// sie die Kamera kennt. Ab [kPoiMinZoom] lädt sie die Zellen des
-/// Ausschnitts nach, kurz verzögert, damit ein Wischen über die Karte
-/// nicht zehn Abfragen auslöst.
-class PoiLayer extends ConsumerStatefulWidget {
-  const PoiLayer({super.key});
+/// Die Orte als Stecknadeln — seit der Kartenfassade (#31) keine Ebene
+/// INNERHALB der Engine mehr, sondern zwei pure Schritte, die der
+/// Karten-Screen bei Kamera-Stillstand fährt: [poiCellsFor] sagt, welche
+/// Rasterzellen der Ausschnitt braucht (der Screen lädt sie kurz
+/// verzögert nach, damit ein Wischen nicht zehn Abfragen auslöst), und
+/// [poiMarkers] baut aus dem Geladenen die Marker der Fassade.
 
-  @override
-  ConsumerState<PoiLayer> createState() => _PoiLayerState();
+/// Die Zellen des Ausschnitts — oder null, wenn nichts zu laden ist
+/// (keine Gruppe an, Ausschnitt unter [kPoiMinZoom]).
+List<PoiCell>? poiCellsFor(MapViewCamera? camera, Set<PoiGroup> groups) {
+  if (camera == null || groups.isEmpty || camera.zoom < kPoiMinZoom) return null;
+  final b = camera.bounds;
+  final cells = poiCellsCovering(b.south, b.west, b.north, b.east);
+  // Mehr Zellen heißt, es wird gerade herausgezoomt — dann lieber gar
+  // nicht fragen als halb Bayern.
+  return cells.length > kPoiMaxCells ? null : cells;
 }
 
-class _PoiLayerState extends ConsumerState<PoiLayer> {
-  Timer? _debounce;
-  String? _requested;
-
-  static const _delay = Duration(milliseconds: 500);
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final camera = MapCamera.of(context);
-    final groups = ref.watch(poiGroupsProvider);
-    final state = ref.watch(poiControllerProvider);
-    final hidden = ref.watch(poiHiddenKindsProvider);
-    if (groups.isEmpty || camera.zoom < kPoiMinZoom) {
-      _debounce?.cancel();
-      _requested = null;
-      return const SizedBox.shrink();
-    }
-    final b = camera.visibleBounds;
-    final cells = poiCellsCovering(b.south, b.west, b.north, b.east);
-    final key = '${cells.join(';')}|${groups.map((g) => g.name).join(',')}';
-    if (key != _requested) {
-      _requested = key;
-      _debounce?.cancel();
-      _debounce = Timer(_delay, () {
-        if (mounted) ref.read(poiControllerProvider.notifier).ensure(cells, groups);
-      });
-    }
-    final pois = [
+/// Die sichtbaren Orte als Marker: geladen, im Ausschnitt, nicht per
+/// Detailfilter ausgeblendet. Die Spitze der Nadel sitzt auf dem Ort, der
+/// Kopf darüber; ein Tipp meldet den [Poi] (die Fassade prüft, die Nadel
+/// selbst fängt nichts).
+List<MapViewMarker> poiMarkers(
+  PoiState state,
+  MapViewCamera camera,
+  List<PoiCell> cells,
+  Set<PoiGroup> groups,
+  Set<PoiKind> hidden,
+) =>
+    [
       for (final p in state.inCells(cells, groups))
-        if (b.contains(p.position) && !hidden.contains(p.kind)) p,
-    ];
-    return MarkerLayer(
-      markers: [
-        for (final p in pois)
-          Marker(
+        if (camera.bounds.contains(p.position) && !hidden.contains(p.kind))
+          MapViewMarker(
             key: ValueKey('poi-${p.id}'),
             point: p.position,
             width: PoiPin.width,
             height: PoiPin.height,
-            // Die Spitze sitzt auf dem Ort, der Kopf darüber.
             alignment: Alignment.topCenter,
-            child: GestureDetector(
-              onTap: () => showPoiSheet(context, p),
-              child: PoiPin(kind: p.kind),
-            ),
+            hitValue: p,
+            child: PoiPin(kind: p.kind),
           ),
-      ],
-    );
-  }
-}
+    ];
 
 /// Eine Stecknadel: ein auf dem Kopf stehender Tropfen in der Farbe der
 /// Gruppe, darin das Symbol der Art (Kuchen, Bierkrug, Schlüssel …).

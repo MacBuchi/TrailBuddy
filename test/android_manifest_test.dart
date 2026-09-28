@@ -18,7 +18,8 @@ void main() {
     expect(gradle, contains('namespace = "$appId"'));
     expect(File('android/app/src/main/kotlin/${appId.replaceAll('.', '/')}/MainActivity.kt').existsSync(),
         isTrue, reason: 'Kotlin-Verzeichnis passt nicht zur applicationId');
-    final map = File('lib/features/map/map_screen.dart').readAsStringSync();
+    // Die flutter_map-Engine nennt sich bei OSM mit dem Paketnamen.
+    final map = File('lib/features/map/map_view/flutter_map_view.dart').readAsStringSync();
     expect(map, contains("userAgentPackageName: '$appId'"));
   });
 

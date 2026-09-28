@@ -7,14 +7,15 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/data/outbox.dart';
 import 'package:trailbuddy/features/trails/gpx_files.dart';
+import 'package:trailbuddy/models/trail.dart';
 import 'package:trailbuddy/features/trails/trail_geometry.dart';
 import 'package:trailbuddy/features/trails/trail_import_screen.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_outbox.dart';
 import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
@@ -101,9 +102,10 @@ void main() {
     await settle(tester, frames: 12);
     expect(banner, findsOneWidget);
     expect(find.text('1 wartet auf Übertragung'), findsOneWidget);
-    final layer = tester.widget<PolylineLayer<String>>(find.byType(PolylineLayer<String>));
-    final drawn = layer.polylines.singleWhere((p) => p.hitValue == job.id);
-    expect(drawn.pattern.segments, isNotNull, reason: 'gestrichelt');
+    final drawn = fakeMapLayers(tester)
+        .polylines
+        .singleWhere((p) => p.hitValue is Trail && (p.hitValue as Trail).id == job.id);
+    expect(drawn.dash, isNotNull, reason: 'gestrichelt');
 
     // Tipp auf das Banner: jetzt ist Netz da.
     await tester.tap(banner);

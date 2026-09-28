@@ -239,6 +239,18 @@ void main() {
     expect(ci, contains('tool/grants_check.sql'));
   });
 
+  test('CI prüft die erzeugten Assets als eigenen Schritt', () {
+    // Kartenstil und Übersichtskarte sind ERZEUGT; eine Handänderung
+    // bestünde jeden anderen Check und wäre beim nächsten Erzeugen weg
+    // (PilzBuddy #226). Der Schritt steht getrennt von den Selbsttests,
+    // damit im Log sofort das Asset und der Weg zum Neu-Erzeugen stehen.
+    final ci = File('.github/workflows/ci.yml').readAsStringSync();
+    expect(ci, contains('python3 tool/generated_assets.py --check'));
+    final manifest = File('tool/generated_assets.json').readAsStringSync();
+    expect(manifest, contains('assets/map_style/protomaps_light_de.json'));
+    expect(manifest, contains('assets/offline_maps/overview_dach.pmtiles'));
+  });
+
   test('jedes Werkzeug mit Selbsttest läuft in CI (sonst verrottet es still)', () {
     final ci = File('.github/workflows/ci.yml').readAsStringSync();
     final tools = Directory('tool')

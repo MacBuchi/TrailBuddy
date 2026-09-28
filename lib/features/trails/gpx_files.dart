@@ -51,7 +51,7 @@ class PickedGpx {
     final files = <PickedGpx>[];
     for (final entry in archive.files) {
       if (!entry.isFile || !_isGpxEntry(entry.name)) continue;
-      files.add(PickedGpx(name: _baseName(entry.name), text: _decode(entry.content)));
+      files.add(PickedGpx(name: _baseName(entry.name), text: _decode(entry.content as List<int>)));
     }
     if (files.isEmpty) {
       return (files: const [], errors: ['${file.name}: keine GPX-Datei im Archiv.']);

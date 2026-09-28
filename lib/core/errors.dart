@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:executor_lib/executor_lib.dart' show CancellationException;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -71,7 +72,14 @@ void logError(String context, Object error, [StackTrace? stackTrace]) {
 /// Filter nicht überstimmen. Wo eine Hintergrundschleife das ausdrücklich
 /// nicht will, fragt sie [looksOffline] selbst.
 bool worthReporting(Object error) =>
-    error is! NotSignedInException && !looksOffline(error);
+    error is! NotSignedInException &&
+    // Der Kartenrenderer (`vector_map_tiles`) bricht Kachel-Aufträge ab,
+    // sobald die Kachel aus dem Bild gewandert ist, und eine davon
+    // entkommt als unbehandelter async-Fehler. Abgebrochen heißt
+    // abgebrochen — 193 Zeilen je Woche für einen Normalfall begruben in
+    // PilzBuddy (#136) die echten Funde.
+    error is! CancellationException &&
+    !looksOffline(error);
 
 /// Es gibt gerade keine angemeldete Sitzung.
 ///

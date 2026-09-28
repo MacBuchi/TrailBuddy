@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
@@ -23,22 +21,26 @@ import '../trails/outbox_providers.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
-import 'map_providers.dart';
+import 'map_view/map_view.dart';
+import 'poi.dart';
 import 'poi_layer.dart';
 import 'position_provider.dart';
 import 'poi_source.dart';
 
-/// Die Karte: OSM-Raster, darüber die Trails des eigenen Netzes als
-/// Linien. Eigene grün, nur von Buddys belegte blau, gesperrte oder
-/// zerstörte in Warnfarbe — die Farbe sagt, was ICH damit zu tun habe,
-/// nicht, wie gut der Trail ist. Ein gelber Rand heißt: Ein Buddy hat
-/// in den letzten Tagen einen Hinweis dazu geschrieben (#7). Darunter, auf Wunsch, Orte aus
-/// OpenStreetMap als Stecknadeln (#12) — unter den Trails, damit ein
-/// Tipp auf eine Linie nie an einer Nadel hängen bleibt. Dazwischen,
-/// gestrichelt, die offiziellen Trails (#13): eine eigene Ebene aus
-/// Behördendaten, die nichts mit dem Netz zu tun hat. Und die eigene
-/// Fahrt (#28): die laufende Spur, unter den Trails, damit ein Tipp
-/// weiter den Trail trifft — sie ist Hintergrund, kein Inhalt.
+/// Die Karte: hinter der Fassade `map_view/` (MapLibre auf Android,
+/// flutter_map im Web), darüber die Trails des eigenen Netzes als Linien.
+/// Eigene grün, nur von Buddys belegte blau, gesperrte oder zerstörte in
+/// Warnfarbe — die Farbe sagt, was ICH damit zu tun habe, nicht, wie gut
+/// der Trail ist. Ein gelber Rand heißt: Ein Buddy hat in den letzten
+/// Tagen einen Hinweis dazu geschrieben (#7). Auf Wunsch Orte aus
+/// OpenStreetMap als Stecknadeln (#12); gestrichelt die offiziellen
+/// Trails (#13), eine eigene Ebene aus Behördendaten. Und die eigene
+/// Fahrt (#28): die laufende Spur, unter den Trails.
+///
+/// **Was ein Tipp trifft, entscheidet die Fassade**, nicht die
+/// Zeichenreihenfolge: Linien zuerst (das Netz liegt über den
+/// offiziellen Trails), dann die Nadeln. Die Fahrt und die eigene
+/// Position sind Kulisse und melden nichts.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -47,12 +49,23 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
-  final _controller = MapController();
-  final LayerHitNotifier<String> _hits = ValueNotifier(null);
-  final LayerHitNotifier<OfficialTrail> _officialHits = ValueNotifier(null);
+  static const _dachCenter = LatLng(48.8, 10.5);
+  static const _initialZoom = 6.0;
+
+  final _controller =
+      MapViewController(initialCenter: _dachCenter, initialZoom: _initialZoom);
   bool _fittedOnce = false;
 
-  static const _dachCenter = LatLng(48.8, 10.5);
+  /// Die Kamera beim letzten Stillstand — daran hängen Orte und
+  /// offizielle Trails (welche Zellen, welcher Ausschnitt).
+  MapViewCamera? _camera;
+  Timer? _loadDebounce;
+  String? _requestedPois;
+  String? _requestedOfficial;
+
+  /// Nachladen kurz verzögert, damit ein Wischen über die Karte nicht
+  /// zehn Abfragen auslöst.
+  static const _loadDelay = Duration(milliseconds: 500);
 
   @override
   void initState() {
@@ -78,15 +91,64 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     FlutterForegroundTask.removeTaskDataCallback(_onRideTick);
-    _hits.dispose();
-    _officialHits.dispose();
-    _controller.dispose();
+    _loadDebounce?.cancel();
     super.dispose();
   }
 
   Color _colorOf(Trail t) {
     if (t.status.warns) return AppColors.warningAmber;
     return t.isOwn ? AppColors.trailGreen : AppColors.friendBlue;
+  }
+
+  void _onCameraIdle(MapViewCamera camera) {
+    if (!mounted) return;
+    setState(() => _camera = camera);
+  }
+
+  /// Orte und offizielle Trails für den Ausschnitt nachladen — je
+  /// Ausschnitt EIN Versuch: Ohne Netz änderte sonst jede Antwort den
+  /// Zustand, der Neuaufbau fragte wieder — alle halbe Sekunde.
+  void _scheduleLoads({
+    required List<PoiCell>? cells,
+    required Set<PoiGroup> groups,
+    required ({double s, double w, double n, double e})? officialView,
+  }) {
+    final poiKey = cells == null
+        ? null
+        : '${cells.join(';')}|${groups.map((g) => g.name).join(',')}';
+    final officialKey = officialView == null
+        ? null
+        : '${officialView.s},${officialView.w},${officialView.n},${officialView.e}';
+    final poisDue = poiKey != null && poiKey != _requestedPois;
+    final officialDue = officialKey != null && officialKey != _requestedOfficial;
+    if (poiKey == null) _requestedPois = null;
+    if (officialKey == null) _requestedOfficial = null;
+    if (!poisDue && !officialDue) return;
+    if (poisDue) _requestedPois = poiKey;
+    if (officialDue) _requestedOfficial = officialKey;
+    _loadDebounce?.cancel();
+    _loadDebounce = Timer(_loadDelay, () {
+      if (!mounted) return;
+      if (poisDue) {
+        unawaited(ref.read(poiControllerProvider.notifier).ensure(cells!, groups));
+      }
+      if (officialDue) {
+        unawaited(ref.read(officialTrailsControllerProvider.notifier).ensure(officialView!));
+      }
+    });
+  }
+
+  void _onHit(Object hit, MapTap tap) {
+    switch (hit) {
+      case final Trail t:
+        // Die Liste kann inzwischen frischer sein als die gezeichnete
+        // Linie — das Blatt bekommt den aktuellen Stand.
+        showTrailSheet(context, ref.read(trailByIdProvider(t.id)) ?? t);
+      case final OfficialTrail o:
+        showOfficialTrailSheet(context, o);
+      case final Poi p:
+        showPoiSheet(context, p);
+    }
   }
 
   /// „Meine Position": die einzige Stelle, die nach der Berechtigung
@@ -102,19 +164,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return;
     }
     _fittedOnce = true;
-    final zoom = _controller.camera.zoom;
+    final zoom = _controller.zoom;
     _controller.move(LatLng(fix.latitude, fix.longitude), zoom < 14 ? 15 : zoom);
     ref.invalidate(positionStreamProvider);
   }
 
   void _fitTo(List<Trail> trails) => _fitPoints([for (final t in trails) ...t.points]);
 
-  void _fitPoints(List<LatLng> pts) {
-    if (pts.isEmpty) return;
-    final bounds = LatLngBounds.fromPoints(pts);
-    _controller.fitCamera(CameraFit.bounds(
-        bounds: bounds, padding: const EdgeInsets.all(40), maxZoom: 15));
-  }
+  void _fitPoints(List<LatLng> pts) => _controller.fit(pts, padding: 40, maxZoom: 15);
 
   /// Fahrt aufzeichnen oder beenden (#28). Beim Beenden ist die Fahrt
   /// gespeichert, BEVOR das Blatt aufgeht — wer es wegwischt, behält.
@@ -159,8 +216,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final trailsAsync = ref.watch(trailsProvider);
     final trails = trailsAsync.valueOrNull ?? const <Trail>[];
     final seenNotes = ref.watch(seenNotesProvider);
-    final poiUnavailable = ref.watch(poiGroupsProvider).isNotEmpty &&
-        ref.watch(poiControllerProvider.select((s) => s.unavailable));
+    final groups = ref.watch(poiGroupsProvider);
+    final hidden = ref.watch(poiHiddenKindsProvider);
+    final poiState = ref.watch(poiControllerProvider);
+    final poiUnavailable = groups.isNotEmpty && poiState.unavailable;
     final officialOn = ref.watch(officialTrailsEnabledProvider);
     final position = ref.watch(positionStreamProvider).valueOrNull;
     final official = ref.watch(officialTrailsControllerProvider);
@@ -208,92 +267,82 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       });
     });
 
+    // Was der Ausschnitt braucht — und was davon fehlt, wird nachgeladen.
+    final camera = _camera;
+    final cells = poiCellsFor(camera, groups);
+    final officialView = officialViewFor(camera, official, enabled: officialOn);
+    _scheduleLoads(cells: cells, groups: groups, officialView: officialView);
+
+    final layers = MapViewLayers(
+      circles: [
+        if (position != null && position.accuracy > 0)
+          MapViewCircle(
+            center: LatLng(position.latitude, position.longitude),
+            radiusM: position.accuracy,
+            fillColor: AppColors.positionDot.withValues(alpha: 0.12),
+            borderColor: AppColors.positionDot.withValues(alpha: 0.35),
+            borderWidth: 1,
+          ),
+      ],
+      polylines: [
+        // Unten die offiziellen Trails, darüber die Fahrt, oben das Netz —
+        // ein Tipp trifft zuerst das Netz.
+        if (officialOn && camera != null && camera.zoom >= kOfficialMinZoom)
+          ...officialPolylines(official),
+        if (focusRide != null) _ridePolyline(focusRide.points),
+        if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
+        for (final t in trails)
+          MapViewPolyline(
+            points: t.points,
+            color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
+            width: 4,
+            // Wartet im Ausgangskorb (#30): gestrichelt, wie eine
+            // Zusage, die noch nicht eingelöst ist.
+            dash: t.pending ? const [12, 8] : null,
+            // Neuer Hinweis eines Buddys (#7): ein gelber Leuchtrand, die
+            // Linie behält ihre Farbe.
+            borderColor: t.hasFreshNote(seen: seenNotes) ? AppColors.noteYellow : null,
+            borderWidth: t.hasFreshNote(seen: seenNotes) ? 4 : 0,
+            hitValue: t,
+          ),
+      ],
+      markers: [
+        if (camera != null && cells != null)
+          ...poiMarkers(poiState, camera, cells, groups, hidden),
+        if (position != null)
+          MapViewMarker(
+            key: const ValueKey('my-position'),
+            point: LatLng(position.latitude, position.longitude),
+            width: 22,
+            height: 22,
+            child: const _PositionDot(),
+          ),
+      ],
+    );
+
     return Scaffold(
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _controller,
-            options: MapOptions(
+          MapView(
+            config: MapViewConfig(
               initialCenter: _dachCenter,
-              initialZoom: 6,
-              // Norden bleibt oben: Eine gedrehte Karte passiert beim
-              // Zoomen mit zwei Fingern aus Versehen, und zurückdrehen
-              // kann man sie ohne Kompass nicht.
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
-              onTap: (_, _) {
-                // Die Trails des Netzes liegen oben und gewinnen.
-                final id = _hits.value?.hitValues.firstOrNull;
-                final trail = id == null ? null : ref.read(trailByIdProvider(id));
-                if (trail != null) {
-                  showTrailSheet(context, trail);
-                  return;
-                }
-                final off = _officialHits.value?.hitValues.firstOrNull;
-                if (off != null) showOfficialTrailSheet(context, off);
-              },
+              initialZoom: _initialZoom,
+              // OSM liefert Kacheln nur bis Zoom 19; unten reicht 3.
+              minZoom: 3,
+              maxZoom: 19,
+              backgroundColor: AppColors.mapBackground,
+              // Die Quellen der offiziellen Trails, solange die Ebene an
+              // ist und eine ihrer Regionen geladen.
+              attributions: [
+                if (officialOn)
+                  for (final src in official.loadedSources)
+                    '${src.attribution} (${src.license})',
+              ],
+              onHit: _onHit,
+              onCameraIdle: _onCameraIdle,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'de.mcbuchi.trailbuddy',
-                tileProvider: ref.watch(mapTileProviderProvider),
-              ),
-              const PoiLayer(),
-              OfficialTrailsLayer(hits: _officialHits),
-              // Die eigene Fahrt (#28) — gespeicherte zum Ansehen, die
-              // laufende live. Unter den Trails und ohne Treffer: Sie
-              // ist Hintergrund, ein Tipp gilt weiter dem Trail.
-              if (focusRide != null || (ride != null && ride.points.length >= 2))
-                IgnorePointer(
-                  child: PolylineLayer(
-                    key: const ValueKey('ride-layer'),
-                    polylines: [
-                      if (focusRide != null) _ridePolyline(focusRide.points),
-                      if (ride != null && ride.points.length >= 2)
-                        _ridePolyline(ride.points),
-                    ],
-                  ),
-                ),
-              PolylineLayer<String>(
-                hitNotifier: _hits,
-                polylines: [
-                  for (final t in trails)
-                    Polyline<String>(
-                      points: t.points,
-                      color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
-                      strokeWidth: 4,
-                      // Wartet im Ausgangskorb (#30): gestrichelt, wie
-                      // eine Zusage, die noch nicht eingelöst ist.
-                      pattern: t.pending
-                          ? StrokePattern.dashed(segments: const [12, 8])
-                          : const StrokePattern.solid(),
-                      // Neuer Hinweis eines Buddys (#7): ein gelber
-                      // Leuchtrand, die Linie behält ihre Farbe.
-                      borderStrokeWidth:
-                          t.hasFreshNote(seen: seenNotes) ? 4 : 0,
-                      borderColor: AppColors.noteYellow,
-                      hitValue: t.id,
-                    ),
-                ],
-              ),
-              if (position != null) ..._positionLayers(position),
-              RichAttributionWidget(
-                animationConfig: const ScaleRAWA(),
-                attributions: [
-                  const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
-                  // Die Quellen der offiziellen Trails, solange die Ebene
-                  // an ist und eine ihrer Regionen geladen.
-                  if (officialOn)
-                    for (final src in official.loadedSources)
-                      TextSourceAttribution(
-                        '${src.attribution} (${src.license})',
-                        prependCopyright: false,
-                      ),
-                ],
-              ),
-            ],
+            controller: _controller,
+            layers: layers,
           ),
           if (trailsAsync.isLoading && trails.isEmpty)
             const Center(child: CircularProgressIndicator()),
@@ -449,10 +498,11 @@ String formatCachedAt(DateTime at) {
   return '${l.day}.${l.month}., ${two(l.hour)}:${two(l.minute)}';
 }
 
-Polyline<Object> _ridePolyline(List<RidePoint> points) => Polyline(
+/// Die Fahrt: Kulisse ohne Kennung — ein Tipp gilt weiter dem Trail.
+MapViewPolyline _ridePolyline(List<RidePoint> points) => MapViewPolyline(
       points: [for (final p in thinnedRide(points)) LatLng(p.lat, p.lng)],
       color: AppColors.rideTrack.withValues(alpha: 0.75),
-      strokeWidth: 4,
+      width: 4,
     );
 
 /// „Fahrt läuft · 1,2 km · 12 min" — die Rückmeldung, dass aufgezeichnet
@@ -508,39 +558,6 @@ class _FocusRideCard extends ConsumerWidget {
           ),
         ),
       );
-}
-
-/// Der Punkt der eigenen Position über allem, darunter ihr
-/// Genauigkeitskreis. Beides fängt keine Tipps ab — ein Tipp auf einen
-/// Trail unter dem Punkt soll den Trail treffen.
-List<Widget> _positionLayers(Position p) {
-  final at = LatLng(p.latitude, p.longitude);
-  return [
-    if (p.accuracy > 0)
-      IgnorePointer(
-        child: CircleLayer(circles: [
-          CircleMarker(
-            point: at,
-            radius: p.accuracy,
-            useRadiusInMeter: true,
-            color: AppColors.positionDot.withValues(alpha: 0.12),
-            borderColor: AppColors.positionDot.withValues(alpha: 0.35),
-            borderStrokeWidth: 1,
-          ),
-        ]),
-      ),
-    IgnorePointer(
-      child: MarkerLayer(markers: [
-        Marker(
-          key: const ValueKey('my-position'),
-          point: at,
-          width: 22,
-          height: 22,
-          child: const _PositionDot(),
-        ),
-      ]),
-    ),
-  ];
 }
 
 class _PositionDot extends StatelessWidget {
