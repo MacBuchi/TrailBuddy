@@ -65,7 +65,7 @@ ausgezählt; Kennzahlen, keine Koordinaten):
 |---|---|---|---|
 | **Tirol — „Radrouten in Tirol"** (Land Tirol, Waldschutz; data.gv.at) | **CC0** | **238** (`ROUTEN_TYP = Single Trail`) | Freigegebene Singletrails nach dem Tiroler MTB-Modell, je mit Name, Schwierigkeit (leicht 90 · mittelschwierig 102 · schwierig 46), Länge, Höhenmetern und **Status offen/gesperrt** (heute 16 gesperrt). Länge: Median 0,9 km, p90 4,2 km; 156 abfahrtsdominiert. Hauptroute 185, Variante 53. Stand der jüngsten Zeile: 23.09.2026. Zugang: WFS (GeoJSON) und GPX-Zip. |
 | Vorarlberg — `vogis:mountainbike_strecken` (VOGIS) | CC BY 4.0 | 19 Stücke, zusammen ~750 m | Das Mountainbikenetz unterscheidet Asphalt, Schotter, Schiebe-/Tragestrecke und Singletrail, aber die Singletrail-Stücke sind Verbindungen im Routennetz (Median 19 m), keine Trails. **Nicht verwendbar.** |
-| Schweiz — Mountainbikeland (ASTRA, SchweizMobil) | frei, Quellenangabe Pflicht | **kein Merkmal** | Attribute nur Route, Routennummer, Segment. **Nicht verwendbar** für Singletrails. |
+| Schweiz — Mountainbikeland (ASTRA, SchweizMobil) | frei, Quellenangabe Pflicht | **ja, als Abschnitte**: 4802, ~1390 km (`MTBWeg.IsSTrail`); Bikepark 45 Abschnitte, ~8 km | **Korrektur:** Der Kartendienst zeigt nur Route, Routennummer und Segment; der Download (Shapefile, Ebene `MTBWeg`) hat das Merkmal. Aber: Abschnitte von Routen ohne Namen, meist ohne Schwierigkeit, Median 163 m — **Verwendung unklar** (ein Trail wäre erst eine Kette von Abschnitten). |
 | Schweiz — Sperrungen/Umleitungen Mountainbikeland | frei | — | Täglich; für später (Abschnitt 7). |
 | Bayern — Freizeitwege, „Mountainbikewege" | CC BY 4.0 | — | Ausgeschilderte Routen, keine Singletrails. |
 | Baden-Württemberg | — | — | Kein amtlicher Datensatz zu MTB-Strecken gefunden (GovData, daten.bw). Legale Trails gibt es hier über Vereine — zurückgestellt. |
@@ -76,14 +76,18 @@ nicht-persönliche Zwecke), **OpenStreetMap** (Entscheidung 4),
 Tourenportale (Outdooractive, Komoot, Bergfex — keine offenen Daten).
 
 **Folge: Der Start ist Tirol allein.** 238 Singletrails, gemeinfrei,
-mit Schwierigkeit und einem amtlichen Status. Zwei Dinge daraus fürs
-Bauen:
+mit Schwierigkeit und einem amtlichen Status. Die Quellen mit unklarer
+Verwendung (Schweiz, Vorarlberg, Bayern, Vereine) liegen samt Notizen
+beim Betreiber (Nextcloud), nicht im Repo. Zwei Dinge fürs Bauen:
 
-- **Kurze Stücke.** Ein Zehntel ist unter 100 m — Abschnitte eines
-  Trails oder Varianten. Die Pipeline fasst nichts zusammen (das wäre
-  eine Behauptung über die Quelle), zeigt aber Stücke unter der
-  Mindestlänge des Abgleichs (150 m) nicht einzeln an, sondern nur als
-  Teil ihres Trails, wenn Name und Anschluss passen; sonst gar nicht.
+- **Abschnitte, nicht Trails.** Die 238 Zeilen sind ABSCHNITTE: Eine
+  `ROUTENNUMMER` ist ein Trail aus Hauptroute und Varianten (185
+  Nummern). Die Pipeline macht daraus ein Feature je Nummer (Teile in
+  `sections`: Variante ja/nein, gesperrt ja/nein) und fügt nichts über
+  Nummern hinweg zusammen — das wäre eine Behauptung über die Quelle.
+  Ein Trail, der insgesamt unter der Mindestlänge des Abgleichs
+  (150 m) bleibt, fällt weg. Stand 2026-09-28: **181 Trails**, 4
+  weggelassen.
 - **Der Status ist amtlich.** „gesperrt" kommt vom Land und wird so
   angezeigt — als Aussage der Quelle, nicht als Statusmeldung eines
   Buddys (Konzept 3). Das Blatt sagt, von wem die Sperre kommt.
@@ -101,15 +105,19 @@ Bauen:
   vereinfacht die Linien (dieselbe Toleranz wie der Import) und schreibt
   je Region eine Datei plus einen Index.
 - `official-trails.yml`, wöchentlich und von Hand auslösbar. Ergebnis
-  sind die Assets eines festen Releases `official-trails` (kein
-  App-Release, kein Tag-Bump); `github.com` steht schon in der
-  Datenschutzerklärung.
+  ist der Branch **`official-trails-data`** (nur Daten, nie von Hand),
+  die App liest ihn über `raw.githubusercontent.com` — der Host kommt
+  mit der App-Ebene in die Datenschutzerklärung. **Nicht als Release:**
+  Die Update-Prüfung nimmt im Vorab-Kanal das jüngste Release der Liste,
+  ein Daten-Release stünde dort als „neueste Version". Gepusht wird nur
+  bei Änderung (kein Zeitstempel des Laufs in den Dateien).
 - **Wächter:** Eine Quelle, die nicht antwortet, behält ihre letzte
   Datei (Run-Summary sagt es). Eine Quelle, die plötzlich mehr als ein
   Drittel ihrer Trails verliert, wird NICHT veröffentlicht — ein
   kaputter Export soll keine Region leeren. Jede Datei trägt Stand und
   Quelle.
-- `--self-test` mit kleinen Beispieldateien je Abrufweg, in CI.
+- `--self-test` mit kleinen Beispieldaten je Leser, in CI (Tool
+  self-tests) und vor jedem Lauf.
 
 ### 5.2 Das Format
 

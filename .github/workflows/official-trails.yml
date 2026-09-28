@@ -1,0 +1,64 @@
+name: Official Trails
+
+# Baut die Ebene „Offizielle Trails“ (Issue #13,
+# docs/konzept-offizielle-trails.md): tool/official_trails.py holt die
+# Quellen aus tool/official/sources.json, filtert auf Singletrails und
+# schreibt je Region eine GeoJSON-Datei plus index.json.
+#
+# Veröffentlicht wird auf den Branch `official-trails-data`, nicht als
+# Release: Die Update-Prüfung der App nimmt im Vorab-Kanal das jüngste
+# Release der Liste — ein Daten-Release stünde dort als „neueste Version“.
+# Die App lädt die Dateien über raw.githubusercontent.com.
+#
+# Wächter im Werkzeug: Eine Quelle, die nicht antwortet, behält ihre
+# frühere Datei (grün, Run-Summary sagt es). Verliert eine Quelle mehr als
+# ein Drittel ihrer Trails, wird sie NICHT veröffentlicht und der Lauf
+# wird rot — ein kaputter Export soll keine Region leeren. Gepusht wird
+# nur, wenn sich etwas geändert hat (die Dateien tragen keinen Zeitstempel
+# des Laufs).
+on:
+  schedule:
+    - cron: "23 4 * * 1" # montags
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Offizielle Trails bauen
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Selbsttest
+        run: python3 tool/official_trails.py --self-test
+      - name: Bisherigen Stand holen
+        run: |
+          if git ls-remote --exit-code --heads origin official-trails-data >/dev/null; then
+            git fetch --depth 1 origin official-trails-data
+            git worktree add -B official-trails-data data FETCH_HEAD
+          else
+            git worktree add --orphan -b official-trails-data data
+          fi
+      - name: Quellen abrufen und bauen
+        run: python3 tool/official_trails.py --out out --previous data --summary "$GITHUB_STEP_SUMMARY"
+      - name: Veröffentlichen, wenn sich etwas geändert hat
+        working-directory: data
+        run: |
+          cp ../out/* .
+          cp ../tool/official/DATA_README.md README.md
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Unverändert — nichts veröffentlicht." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "data: official trails $(date -u +%F)"
+          git push origin official-trails-data
+          echo "Veröffentlicht auf \`official-trails-data\`." >> "$GITHUB_STEP_SUMMARY"
