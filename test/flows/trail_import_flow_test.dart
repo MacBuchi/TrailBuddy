@@ -63,7 +63,7 @@ void main() {
     // kaputte Datei benannt.
     expect(find.text('2 Spuren gefunden, 1 davon als Trail'), findsOneWidget);
     expect(find.text('Wurzeltrail'), findsOneWidget);
-    expect(find.textContaining('Fahrt — zerlegen kommt später'), findsOneWidget);
+    expect(find.textContaining('Fahrt — auf der Karte zerlegen'), findsOneWidget);
     expect(find.textContaining('kaputt.gpx:'), findsOneWidget);
     expect(find.textContaining('aufgezeichnet'), findsWidgets);
 

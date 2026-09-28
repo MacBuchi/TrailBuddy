@@ -2,6 +2,32 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Fahrt zerlegen
+
+*Version 0.20.0, 2026-09-28*
+
+- **Nach der Fahrt zeigt ein Blatt, was daraus wird**: Die Fahrt liegt
+  auf der Karte, zerlegt in Stücke. **Wieder gefahren** sind Trails
+  deines Netzes, die unter deiner Spur liegen — vorangehakt, als Beleg
+  beigesteuert, das hält den Trail aktuell. **Kandidaten für neue
+  Trails** sind Stücke mit anhaltendem Gefälle abseits von Fahr- und
+  Forststraßen: Mit zwei Griffen schneidest du zu (die Linie auf der
+  Karte folgt), gibst einen Namen und einen S-Grad, oder verwirfst.
+  Anfahrt, Forstweg und Straße werden nicht angeboten. Ein Kandidat, der
+  nahe bei Start oder Ziel deiner Fahrt liegt, bekommt einen Hinweis —
+  keinen Riegel.
+- **Die Wege kennt die App nur aus einem gespeicherten Bereich.** Ohne
+  Bereich bis Zoomstufe 13 über der Fahrt findet sie keine Kandidaten
+  und sagt das; wieder gefahrene Trails gehen trotzdem. Also erst den
+  Bereich speichern, dann die Fahrt aus „Meine Fahrten" zerlegen (die
+  Schere).
+- **Auch für GPX-Fahrten**: Im Import führt die Schere neben einer
+  Fahrt auf die Karte in dasselbe Blatt. Höhen aus der Datei werden
+  mit beigesteuert; die GPS-Höhe einer eigenen Aufzeichnung dient nur
+  der Suche nach dem Gefälle und geht nicht mit.
+- Die Fahrt bleibt als Ganzes auf dem Gerät; beigesteuert werden nur
+  die gewählten Stücke.
+
 ## Karte
 
 *Versionen 0.16.0, 0.17.0, 0.18.0 und 0.19.0, 2026-09-28*

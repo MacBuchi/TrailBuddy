@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.19.0+23
+version: 0.20.0+24
 
 environment:
   sdk: ^3.11.0
@@ -31,6 +31,10 @@ dependencies:
   vector_map_tiles: 9.0.0-beta.9
   vector_tile_renderer: ^6.1.0
   pmtiles: ^1.3.0
+  # Der MVT-Decoder, den vector_map_tiles ohnehin mitbringt — direkte
+  # Abhängigkeit, weil das Zerlege-Blatt (#29) die Wege-Ebene der
+  # gespeicherten Kacheln selbst liest; nicht an einer Beta hängen.
+  vector_tile: ^2.0.1
   # Direkt (statt nur transitiv über vector_map_tiles), damit
   # `worthReporting` in lib/core/errors.dart typisiert auf
   # CancellationException prüfen kann — der Kachelrenderer bricht Kacheln

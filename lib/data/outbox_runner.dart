@@ -2,7 +2,8 @@
 // senden, das Ergebnis in EINEM Schreibvorgang festhalten.
 //
 // Frei von Riverpod, damit jede Regel ohne Backend prüfbar ist. Wer den
-// Namen nach dem Beisteuern übernimmt ([adoptName]), entscheidet der
+// Namen (und S-Grad) nach dem Beisteuern übernimmt ([adoptDetails]),
+// entscheidet der
 // Aufrufer: Er kennt den Bestand und überschreibt keinen Namen, den
 // jemand bewusst eingetragen hat.
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
@@ -14,14 +15,14 @@ import 'trail_repository.dart';
 typedef OutboxRunResult = ({int sent, int remaining, int failed});
 
 class OutboxRunner {
-  OutboxRunner({required this.repository, required this.outbox, required this.adoptName});
+  OutboxRunner({required this.repository, required this.outbox, required this.adoptDetails});
 
   final TrailRepository repository;
   final Outbox outbox;
 
   /// Nach dem Beisteuern: den Namen aus der Datei als eigenen übernehmen,
-  /// wenn noch keiner steht.
-  final Future<void> Function(String trailId, String name) adoptName;
+  /// wenn noch keiner steht — und den S-Grad aus dem Zerlege-Blatt.
+  final Future<void> Function(String trailId, String name, int? grade) adoptDetails;
 
   /// Nach so vielen erfolglosen Anläufen gilt ein Auftrag als abgelehnt.
   /// Netzfehler und das Tageslimit zählen NICHT — die brechen den Lauf ab,
@@ -64,7 +65,9 @@ class OutboxRunner {
               clientId: job.id,
             );
             final name = job.name?.trim() ?? '';
-            if (name.isNotEmpty) await adoptName(trailId, name);
+            if (name.isNotEmpty || job.grade != null) {
+              await adoptDetails(trailId, name, job.grade);
+            }
           case DetailsJob():
             await repository.saveDetails(job.details);
             final note = job.note?.trim() ?? '';
