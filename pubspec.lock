@@ -630,13 +630,13 @@ packages:
     source: hosted
     version: "0.3.5"
   maplibre_android:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: maplibre_android
-      sha256: "87f633df7c28b20fb6940bb784e3c267f0f073b6a4159412212c8447527dcb58"
+      sha256: a25de86c315842a6c3f470745322ae7df4d5e25eb187bf95747061a5a8ca9ad5
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.6"
+    version: "0.3.5"
   maplibre_ios:
     dependency: transitive
     description:

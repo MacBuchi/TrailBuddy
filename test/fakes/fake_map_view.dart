@@ -102,7 +102,7 @@ class FakeMapViewState extends State<FakeMapView>
   double get zoom => _zoom;
 
   static double _mercY(double latDeg) {
-    final lat = latDeg.clamp(-85.05112878, 85.05112878) * math.pi / 180;
+    final lat = latDeg.clamp(-kMercatorMaxLat, kMercatorMaxLat) * math.pi / 180;
     return math.log(math.tan(math.pi / 4 + lat / 2));
   }
 

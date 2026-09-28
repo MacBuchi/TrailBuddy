@@ -22,8 +22,12 @@ const kMapTapSlopPx = 12.0;
 /// Linien: Ein Marker hat eine Fläche, eine Linie nicht.
 const kMapMarkerSlopPx = 4.0;
 
+/// Die Breite, an der Web-Mercator endet — jenseits davon läuft die
+/// Projektion ins Unendliche.
+const kMercatorMaxLat = 85.05112878;
+
 double _mercY(double latDeg) {
-  final lat = latDeg.clamp(-85.05112878, 85.05112878) * math.pi / 180;
+  final lat = latDeg.clamp(-kMercatorMaxLat, kMercatorMaxLat) * math.pi / 180;
   return math.log(math.tan(math.pi / 4 + lat / 2));
 }
 

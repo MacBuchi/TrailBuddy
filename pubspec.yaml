@@ -41,6 +41,11 @@ dependencies:
   # 0.x und jung, deshalb exakt gepinnt; Upgrades nur bewusst. Web sieht
   # das Paket nie (bedingter Import in map_view.dart).
   maplibre: 0.3.5
+  # Die Android-Seite AUSDRÜCKLICH auf 0.3.5: 0.3.6 wendet in seinem
+  # build.gradle.kts das ktlint-Plugin ohne Version an, und Gradle findet
+  # es dann in keinem Plugin-Repository — der APK-Build bricht ab, bevor
+  # eine Zeile Kotlin kompiliert. PilzBuddy baut mit 0.3.5.
+  maplibre_android: 0.3.5
 
   supabase_flutter: ^2.17.2
   flutter_riverpod: ^2.6.1
