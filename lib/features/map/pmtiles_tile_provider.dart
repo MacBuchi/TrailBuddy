@@ -33,6 +33,17 @@ class PmTilesVectorTileProvider extends VectorTileProvider {
         archive, archive.header.minZoom, archive.header.maxZoom);
   }
 
+  /// Über das Netz, kachelweise per Range-Anfrage — der Online-Weg beider
+  /// Plattformen (#31). Das Archiv wird nie ganz geladen: Header und
+  /// Verzeichnisse einmal, danach je Kachel ein Bereich. Der Host muss
+  /// dafür 206 und CORS liefern; `map-data.yml` prüft genau das nach
+  /// jedem Upload.
+  static Future<PmTilesVectorTileProvider> openUri(Uri uri) async {
+    final archive = await PmTilesArchive.fromUri(uri);
+    return PmTilesVectorTileProvider._(
+        archive, archive.header.minZoom, archive.header.maxZoom);
+  }
+
   /// Gibt das Dateihandle frei — beim Neuaufbau aufrufen, sonst leaken
   /// Handles.
   Future<void> close() => _archive.close();

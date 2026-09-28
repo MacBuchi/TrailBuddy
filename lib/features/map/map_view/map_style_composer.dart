@@ -5,7 +5,8 @@
 // (maplibre_style_provider.dart übernimmt das Lesen von Platte).
 import 'dart:convert';
 
-/// Eine PMTiles-Quelle für den Style: Pfad auf Platte plus Zoombereich.
+/// Eine PMTiles-Quelle für den Style: Adresse (`file://…` auf Platte oder
+/// `https://…` beim Host) plus Zoombereich.
 ///
 /// Der Zoombereich kommt IMMER aus dem Archiv-Header, nie aus den
 /// eingebetteten JSON-Metadaten — die lügen (0–15 bei einem 0–7-Extract).
@@ -15,13 +16,15 @@ import 'dart:convert';
 class MapStyleSource {
   const MapStyleSource({
     required this.id,
-    required this.filePath,
+    required this.url,
     required this.minZoom,
     required this.maxZoom,
   });
 
   final String id;
-  final String filePath;
+
+  /// `file:///…` oder `https://…`; MapLibre bekommt `pmtiles://` davor.
+  final String url;
   final int minZoom;
   final int maxZoom;
 }
@@ -39,7 +42,7 @@ class MapRasterSource {
   final int maxZoom;
 }
 
-const kOsmAttribution = '© OpenStreetMap contributors';
+const kMapAttribution = '© OpenStreetMap contributors · Protomaps';
 
 /// Setzt aus dem erzeugten Protomaps-Basis-Style und den Quellen EIN
 /// Style-Dokument zusammen: eine background-Ebene im Landton, dann für
@@ -83,10 +86,10 @@ String composeMapLibreStyle({
   ];
 
   for (final source in sources) {
-    final attribution = attributionOnce(kOsmAttribution);
+    final attribution = attributionOnce(kMapAttribution);
     styleSources[source.id] = {
       'type': 'vector',
-      'url': 'pmtiles://file://${source.filePath}',
+      'url': 'pmtiles://${source.url}',
       'minzoom': source.minZoom,
       'maxzoom': source.maxZoom,
       'attribution': ?attribution,
@@ -95,7 +98,7 @@ String composeMapLibreStyle({
   }
 
   for (final raster in rasterSources) {
-    final attribution = attributionOnce(kOsmAttribution);
+    final attribution = attributionOnce(kMapAttribution);
     styleSources[raster.id] = {
       'type': 'raster',
       'tiles': [raster.urlTemplate],

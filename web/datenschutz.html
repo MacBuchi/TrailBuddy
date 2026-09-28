@@ -51,9 +51,10 @@
       du verbunden bist. Es gibt keine öffentliche Karte, keine Suche
       nach Trails und keine Auswertung über alle Nutzer.</li>
     <li>Die Daten liegen bei Supabase (Auftragsverarbeiter, Region
-      Frankfurt am Main). Beim Kartenabruf geht deine IP-Adresse an die Server von
-      OpenStreetMap, für die Orte auf der Karte an die Overpass-API des
-      FOSSGIS e.V., bei der Update-Prüfung an GitHub.</li>
+      Frankfurt am Main). Beim Kartenabruf geht deine IP-Adresse an
+      Cloudflare (dort liegt die Karte), für die Orte auf der Karte an
+      die Overpass-API des FOSSGIS e.V., bei der Update-Prüfung an
+      GitHub.</li>
     <li>Keine Werbung, kein Tracking, keine Weitergabe an Dritte zu deren
       Zwecken.</li>
   </ul>
@@ -140,9 +141,15 @@
 
   <h3>Verbindungen, die die App aufbaut</h3>
   <ul>
-    <li><strong>tile.openstreetmap.org</strong> — die Kartenkacheln. Bei
-      jedem Kartenausschnitt geht deine IP-Adresse samt dem angeforderten
-      Ausschnitt an die Server der OpenStreetMap Foundation.</li>
+    <li><strong>tiles.mcbuchi.de</strong> — die Karte selbst. Sie liegt
+      als eine Datei (Kartendaten von OpenStreetMap, aufbereitet von
+      Protomaps, ODbL) auf einem Speicher des Betreibers bei Cloudflare
+      (Cloudflare, Inc., mit Standort in Westeuropa; Auftragsverarbeiter,
+      Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO). Die App lädt
+      davon nur die Stücke, die der sichtbare Ausschnitt braucht. Bei
+      jedem Kartenausschnitt geht deine IP-Adresse samt den angeforderten
+      Stücken an Cloudflare. Ohne Empfang zeigt die App eine
+      mitgelieferte Übersichtskarte, dafür wird nichts abgerufen.</li>
     <li><strong>overpass-api.de</strong> — die Orte auf der Karte
       (Einkehr, Wasser, Rad-Service, Sonstiges). Nur solange im Filter
       eine Gruppe eingeschaltet ist — anfangs ist das „Wasser" — und erst

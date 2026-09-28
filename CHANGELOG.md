@@ -4,7 +4,14 @@
 
 ## Karte
 
-*Version 0.16.0, 2026-09-28*
+*Versionen 0.16.0 und 0.17.0, 2026-09-28*
+
+- **Die Karte kommt jetzt von unserem eigenen Kartenspeicher** (0.17.0):
+  eine Vektorkarte von Deutschland, Österreich und der Schweiz bis
+  Zoomstufe 13, mit Forstwegen, Pfaden und Steigen als eigene Linien
+  statt in der Sammelgrube — Trails SIND die Wege. Die App lädt davon
+  nur die Stücke, die der Ausschnitt braucht. Die Kachelserver von
+  OpenStreetMap werden nicht mehr angefragt.
 
 - **Neue Karten-Engine auf Android**: Die Karte rendert jetzt nativ auf
   der Grafikeinheit (MapLibre) — flüssiger beim Wischen und Zoomen,

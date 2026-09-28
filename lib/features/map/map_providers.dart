@@ -1,15 +1,17 @@
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+/// Der Kartenhost (#31, Schritt 2 in `docs/konzept-offline-karten.md`):
+/// EIN PMTiles-Archiv von DACH (Protomaps-Basiskarte, Zoom 0–13, ODbL)
+/// auf Cloudflare R2 hinter `tiles.mcbuchi.de`, geschnitten und geprüft
+/// von `.github/workflows/map-data.yml`. Beide Engines lesen kachelweise
+/// per Range-Anfrage daraus; OSM-Rasterkacheln gibt es nicht mehr.
+///
+/// Bewusst Konstanten und keine Konfiguration: Die Adresse ist öffentlich,
+/// steht in der Datenschutzerklärung, und `test/privacy_policy_test.dart`
+/// liest sie von hier.
+const kMapTilesBase = 'https://tiles.mcbuchi.de/trailbuddy';
 
-/// Die Online-Rasterquelle — heute noch OSM, bis der Vektor-Host steht
-/// (`docs/konzept-offline-karten.md`, Schritt 2). Beide Engines lesen
-/// dieselbe Vorlage.
-const kOsmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-/// OSM liefert Kacheln nur bis Zoom 19; darüber skaliert jede Engine hoch.
-const kOsmMaxZoom = 19;
-
-/// Der Kachel-Lieferant der flutter_map-Engine — ein Provider, damit Tests
-/// eine transparente 1×1-PNG einhängen (kein Netz in Tests).
-final mapTileProviderProvider =
-    Provider<TileProvider>((ref) => NetworkTileProvider());
+/// Das Manifest nennt die AKTUELLE Archivdatei (`dach-<build>.pmtiles`).
+/// Der Umweg ist Absicht: Eine Sitzung merkt sich die Verzeichnisse des
+/// Archivs, und ein Archiv, das unter ihr überschrieben würde, ließe diese
+/// Versätze in eine andere Datei zeigen. Dateien mit Datum im Namen sind
+/// unveränderlich; nur der Zeiger wechselt.
+const kMapManifestUrl = '$kMapTilesBase/dach.json';

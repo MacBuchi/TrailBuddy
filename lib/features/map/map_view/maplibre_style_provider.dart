@@ -15,7 +15,7 @@ import '../../../core/connectivity.dart';
 import '../../../core/errors.dart';
 import '../../official/official_trails_source.dart';
 import '../base_map_providers.dart';
-import '../map_providers.dart';
+import '../online_map.dart';
 import 'map_style_composer.dart';
 
 /// Die fünf Unicode-Bereiche, die für deutsche Kartenbeschriftung reichen.
@@ -83,24 +83,17 @@ final maplibreStyleIoProvider = Provider<MapLibreStyleIo>((ref) => MapLibreStyle
 /// flutter_map-Engine, damit die Landflächen beider Engines gleich aussehen.
 String cssColor(int argb) => '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
-/// Das Online-Raster — dieselbe Quelle wie der TileLayer der
-/// flutter_map-Engine.
-const _osmRaster = MapRasterSource(
-  id: 'osm',
-  urlTemplate: kOsmTileUrl,
-  maxZoom: kOsmMaxZoom,
-);
-
 /// Das fertige Style-Dokument — oder null, wenn etwas fehlt: Dann fällt die
 /// MapLibre-Engine auf flutter_map zurück (maplibre_map_view.dart).
 ///
-/// Die Quellen-Wahl folgt EXAKT der flutter_map-Engine: das OSM-Raster
-/// immer, die Übersicht NUR darunter, wenn kein Empfang besteht — dann
-/// kommt keine Kachel, es gibt nichts, womit sie sich mischen könnte.
-/// Ein Wechsel erzeugt einen neuen Style-String; die Engine spielt ihn per
-/// `setStyle` ein.
+/// Die Quellen-Wahl folgt EXAKT der flutter_map-Engine: die Online-Karte
+/// vom Host (`pmtiles://https://…`, Range-Anfragen macht maplibre-native
+/// selbst), sobald das Manifest da ist; die Übersicht DARUNTER, wenn kein
+/// Empfang besteht oder es kein Manifest gibt. Ein Wechsel erzeugt einen
+/// neuen Style-String; die Engine spielt ihn per `setStyle` ein.
 final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   final noConnectivity = ref.watch(noConnectivityProvider);
+  final manifest = await ref.watch(mapManifestProvider.future);
   final io = ref.watch(maplibreStyleIoProvider);
   // Die Quellenangabe der Behörden — nur solange die Ebene an ist und
   // eine ihrer Regionen geladen. `select` auf den Text: Der Controller
@@ -115,14 +108,25 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
     final glyphsUrl = await io.materializeGlyphs();
 
     final sources = <MapStyleSource>[];
-    if (noConnectivity) {
+    if (noConnectivity || manifest == null) {
       final overviewPath = await io.materializeOverview();
       final overviewZoom = await io.readZoomRange(overviewPath);
       sources.add(MapStyleSource(
         id: 'overview',
-        filePath: overviewPath,
+        url: 'file://$overviewPath',
         minZoom: overviewZoom.min,
         maxZoom: overviewZoom.max,
+      ));
+    }
+    if (manifest != null) {
+      // Zoombereich aus dem Manifest, nicht aus dem Archiv-Header: Den
+      // zu lesen wäre eine Range-Anfrage, die die Engine gleich selbst
+      // macht. `map-data.yml` schreibt beide aus derselben Bestellung.
+      sources.add(MapStyleSource(
+        id: 'online',
+        url: manifest.archiveUri.toString(),
+        minZoom: 0,
+        maxZoom: manifest.maxZoom,
       ));
     }
 
@@ -131,7 +135,6 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
       glyphsUrl: glyphsUrl,
       backgroundColor: cssColor(AppColors.mapBackground.toARGB32()),
       sources: sources,
-      rasterSources: const [_osmRaster],
       extraAttributions: officialCredits.isEmpty ? const [] : officialCredits.split('\u0000'),
     );
   } catch (e, stackTrace) {

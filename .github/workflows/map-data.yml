@@ -1,0 +1,291 @@
+name: Map Data
+
+# The vector basemap the app reads online (#31, step 2 of
+# docs/konzept-offline-karten.md).
+#
+# Cuts DACH (Germany, Austria, Switzerland) out of the daily Protomaps
+# planet build with the official `pmtiles` tool, proves the extract
+# against its source, uploads it to Cloudflare R2 and then proves the
+# PUBLIC copy on tiles.mcbuchi.de over exactly the path the app takes:
+# Range requests with an Origin header. The app never sees an archive
+# this workflow has not read back.
+#
+# Zoom 13 by operator decision (2026-09-28): tracks are in the tiles from
+# z12, paths, footways and steps from z13 (measured in PilzBuddy), and the
+# style draws only small streams from z14 on. Roughly 2.9 GB instead of
+# 5.5 GB for z14; the cut can be repeated at 14 later without touching
+# the app.
+#
+# Dated file names (`dach-<build>.pmtiles`) plus a small manifest
+# (`dach.json`) that names the current file: an app session caches the
+# archive's directories, and overwriting the archive under it would make
+# those offsets point into a different file. The previous archive stays
+# for one more run, so sessions in flight keep working.
+#
+# Two modes, `plan` measures only (headers and directories, a few MB) and
+# publishes nothing; `publish` cuts and uploads. A monthly schedule keeps
+# newly mapped paths coming; Protomaps builds daily, that is more than a
+# trail network changes.
+#
+# Secrets (R2 API token, Object Read & Write on the bucket) go through
+# `env:` into a detection step; `secrets.` is not available in `if:` and
+# GitHub silently drops the whole file (PilzBuddy, 2026-08-13). Without
+# them the publish run says so in the summary and stops before cutting.
+#
+# No Version Guard concern: nothing here lands in a binary.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan = measure only, publish = cut, upload, verify"
+        required: true
+        type: choice
+        options: ["plan", "publish"]
+        default: "plan"
+      maxzoom:
+        description: "Highest zoom to include"
+        required: false
+        type: string
+        default: "13"
+      plan_zooms:
+        description: "Zooms to measure (plan mode), space separated"
+        required: false
+        type: string
+        default: "12 13 14"
+  schedule:
+    # Monthly, 1st at 03:17 UTC — publish with the defaults.
+    - cron: "17 3 1 * *"
+
+# Never two runs at once: publish rewrites the manifest, and two runs
+# would race on which archive it ends up naming.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Pinned deliberately: a basemap tool that changes shape under us would
+  # change what the extract contains without anyone choosing it.
+  PMTILES_VERSION: "1.28.0"
+  # West, south, east, north. `--bbox=…` with the equals sign: argparse
+  # reads a leading minus as an option, and DACH only escapes that by
+  # starting east of Greenwich.
+  DACH_BBOX: "5.5,45.5,17.5,55.5"
+  MODE: ${{ inputs.mode || 'publish' }}
+  MAXZOOM: ${{ inputs.maxzoom || '13' }}
+  PLAN_ZOOMS: ${{ inputs.plan_zooms || '12 13 14' }}
+  # Public values, deliberately in the file and not in repository
+  # variables: the app carries the same host as a constant, and the
+  # privacy policy guard reads it from there.
+  R2_BUCKET: buddy-tiles
+  R2_PREFIX: trailbuddy
+  PUBLIC_BASE: https://tiles.mcbuchi.de/trailbuddy
+
+jobs:
+  maps:
+    name: Cut, upload and verify the DACH basemap
+    runs-on: ubuntu-latest
+    # A z13 extract reads about 3 GB through Range requests, the upload
+    # sends them again.
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Are the R2 secrets there?
+        id: r2
+        env:
+          ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+          KEY: ${{ secrets.R2_ACCESS_KEY_ID }}
+          SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -n "$ACCOUNT" ] && [ -n "$KEY" ] && [ -n "$SECRET" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Map Data: no upload"
+              echo
+              echo "One of R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY is missing."
+              echo "Create an R2 API token (Object Read & Write, bucket \`$R2_BUCKET\`) in the"
+              echo "Cloudflare dashboard and store the three values as repository secrets."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Find the newest Protomaps daily build
+        id: source
+        # Dated files, no "latest" alias. The probe asks for ONE byte and
+        # insists on a 206: that also proves the host serves ranges before
+        # we spend an hour on it. `-L` because the reader follows
+        # redirects too, and a 302 is not a 206.
+        run: |
+          set -euo pipefail
+          found=""
+          last=""
+          for back in $(seq 0 9); do
+            day=$(date -u -d "-${back} day" +%Y%m%d)
+            url="https://build.protomaps.com/${day}.pmtiles"
+            code=$(curl -sSL -o /dev/null -w '%{http_code}' \
+                     -r 0-0 --max-time 60 "$url" || echo "000")
+            echo "  $day -> $code"
+            last="$day:$code"
+            if [ "$code" = "206" ]; then found="$url"; echo "build=$day" >> "$GITHUB_OUTPUT"; break; fi
+          done
+          if [ -z "$found" ]; then
+            echo "::error::No Protomaps daily build answered a Range request in the last 10 days (last probe: ${last}). 000 means the host was unreachable, 4xx/5xx that it answered but refused, 200 that it ignored Range."
+            exit 1
+          fi
+          echo "url=$found" >> "$GITHUB_OUTPUT"
+          echo "Quelle: $found"
+
+      - name: Measure bytes per zoom
+        if: env.MODE == 'plan'
+        env:
+          SOURCE: ${{ steps.source.outputs.url }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Map extract plan"
+            echo
+            echo "Source: \`$SOURCE\`, bbox \`$DACH_BBOX\`"
+            echo
+            echo "| asked | measured | estimated file | measuring cost |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for zoom in $PLAN_ZOOMS; do
+            out=$(python3 tool/map_tiles.py plan --source "$SOURCE" \
+                    "--bbox=$DACH_BBOX" "--maxzoom=$zoom" --max-bytes 100000000000 || true)
+            span=$(echo "$out" | sed -n 's/^zoom *\(.*\)$/\1/p' | head -1)
+            size=$(echo "$out" | sed -n 's/^estimated file size *\(.*\)$/\1/p' | head -1)
+            cost=$(echo "$out" | sed -n 's/^read \(.*\)$/\1/p' | head -1)
+            echo "| z$zoom | ${span:-?} | ${size:-?} | ${cost:-?} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Install the pmtiles tool
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        # The official Go implementation cuts the extract. A second
+        # implementation of a format we do not own would put a subtly
+        # malformed archive in front of users, where it fails in a browser
+        # rather than here.
+        run: |
+          set -euo pipefail
+          url="https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
+          if ! curl -sSL --fail "$url" -o /tmp/pmtiles.tar.gz; then
+            echo "::error::Could not download $url — check PMTILES_VERSION against the go-pmtiles releases."
+            exit 1
+          fi
+          tar -xzf /tmp/pmtiles.tar.gz -C /tmp pmtiles
+          sudo install -m 0755 /tmp/pmtiles /usr/local/bin/pmtiles
+          pmtiles version
+
+      - name: Cut and check the extract
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        env:
+          SOURCE: ${{ steps.source.outputs.url }}
+          SOURCE_BUILD: ${{ steps.source.outputs.build }}
+        run: |
+          set -euo pipefail
+          rm -rf build/maps && mkdir -p build/maps
+          file="dach-${SOURCE_BUILD}.pmtiles"
+          echo "file=$file" >> "$GITHUB_ENV"
+          pmtiles extract "$SOURCE" "build/maps/$file" \
+            "--bbox=$DACH_BBOX" "--maxzoom=$MAXZOOM"
+          # An extract that holds the wrong tiles is a valid archive; in
+          # the app that reads as "the map is blank here". Proven here
+          # against what was ORDERED (bbox, maxzoom), not the file's own
+          # header — a wrongly cut archive states its wrong bbox without
+          # contradicting itself.
+          python3 tool/map_tiles.py check --source "$SOURCE" \
+            --extract "build/maps/$file" "--bbox=$DACH_BBOX" \
+            "--maxzoom=$MAXZOOM" --samples=80
+          python3 - <<'PY'
+          import hashlib, json, os, time
+          path = f"build/maps/{os.environ['file']}"
+          digest = hashlib.sha256()
+          with open(path, "rb") as handle:
+              for chunk in iter(lambda: handle.read(1 << 20), b""):
+                  digest.update(chunk)
+          manifest = {
+              "format": 1,
+              "file": os.environ["file"],
+              "bytes": os.path.getsize(path),
+              "sha256": digest.hexdigest(),
+              "maxzoom": int(os.environ["MAXZOOM"]),
+              "bbox": [float(v) for v in os.environ["DACH_BBOX"].split(",")],
+              "source": os.environ["SOURCE"],
+              "source_build": os.environ["SOURCE_BUILD"],
+              "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+              "attribution": "© OpenStreetMap contributors · Protomaps (ODbL)",
+          }
+          with open("build/maps/dach.json", "w") as handle:
+              json.dump(manifest, handle, indent=2, sort_keys=True)
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload to R2
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_DEFAULT_REGION: auto
+          AWS_EC2_METADATA_DISABLED: "true"
+        # The archive first, immutable and long-cached (its name carries
+        # the build); the manifest last and short-cached — it is the
+        # pointer that flips. Older archives beyond the previous one are
+        # removed afterwards: sessions in flight keep the previous file.
+        # `.eu.` in the endpoint: the bucket was created with EU
+        # jurisdiction (operator, 2026-09-28), and such a bucket exists only
+        # behind the EU endpoint — the plain one answers "no such bucket".
+        run: |
+          set -euo pipefail
+          endpoint="https://${R2_ACCOUNT_ID}.eu.r2.cloudflarestorage.com"
+          aws --endpoint-url "$endpoint" s3 cp "build/maps/$file" \
+            "s3://${R2_BUCKET}/${R2_PREFIX}/$file" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=31536000, immutable" --no-progress
+          aws --endpoint-url "$endpoint" s3 cp build/maps/dach.json \
+            "s3://${R2_BUCKET}/${R2_PREFIX}/dach.json" \
+            --content-type application/json \
+            --cache-control "public, max-age=300" --no-progress
+          keep2=$(aws --endpoint-url "$endpoint" s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/" \
+                   | awk '{print $4}' | grep -E '^dach-[0-9]{8}\.pmtiles$' | sort | tail -2)
+          for old in $(aws --endpoint-url "$endpoint" s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/" \
+                        | awk '{print $4}' | grep -E '^dach-[0-9]{8}\.pmtiles$'); do
+            if ! echo "$keep2" | grep -qx "$old"; then
+              aws --endpoint-url "$endpoint" s3 rm "s3://${R2_BUCKET}/${R2_PREFIX}/$old"
+              echo "removed $old"
+            fi
+          done
+
+      - name: Verify the public copy the way the app reads it
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        env:
+          SOURCE: ${{ steps.source.outputs.url }}
+        # Three things, all of which the app needs and none of which the
+        # upload proves: the host answers a Range request with 206 and
+        # `accept-ranges: bytes`; it sends `access-control-allow-origin`
+        # for the app's origin (without it the browser sees nothing, with
+        # no error); and the bytes it serves are the source's — `check`
+        # reads the PUBLIC URL over Range like the app and compares tiles
+        # against the planet build.
+        run: |
+          set -euo pipefail
+          url="$PUBLIC_BASE/$file"
+          headers=$(curl -sSL -D - -o /dev/null -r 0-15 --max-time 60 \
+                      -H "Origin: https://macbuchi.github.io" "$url" | tr -d '\r' | tr 'A-Z' 'a-z')
+          echo "$headers"
+          echo "$headers" | grep -q '^http/[0-9.]* 206' || { echo "::error::$url: no 206 on a Range request — the app cannot read this host"; exit 1; }
+          echo "$headers" | grep -q '^accept-ranges: bytes' || { echo "::error::$url: no accept-ranges: bytes"; exit 1; }
+          echo "$headers" | grep -q '^access-control-allow-origin:' || { echo "::error::$url: no access-control-allow-origin — set the bucket's CORS rule (GET/HEAD, range headers exposed)"; exit 1; }
+          curl -sSL --max-time 60 "$PUBLIC_BASE/dach.json" | python3 -c 'import json,sys; m=json.load(sys.stdin); assert m["file"]==sys.argv[1], m' "$file"
+          python3 tool/map_tiles.py check --source "$SOURCE" \
+            --extract "$url" "--bbox=$DACH_BBOX" "--maxzoom=$MAXZOOM" --samples=40
+          {
+            echo "## Basemap published"
+            echo
+            echo "- \`$url\` ($(stat -c %s "build/maps/$file" | numfmt --to=iec-i --suffix=B)), zoom 0–$MAXZOOM"
+            echo "- manifest \`$PUBLIC_BASE/dach.json\`"
+            echo "- 206 + accept-ranges + CORS verified, $(echo 40) sampled tiles match the source"
+          } >> "$GITHUB_STEP_SUMMARY"

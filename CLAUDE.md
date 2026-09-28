@@ -385,6 +385,32 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     sonst 40 px unter ihrem Ort). Marker werden bei Idle auf das
     Sichtfenster plus 25 % gefiltert (`visibleMarkers`), weil
     `WidgetLayer` jeden Marker in jedem Frame positioniert.
+  - **Die Onlinekarte ist EIN Archiv auf dem eigenen Host** (#31
+    Schritt 2, seit 0.17.0; `online_map.dart`, `map_providers.dart`):
+    DACH als Protomaps-Basiskarte bis Zoom 13 auf Cloudflare R2 hinter
+    `tiles.mcbuchi.de/trailbuddy/`, geschnitten, geprüft und
+    hochgeladen von `map-data.yml` (monatlich und von Hand;
+    `tool/map_tiles.py` prüft den Auszug gegen die Quelle UND die
+    öffentliche Kopie über Range-Anfragen wie die App). Die App holt
+    erst `dach.json` (den Zeiger auf `dach-<build>.pmtiles`) und liest
+    dann kachelweise per Range — im Web `PmTilesArchive.fromUri`, in
+    MapLibre `pmtiles://https://…`. Dateien mit Datum sind unveränderlich,
+    nur der Zeiger wechselt: Eine Sitzung merkt sich Verzeichnisse, und
+    ein überschriebenes Archiv ließe die Versätze in eine andere Datei
+    zeigen; der vorige Stand bleibt einen Lauf lang liegen. Kein
+    OSM-Raster mehr, auf keiner Plattform. Ohne Empfang wird das Manifest
+    gar nicht erst geholt; ohne Manifest (Host weg, Datei kaputt) ist die
+    Übersicht die Karte — still, und nur ein Fehler, der nicht nach
+    Funkloch aussieht, wird gemeldet. Die Adresse ist eine KONSTANTE, keine
+    Konfiguration: `test/release_workflow_test.dart` hält
+    `kMapTilesBase` und `PUBLIC_BASE` im Workflow zusammen,
+    `test/privacy_policy_test.dart` die Erklärung. R2-Zugang: die drei
+    Secrets `R2_*` (API-Token, Object Read & Write auf den Bucket);
+    fehlen sie, sagt es die Run-Summary. Bucket `buddy-tiles` mit
+    Präfix je App — PilzBuddy kann später denselben Host nutzen. **Der
+    Bucket hat EU-Jurisdiktion, und sein S3-Endpunkt heißt deshalb
+    `<account>.eu.r2.cloudflarestorage.com`** — ohne `.eu` findet der
+    Upload den Bucket nicht (Betreiber, 2026-09-28).
   - **Der Stil ist ERZEUGT, die Übersicht auch** (`assets/map_style/`,
     `assets/offline_maps/overview_dach.pmtiles`, Zoom 0–7, ~9 MB;
     Glyphs `assets/map_glyphs/`, SIL OFL). `tool/transform_map_style.py`
@@ -392,13 +418,13 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Trails SIND die Wege) muss ein Fixpunkt bleiben;
     `tool/generated_assets.py --check` prüft Prüfsummen und Fixpunkt in
     CI, nach echtem Neu-Erzeugen `--update` im selben Commit. Die
-    Übersicht liegt NUR ohne Empfang unter dem OSM-Raster (beide
-    Engines dieselbe Regel: `noConnectivityProvider`; PilzBuddy #137 —
-    zwei Kartenstile nebeneinander sehen kaputter aus als eine leere
-    Fläche); auf dem Telefon aus einer materialisierten Datei, im
-    Browser aus dem Speicher (`fromBytes`). Kein neues Netzziel: Alles
-    liegt im Binary. `latlong2` 0.9 und `archive` 3.x, weil `pmtiles`
-    1.x daran hängt.
+    Übersicht liegt unter der Onlinekarte, sobald kein Empfang besteht
+    ODER es keine Onlinekarte gibt (beide Engines dieselbe Regel); seit
+    Schritt 2 ist das derselbe Stil aus demselben Format, PilzBuddys
+    #137 (zwei Kartenstile nebeneinander) gilt hier nicht mehr. Auf dem
+    Telefon aus einer materialisierten Datei, im Browser aus dem
+    Speicher (`fromBytes`). `latlong2` 0.9 und `archive` 3.x, weil
+    `pmtiles` 1.x daran hängt.
   Widget-Tests fahren `FakeMapView` (`test/fakes/fake_map_view.dart`):
   Marker-Kinder in einem `Wrap`, Kamera synchron simuliert, Tipps über
   DIESELBE Trefferprüfung (`tapMapAt`, `fakeMapLayers`);
@@ -448,9 +474,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
-  Offline-Karten über die Übersicht hinaus (Schritte 2–4 in
-  `docs/konzept-offline-karten.md`: Host und Schnitt, Bereiche, Orte
-  offline), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  Offline-Karten über die Übersicht hinaus (Schritte 3–4 in
+  `docs/konzept-offline-karten.md`: Bereiche speichern, Orte offline), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

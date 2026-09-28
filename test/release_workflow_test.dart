@@ -251,6 +251,33 @@ void main() {
     expect(manifest, contains('assets/offline_maps/overview_dach.pmtiles'));
   });
 
+  test('der Kartenhost in CI und in der App ist derselbe, und CI prüft den Rundlauf', () {
+    // Die App liest `kMapTilesBase`, der Workflow lädt nach `PUBLIC_BASE`.
+    // Laufen die beiden auseinander, lädt CI ein Archiv, das die App
+    // nie findet — und beide Seiten wären für sich grün.
+    final mapData = File('.github/workflows/map-data.yml').readAsStringSync();
+    final providers = File('lib/features/map/map_providers.dart').readAsStringSync();
+    final host = RegExp(r"kMapTilesBase = '([^']+)'").firstMatch(providers)!.group(1)!;
+    expect(mapData, contains('PUBLIC_BASE: $host'));
+    expect(mapData, contains("R2_PREFIX: ${host.split('/').last}"));
+    // Zoom 13 ist die Entscheidung des Betreibers (2026-09-28).
+    expect(mapData, contains("MAXZOOM: \${{ inputs.maxzoom || '13' }}"));
+    // Nach dem Upload liest CI die ÖFFENTLICHE Kopie wie die App: 206,
+    // accept-ranges, CORS, und Kacheln gegen die Quelle.
+    expect(mapData, contains("grep -q '^http/[0-9.]* 206'"));
+    expect(mapData, contains('accept-ranges: bytes'));
+    expect(mapData, contains('access-control-allow-origin'));
+    expect(mapData, contains('map_tiles.py check --source "\$SOURCE" \\\n            --extract "\$url"'));
+    // Die Secrets gehen über env: in einen Feststell-Schritt (kein
+    // `secrets.` in `if:`, das prüft der Test oben).
+    expect(mapData, contains("steps.r2.outputs.present == 'true'"));
+    // Das Manifest ist der Zeiger, die Archive tragen das Datum.
+    expect(mapData, contains('dach-\${SOURCE_BUILD}.pmtiles'));
+    // EU-Jurisdiktion: der Bucket liegt nur hinter dem EU-Endpunkt.
+    expect(mapData, contains('.eu.r2.cloudflarestorage.com'));
+    expect(mapData, contains('max-age=300'));
+  });
+
   test('jedes Werkzeug mit Selbsttest läuft in CI (sonst verrottet es still)', () {
     final ci = File('.github/workflows/ci.yml').readAsStringSync();
     final tools = Directory('tool')
