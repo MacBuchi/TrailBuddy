@@ -299,3 +299,41 @@ Eine feste Schwelle für alle Geräte ist ein Kompromiss. Später könnte
 sie sich am Eingangssignal ausrichten — etwa am Rauschen einer
 Aufzeichnung (Signal-Rausch-Verhältnis der Höhenreihe), sodass ein
 Barometer eine kleinere Schwelle bekommt als eine GPS-Höhe.
+
+## Tageslimit (Issue #23)
+
+*Gemessen am 2026-09-28, `tool/limit_measure.sql`, lokal auf dem
+Datenbank-Container des Supabase-Stacks (Postgres 17.6, arm64).*
+
+Frage: Was kostet ein ganzer Bestand am Stück? Der gemessene Bestand hat
+454 Trails; beim alten Limit von 50 in 24 h hätte sein Import zehn Tage
+gedauert.
+
+Last, synthetisch nach dem Bestand geformt: 150 verschiedene, kurvige
+Trails von 1 bis 6 km, dicht auf 8 × 8 km, im Mittel 330 Punkte je Linie
+(alle 10 m — mehr, als die Vereinfachung übrig lässt). Ein Buddy hat sie
+schon beigesteuert; dann kommen sie dreimal verrauscht (σ 4 m) als
+Import, jede Kopie ist „gleich" und läuft damit durch den teuersten Weg
+(Deckung und Fréchet).
+
+| Phase | Aufzeichnungen | Summe | Median | p95 | Max |
+|---|---:|---:|---:|---:|---:|
+| Bestand (neue Trails) | 150 | 11,4 s | 61 ms | 186 ms | 237 ms |
+| Import (alle „gleich") | 450 | 143,8 s | 311 ms | 516 ms | 685 ms |
+
+Danach gibt es genau 150 Trails — keine Kopie wurde zum neuen Trail.
+
+Lesart: Ein ganzer Bestand kostet die Datenbank rund zweieinhalb Minuten
+Rechenzeit, verteilt auf einzelne Aufrufe unter einer Sekunde. Das
+Live-Projekt (Free-Plan, geteilte CPU) ist langsamer als dieser Rechner;
+selbst mit Faktor 4 bleibt jeder Aufruf weit unter dem Statement-Timeout
+der API, und ein Konto, das das Limit täglich ausschöpft, kostet einige
+Minuten Rechenzeit am Tag. Gegen das Sondieren schützt das Limit nichts,
+was der Abgleich nicht ohnehin verbirgt (Konzept 4.6); es begrenzt, was
+ein einzelnes Konto an Last erzeugen kann. **Entscheidung (Betreiber,
+2026-09-28): 500 in 24 h** (Patch 006).
+
+Wiederholen, gern mit echten Linien statt der synthetischen: auf einer
+Wegwerf-Datenbank `supabase/schema.sql` einspielen, dann
+`tool/limit_measure.sql` — es hebt das Limit dort auf.
+

@@ -331,7 +331,9 @@ $$;
 --   overlap_min       0.3  ab hier eine Kante in trail_overlaps (Gabel)
 --   direction_same / direction_reversed: Anteil steigender Schritte
 --                          entlang der anderen Linie (≥ 0,7 / ≤ 0,3)
---   daily_limit       50   Aufzeichnungen je Nutzer und Tag (4.6, „Rate")
+--   daily_limit       500  Aufzeichnungen je Nutzer in 24 h (4.6, „Rate";
+--                          Patch 006: ein ganzer Bestand am Stück, gemessen
+--                          in docs/trail-abgleich-messung.md, „Tageslimit")
 create type app_internal.match_params as (
   corridor_m double precision,
   coverage_same double precision,
@@ -348,7 +350,7 @@ create type app_internal.match_params as (
 create or replace function app_internal.match_params()
 returns app_internal.match_params
 language sql immutable set search_path = '' as $$
-  select row(15.0, 0.8, 2.0, 150.0, 5.0, 400, 0.3, 0.7, 0.3, 50)::app_internal.match_params;
+  select row(15.0, 0.8, 2.0, 150.0, 5.0, 400, 0.3, 0.7, 0.3, 500)::app_internal.match_params;
 $$;
 
 -- Ergebnis eines Vergleichs Kandidat (a) gegen Bestand (b). `class` ist
@@ -1164,5 +1166,6 @@ insert into public.applied_patches (filename) values
   ('patch_002_recording_elevation.sql'),
   ('patch_003_attach_elevation.sql'),
   ('patch_004_trail_notes.sql'),
-  ('patch_005_trail_notes_open.sql')
+  ('patch_005_trail_notes_open.sql'),
+  ('patch_006_daily_limit_500.sql')
 on conflict do nothing;

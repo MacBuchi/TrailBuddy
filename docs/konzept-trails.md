@@ -339,9 +339,14 @@ Prüfung der Angriffe:
   kein Erstellungsdatum. Was er sehen könnte, hat er selbst geliefert.
   Um einen Trail zu „treffen", müsste er zu 80 % innerhalb 15 m auf
   ihm fahren — dann kennt er ihn.
-- **Rate:** 50 Aufzeichnungen je Nutzer und Tag reichen jedem echten
-  Nutzer (auch für einen Bestandsimport an einem Abend) und machen das
-  Sondieren als Fläche unattraktiv.
+- **Rate:** 500 Aufzeichnungen je Nutzer in 24 Stunden (Patch 006, #23)
+  — genug für einen ganzen Bestand am Stück (gemessen: 454 Trails), und
+  eine Grenze für die Last, die ein Konto erzeugen kann. **Korrektur
+  vom 2026-09-28:** Hier standen 50 mit der Begründung „auch für einen
+  Bestandsimport an einem Abend"; der gemessene Bestand hätte damit zehn
+  Tage gebraucht. Gegen das Sondieren hilft die Zahl ohnehin wenig — was
+  es verbirgt, verbirgt der Abgleich selbst (oben); sie schützt die
+  Datenbank (Kosten: `docs/trail-abgleich-messung.md`, „Tageslimit").
 - **Synthetische GPX:** Ein Import ohne Zeitstempel oder mit
   unplausiblen Geschwindigkeiten wird als „geplant" gespeichert
   (`source = 'planned'`), bekommt Qualität nahe null und steht in der

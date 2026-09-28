@@ -105,7 +105,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   den Punkten IM Korridor ≤ 2·d, Mindestlänge 150 m, Abtastung 5 m —
   gemessen an 584 Tracks. Nur „gleich" verschmilzt; Teil und Gabel werden
   neuer Trail plus unsichtbare Kante (`app_internal.trail_overlaps`). Die
-  RPC gibt nur die Trail-Kennung zurück, nie ob sie neu ist. Das
+  RPC gibt nur die Trail-Kennung zurück, nie ob sie neu ist. Tageslimit
+  500 Aufzeichnungen je Nutzer in 24 h (Patch 006, gemessen mit
+  `tool/limit_measure.sql`); `attach_elevation` zählt nicht mit. Das
   Python-Werkzeug `tool/trail_match.py` ist die Referenz und läuft mit
   `--self-test` in CI; Werkzeug und SQL kommen bei Schwellenänderungen im
   SELBEN PR.
