@@ -78,7 +78,19 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Kleinschreibung**: Das Repo heißt deshalb `trailbuddy` (klein), passend
   zu `--base-href /trailbuddy/` und den Links in `AppInfo`; GitHub, API
   und raw.githubusercontent.com sind davon nicht betroffen.
-  `preview.yml` (Vorschau-Repo) kommt mit dem zugehörigen Secret.
+  **`preview.yml`** deployt jeden Merge auf `main` als Web-Vorschau nach
+  `MacBuchi/trailbuddy-preview` (→ https://macbuchi.github.io/trailbuddy-preview/,
+  der Link „Entwicklungsversion öffnen" im Profil). Eigenes Repo, weil
+  `promote.yml` den Pages-Branch je Beförderung neu anlegt und weil ein
+  eigener Origin einen eigenen `localStorage` hat (Sitzung, Einstellungen)
+  — deshalb dort neu anmelden. `--dart-define=PREVIEW_BUILD=true`
+  schaltet den Streifen „Entwicklungsstand" und dreht den
+  Profil-Verweis um; `--base-href /trailbuddy-preview/` muss zum Link
+  passen (falsch ⇒ weiße Seite ohne Fehler). Zugang ist ein Deploy Key
+  (`PREVIEW_DEPLOY_KEY`, öffentlicher Teil im Vorschau-Repo mit
+  Schreibrecht), kein PAT; fehlt er, sagt es die Run-Summary mit den
+  Schritten. `test/release_workflow_test.dart` wacht über Flag, base-href
+  und Ziel-Repo.
 - **Schema Dry Run** (ci.yml, Pflicht-Check): lokaler Supabase-Stack auf
   dem Runner (`supabase/config.toml`, Portblock **5452x**), beide Wege —
   Bestand (Basis-Schema + neue Patches) und Frischinstallation (leere

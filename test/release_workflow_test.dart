@@ -20,8 +20,32 @@ void main() {
     final names = workflows.map((f) => f.uri.pathSegments.last).toSet();
     expect(names, containsAll([
       'ci.yml', 'release.yml', 'security.yml', 'workflow-lint.yml',
-      'keepalive.yml',
+      'keepalive.yml', 'promote.yml', 'preview.yml',
     ]));
+  });
+
+  test('die Web-Vorschau zeigt auf ihr eigenes Repo und trägt den Streifen', () {
+    final preview = File('.github/workflows/preview.yml').readAsStringSync();
+    final promote = File('.github/workflows/promote.yml').readAsStringSync();
+    // Ohne das Flag sähe die Vorschau aus wie die echte App, und ein
+    // Fehlerbericht daraus beträfe Code, den es nie gab.
+    expect(preview, contains('--dart-define=PREVIEW_BUILD=true'));
+    expect(preview, contains('--no-web-resources-cdn'));
+    // Falsche base-href heißt: Die Seite lädt ihre eigenen Assets nicht
+    // und bleibt weiß, ohne Fehlermeldung. Der Pfad muss zum Link im
+    // Profil passen.
+    expect(preview, contains('--base-href /trailbuddy-preview/'));
+    expect(File('lib/core/app_info.dart').readAsStringSync(),
+        contains("'https://macbuchi.github.io/trailbuddy-preview/'"));
+    expect(preview, contains('external_repository: MacBuchi/trailbuddy-preview'));
+    expect(preview, contains('node tool/check_service_worker.mjs build/web'));
+    // Ein Deploy Key, kein Token — er hängt an genau einem Repo.
+    expect(preview, contains('deploy_key:'));
+    expect(preview, isNot(contains('personal_token')));
+    expect(preview, isNot(contains('github_token')));
+    // Die Beförderung bleibt bei der echten Adresse.
+    expect(promote, contains('--base-href /trailbuddy/'));
+    expect(promote, isNot(contains('trailbuddy-preview')));
   });
 
   test('alle Workflows pinnen dieselbe Flutter-Version', () {
