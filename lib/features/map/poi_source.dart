@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../../core/errors.dart';
 import '../../core/settings.dart';
+import '../offline_areas/area_store.dart';
 import 'map_providers.dart';
 import 'poi.dart';
 
@@ -26,9 +27,16 @@ abstract interface class PoiSource {
 /// Fahrten oder das Konto. Derselbe Host steht schon für die Karte in
 /// der Datenschutzerklärung.
 class HostPoiSource implements PoiSource {
-  HostPoiSource([http.Client? client]) : _client = client ?? http.Client();
+  HostPoiSource({http.Client? client, Future<String?> Function(String name)? readLocal})
+      : _client = client ?? http.Client(),
+        _readLocal = readLocal;
 
   final http.Client _client;
+
+  /// Die Orte-Dateien gespeicherter Bereiche (Konzept-Schritt 3): Was
+  /// hier liegt, wird nie beim Host geholt — und ohne Netz ist es das,
+  /// was die Karte zeigt.
+  final Future<String?> Function(String name)? _readLocal;
 
   /// Das Manifest dieses App-Laufs. Scheitert der Abruf, bleibt es null
   /// und der nächste Wunsch versucht es wieder.
@@ -44,21 +52,31 @@ class HostPoiSource implements PoiSource {
   Future<PoiManifest> _loadManifest() async {
     final cached = _manifest;
     if (cached != null) return cached;
-    final res = await _client.get(Uri.parse(kPoiManifestUrl)).timeout(_timeout);
-    if (res.statusCode != 200) throw PoiUnavailable(res.statusCode);
-    return _manifest =
-        PoiManifest.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+    return _manifest = await fetchPoiManifest(_client);
   }
 
   @override
   Future<List<Poi>> fetch(List<PoiCell> cells, Set<PoiGroup> groups) async {
+    final out = <Poi>[];
+    // Erst die gespeicherten Bereiche: Was dort liegt, braucht weder
+    // Manifest noch Netz.
+    final remaining = <(PoiCell, PoiGroup)>[];
+    for (final c in cells) {
+      for (final g in groups) {
+        final local = await _readLocal?.call(poiCellFileName(c, g));
+        if (local != null) {
+          out.addAll(parsePoiFile(local));
+        } else {
+          remaining.add((c, g));
+        }
+      }
+    }
+    if (remaining.isEmpty) return out;
     final manifest = await _loadManifest();
     final wanted = [
-      for (final c in cells)
-        for (final g in groups)
-          if (manifest.has(c, g)) (c, g),
+      for (final (c, g) in remaining)
+        if (manifest.has(c, g)) (c, g),
     ];
-    final out = <Poi>[];
     for (var i = 0; i < wanted.length; i += _parallel) {
       final batch = wanted.sublist(i, math.min(i + _parallel, wanted.length));
       final results = await Future.wait([
@@ -83,6 +101,26 @@ class HostPoiSource implements PoiSource {
   }
 }
 
+/// Das Orte-Manifest vom Host; wirft [PoiUnavailable], solange keins
+/// veröffentlicht ist. Geteilt mit dem Bereichs-Download, der dieselben
+/// Dateien für seine Zellen holt.
+Future<PoiManifest> fetchPoiManifest(http.Client client) async {
+  final res = await client.get(Uri.parse(kPoiManifestUrl)).timeout(const Duration(seconds: 20));
+  if (res.statusCode != 200) throw PoiUnavailable(res.statusCode);
+  return PoiManifest.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+}
+
+/// Eine Orte-Datei vom Host als Text — null bei 404 (die Zelle ist seit
+/// dem Manifest verschwunden), [PoiUnavailable] bei allem anderen.
+Future<String?> fetchPoiFileFromHost(http.Client client, PoiManifest manifest, String name) async {
+  final res = await client
+      .get(Uri.parse('$kMapTilesBase/${manifest.prefix}/$name'))
+      .timeout(const Duration(seconds: 20));
+  if (res.statusCode == 404) return null;
+  if (res.statusCode != 200) throw PoiUnavailable(res.statusCode);
+  return res.body;
+}
+
 /// Der Orte-Host hat gerade keine Antwort (5xx, oder 404 auf das Manifest,
 /// solange noch kein Bau veröffentlicht ist). Kein Fehler der App — die
 /// Karte sagt es und fragt beim nächsten Verschieben wieder.
@@ -93,7 +131,8 @@ class PoiUnavailable implements Exception {
   String toString() => 'Der Orte-Host antwortet mit $statusCode';
 }
 
-final poiSourceProvider = Provider<PoiSource>((ref) => HostPoiSource());
+final poiSourceProvider = Provider<PoiSource>(
+    (ref) => HostPoiSource(readLocal: ref.watch(areaStoreProvider).readPoiFile));
 
 /// Die eingeschalteten Gruppen — gerätelokal gemerkt, wie
 /// [RememberedFlag]: Der Zustand springt sofort, das Merken läuft nach.

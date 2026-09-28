@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.18.0+22
+version: 0.19.0+23
 
 environment:
   sdk: ^3.11.0
@@ -69,6 +69,9 @@ dependencies:
   flutter_foreground_task: ^11.0.3
   # Ausgangskorb (#30): Verbindung zurück ⇒ wartende Aufträge senden.
   connectivity_plus: ^7.3.1
+  # Gespeicherte Kartenbereiche im Browser (Konzept-Schritt 3): IndexedDB
+  # über idb_shim, dieselbe Implementierung läuft im Test im Speicher.
+  idb_shim: ^2.9.2
 
 dev_dependencies:
   flutter_test:

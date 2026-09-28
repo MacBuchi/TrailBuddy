@@ -84,6 +84,15 @@ class ProfileScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/profile/rides'),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.map_outlined),
+            title: const Text('Meine Bereiche'),
+            subtitle: const Text(
+                'Gespeicherte Kartenbereiche für unterwegs — liegen nur auf diesem Gerät'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/profile/areas'),
+          ),
           const Divider(height: 32),
           ChangeUsernameTile(username: profile?.username),
           const ChangeEmailTile(),

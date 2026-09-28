@@ -1,0 +1,79 @@
+// Die Ablage gespeicherter Bereiche im Browser: IndexedDB über
+// `idb_shim`. Ein Archiv liegt als EIN Bytes-Eintrag, gelesen mit
+// `PmTilesArchive.fromBytes` (im Browser gibt es keine faule Datei; ein
+// Bereich von einigen Dutzend MB liegt dann im Speicher — der Preis der
+// Plattform, PilzBuddy 1.114.2). Der Browser darf seinen Speicher räumen;
+// beim ersten Speichern eines Bereichs bittet die Oberfläche einmal um
+// `navigator.storage.persist()` (Konzept 3.2).
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:idb_shim/idb_shim.dart';
+
+import '../../data/browser_db.dart';
+import 'area_store.dart';
+
+class IdbAreaStore implements AreaStore {
+  IdbAreaStore(IdbFactory factory) : _db = BrowserDb(factory);
+
+  final BrowserDb _db;
+
+  static const _indexKey = 'areas';
+
+  @override
+  Future<List<StoredArea>> list() async {
+    try {
+      final text = await _db.readStore(kAreaIndexStore, (s) => s.getObject(_indexKey));
+      if (text is! String) return const [];
+      return [for (final j in jsonDecode(text) as List) StoredArea.fromJson(j as Map<String, dynamic>)];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<void> saveIndex(List<StoredArea> areas) => _db.writeStore(kAreaIndexStore,
+      (s) => s.put(jsonEncode([for (final a in areas) a.toJson()]), _indexKey));
+
+  @override
+  Future<void> putArchive(String id, Uint8List bytes) =>
+      _db.writeStore(kAreaArchiveStore, (s) => s.put(bytes, id));
+
+  @override
+  Future<String?> archivePath(String id) async => null;
+
+  @override
+  Future<Uint8List?> readArchive(String id) async {
+    final value = await _db.readStore(kAreaArchiveStore, (s) => s.getObject(id));
+    if (value is Uint8List) return value;
+    if (value is List<int>) return Uint8List.fromList(value);
+    return null;
+  }
+
+  @override
+  Future<void> putPoiFile(String id, String name, String text) =>
+      _db.writeStore(kAreaPoiStore, (s) => s.put(text, '$id/$name'));
+
+  @override
+  Future<String?> readPoiFile(String name) async {
+    for (final area in await list()) {
+      if (!area.poiFiles.contains(name)) continue;
+      final value = await _db.readStore(kAreaPoiStore, (s) => s.getObject('${area.id}/$name'));
+      if (value is String) return value;
+    }
+    return null;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    final areas = await list();
+    final gone = areas.where((a) => a.id == id).toList();
+    await saveIndex([for (final a in areas) if (a.id != id) a]);
+    await _db.writeStore(kAreaArchiveStore, (s) => s.delete(id));
+    for (final area in gone) {
+      for (final name in area.poiFiles) {
+        await _db.writeStore(kAreaPoiStore, (s) => s.delete('${area.id}/$name'));
+      }
+    }
+  }
+}

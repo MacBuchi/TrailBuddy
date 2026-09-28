@@ -1,17 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'ride_service_stub.dart' if (dart.library.io) 'ride_service_android.dart';
+import '../keep_alive/keep_alive.dart';
 
 /// Der Foreground-Service der Fahrt (#28): hält den Prozess wach und
 /// trägt das Isolate, in dem gemessen wird. Die Dauerbenachrichtigung IST
 /// die Offenlegung gegenüber dem Nutzer — deshalb kein
 /// `ACCESS_BACKGROUND_LOCATION`.
 ///
-/// EIN Verbraucher, kein Koordinator: Anders als in PilzBuddy (Download
-/// und Pilztour teilen sich dort einen Service) gibt es hier bisher nur
-/// die Fahrt. Kommen Offline-Karten (Phase 3), wird daraus der
-/// Koordinator aus PilzBuddy — zwei `stop()` auf einem Service sind die
-/// Falle, die er dort löst.
+/// Seit Konzept-Schritt 3 EIN Verbraucher von zweien: Die Fahrt und der
+/// Bereichs-Download teilen sich den Service über den
+/// [KeepAliveCoordinator] (PilzBuddy #264) — zwei `stop()` auf einem
+/// Service waren die Falle, die das Ende eines Downloads die Fahrt
+/// beenden ließ.
 abstract interface class RideService {
   /// Startet den Service mit dem Mess-Takt [every]; läuft er schon,
   /// werden nur die Texte erneuert.
@@ -24,8 +24,30 @@ abstract interface class RideService {
 /// erreicht. **Gehört in `main()`, vor `runApp`** — ohne ihn ist die
 /// Rückrichtung stumm: `sendDataToMain` findet `null` und verwirft die
 /// Meldung, ohne Fehler, ohne Spur (PilzBuddy #465, vier Wochen lang).
-void initRideCommunication() => initRideCommunicationImpl();
+void initRideCommunication() => initKeepAliveCommunication();
 
-/// Plattform-Implementierung: Foreground-Service auf Android, sonst
-/// nichts. Tests überschreiben den Provider.
-final rideServiceProvider = Provider<RideService>((ref) => createRideService());
+/// Die Fahrt als Melder am Koordinator: Typ `location`, mit Takt — die
+/// Messung läuft IM Service-Isolate.
+class CoordinatedRideService implements RideService {
+  const CoordinatedRideService(this._coordinator);
+
+  static const _key = 'ride';
+
+  final KeepAliveCoordinator _coordinator;
+
+  @override
+  Future<void> start({required String title, required String text, required Duration every}) async {
+    await _coordinator.start(_key, text, title: title, types: const {KeepAliveType.location});
+    await _coordinator.setRepeat(every);
+  }
+
+  @override
+  Future<void> stop() async {
+    await _coordinator.setRepeat(null);
+    await _coordinator.stop(_key);
+  }
+}
+
+/// Tests überschreiben den Provider (`FakeRideService`).
+final rideServiceProvider = Provider<RideService>(
+    (ref) => CoordinatedRideService(ref.watch(keepAliveCoordinatorProvider)));

@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart' as vmt;
 
 import '../../../core/connectivity.dart';
+import '../../offline_areas/area_providers.dart';
 import '../base_map_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../online_map.dart';
@@ -102,6 +103,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     final showBaseMap = online == null || ref.watch(noConnectivityProvider);
     final baseStyle =
         showBaseMap ? ref.watch(baseMapStyleProvider).valueOrNull : null;
+    // Die gespeicherten Bereiche in demselben Fall, über der Übersicht
+    // (Konzept-Schritt 3) — dieselbe Regel wie in der MapLibre-Engine.
+    final areas = showBaseMap ? ref.watch(areaMapStyleProvider).valueOrNull : null;
 
     return FlutterMap(
       mapController: _mapController,
@@ -155,6 +159,15 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             // rendert bei jeder Zwischen-Zoomstufe neu, und diese Schicht
             // endet bei Zoom 7 — es gibt keine Schärfe zu verlieren.
             layerMode: vmt.VectorTileLayerMode.raster,
+            maximumTileSubstitutionDifference: 1,
+          ),
+        if (areas != null)
+          vmt.VectorTileLayer(
+            key: ValueKey(areas.tileProviders),
+            tileProviders: areas.tileProviders,
+            theme: areas.theme,
+            layerMode: vmt.VectorTileLayerMode.vector,
+            maximumZoom: 19,
             maximumTileSubstitutionDifference: 1,
           ),
         if (online != null)

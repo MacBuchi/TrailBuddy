@@ -21,7 +21,9 @@ import 'package:trailbuddy/features/map/base_map_providers.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
 import 'package:trailbuddy/features/map/map_view/flutter_map_view.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
+import 'package:trailbuddy/features/keep_alive/keep_alive.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
+import 'package:trailbuddy/features/offline_areas/area_store.dart';
 import 'package:trailbuddy/features/map/position_provider.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
 import 'package:trailbuddy/features/rides/ride_providers.dart';
@@ -38,6 +40,7 @@ import 'fake_rides.dart';
 import 'fake_settings.dart';
 import 'fake_trail_cache.dart';
 import 'fake_trails.dart';
+import 'fake_keep_alive.dart';
 
 /// Test-Position ohne Geolocator-Plugin (alle Pflichtfelder gefüllt).
 Position fakePosition(double lat, double lon, {double accuracy = 8}) => Position(
@@ -83,6 +86,8 @@ List<Override> overridesFor(FakeBackend backend,
         FakeRideService? rideService,
         FakeOutbox? outbox,
         FakeTrailCache? trailCache,
+        MemoryAreaStore? areaStore,
+        FakeKeepAlive? keepAlive,
         Stream<List<ConnectivityResult>>? connectivity,
         bool useRealMap = false,
         List<Override> extra = const []}) =>
@@ -148,6 +153,11 @@ List<Override> overridesFor(FakeBackend backend,
       // Die Kopie des Netzes (#32) im Speicher — ohne Override ginge
       // jeder Abruf an `path_provider`.
       trailCacheProvider.overrideWithValue(trailCache ?? FakeTrailCache()),
+      // Gespeicherte Bereiche (Konzept-Schritt 3) im Speicher, der
+      // Foreground-Service als Fake — ohne beides ginge der Kartenstart
+      // an `path_provider` und den Plattform-Kanal.
+      areaStoreProvider.overrideWithValue(areaStore ?? MemoryAreaStore()),
+      keepAliveProvider.overrideWithValue(keepAlive ?? FakeKeepAlive()),
       connectivityProvider.overrideWith(
           (ref) => connectivity ?? Stream.value(const [ConnectivityResult.wifi])),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
@@ -178,6 +188,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeRideService? rideService,
     FakeOutbox? outbox,
     FakeTrailCache? trailCache,
+    MemoryAreaStore? areaStore,
+    FakeKeepAlive? keepAlive,
     Stream<List<ConnectivityResult>>? connectivity,
     bool useRealMap = false,
     List<Override> extraOverrides = const []}) async {
@@ -199,6 +211,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         rideService: rideService,
         outbox: outbox,
         trailCache: trailCache,
+        areaStore: areaStore,
+        keepAlive: keepAlive,
         connectivity: connectivity,
         useRealMap: useRealMap,
         extra: extraOverrides),

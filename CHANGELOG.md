@@ -4,8 +4,16 @@
 
 ## Karte
 
-*Versionen 0.16.0, 0.17.0 und 0.18.0, 2026-09-28*
+*Versionen 0.16.0, 0.17.0, 0.18.0 und 0.19.0, 2026-09-28*
 
+- **Bereiche für unterwegs speichern** (0.19.0): Unter „Ebenen und Orte"
+  gibt es jetzt „Bereich für unterwegs speichern" — der aktuelle
+  Ausschnitt oder ein Rahmen um deine Trails mit 2 km Rand. Die Größe
+  steht vorher da, genau gemessen, nicht geschätzt. Die Karte bis
+  Zoomstufe 13 samt Orten bleibt dann auf dem Gerät und ist ohne
+  Empfang die Karte. „Meine Bereiche" im Profil zeigt, was liegt, mit
+  Größe und Kartenstand; ein neuerer Stand wird angeboten, nie
+  aufgezwungen. Bereiche werden nie von selbst gelöscht.
 - **Die Orte auf der Karte kommen jetzt auch vom eigenen Kartenspeicher**
   (0.18.0): Einkehr, Wasser, Rad-Service und Sonstiges liegen als fertige
   Dateien je Rasterzelle neben der Karte, einmal im Monat frisch aus

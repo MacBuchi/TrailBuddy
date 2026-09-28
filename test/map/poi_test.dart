@@ -146,7 +146,7 @@ void main() {
 
     test('Manifest einmal, dann nur die Zellen, die es nennt', () async {
       final asked = <String>[];
-      final source = HostPoiSource(MockClient((req) async {
+      final source = HostPoiSource(client: MockClient((req) async {
         asked.add(req.url.toString());
         if (req.url.toString() == kPoiManifestUrl) {
           return http.Response(jsonEncode(manifest), 200);
@@ -177,7 +177,7 @@ void main() {
     test('kein Manifest (noch kein Bau, Host weg): nicht erreichbar, beim nächsten Mal wieder',
         () async {
       var manifestCalls = 0;
-      final source = HostPoiSource(MockClient((req) async {
+      final source = HostPoiSource(client: MockClient((req) async {
         if (req.url.toString() == kPoiManifestUrl) {
           manifestCalls++;
           if (manifestCalls == 1) return http.Response('', 404);
@@ -192,8 +192,29 @@ void main() {
       expect(manifestCalls, 2);
     });
 
+    test('gespeicherte Bereiche zuerst: lokale Zellen brauchen weder Manifest noch Netz',
+        () async {
+      var network = 0;
+      final source = HostPoiSource(
+        client: MockClient((req) async {
+          network++;
+          if (req.url.toString() == kPoiManifestUrl) {
+            return http.Response(jsonEncode(manifest), 200);
+          }
+          return http.Response(jsonEncode({...spring, 'pois': []}), 200);
+        }),
+        readLocal: (name) async => name == '475_60.water.json' ? jsonEncode(spring) : null,
+      );
+      final local = await source.fetch(['475,60'], {PoiGroup.water});
+      expect(local.map((p) => p.id), ['node/1']);
+      expect(network, 0, reason: 'alles lag im Bereich');
+      // Fehlt eine Zelle lokal, geht nur die ans Netz.
+      await source.fetch(['475,60'], {PoiGroup.water, PoiGroup.food});
+      expect(network, 2, reason: 'Manifest und die eine Einkehr-Datei');
+    });
+
     test('eine Zellendatei mit 5xx: nicht erreichbar', () async {
-      final source = HostPoiSource(MockClient((req) async {
+      final source = HostPoiSource(client: MockClient((req) async {
         if (req.url.toString() == kPoiManifestUrl) {
           return http.Response(jsonEncode(manifest), 200);
         }

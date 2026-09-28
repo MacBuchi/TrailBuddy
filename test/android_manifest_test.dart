@@ -58,6 +58,7 @@ void main() {
       'ACCESS_COARSE_LOCATION',
       'FOREGROUND_SERVICE',
       'FOREGROUND_SERVICE_LOCATION',
+      'FOREGROUND_SERVICE_DATA_SYNC',
       'POST_NOTIFICATIONS',
       'RECEIVE_BOOT_COMPLETED',
     });
@@ -67,14 +68,16 @@ void main() {
         reason: 'das Plugin bringt sie mit, wir starten nie beim Booten');
   });
 
-  test('die Fahrt läuft über einen Foreground-Service vom Typ location', () {
+  test('Fahrt und Bereichs-Download teilen EINEN Foreground-Service, Typen dataSync|location', () {
     expect(manifest, contains('com.pravera.flutter_foreground_task.service.ForegroundService'));
+    // Die Obermenge dessen, was vorkommen KANN; welche Typen ein Lauf
+    // nennt, entscheidet der Koordinator je Start (PilzBuddy #338).
     final type = RegExp(r'android:foregroundServiceType="([a-zA-Z|]+)"').firstMatch(manifest)!.group(1)!;
-    expect(type, 'location');
+    expect(type.split('|').toSet(), {'dataSync', 'location'});
     // Der Meta-Data-Name des Symbols steht in Dart und im Manifest; das
     // Plugin liefert bei einem Tippfehler stumm die Ressourcen-id 0.
-    final dart = File('lib/features/rides/ride_service_android.dart').readAsStringSync();
-    final name = RegExp(r"rideNotificationIconMetaData = '([\w.]+)'").firstMatch(dart)!.group(1)!;
+    final dart = File('lib/features/keep_alive/keep_alive_service.dart').readAsStringSync();
+    final name = RegExp(r"keepAliveNotificationIconMetaData = '([\w.]+)'").firstMatch(dart)!.group(1)!;
     expect(name, startsWith('$appId.'));
     expect(manifest, contains('android:name="$name"'));
     expect(manifest, contains('android:resource="@drawable/ic_notification"'));
