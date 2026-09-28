@@ -37,4 +37,11 @@ abstract final class AppColors {
   /// „das bin ich, gerade jetzt" —, nicht Grün: Grün heißt „mein Trail",
   /// und eine Fahrt ist noch keiner.
   static const rideTrack = Color(0xFF455A64);
+
+  /// Der Landton der Karte, wo (noch) keine Kachel liegt — derselbe Wert
+  /// wie die `earth`-Fläche des erzeugten Kartenstils, damit die Fläche
+  /// nach „Karte lädt" aussieht und nicht nach „kaputt". Beide Engines
+  /// lesen ihn (flutter_map als `backgroundColor`, MapLibre als
+  /// background-Ebene im Style).
+  static const mapBackground = Color(0xFFE2DFDA);
 }

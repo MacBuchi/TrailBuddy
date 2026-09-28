@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.15.0+19
+version: 0.16.0+20
 
 environment:
   sdk: ^3.11.0
@@ -16,10 +16,36 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
-  # Karte (OpenStreetMap-Raster, kein API-Key). MapLibre für Android kommt
-  # wie in PilzBuddy hinter einer Fassade — später, mit Messung.
+  # Karte: flutter_map ist die Engine im Web und der Rückfall auf Android
+  # (lib/features/map/map_view/). Online noch OSM-Raster, ohne Empfang die
+  # mitgelieferte Vektor-Übersicht (docs/konzept-offline-karten.md).
   flutter_map: ^8.3.2
-  latlong2: ^0.10.1
+  # 0.9 statt 0.10, weil `pmtiles` 1.x nur 0.9 kennt — dieselbe Lage wie
+  # in PilzBuddy.
+  latlong2: ^0.9.1
+  # Vektor-Kacheln für flutter_map. Nur Beta-Versionen von
+  # vector_map_tiles unterstützen flutter_map 8 — deshalb exakt gepinnt.
+  # 9.0.0-beta.9 nutzt bewusst noch den stabilen Canvas-Renderer (die
+  # 10er-Linie zieht den experimentellen GPU-Stack samt Native-Builds nach
+  # sich).
+  vector_map_tiles: 9.0.0-beta.9
+  vector_tile_renderer: ^6.1.0
+  pmtiles: ^1.3.0
+  # Direkt (statt nur transitiv über vector_map_tiles), damit
+  # `worthReporting` in lib/core/errors.dart typisiert auf
+  # CancellationException prüfen kann — der Kachelrenderer bricht Kacheln
+  # ab, sobald sie aus dem Bild wandern, und jede davon wäre sonst eine
+  # Zeile in `error_reports` (PilzBuddy #136).
+  executor_lib: ^1.1.1
+  # Die Karten-Engine auf Android (nativer GPU-Renderer maplibre-native).
+  # 0.x und jung, deshalb exakt gepinnt; Upgrades nur bewusst. Web sieht
+  # das Paket nie (bedingter Import in map_view.dart).
+  maplibre: 0.3.5
+  # Die Android-Seite AUSDRÜCKLICH auf 0.3.5: 0.3.6 wendet in seinem
+  # build.gradle.kts das ktlint-Plugin ohne Version an, und Gradle findet
+  # es dann in keinem Plugin-Repository — der APK-Build bricht ab, bevor
+  # eine Zeile Kotlin kompiliert. PilzBuddy baut mit 0.3.5.
+  maplibre_android: 0.3.5
 
   supabase_flutter: ^2.17.2
   flutter_riverpod: ^2.6.1
@@ -34,7 +60,7 @@ dependencies:
   xml: ^6.5.0
   share_plus: ^13.3.0
   path_provider: ^2.1.5
-  archive: ^4.3.0
+  archive: ^3.4.10
   geolocator: ^14.0.2
   # Fahrt aufzeichnen (#28): Foreground-Service vom Typ `location`, die
   # Messung läuft in dessen eigenem Isolate (überlebt das Wegwischen der
@@ -53,3 +79,21 @@ flutter:
   uses-material-design: true
   assets:
     - CHANGELOG.md
+    # Kartenstil für BEIDE Engines (erzeugt aus @protomaps/basemaps,
+    # Flavor LIGHT, deutsche Labels, Wege hervorgehoben) — nicht von Hand
+    # editieren, `tool/generated_assets.py --check` wacht darüber.
+    - assets/map_style/protomaps_light_de.json
+    # Eingebaute Übersichtskarte (DACH, Zoom 0–7, ~9 MB): die unterste
+    # Ebene, sobald kein Empfang besteht. Erzeugt mit
+    # `pmtiles extract <Protomaps-Daily-Build> --bbox=5.5,45.5,17.5,55.5 --maxzoom=7`.
+    - assets/offline_maps/overview_dach.pmtiles
+    # Schriftzeichen (Glyph-PBFs) für die MapLibre-Engine: Noto-Sans-Stacks
+    # (SIL OFL, siehe assets/map_glyphs/OFL.txt), fünf Unicode-Bereiche —
+    # reicht für deutsche Kartenbeschriftung. MapLibre lädt Glyphs nur von
+    # Platte/URL, deshalb werden sie beim Start ins App-Verzeichnis
+    # materialisiert (maplibre_style_provider.dart).
+    - assets/map_glyphs/noto-sans-regular/
+    - assets/map_glyphs/noto-sans-medium/
+    # Der OFL-Text zu genau diesen Glyphen. Eigene Zeile: Die
+    # Verzeichnis-Einträge nehmen nur Dateien direkt darin mit.
+    - assets/map_glyphs/OFL.txt

@@ -2,14 +2,14 @@
 // Blatt mit Quelle; ohne Netz gilt, was gemerkt ist; aus heißt: keine
 // Anfrage.
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trailbuddy/core/app_colors.dart';
 import 'package:trailbuddy/features/official/official_trails.dart';
-import 'package:trailbuddy/features/official/official_trails_layer.dart';
+import 'package:trailbuddy/features/map/map_view/map_view.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_official_trails.dart';
 import '../fakes/fake_settings.dart';
 import '../fakes/fake_trails.dart';
@@ -47,16 +47,11 @@ void main() {
     await settle(tester, frames: 20);
   }
 
-  List<Polyline<OfficialTrail>> lines(WidgetTester tester) {
-    final layer = find.byType(PolylineLayer<OfficialTrail>);
-    if (layer.evaluate().isEmpty) return const [];
-    return tester.widget<PolylineLayer<OfficialTrail>>(layer).polylines;
-  }
-
-  Offset onScreen(WidgetTester tester, LatLng p) {
-    final camera = MapCamera.of(tester.element(find.byType(OfficialTrailsLayer)));
-    return tester.getTopLeft(find.byType(FlutterMap)) + camera.latLngToScreenOffset(p);
-  }
+  /// Die Linien der Ebene, wie der Screen sie der Karte gibt.
+  List<MapViewPolyline> lines(WidgetTester tester) => [
+        for (final l in fakeMapLayers(tester).polylines)
+          if (l.hitValue is OfficialTrail) l,
+      ];
 
   testWidgets('ab Werk an: gestrichelt, gesperrter Teil grau, Blatt mit Quelle',
       (tester) async {
@@ -64,12 +59,12 @@ void main() {
     expect(source.asked, ['index.json', 'testland.geojson']);
     final l = lines(tester);
     expect(l, hasLength(2), reason: 'ein Trail, Hauptroute und Variante');
-    expect(l.every((p) => p.pattern != const StrokePattern.solid()), isTrue);
+    expect(l.every((p) => p.dash != null), isTrue);
     expect(l[0].color, AppColors.officialViolet);
     expect(l[1].color, isNot(AppColors.officialViolet), reason: 'gesperrte Variante');
-    expect(l[1].strokeWidth, lessThan(l[0].strokeWidth));
+    expect(l[1].width, lessThan(l[0].width));
 
-    await tester.tapAt(onScreen(tester, const LatLng(48.003, 9.003)));
+    await tapMapAt(tester, const LatLng(48.003, 9.003));
     await settle(tester);
     expect(find.text('Flowline'), findsOneWidget);
     expect(find.text('Offizieller Singletrail'), findsOneWidget);
@@ -130,7 +125,7 @@ void main() {
     source.asked.clear();
     await start(tester);
     expect(source.asked, ['index.json', 'testland.geojson']);
-    await tester.tapAt(onScreen(tester, const LatLng(48.003, 9.003)));
+    await tapMapAt(tester, const LatLng(48.003, 9.003));
     await settle(tester);
     expect(find.text('Flowline neu'), findsOneWidget);
   });

@@ -49,6 +49,14 @@ jobs:
           bash tool/schema_check.sh --self-test > /dev/null
           python3 tool/feedback_bot.py --self-test > /dev/null
           python3 tool/official_trails.py --self-test > /dev/null
+          python3 tool/generated_assets.py --self-test > /dev/null
+          python3 tool/transform_map_style.py --self-test > /dev/null
+      # Eigener Schritt, nicht bei den Selbsttests: Der hier prüft nicht
+      # ein Werkzeug, sondern die ausgelieferten Dateien — Kartenstil und
+      # Übersichtskarte sind ERZEUGT (PilzBuddy #226). Wird er rot, steht
+      # im Log, welches Asset und wie man es neu erzeugt.
+      - name: Generated assets are fresh
+        run: python3 tool/generated_assets.py --check > /dev/null
       - name: Nothing private in the repository
         run: python3 tool/private_info_check.py
 

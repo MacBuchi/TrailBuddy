@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/test_app.dart';
 
 void main() {
@@ -18,11 +19,9 @@ void main() {
 
   final dot = find.byKey(const ValueKey('my-position'));
 
-  MapCamera camera(WidgetTester tester) =>
-      MapCamera.of(tester.element(find.byType(PolylineLayer<String>)));
-
-  testWidgets('die Karte dreht sich nicht', (tester) async {
-    await pumpApp(tester, backend);
+  testWidgets('die Karte dreht sich nicht (flutter_map-Engine)', (tester) async {
+    // flutter_map-Interna: hier läuft die echte Engine des Web-Pfads.
+    await pumpApp(tester, backend, useRealMap: true);
     final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
     final flags = map.options.interactionOptions.flags;
     expect(flags & InteractiveFlag.rotate, 0);
@@ -52,10 +51,16 @@ void main() {
     await settle(tester);
     expect(dot, findsOneWidget);
     expect(fix.calls, 0, reason: 'der Punkt allein fragt nie');
+    // Der Genauigkeitskreis in Metern — er wächst mit der Karte.
+    final circle = fakeMapLayers(tester).circles.single;
+    expect(circle.radiusM, 8);
+    // Der Punkt meldet nichts: ein Tipp darauf gilt der Karte.
+    final marker = fakeMapLayers(tester).markers.single;
+    expect(marker.hitValue, isNull);
 
     await tester.tap(find.byTooltip('Meine Position'));
     await settle(tester, frames: 12);
-    final c = camera(tester);
+    final c = fakeMap(tester);
     expect(c.center.latitude, closeTo(47.2, 1e-6));
     expect(c.center.longitude, closeTo(11.4, 1e-6));
     expect(c.zoom, 15);
