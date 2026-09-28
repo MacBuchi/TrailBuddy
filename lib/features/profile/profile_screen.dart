@@ -14,6 +14,7 @@ import '../../core/widgets/letter_avatar.dart';
 import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../feedback/feedback_dialog.dart';
+import '../trails/trail_providers.dart' show trailCacheProvider;
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
 
@@ -33,7 +34,13 @@ class ProfileScreen extends ConsumerWidget {
             // Nach dem Abmelden leitet der Router sofort auf /login um —
             // alles, was danach noch `ref` bräuchte, gehört VOR diesen
             // Aufruf.
-            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            onPressed: () async {
+              // Die Kopie des Netzes (#32) gehört dem Konto, nicht dem
+              // Gerät — sie geht mit. Der Ausgangskorb bleibt: Er trägt
+              // Originale und ist an die Konto-Kennung gebunden.
+              await ref.read(trailCacheProvider).clear();
+              await ref.read(authRepositoryProvider).signOut();
+            },
             icon: const Icon(Icons.logout),
             tooltip: 'Abmelden',
           ),
@@ -245,6 +252,7 @@ class _DeleteAccountTile extends ConsumerWidget {
     if (!confirmed || !context.mounted) return;
 
     try {
+      await ref.read(trailCacheProvider).clear();
       await ref.read(authRepositoryProvider).deleteAccount();
       // Der Router schickt nach dem Abmelden automatisch auf /login.
     } catch (e, stackTrace) {

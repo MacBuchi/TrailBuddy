@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/errors.dart';
 import '../../models/trail.dart';
+import '../map/map_screen.dart' show formatCachedAt;
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
 
@@ -50,11 +51,22 @@ class TrailsScreen extends ConsumerWidget {
               ]);
             }
             final seen = ref.watch(seenNotesProvider);
+            final cachedAt = ref.watch(trailsCachedAtProvider);
             final pending = trails.where((t) => t.pending).toList();
             final own = trails.where((t) => t.isOwn && !t.pending).toList();
             final buddies = trails.where((t) => !t.isOwn).toList();
             return ListView(
               children: [
+                if (cachedAt != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Text(
+                      'Kein Empfang — Stand vom ${formatCachedAt(cachedAt)}. '
+                      'Neue Beiträge deiner Buddys kommen mit dem nächsten Netz.',
+                      key: const ValueKey('cached-notice-list'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
                 // Der Ausgangskorb (#30) zuerst: Was wartet, soll man
                 // sehen — sonst steuert man dieselbe Datei zweimal bei.
                 if (pending.isNotEmpty) _Header('Wartet auf Übertragung (${pending.length})'),

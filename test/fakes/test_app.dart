@@ -34,6 +34,7 @@ import 'fake_outbox.dart';
 import 'fake_pois.dart';
 import 'fake_rides.dart';
 import 'fake_settings.dart';
+import 'fake_trail_cache.dart';
 import 'fake_trails.dart';
 
 /// 1×1 transparentes PNG als Offline-Kartenkachel.
@@ -95,6 +96,7 @@ List<Override> overridesFor(FakeBackend backend,
         FakeRideServiceBridge? rideBridge,
         FakeRideService? rideService,
         FakeOutbox? outbox,
+        FakeTrailCache? trailCache,
         Stream<List<ConnectivityResult>>? connectivity,
         List<Override> extra = const []}) =>
     [
@@ -141,6 +143,9 @@ List<Override> overridesFor(FakeBackend backend,
       // Der Ausgangskorb (#30) im Speicher; der Netzwechsel kommt aus dem
       // Test (Vorgabe: WLAN, ohne Wechsel).
       outboxProvider.overrideWithValue(outbox ?? FakeOutbox()),
+      // Die Kopie des Netzes (#32) im Speicher — ohne Override ginge
+      // jeder Abruf an `path_provider`.
+      trailCacheProvider.overrideWithValue(trailCache ?? FakeTrailCache()),
       connectivityProvider.overrideWith(
           (ref) => connectivity ?? Stream.value(const [ConnectivityResult.wifi])),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
@@ -170,6 +175,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeRideServiceBridge? rideBridge,
     FakeRideService? rideService,
     FakeOutbox? outbox,
+    FakeTrailCache? trailCache,
     Stream<List<ConnectivityResult>>? connectivity,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
@@ -189,6 +195,7 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         rideBridge: rideBridge,
         rideService: rideService,
         outbox: outbox,
+        trailCache: trailCache,
         connectivity: connectivity,
         extra: extraOverrides),
     child: const TrailBuddyApp(),

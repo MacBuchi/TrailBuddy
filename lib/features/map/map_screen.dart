@@ -167,6 +167,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final ride = ref.watch(rideProvider);
     final focusRide = ref.watch(mapFocusRideProvider);
     final canRecord = ref.watch(rideRecordingAvailableProvider);
+    final cachedAt = ref.watch(trailsCachedAtProvider);
 
     // Einmal auf das Netz zoomen, sobald es da ist; danach nie wieder
     // von selbst — wer die Karte verschoben hat, will nicht zurückgeholt
@@ -337,6 +338,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           child: Text('Offizielle Trails gerade nicht erreichbar'),
                         ),
                       ),
+                    // Ohne Empfang kommt das Netz aus der Kopie (#32). Das
+                    // gehört gesagt, sonst hält man den Stand für aktuell.
+                    if (cachedAt != null)
+                      Card(
+                        key: const ValueKey('cached-notice'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          child: Text('Kein Empfang — Trails vom ${formatCachedAt(cachedAt)}'),
+                        ),
+                      ),
                     if (poiUnavailable)
                       const Card(
                         child: Padding(
@@ -429,6 +440,13 @@ class _OutboxBanner extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// „28.9., 10:12" — Tag und Uhrzeit des zwischengespeicherten Stands.
+String formatCachedAt(DateTime at) {
+  final l = at.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${l.day}.${l.month}., ${two(l.hour)}:${two(l.minute)}';
 }
 
 Polyline<Object> _ridePolyline(List<RidePoint> points) => Polyline(
