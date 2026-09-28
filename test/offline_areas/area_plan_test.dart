@@ -50,6 +50,86 @@ void main() {
     expect(AreaBounds.fromJson(b.toJson()).north, b.north);
   });
 
+  group('Kachelmenge entlang der Trails (0.24.0)', () {
+    // Ein Trail von 5 km, Nord–Süd, bei 47,9° N — und einer 60 km weiter
+    // östlich. Ein Rahmen um beide wäre 60 km breit; die Kacheln entlang
+    // der Trails sind zwei schmale Streifen.
+    final near = [for (var i = 0; i <= 10; i++) LatLng(47.90 + i * 0.0045, 11.60)];
+    final far = [for (var i = 0; i <= 10; i++) LatLng(47.90 + i * 0.0045, 12.40)];
+
+    test('nur die Kacheln, denen ein Trail nahe kommt — nicht das Land dazwischen', () {
+      final shape = AreaShape.alongLines([near, far])!;
+      final rect = RectShape(AreaBounds.around([...near, ...far])!);
+      final along = shape.countTiles(maxZoom: 13);
+      // Bei Zoom 13 (rund 3 km je Kachel) sind es zwei schmale Streifen
+      // gegen 60 × 9 km; über alle Zooms nähern sich beide an, weil die
+      // groben Kacheln so oder so dazugehören.
+      expect(shape.countTiles(minZoom: 13, maxZoom: 13),
+          lessThan(rect.countTiles(minZoom: 13, maxZoom: 13) ~/ 4),
+          reason: 'zwei Streifen gegen ein 60 km breites Rechteck');
+      expect(along, lessThan(rect.countTiles(maxZoom: 13) ~/ 2));
+      expect(shape.tiles(maxZoom: 13).length, along);
+      // Jede Kachel bei Zoom 13 liegt nahe an einem der beiden Trails,
+      // und jeder Trailpunkt liegt in einer Kachel der Menge.
+      final z13 = shape.tiles(minZoom: 13, maxZoom: 13);
+      for (final p in [...near, ...far]) {
+        final t = tileAt(p.latitude, p.longitude, 13);
+        expect(z13, contains((z: 13, x: t.x, y: t.y)));
+      }
+      for (final t in z13) {
+        final b = tileBounds(13, t.x, t.y);
+        expect(b.west < 11.7 || b.east > 12.3, isTrue, reason: 'Kachel mitten im Dazwischen: $t');
+      }
+    });
+
+    test('Eltern darunter, Kinder darüber, gezählt wie geliefert', () {
+      final shape = AreaShape.alongLines([near])!;
+      final z12 = shape.tiles(minZoom: 12, maxZoom: 12).toSet();
+      for (final t in shape.tiles(minZoom: 13, maxZoom: 13)) {
+        expect(z12, contains((z: 12, x: t.x >> 1, y: t.y >> 1)));
+      }
+      final z14 = shape.tiles(minZoom: 14, maxZoom: 14);
+      expect(z14.length, shape.keys.length * 4);
+      expect(shape.countTiles(minZoom: 8, maxZoom: 14), shape.tiles(minZoom: 8, maxZoom: 14).length);
+      // Keine Kachel doppelt.
+      final all = shape.tiles(maxZoom: 14);
+      expect(all.toSet().length, all.length);
+    });
+
+    test('Hülle, Orte-Zellen und JSON-Rundlauf', () {
+      final shape = AreaShape.alongLines([near])!;
+      final hull = shape.hull;
+      expect(hull.south, lessThan(47.90));
+      expect(hull.north, greaterThan(47.945));
+      expect(hull.west, lessThan(11.60));
+      expect(hull.east, greaterThan(11.60));
+      // Die Zellen der Kacheln, nicht die der Hülle — hier dasselbe,
+      // bei zwei fernen Trails weniger.
+      final cells = shape.poiCells();
+      expect(cells, isNotEmpty);
+      final two = AreaShape.alongLines([near, far])!;
+      expect(two.poiCells().length,
+          lessThan(RectShape(two.hull).poiCells().length));
+      final back = AreaShape.fromJson(shape.toJson());
+      expect(back, isA<TileSetShape>());
+      expect((back as TileSetShape).keys, shape.keys);
+      expect(back.zoom, kAreaShapeZoom);
+      expect(AreaShape.fromJson(const RectShape(AreaBounds(south: 1, west: 2, north: 3, east: 4)).toJson()),
+          isA<RectShape>());
+      // Ohne Punkte keine Form; eine Kachel bleibt eine Kachel.
+      expect(AreaShape.alongLines([[]]), isNull);
+      expect(AreaShape.alongLines([const [LatLng(47.9, 11.6)]])!.keys, isNotEmpty);
+    });
+
+    test('tileBounds ist die Umkehrung von tileAt', () {
+      final t = tileAt(47.9, 11.6, 13);
+      final b = tileBounds(13, t.x, t.y);
+      expect(b.contains(const LatLng(47.9, 11.6)), isTrue);
+      expect(tileAt(b.north - 1e-9, b.west + 1e-9, 13), (x: t.x, y: t.y));
+      expect(tileAt(b.south + 1e-9, b.east - 1e-9, 13), (x: t.x, y: t.y));
+    });
+  });
+
   test('Größen lesbar, deutsch', () {
     expect(formatBytes(512000), '512 kB');
     expect(formatBytes(12400000), '12,4 MB');

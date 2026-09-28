@@ -16,10 +16,11 @@ import 'area_store_web.dart' if (dart.library.io) 'area_store_io.dart';
 
 /// Ein gespeicherter Bereich, wie der Index ihn führt.
 class StoredArea {
-  const StoredArea({
+  StoredArea({
     required this.id,
     required this.name,
     required this.bounds,
+    AreaShape? shape,
     required this.minZoom,
     required this.maxZoom,
     required this.build,
@@ -28,11 +29,21 @@ class StoredArea {
     required this.savedAt,
     this.poiFiles = const [],
     this.poiBuild,
-  });
+  }) : shape = shape ?? RectShape(bounds);
 
   final String id;
   final String name;
+
+  /// Die Hülle der Form (Archiv-Header, „auf der Karte zeigen", der
+  /// Vorfilter des Wege-Index). Innerhalb der Hülle kann eine Kachel
+  /// FEHLEN (Form entlang der Trails) — wer eine braucht, fragt das
+  /// Archiv, nicht den Rahmen.
   final AreaBounds bounds;
+
+  /// Die Form, mit der der Bereich geplant wurde — „Aktualisieren" holt
+  /// sie noch einmal. Einträge vor 0.24.0 tragen keine: Dort IST der
+  /// Rahmen die Form.
+  final AreaShape shape;
   final int minZoom;
   final int maxZoom;
 
@@ -52,6 +63,7 @@ class StoredArea {
         'id': id,
         'name': name,
         'bounds': bounds.toJson(),
+        'shape': shape.toJson(),
         'min_zoom': minZoom,
         'max_zoom': maxZoom,
         'build': build,
@@ -66,6 +78,7 @@ class StoredArea {
         id: j['id'] as String,
         name: j['name'] as String,
         bounds: AreaBounds.fromJson(j['bounds'] as Map<String, dynamic>),
+        shape: j['shape'] == null ? null : AreaShape.fromJson(j['shape'] as Map<String, dynamic>),
         minZoom: j['min_zoom'] as int,
         maxZoom: j['max_zoom'] as int,
         build: j['build'] as String,

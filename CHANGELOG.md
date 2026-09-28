@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Karte
+
+*Version 0.24.0, 2026-09-28*
+
+- **„Entlang meiner Trails" speichert nur noch, was die Trails
+  berühren**: Bisher legte „Um meine Trails" ein Rechteck um alle
+  Trails — bei verstreuten Trails vor allem Land dazwischen, und bei
+  vielen Trails zu groß. Jetzt kommen nur die Kartenstücke mit, denen
+  ein Trail näher als 1 km kommt, samt den Orten dort. Aus einem
+  Bereich, der an der Grenze scheiterte, wird so ein Bruchteil. „Meine
+  Bereiche" und „Aktualisieren" kennen die Form; alte Bereiche bleiben,
+  wie sie sind.
+
 ## Benachrichtigungen
 
 *Version 0.23.0, 2026-09-28*

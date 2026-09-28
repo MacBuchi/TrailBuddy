@@ -519,7 +519,21 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Speicher im Test. Sechs Dinge, die man wissen muss:
     - **Die Größe ist gemessen, nicht geschätzt**: `plan()` schlägt jede
       Kachel im Verzeichnis nach und summiert die Längen; Obergrenze
-      `kAreaMaxTiles` (40 000) je Bereich. Geholt wird in Blöcken über
+      `kAreaMaxTiles` (40 000) je Bereich.
+    - **Ein Bereich hat eine FORM, kein Rechteck** (`AreaShape`, seit
+      0.24.0): `RectShape` für den Ausschnitt, `TileSetShape` für
+      „Entlang meiner Trails" — die Kacheln bei `kAreaShapeZoom` (13),
+      denen ein Trail näher als `kAreaTrailsCorridorKm` (1 km) kommt
+      (`AreaShape.alongLines`, abgetastet je halben Korridor, Quadrat
+      statt Kreis), andere Zooms als Eltern/Kinder daraus. Anlass: Das
+      Rechteck um alle Trails lief beim Betreiber auf 40 779 Kacheln.
+      Die Form steht im Index (`shape`; Einträge davor: der Rahmen IST
+      die Form), „Aktualisieren" plant sie neu; `bounds` ist nur die
+      Hülle — innerhalb kann eine Kachel FEHLEN, der Wege-Index fragt
+      deshalb das Archiv (`ProviderException` ⇒ nicht gedeckt). Die
+      Orte-Zellen kommen aus der Form, nicht aus der Hülle. Stufe B
+      (gespeicherte Kacheln auf der Karte zeigen) und C (Formen
+      zeichnen, additiv/subtraktiv) sind offen. Geholt wird in Blöcken über
       `PmTilesArchive.tiles()` — das Paket liest je Aufruf ALLE
       zusammenhängenden Bereiche parallel, ein ganzer Bereich auf einmal
       wäre ein Sturm aus Range-Anfragen.
@@ -703,9 +717,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
-  liegen", Konzept 3.2), Ausgangskorb und Zwischenspeicher im Browser,
-  Nachrichten zwischen Buddys (#34, Rest), Meldung zu einem einzelnen
-  Trail, Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.
+  liegen", Konzept 3.2), gespeicherte Kacheln auf der Karte hervorheben
+  und Bereiche zeichnen (Stufen B und C), Ausgangskorb und
+  Zwischenspeicher im Browser, Nachrichten zwischen Buddys (#34, Rest),
+  Meldung zu einem einzelnen Trail, Launcher-Icon (noch
+  Flutter-Vorgabe), `docs/play-console.md`.
 
 ## Code-Konventionen
 

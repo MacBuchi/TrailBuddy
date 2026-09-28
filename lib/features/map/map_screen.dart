@@ -509,7 +509,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                   west: camera.bounds.west,
                                   north: camera.bounds.north,
                                   east: camera.bounds.east),
-                          aroundTrails: AreaBounds.around([for (final t in trails) ...t.points]),
+                          // Die Kacheln entlang der Trails, nicht ein
+                          // Rechteck um alle (0.24.0).
+                          aroundTrails: AreaShape.alongLines([for (final t in trails) t.points]),
                         ),
                       ),
                       child: const Icon(Icons.layers_outlined),

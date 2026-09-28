@@ -96,9 +96,9 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
   @override
   AreaDownloadState build() => const AreaDownloadState();
 
-  /// Der Plan für [bounds]: wirft [AreaTooLarge], liefert Kacheln und
+  /// Der Plan für [shape]: wirft [AreaTooLarge], liefert Kacheln und
   /// Bytes. Braucht das Manifest — ohne Empfang gibt es keinen Plan.
-  Future<AreaPlan> plan(AreaBounds bounds) async {
+  Future<AreaPlan> plan(AreaShape shape) async {
     final manifest = await ref.read(mapManifestProvider.future);
     if (manifest == null) throw StateError('Kein Kartenhost erreichbar');
     state = const AreaDownloadState(phase: AreaDownloadPhase.planning);
@@ -109,7 +109,7 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
           manifest: manifest,
           store: ref.read(areaStoreProvider),
           fetchPoiFile: (_) async => null);
-      final plan = await downloader.plan(bounds);
+      final plan = await downloader.plan(shape);
       state = AreaDownloadState(phase: AreaDownloadPhase.idle, plan: plan);
       return plan;
     } catch (e) {
