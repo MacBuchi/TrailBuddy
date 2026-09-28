@@ -6,7 +6,7 @@ name: Release
 #    wird v<version> getaggt und released. Kein Bump = kein Release.
 #
 # Alles hier ist ein PRERELEASE. Freigegeben wird später von Hand über
-# promote.yml (kommt mit dem Pages-Deploy). Der Update-Weg der App fragt
+# promote.yml (samt Pages-Deploy). Der Update-Weg der App fragt
 # `/releases/latest`, und dort liefert GitHub keine Prereleases.
 #
 # **Kein Keystore, kein Tag.** Solange die Secrets ANDROID_KEYSTORE_* fehlen,

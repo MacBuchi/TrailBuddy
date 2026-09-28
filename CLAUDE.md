@@ -70,9 +70,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   und baut die signierte APK als **Prerelease**. **Kein Keystore, kein
   Tag**: Fehlen die Secrets `ANDROID_KEYSTORE_*`, tut der Workflow sichtbar
   nichts (Run-Summary) — und zwar VOR dem Taggen, damit kein Tag ohne
-  Release entsteht. `promote.yml` (Freigabe, Pages-Deploy) und
-  `preview.yml` (Vorschau-Repo) kommen mit den zugehörigen Secrets; bis
-  dahin gibt es kein Web-Deploy.
+  Release entsteht. **`promote.yml`** (von Hand) macht ein Prerelease
+  zu „latest" (erst dann meldet sich die App) und baut aus DEMSELBEN Tag
+  die Web-App samt Rechtsseiten auf `gh-pages` (Pages: Branch
+  `gh-pages`, Wurzel). Ohne Beförderung gibt es kein Web — und keine
+  erreichbare Datenschutzerklärung. **Pages unterscheidet Groß- und
+  Kleinschreibung**: Das Repo heißt deshalb `trailbuddy` (klein), passend
+  zu `--base-href /trailbuddy/` und den Links in `AppInfo`; GitHub, API
+  und raw.githubusercontent.com sind davon nicht betroffen.
+  `preview.yml` (Vorschau-Repo) kommt mit dem zugehörigen Secret.
 - **Schema Dry Run** (ci.yml, Pflicht-Check): lokaler Supabase-Stack auf
   dem Runner (`supabase/config.toml`, Portblock **5452x**), beide Wege —
   Bestand (Basis-Schema + neue Patches) und Frischinstallation (leere
