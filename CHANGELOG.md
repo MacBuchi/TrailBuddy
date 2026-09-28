@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Ohne Empfang
+
+*Version 0.15.0, 2026-09-28*
+
+- **Deine Trails auch im Funkloch**: Die App merkt sich beim letzten
+  Laden mit Netz das ganze Netz — Trails, Beiträge, Hinweise — auf dem
+  Gerät. Startest du sie ohne Empfang, siehst du diesen Stand auf Karte
+  und Liste, mit dem Hinweis, von wann er ist. Sobald wieder Netz da ist,
+  kommt der aktuelle.
+- Ein Fehler des Servers wird weiterhin als Fehler gezeigt, nicht mit dem
+  alten Stand überdeckt. Beim Abmelden wird die Kopie gelöscht. Im
+  Browser gibt es sie noch nicht.
+
 ## Ausgangskorb
 
 *Version 0.14.0, 2026-09-28*

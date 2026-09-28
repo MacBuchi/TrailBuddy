@@ -689,9 +689,10 @@ Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
   nach Prozess-Kill), Kandidaten-Heuristik und Zerlege-Blatt (#29),
   Ausgangskorb (#30, seit 0.14.0: Beisteuern und Beitrag ohne Netz,
   wartende Trails gestrichelt, Android; Web bewusst noch ohne).
-- **Phase 3 — Offline und Austausch.** Offline-Karten, Trails im
-  Zwischenspeicher, Nachrichten, Statusmeldungen, Zusammenführen im
-  Netz.
+- **Phase 3 — Offline und Austausch.** Offline-Karten (#31), Trails im
+  Zwischenspeicher (#32, seit 0.15.0: Kopie des Netzes auf dem Gerät, nur
+  ohne Empfang gelesen), Nachrichten (#34), Statusmeldungen,
+  Zusammenführen im Netz (#33).
 - **Phase 4 — Routing.** Nach eigener Messung (9).
 - **Phase 5 — Community.** Airtime, Ranking unter Buddys, Fotos am
   Trail (Fundfoto-Baustein).

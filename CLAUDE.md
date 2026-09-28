@@ -322,6 +322,24 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Abmelden bleibt der Korb liegen — er ist an das Konto gebunden
     (`uid` im Kopf), ein fremdes sieht nichts. Der Harness hängt
     `FakeOutbox` und einen `connectivityProvider` ohne Wechsel ein.
+- **Zwischenspeicher des Netzes** (#32, `lib/data/trail_cache.dart`, seit
+  0.15.0; PilzBuddy `spot_cache.dart` als Vorlage): Beim erfolgreichen
+  Abruf schreibt `fetchWithCache` die drei Tabellen als EINE JSON-Datei
+  (`trail_cache/network.json`, Zeilenform wie vom Netz, gelesen von
+  denselben `fromJson`; die Encoder stehen daneben, ein Test prüft den
+  Rundlauf Feld für Feld). Vier Dinge, die man wissen muss:
+  - **Nur `looksOffline` liest die Kopie** (PilzBuddy #80). Ein
+    Serverfehler bleibt sichtbar — sonst zeigte die App bei kaputtem
+    Deployment wochenlang einen alten Stand als aktuellen.
+  - **Eine Kopie wirft nie.** `write` schluckt volle Platte und fehlende
+    Rechte, `read` Unlesbares — anders als der Ausgangskorb, der das
+    Original trägt.
+  - **Der Stand sagt sein Alter** (`trailsCachedAtProvider`): Karte
+    („Kein Empfang — Trails vom …") und Liste. `null` heißt frisch.
+  - **Abmelden und Kontolöschung räumen die Kopie ab** (Profil), der
+    Ausgangskorb bleibt. Kein Korb/keine Kopie im Web, bewusst; IndexedDB
+    (PilzBuddy #385) ist ein eigener Schritt. Der Harness hängt
+    `FakeTrailCache` ein.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
@@ -364,8 +382,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
-  MapLibre-Engine für Android, Offline-Karten, der Ausgangskorb im
-  Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  MapLibre-Engine für Android, Offline-Karten, Ausgangskorb und
+  Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

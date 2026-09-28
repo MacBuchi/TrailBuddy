@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
@@ -9,6 +10,7 @@ import '../../core/settings.dart';
 import '../../data/outbox.dart';
 import '../../data/outbox_runner.dart';
 import '../../data/providers.dart';
+import '../../data/trail_cache.dart';
 import '../../data/trail_repository.dart';
 import '../../models/trail.dart';
 import 'elevation_backfill.dart';
@@ -59,12 +61,28 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       if (jobs != null) _applyPending(jobs, myId);
     });
     final repo = ref.watch(trailRepositoryProvider);
-    final results = await Future.wait(
-        [repo.fetchRecordings(), repo.fetchDetails(), repo.fetchNotes()]);
+    // Netz zuerst, ohne Empfang die Kopie vom letzten Mal (#32) — ein
+    // Serverfehler bleibt sichtbar, `fetchWithCache` liest die Kopie nur
+    // bei `looksOffline`.
+    final result = await fetchWithCache(
+      fetch: () async {
+        final results = await Future.wait(
+            [repo.fetchRecordings(), repo.fetchDetails(), repo.fetchNotes()]);
+        return (
+          recordings: results[0] as List<TrailRecording>,
+          details: results[1] as List<TrailDetails>,
+          notes: results[2] as List<TrailNote>,
+        );
+      },
+      cache: ref.read(trailCacheProvider),
+      uid: myId,
+      now: DateTime.now(),
+    );
+    ref.read(trailsCachedAtProvider.notifier).set(result.cachedAt);
     _server = buildTrails(
-      recordings: results[0] as List<TrailRecording>,
-      details: results[1] as List<TrailDetails>,
-      notes: results[2] as List<TrailNote>,
+      recordings: result.snapshot.recordings,
+      details: result.snapshot.details,
+      notes: result.snapshot.notes,
       myId: myId,
     );
     final cached = ref.read(outboxJobsProvider).valueOrNull;
@@ -226,6 +244,24 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
 
 final trailsProvider =
     AsyncNotifierProvider<TrailsNotifier, List<Trail>>(TrailsNotifier.new);
+
+/// Die Kopie des Netzes (#32): Datei auf Android, im Browser bewusst
+/// keine (IndexedDB wie PilzBuddy #385 ist ein eigener Schritt).
+final trailCacheProvider =
+    Provider<TrailCache>((ref) => kIsWeb ? const NoTrailCache() : FileTrailCache());
+
+/// Wann der angezeigte Stand geholt wurde — `null`, solange er frisch aus
+/// dem Netz kommt. Karte und Liste sagen es, sonst hielte man einen alten
+/// Stand für den aktuellen.
+class TrailsCachedAtNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void set(DateTime? at) => state = at;
+}
+
+final trailsCachedAtProvider =
+    NotifierProvider<TrailsCachedAtNotifier, DateTime?>(TrailsCachedAtNotifier.new);
 
 /// Die Wiedervorlage (#30). Den Namen übernimmt sie über den Notifier,
 /// der den Bestand kennt und keinen bewusst eingetragenen überschreibt.
