@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../official/official_signposts.dart';
 import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
@@ -119,6 +120,9 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             if (trail.otherNames.isNotEmpty)
               Text('auch: ${trail.otherNames.join(', ')}',
                   style: theme.textTheme.bodyMedium),
+            // Offizielle Trails, die dieser deckt (#13) — auf dem Gerät
+            // gerechnet, aus der Linie, die die Karte zeichnet.
+            OfficialSignposts(line: trail.points),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,

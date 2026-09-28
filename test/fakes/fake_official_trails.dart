@@ -62,7 +62,30 @@ String fakeIndex({String updated = '2026-09-01'}) => jsonEncode({
       },
     });
 
-String fakeRegion({String name = 'Flowline'}) => jsonEncode({
+/// Ein offizieller Trail genau auf der Linie, die `seedTrail` mit den
+/// Vorgaben anlegt (Länge 9,0 von Breite 48,0 bis 48,009) — für „Auch
+/// ausgeschildert als …".
+Map<String, Object> fakeOnRoots({String status = 'closed'}) => {
+      'type': 'Feature',
+      'id': 'testland:3',
+      'geometry': {
+        'type': 'MultiLineString',
+        'coordinates': [
+          [[9.00003, 48.0], [9.00003, 48.0045], [9.00003, 48.009]],
+        ],
+      },
+      'properties': {
+        'name': 'Wurzelpfad',
+        'kind': 'trail',
+        'difficulty': 'leicht',
+        'status': status,
+        'sections': [{'variant': false, 'closed': status == 'closed'}],
+        'source': 'testland',
+      },
+    };
+
+String fakeRegion({String name = 'Flowline', List<Map<String, Object>> extra = const []}) =>
+    jsonEncode({
       'type': 'FeatureCollection',
       'features': [
         {
@@ -99,5 +122,6 @@ String fakeRegion({String name = 'Flowline'}) => jsonEncode({
           'geometry': {'type': 'Point', 'coordinates': [9.0, 48.0]},
           'properties': {'name': 'Kaputt', 'source': 'testland'},
         },
+        ...extra,
       ],
     });
