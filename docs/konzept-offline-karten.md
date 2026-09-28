@@ -191,9 +191,13 @@ ohne sie geht.
    lesen daraus; OSM ist aus der Datenschutzerklärung, Cloudflare drin.
    Monatlicher Lauf. Zoomziel 13 (Entscheidung, Abschnitt 7). Erster
    veröffentlichter Stand am 2026-09-28, siehe Abschnitt 7.
-3. **Bereiche speichern**: `TileStore` (IndexedDB, Datei), Auswahl,
-   Größe vorher, Fortschritt, Liste „Meine Bereiche", „Gesehenes bleibt
-   liegen", Hinweis bei geräumtem Speicher.
+3. **Bereiche speichern** (**seit 0.19.0**): je Bereich ein
+   PMTiles-Archiv aus dem eigenen Schreiber, Ablage als Datei bzw. in
+   IndexedDB, Auswahl (Ausschnitt oder um die Trails), Größe vorher aus
+   dem Verzeichnis, Fortschritt und Abbruch, Orte-Zellen mit dabei,
+   Liste „Meine Bereiche" mit Aktualisieren und Löschen. Noch offen aus
+   3.2: „Gesehenes bleibt liegen" und der Hinweis bei geräumtem
+   Browser-Speicher (Abschnitt 7).
 4. **Orte vom eigenen Host** (**seit 0.18.0**, Messung und Entscheidung
    in 3.4): `poi-data.yml`, `tool/poi_extract.py`, Manifest `pois.json`.
    Offline werden sie mit Schritt 3: die Dateien der Zellen eines
@@ -237,6 +241,23 @@ ein Archiv bis 15 hätte jeden gespeicherten Bereich vervielfacht. Der
 Betreiber hatte auf dem Pixel 7 Pro die Onlinekarte gutgeheißen und
 Orte vermisst — ab Werk ist nur „Wasser" eingeschaltet, und die kamen
 bis dahin live von Overpass.
+
+**Schritt 3, gebaut am 2026-09-28 — drei Abweichungen von 3.2:**
+(1) Die Ablage ist je Bereich EIN Archiv im PMTiles-Format, kein
+Kachelspeicher je z/x/y: MapLibre liest `pmtiles://file://…` nativ,
+der Canvas-Renderer dasselbe Archiv über den vorhandenen Adapter — ein
+Format, kein zweiter Weg; der Schreiber auf dem Gerät ist die Ausnahme
+von „nie mit einem eigenen Schreiber", weil dort kein `pmtiles extract`
+läuft und jedes Archiv sofort zurückgelesen wird. (2) Die Bereiche sind
+die Karte, sobald kein Empfang besteht oder es kein Manifest gibt —
+nicht „erst lokal, dann Netz": MapLibre hat keinen Kachel-Lieferanten
+für einen lokalen Vorrang, zwei Quellen mit demselben Inhalt zeichneten
+doppelt; beide Engines eine Regel. (3) Ein neuerer Kartenstand wird in
+„Meine Bereiche" angeboten, unabhängig davon, ob das Netz frei ist —
+wer tippt, entscheidet; `isActiveNetworkMetered` bräuchte einen
+eigenen Plattform-Kanal. Noch nicht gebaut: „Gesehenes bleibt liegen"
+(der Kachel-Zwischenspeicher der Online-Karte) und
+`navigator.storage.persist()` im Browser.
 
 **Bot Fight Mode ist für die Zone `mcbuchi.de` AUS** (Betreiber,
 2026-09-28, Issue #55). Cloudflares Free-Plan kennt den Schalter nur

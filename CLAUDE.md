@@ -289,21 +289,27 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     wird einmal drüben aufgelöst; im Service-Isolate gibt es kein
     Riverpod und keinen `ErrorSink`, `recordRideTick` fängt deshalb
     alles.
-  - **Ein Verbraucher, kein Koordinator.** Anders als PilzBuddy (Download
-    UND Tour auf einem Service) gibt es nur die Fahrt; mit Offline-Karten
-    (Phase 3) kommt der Koordinator von dort — zwei `stop()` auf einem
-    Service sind die Falle.
+  - **Seit 0.19.0 ein Verbraucher von zweien** (`lib/features/keep_alive/`,
+    PilzBuddys Koordinator #264/#338): Die Fahrt (`location`, mit Takt)
+    und der Bereichs-Download (`dataSync`, ohne Takt) teilen sich den
+    EINEN Service über den `KeepAliveCoordinator` — zwei `stop()` auf
+    einem Service waren die Falle. Ändert sich die Typmenge, startet er
+    den Service neu (`updateService` kann Typen nicht ändern); der Takt
+    gehört dem Service-Isolate und hat genau einen Verbraucher. Das
+    Manifest deklariert `dataSync|location` als Obermenge, genannt wird
+    je Start nur, was der Lauf braucht. `test/keep_alive_test.dart`.
   - **Die GPS-Höhe wird ROH mitgeschrieben** (`RidePoint.altM`) und
     nirgends angezeigt: Ob sie als Höhenquelle taugt, wird gemessen,
     bevor eine Zahl daraus wird; Dateihöhen bleiben die Quelle.
   - **Kein Web.** `rideRecordingAvailableProvider` (= `!kIsWeb`)
     versteckt den Knopf; ein Tab im Hintergrund bekommt keine
-    Positionen. Der Service-Import ist bedingt (`ride_service_stub`).
-  Manifest: `FOREGROUND_SERVICE(_LOCATION)`, `POST_NOTIFICATIONS`,
-  `RECEIVE_BOOT_COMPLETED` entfernt, Service-Typ `location`, Symbol
-  `ic_notification.xml` (nur Alphakanal, PilzBuddy #331) über den
-  Meta-Data-Namen `rideNotificationIconMetaData` — der Manifest-Test
-  hält alles zusammen. Ausdrücklich kein `ACCESS_BACKGROUND_LOCATION`:
+    Positionen. Der Service-Import ist bedingt (`keep_alive_stub`).
+  Manifest: `FOREGROUND_SERVICE(_LOCATION|_DATA_SYNC)`,
+  `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` entfernt, Service-Typ
+  `dataSync|location`, Symbol `ic_notification.xml` (nur Alphakanal,
+  PilzBuddy #331) über den Meta-Data-Namen
+  `keepAliveNotificationIconMetaData` — der Manifest-Test hält alles
+  zusammen. Ausdrücklich kein `ACCESS_BACKGROUND_LOCATION`:
   die Dauerbenachrichtigung ist die Offenlegung. Der Harness hängt
   `FakeRideStore`, `FakeRideFix`, `FakeRideServiceBridge` und
   `FakeRideService` ein, sonst ginge jeder Kartentest über `restore()`
@@ -448,6 +454,51 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Range-Anfrage ist eine R2-Class-B-Operation) — die Rate-Limiting-
     Regel und die Nutzungsbenachrichtigung stehen in #55, die Zahlen in
     `docs/konzept-offline-karten.md` Abschnitt 7.
+  - **Gespeicherte Bereiche** (Konzept-Schritt 3, seit 0.19.0,
+    `lib/features/offline_areas/`): Ein Bereich ist EIN PMTiles-Archiv
+    (Zoom 8 bis zum Zoom des Hosts), geschrieben auf dem Gerät von
+    `pmtiles_writer.dart` aus Kacheln, die die App per Range aus dem
+    Host-Archiv geholt hat (Bytes unverändert, dieselbe Kompression) —
+    der eigene Schreiber ist hier erlaubt, weil kein `pmtiles extract`
+    auf dem Gerät läuft und der Download jedes Archiv sofort mit dem
+    Leser beider Engines zurückliest (Zählung und Stichprobe). Ablage
+    je Plattform (`AreaStore`): Dateien unter `offline_maps/areas/`
+    (Android, Backup-Ausschluss), IndexedDB über `idb_shim` im Browser
+    (Besitzer von Name und Version: `lib/data/browser_db.dart`), der
+    Speicher im Test. Sechs Dinge, die man wissen muss:
+    - **Die Größe ist gemessen, nicht geschätzt**: `plan()` schlägt jede
+      Kachel im Verzeichnis nach und summiert die Längen; Obergrenze
+      `kAreaMaxTiles` (40 000) je Bereich. Geholt wird in Blöcken über
+      `PmTilesArchive.tiles()` — das Paket liest je Aufruf ALLE
+      zusammenhängenden Bereiche parallel, ein ganzer Bereich auf einmal
+      wäre ein Sturm aus Range-Anfragen.
+    - **Die Orte kommen mit**: die Zellendateien aller Gruppen, die das
+      Orte-Manifest für den Rahmen nennt; `HostPoiSource` liest sie
+      ZUERST (`readLocal`), was lokal liegt, braucht weder Manifest noch
+      Netz.
+    - **Wann die Bereiche die Karte sind: kein Empfang oder kein
+      Manifest** — dieselbe Regel wie die Übersicht, in beiden Engines
+      (MapLibre: eine `file://`-Quelle je Bereich über der Übersicht;
+      flutter_map: `MultiAreaTileProvider`, der erste Bereich mit der
+      Kachel liefert). Bewusst NICHT „erst lokal, dann Netz" wie im
+      Konzept 3.2 gedacht: MapLibre hat keinen Kachel-Lieferanten für
+      einen lokalen Vorrang, zwei Quellen mit demselben Inhalt zeichneten
+      doppelt; eine Regel für beide Engines ist mehr wert.
+    - **Der Download läuft im Main-Isolate**, auf Android unter dem
+      KeepAlive-Koordinator (`dataSync`); Abbruch zwischen den Blöcken,
+      geschrieben wird erst am Ende — ein Abbruch hinterlässt nichts.
+    - **Bereiche werden nie verdrängt**, nur in „Meine Bereiche"
+      gelöscht; ein neuerer Kartenstand wird dort angeboten (Knopf,
+      derselbe Rahmen unter derselben Id), nicht aufgezwungen und nicht
+      an „freies Netz" gebunden — wer tippt, entscheidet.
+    - **„Gesehenes bleibt liegen" (Konzept 3.2) gibt es noch nicht**:
+      kein Kachel-Zwischenspeicher der Online-Karte. Ein eigener Schritt.
+    Der Einstieg wohnt im Blatt „Ebenen und Orte" (kein eigener Knopf:
+    die Knopfspalte lief auf einem kleinen Telefon quer über). Der
+    Harness hängt `MemoryAreaStore` und `FakeKeepAlive` ein;
+    `test/flows/offline_areas_flow_test.dart` fährt Blatt, Download,
+    Liste, Löschen und Aktualisieren gegen ein Quellarchiv aus dem
+    eigenen Schreiber.
   - **Der Stil ist ERZEUGT, die Übersicht auch** (`assets/map_style/`,
     `assets/offline_maps/overview_dach.pmtiles`, Zoom 0–7, ~9 MB;
     Glyphs `assets/map_glyphs/`, SIL OFL). `tool/transform_map_style.py`
@@ -511,9 +562,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
-  Offline-Karten über die Übersicht hinaus (Schritte 3–4 in
-  `docs/konzept-offline-karten.md`: Bereiche speichern, und die
-  Orte-Dateien der Zellen mit dem Bereich mitnehmen), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
+  liegen", Konzept 3.2), Ausgangskorb und Zwischenspeicher im Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

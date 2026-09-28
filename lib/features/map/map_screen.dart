@@ -17,6 +17,9 @@ import '../rides/ride_track.dart';
 import '../official/official_trails.dart';
 import '../official/official_trails_layer.dart';
 import '../official/official_trails_source.dart';
+import '../offline_areas/area_plan.dart';
+import '../offline_areas/area_providers.dart';
+import '../offline_areas/area_sheet.dart';
 import '../trails/outbox_providers.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
@@ -266,6 +269,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (mounted) _fitPoints([for (final p in r.points) LatLng(p.lat, p.lng)]);
       });
     });
+    // „Auf der Karte zeigen" aus „Meine Bereiche" (Konzept-Schritt 3).
+    ref.listen(mapFocusAreaProvider, (_, area) {
+      if (area == null) return;
+      _fittedOnce = true;
+      final b = area.bounds;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fitPoints([LatLng(b.south, b.west), LatLng(b.north, b.east)]);
+      });
+      ref.read(mapFocusAreaProvider.notifier).state = null;
+    });
 
     // Was der Ausschnitt braucht — und was davon fehlt, wird nachgeladen.
     final camera = _camera;
@@ -427,7 +440,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     FloatingActionButton.small(
                       heroTag: 'poi-filter',
                       tooltip: 'Ebenen und Orte',
-                      onPressed: () => showPoiFilterSheet(context),
+                      // „Bereich speichern" wohnt im Blatt, nicht als
+                      // eigener Knopf: Die Spalte lief auf einem kleinen
+                      // Telefon quer sonst über (im Test gesehen).
+                      onPressed: () => showPoiFilterSheet(
+                        context,
+                        onSaveArea: () => showSaveAreaSheet(
+                          context,
+                          viewport: camera == null
+                              ? null
+                              : AreaBounds(
+                                  south: camera.bounds.south,
+                                  west: camera.bounds.west,
+                                  north: camera.bounds.north,
+                                  east: camera.bounds.east),
+                          aroundTrails: AreaBounds.around([for (final t in trails) ...t.points]),
+                        ),
+                      ),
                       child: const Icon(Icons.layers_outlined),
                     ),
                     const SizedBox(height: 8),

@@ -3,6 +3,8 @@
 // sobald das Manifest da ist; die Übersicht darunter ohne Empfang oder
 // ohne Manifest" — dieselbe wie in der flutter_map-Engine.
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,9 @@ import 'package:trailbuddy/core/connectivity.dart';
 import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/features/map/map_view/maplibre_style_provider.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
+import 'package:trailbuddy/features/offline_areas/area_plan.dart';
+import 'package:trailbuddy/features/offline_areas/area_store.dart';
+import 'package:trailbuddy/features/offline_areas/area_store_io.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
 
 import '../fakes/fake_official_trails.dart';
@@ -59,10 +64,12 @@ void main() {
     MapManifest? manifest = _manifest,
     bool officialOn = false,
     FakeOfficialTrailsSource? official,
+    AreaStore? areaStore,
   }) {
     final io = _FakeIo();
     final container = ProviderContainer(overrides: [
       maplibreStyleIoProvider.overrideWithValue(io),
+      areaStoreProvider.overrideWithValue(areaStore ?? MemoryAreaStore()),
       noConnectivityProvider.overrideWithValue(noConnectivity),
       mapManifestLoaderProvider.overrideWithValue(() async => manifest),
       settingsProvider.overrideWithValue(FakeSettings(officialTrailsEnabled: officialOn)),
@@ -95,6 +102,7 @@ void main() {
     final io = _FakeIo();
     final container = ProviderContainer(overrides: [
       maplibreStyleIoProvider.overrideWithValue(io),
+      areaStoreProvider.overrideWithValue(MemoryAreaStore()),
       noConnectivityProvider.overrideWithValue(true),
       mapManifestLoaderProvider.overrideWithValue(() async {
         asked++;
@@ -141,5 +149,52 @@ void main() {
     style = await styleOf(container);
     expect(((style['sources'] as Map)['online'] as Map)['attribution'],
         '© OpenStreetMap contributors · Protomaps · Land Testland (CC0 1.0)');
+  });
+
+  group('gespeicherte Bereiche (Konzept-Schritt 3)', () {
+    Future<FileAreaStore> storeWithArea() async {
+      final dir = await Directory.systemTemp.createTemp('areas');
+      addTearDown(() => dir.delete(recursive: true));
+      final store = FileAreaStore(baseDir: dir);
+      await store.putArchive('a1', Uint8List.fromList([1, 2, 3]));
+      await store.saveIndex([
+        StoredArea(
+          id: 'a1',
+          name: 'Isartrails',
+          bounds: const AreaBounds(south: 47.9, west: 11.6, north: 47.95, east: 11.7),
+          minZoom: 8,
+          maxZoom: 13,
+          build: '20260928',
+          tiles: 42,
+          bytes: 3,
+          savedAt: DateTime.utc(2026, 9, 28),
+        ),
+      ]);
+      return store;
+    }
+
+    test('ohne Empfang liegen sie als file://-Quellen über der Übersicht', () async {
+      final (c, _) = make(noConnectivity: true, areaStore: await storeWithArea());
+      final style = await styleOf(c);
+      expect(sourceIds(style), ['overview', 'area-a1']);
+      final area = (style['sources'] as Map)['area-a1'] as Map;
+      expect(area['url'], allOf(startsWith('pmtiles://file://'), endsWith('/a1.pmtiles')));
+      expect(area['minzoom'], 8);
+      expect(area['maxzoom'], 13);
+      // Und die Ebenen des Basis-Styles gibt es für die Quelle noch einmal.
+      expect((style['layers'] as List).any((l) => (l as Map)['id'] == 'area-a1/earth'), isTrue);
+    });
+
+    test('online mit Manifest zeichnet die Karte des Hosts, nicht den Bereich', () async {
+      final (c, _) = make(noConnectivity: false, areaStore: await storeWithArea());
+      expect(sourceIds(await styleOf(c)), ['online']);
+    });
+
+    test('ohne Pfad (Browser) keine Quelle — der Canvas-Renderer liest die Bytes', () async {
+      final store = MemoryAreaStore();
+      await store.putArchive('a1', Uint8List.fromList([1, 2, 3]));
+      final (c, _) = make(noConnectivity: true, areaStore: store);
+      expect(sourceIds(await styleOf(c)), ['overview']);
+    });
   });
 }

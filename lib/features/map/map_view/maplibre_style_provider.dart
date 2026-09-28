@@ -13,6 +13,7 @@ import 'package:pmtiles/pmtiles.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/connectivity.dart';
 import '../../../core/errors.dart';
+import '../../offline_areas/area_providers.dart';
 import '../../official/official_trails_source.dart';
 import '../base_map_providers.dart';
 import '../online_map.dart';
@@ -89,8 +90,10 @@ String cssColor(int argb) => '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, 
 /// Die Quellen-Wahl folgt EXAKT der flutter_map-Engine: die Online-Karte
 /// vom Host (`pmtiles://https://…`, Range-Anfragen macht maplibre-native
 /// selbst), sobald das Manifest da ist; die Übersicht DARUNTER, wenn kein
-/// Empfang besteht oder es kein Manifest gibt. Ein Wechsel erzeugt einen
-/// neuen Style-String; die Engine spielt ihn per `setStyle` ein.
+/// Empfang besteht oder es kein Manifest gibt — und in demselben Fall die
+/// gespeicherten Bereiche darüber, je Bereich eine `file://`-Quelle
+/// (Konzept-Schritt 3). Ein Wechsel erzeugt einen neuen Style-String;
+/// die Engine spielt ihn per `setStyle` ein.
 final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   final noConnectivity = ref.watch(noConnectivityProvider);
   final manifest = await ref.watch(mapManifestProvider.future);
@@ -117,6 +120,23 @@ final maplibreStyleProvider = FutureProvider<String?>((ref) async {
         minZoom: overviewZoom.min,
         maxZoom: overviewZoom.max,
       ));
+      // Die gespeicherten Bereiche (Zoom 8 aufwärts) über der Übersicht.
+      // Zoombereich aus dem Index, nicht aus dem Header: Der Download hat
+      // beide aus demselben Plan geschrieben.
+      // Ein Bereich, der nicht lesbar ist, nimmt der Karte nicht die
+      // Übersicht: gemeldet, und weiter ohne ihn.
+      try {
+        for (final entry in await ref.watch(areaArchivePathsProvider.future)) {
+          sources.add(MapStyleSource(
+            id: 'area-${entry.area.id}',
+            url: 'file://${entry.path}',
+            minZoom: entry.area.minZoom,
+            maxZoom: entry.area.maxZoom,
+          ));
+        }
+      } catch (e, stackTrace) {
+        logError('Bereiche für den Style lesen', e, stackTrace);
+      }
     }
     if (manifest != null) {
       // Zoombereich aus dem Manifest, nicht aus dem Archiv-Header: Den

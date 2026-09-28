@@ -25,6 +25,7 @@
          wir starten nie beim Booten, also raus. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
         tools:node="remove"/>
@@ -52,14 +53,15 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- Der Foreground-Service der Fahrt (flutter_foreground_task). Der
-             Klassenname stammt aus dem Paket und darf nicht geändert werden.
-             Nur `location`: Es gibt (noch) keinen zweiten Nutzer; kommen
-             Offline-Karten, wird daraus `dataSync|location` wie in
-             PilzBuddy. -->
+        <!-- Der EINE Foreground-Service der App (flutter_foreground_task):
+             die Fahrt (`location`) und der Bereichs-Download (`dataSync`),
+             geteilt über den KeepAlive-Koordinator. Der Klassenname stammt
+             aus dem Paket und darf nicht geändert werden. Die Typen hier
+             sind die Obermenge; welche ein Lauf nennt, entscheidet der
+             Koordinator je Start (PilzBuddy #338). -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="location"
+            android:foregroundServiceType="dataSync|location"
             android:exported="false"/>
         <!-- Das Symbol der Meldung. Android wertet ein Statusleisten-Symbol
              NUR über den Alphakanal aus; das Launcher-Icon würde ein weißer
