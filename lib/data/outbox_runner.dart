@@ -1,0 +1,110 @@
+// Die Wiedervorlage des Ausgangskorbs (#30): Aufträge der Reihe nach
+// senden, das Ergebnis in EINEM Schreibvorgang festhalten.
+//
+// Frei von Riverpod, damit jede Regel ohne Backend prüfbar ist. Wer den
+// Namen nach dem Beisteuern übernimmt ([adoptName]), entscheidet der
+// Aufrufer: Er kennt den Bestand und überschreibt keinen Namen, den
+// jemand bewusst eingetragen hat.
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+
+import '../core/errors.dart';
+import 'outbox.dart';
+import 'trail_repository.dart';
+
+typedef OutboxRunResult = ({int sent, int remaining, int failed});
+
+class OutboxRunner {
+  OutboxRunner({required this.repository, required this.outbox, required this.adoptName});
+
+  final TrailRepository repository;
+  final Outbox outbox;
+
+  /// Nach dem Beisteuern: den Namen aus der Datei als eigenen übernehmen,
+  /// wenn noch keiner steht.
+  final Future<void> Function(String trailId, String name) adoptName;
+
+  /// Nach so vielen erfolglosen Anläufen gilt ein Auftrag als abgelehnt.
+  /// Netzfehler und das Tageslimit zählen NICHT — die brechen den Lauf ab,
+  /// ohne den Zähler anzufassen.
+  static const maxAttempts = 5;
+
+  var _running = false;
+
+  Future<OutboxRunResult> run({required String uid}) async {
+    if (_running) return (sent: 0, remaining: 0, failed: 0);
+    _running = true;
+    try {
+      return await _run(uid: uid);
+    } finally {
+      _running = false;
+    }
+  }
+
+  Future<OutboxRunResult> _run({required String uid}) async {
+    final jobs = await outbox.read(uid: uid);
+    if (jobs.isEmpty) return (sent: 0, remaining: 0, failed: 0);
+
+    final remaining = <OutboxJob>[];
+    var sent = 0;
+    var stopped = false;
+
+    for (final job in jobs) {
+      if (stopped || job.failure != null) {
+        remaining.add(job); // Wartet auf den nächsten Anlauf bzw. eine Entscheidung.
+        continue;
+      }
+      try {
+        switch (job) {
+          case ContributeJob():
+            final trailId = await repository.contribute(
+              coords: job.coords,
+              eles: job.eles,
+              source: job.source,
+              recordedAt: job.recordedAt,
+              clientId: job.id,
+            );
+            final name = job.name?.trim() ?? '';
+            if (name.isNotEmpty) await adoptName(trailId, name);
+          case DetailsJob():
+            await repository.saveDetails(job.details);
+            final note = job.note?.trim() ?? '';
+            if (note.isNotEmpty) {
+              await repository.addNote(trailId: job.details.trailId, body: note);
+            }
+        }
+        sent++;
+      } catch (error) {
+        // Kein Netz, keine Sitzung, Tageslimit: Der Lauf endet hier, ohne
+        // etwas als gescheitert zu markieren. Der nächste Anlauf macht
+        // in derselben Reihenfolge weiter.
+        if (looksOffline(error) ||
+            error is NotSignedInException ||
+            error is DailyLimitException) {
+          remaining.add(job);
+          stopped = true;
+          continue;
+        }
+        final attempts = job.attempts + 1;
+        // Eine Ablehnung des Servers (RLS, Constraint, zu kurze Linie)
+        // wird durch Wiederholen nicht besser.
+        final done = _isFinal(error) || attempts >= maxAttempts;
+        remaining.add(job.copyWith(
+          attempts: attempts,
+          failure: done ? friendlyError(error) : null,
+        ));
+      }
+    }
+
+    await outbox.replaceAll(remaining, uid: uid);
+    return (
+      sent: sent,
+      remaining: remaining.length,
+      failed: remaining.where((j) => j.failure != null).length,
+    );
+  }
+
+  /// Ein `23505` kommt hier nicht an: `contribute_recording` beantwortet
+  /// eine bekannte `client_id` mit der Kennung von damals.
+  bool _isFinal(Object error) =>
+      error is WriteRejectedException || error is PostgrestException;
+}

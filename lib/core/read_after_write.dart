@@ -27,6 +27,11 @@ import 'errors.dart';
 /// Liste nach einer Lüge aus.
 const staleAfterWriteHint = ' — sichtbar, sobald die Liste wieder lädt.';
 
+/// Dasselbe für den Ausgangskorb (#30): NICHT „gespeichert" — auf dem
+/// Server liegt noch nichts —, aber auch kein Fehler.
+const kQueuedHint =
+    'Kein Netz — liegt im Ausgangskorb und geht raus, sobald wieder Verbindung besteht.';
+
 /// Read-after-write für [AsyncNotifier]-Mutationen.
 mixin ReadAfterWrite<T> on AsyncNotifier<T> {
   /// Lädt neu, nachdem geschrieben wurde — und wirft dabei **nicht**.

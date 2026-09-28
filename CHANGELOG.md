@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Ausgangskorb
+
+*Version 0.14.0, 2026-09-28*
+
+- **Beisteuern ohne Netz**: Importierst du eine GPX-Datei oder änderst
+  deinen Beitrag zu einem Trail, während kein Netz da ist, geht nichts
+  verloren. Der Auftrag wartet in einem Ausgangskorb auf deinem Gerät und
+  wird gesendet, sobald wieder Verbindung besteht — beim nächsten
+  Netzwechsel, beim nächsten Start oder wenn du den Hinweis oben auf der
+  Karte antippst.
+- **Wartende Trails siehst du sofort**: gestrichelt auf der Karte, in
+  der Liste unter „Wartet auf Übertragung". So steuerst du dieselbe Datei
+  nicht zweimal bei. Lehnt der Server einen Auftrag ab, steht der Grund
+  dabei, mit „Erneut versuchen" und „Aus dem Ausgangskorb entfernen".
+- Ein Serverfehler ist kein Funkloch: Er wird weiter sofort gemeldet
+  statt still gesammelt. Im Browser gibt es den Korb noch nicht.
+
 ## Fahrt aufzeichnen
 
 *Version 0.13.0, 2026-09-28*

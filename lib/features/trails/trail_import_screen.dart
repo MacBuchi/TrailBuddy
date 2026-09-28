@@ -95,7 +95,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   final _errors = <String>[];
   bool _busy = false;
   int _done = 0;
-  ({int ok, int backfilled, int named, int failed})? _result;
+  ({int ok, int queued, int backfilled, int named, int failed})? _result;
 
   Future<void> _pick() async {
     final List<PickedFile> picked;
@@ -168,6 +168,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
       _done = 0;
     });
     var ok = 0;
+    var queued = 0;
     var backfilled = 0;
     var named = 0;
     var failed = 0;
@@ -189,8 +190,14 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
             named++;
           }
         } else {
-          await notifier.contribute(c.track, clientId: c.clientId);
-          ok++;
+          // Ohne Netz landet der Auftrag im Ausgangskorb (#30) und der
+          // Trail steht als wartender auf der Karte — kein Fehler.
+          final r = await notifier.contribute(c.track, clientId: c.clientId);
+          if (r.queued) {
+            queued++;
+          } else {
+            ok++;
+          }
         }
         succeeded.add(c);
       } on DailyLimitException {
@@ -206,11 +213,14 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
       if (!mounted) return;
       setState(() => _done++);
     }
-    final fresh = await notifier.reloadAfterWrite('Trails nach Import laden');
+    // Nur neu laden, wenn etwas auf dem Server gelandet ist — ohne Netz
+    // wäre das ein Fehler über einer Liste, die den Korb längst zeigt.
+    final fresh = ok + backfilled + named == 0 ||
+        await notifier.reloadAfterWrite('Trails nach Import laden');
     if (!mounted) return;
     setState(() {
       _busy = false;
-      _result = (ok: ok, backfilled: backfilled, named: named, failed: failed);
+      _result = (ok: ok, queued: queued, backfilled: backfilled, named: named, failed: failed);
       if (limitHit) {
         _errors.add('Für heute ist das Limit erreicht. Die übrigen bleiben '
             'angehakt — morgen einfach noch einmal „beisteuern".');
@@ -223,6 +233,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(
         '$ok ${ok == 1 ? 'Trail' : 'Trails'} beigesteuert'
+        '${queued > 0 ? ', $queued ${queued == 1 ? 'wartet' : 'warten'} im Ausgangskorb auf Netz' : ''}'
         '${backfilled > 0 ? ', $backfilled mit nachgetragenen Höhen' : ''}'
         '${named > 0 ? ', $named ${named == 1 ? 'Name' : 'Namen'} übernommen' : ''}'
         '${failed > 0 ? ', $failed fehlgeschlagen' : ''}'
@@ -266,6 +277,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
               padding: const EdgeInsets.only(top: 12),
               child: Text(
                 '${_result!.ok} beigesteuert, '
+                '${_result!.queued > 0 ? '${_result!.queued} im Ausgangskorb, ' : ''}'
                 '${_result!.backfilled > 0 ? '${_result!.backfilled} Höhen nachgetragen, ' : ''}'
                 '${_result!.named > 0 ? '${_result!.named} Namen übernommen, ' : ''}'
                 '${_result!.failed} fehlgeschlagen.',

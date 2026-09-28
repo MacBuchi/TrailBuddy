@@ -9,6 +9,7 @@ import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
 import 'elevation_profile_chart.dart';
+import 'outbox_providers.dart';
 import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
 import 'trail_geometry.dart';
@@ -120,6 +121,19 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             if (trail.otherNames.isNotEmpty)
               Text('auch: ${trail.otherNames.join(', ')}',
                   style: theme.textTheme.bodyMedium),
+            // Wartet im Ausgangskorb (#30): Der Trail ist noch nicht auf
+            // dem Server — kein Beitrag, kein Hinweis, keine Einschätzung,
+            // dafür fehlt die Kennung. Das Blatt sagt es, statt Knöpfe zu
+            // zeigen, die scheitern.
+            if (trail.pending) _PendingNotice(trail),
+            if (trail.pendingDetails)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Dein Beitrag wartet auf Übertragung.',
+                    key: const ValueKey('pending-details'),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              ),
             // Offizielle Trails, die dieser deckt (#13) — auf dem Gerät
             // gerechnet, aus der Linie, die die Karte zeichnet.
             OfficialSignposts(line: trail.points),
@@ -179,16 +193,18 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(mine.description!),
               ),
-            const SizedBox(height: 12),
-            TrailNotesSection(trail: trail, seenBefore: _seenBefore),
-            if (trail.isOwn) ...[
+            if (!trail.pending) ...[
+              const SizedBox(height: 12),
+              TrailNotesSection(trail: trail, seenBefore: _seenBefore),
+            ],
+            if (trail.isOwn && !trail.pending) ...[
               const SizedBox(height: 12),
               OwnGradePicker(trail: trail),
             ],
             const SizedBox(height: 12),
             Row(
               children: [
-                if (trail.isOwn)
+                if (trail.isOwn && !trail.pending)
                   FilledButton.tonalIcon(
                     onPressed: () => showTrailDetailsDialog(context, ref, trail),
                     icon: const Icon(Icons.edit),
@@ -211,6 +227,58 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// „Wartet auf Übertragung" — oder die Ablehnung des Servers mit den
+/// beiden Auswegen.
+class _PendingNotice extends ConsumerWidget {
+  const _PendingNotice(this.trail);
+  final Trail trail;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final failure = trail.pendingFailure;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            failure == null
+                ? 'Wartet auf Übertragung — geht raus, sobald wieder Netz da ist.'
+                : 'Konnte nicht beigesteuert werden: $failure',
+            key: const ValueKey('pending-notice'),
+            style: theme.textTheme.bodyMedium?.copyWith(
+                color: failure == null
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.error),
+          ),
+          // Wrap, nicht Row: Auf einem schmalen Telefon passen die beiden
+          // Knöpfe nicht nebeneinander.
+          Wrap(
+            children: [
+              if (failure != null)
+                TextButton(
+                  onPressed: () {
+                    ref.read(outboxJobsProvider.notifier).retry(trail.id);
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Erneut versuchen'),
+                ),
+              TextButton(
+                onPressed: () {
+                  ref.read(outboxJobsProvider.notifier).discard(trail.id);
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Aus dem Ausgangskorb entfernen'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -306,11 +374,16 @@ class _OwnGradePickerState extends ConsumerState<OwnGradePicker> {
     setState(() => _saving = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final fresh = await ref.read(trailsProvider.notifier).saveDetails(
+      final outcome = await ref.read(trailsProvider.notifier).saveDetails(
           grade == null ? current.copyWith(clearGrade: true) : current.copyWith(grade: grade));
-      if (!fresh) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Einschätzung gespeichert$staleAfterWriteHint')));
+      switch (outcome) {
+        case WriteOutcome.done:
+          break;
+        case WriteOutcome.doneStale:
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Einschätzung gespeichert$staleAfterWriteHint')));
+        case WriteOutcome.queued:
+          messenger.showSnackBar(const SnackBar(content: Text(kQueuedHint)));
       }
     } catch (e, st) {
       logError('Trail-Einschätzung speichern', e, st);

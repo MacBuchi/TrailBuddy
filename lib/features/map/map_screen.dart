@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/connectivity.dart';
 import '../../core/geo.dart';
 import '../../models/trail.dart';
 import '../feedback/feedback_dialog.dart';
@@ -18,6 +19,7 @@ import '../rides/ride_track.dart';
 import '../official/official_trails.dart';
 import '../official/official_trails_layer.dart';
 import '../official/official_trails_source.dart';
+import '../trails/outbox_providers.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
@@ -58,6 +60,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Eine Fahrt, die der Prozess-Kill unterbrochen hat, läuft weiter
     // (#28): Der Service hat derweil in die Datei geschrieben.
     unawaited(ref.read(rideProvider.notifier).restore());
+    // Was im Ausgangskorb liegt, geht beim Start raus (#30).
+    unawaited(ref.read(trailsProvider.notifier).sendOutbox());
     // Die Rückrichtung vom Service-Isolate: jeder Messpunkt kommt auf
     // die Karte, solange die App lebt. Der Port dafür entsteht in
     // `main()` (`initRideCommunication`).
@@ -187,6 +191,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       }
       ref.read(mapFocusTrailProvider.notifier).state = null;
     });
+    // Verbindung zurück ⇒ Ausgangskorb losschicken (#30). Genau hier
+    // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
+    // die App zu schließen, hat kein Resume — aber einen Netzwechsel.
+    ref.listen<bool>(noConnectivityProvider, (previous, next) {
+      if (previous == true && next == false) {
+        unawaited(ref.read(trailsProvider.notifier).sendOutbox());
+      }
+    });
     ref.listen(mapFocusRideProvider, (_, r) {
       if (r == null) return;
       _fittedOnce = true;
@@ -249,8 +261,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   for (final t in trails)
                     Polyline<String>(
                       points: t.points,
-                      color: _colorOf(t),
+                      color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
                       strokeWidth: 4,
+                      // Wartet im Ausgangskorb (#30): gestrichelt, wie
+                      // eine Zusage, die noch nicht eingelöst ist.
+                      pattern: t.pending
+                          ? StrokePattern.dashed(segments: const [12, 8])
+                          : const StrokePattern.solid(),
                       // Neuer Hinweis eines Buddys (#7): ein gelber
                       // Leuchtrand, die Linie behält ihre Farbe.
                       borderStrokeWidth:
@@ -282,6 +299,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           if (trailsAsync.hasValue && trails.isEmpty)
             const _EmptyHint(),
           const UpdateBanner(),
+          const _OutboxBanner(),
           if (ride != null || focusRide != null)
             SafeArea(
               child: Align(
@@ -365,6 +383,49 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// „2 warten auf Übertragung" — antippen schickt sie los (#30). Steht
+/// unter dem Update-Banner, damit sich beide nicht überdecken.
+class _OutboxBanner extends ConsumerWidget {
+  const _OutboxBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(pendingJobCountProvider);
+    final failed = ref.watch(failedJobCountProvider);
+    if (count == 0) return const SizedBox.shrink();
+    final waiting = count - failed;
+    final text = [
+      if (waiting > 0) '$waiting ${waiting == 1 ? 'wartet' : 'warten'} auf Übertragung',
+      if (failed > 0) '$failed abgelehnt',
+    ].join(' · ');
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Card(
+          key: const ValueKey('outbox-banner'),
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: ListTile(
+            dense: true,
+            leading: Icon(failed > 0 ? Icons.error_outline : Icons.schedule),
+            title: Text(text),
+            subtitle: Text(failed > 0 && waiting == 0
+                ? 'Entscheiden in der Trail-Liste'
+                : 'Antippen zum Senden — sonst beim nächsten Netz'),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final r = await ref.read(trailsProvider.notifier).sendOutbox();
+              messenger.showSnackBar(SnackBar(
+                  content: Text(r.sent > 0
+                      ? '${r.sent} übertragen'
+                      : 'Noch kein Netz — bleibt im Ausgangskorb.')));
+            },
+          ),
+        ),
       ),
     );
   }

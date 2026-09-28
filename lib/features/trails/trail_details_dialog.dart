@@ -22,11 +22,15 @@ Future<void> showTrailDetailsDialog(
   if (result == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
   try {
-    final fresh = await ref
+    final outcome = await ref
         .read(trailsProvider.notifier)
         .saveDetails(result.details, note: result.note);
     messenger.showSnackBar(SnackBar(
-        content: Text('Beitrag gespeichert${fresh ? '' : staleAfterWriteHint}')));
+        content: Text(switch (outcome) {
+      WriteOutcome.done => 'Beitrag gespeichert',
+      WriteOutcome.doneStale => 'Beitrag gespeichert$staleAfterWriteHint',
+      WriteOutcome.queued => kQueuedHint,
+    })));
   } catch (e, st) {
     logError('Trail-Beitrag speichern', e, st);
     messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));

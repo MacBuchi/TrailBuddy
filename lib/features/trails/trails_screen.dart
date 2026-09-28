@@ -50,10 +50,15 @@ class TrailsScreen extends ConsumerWidget {
               ]);
             }
             final seen = ref.watch(seenNotesProvider);
-            final own = trails.where((t) => t.isOwn).toList();
+            final pending = trails.where((t) => t.pending).toList();
+            final own = trails.where((t) => t.isOwn && !t.pending).toList();
             final buddies = trails.where((t) => !t.isOwn).toList();
             return ListView(
               children: [
+                // Der Ausgangskorb (#30) zuerst: Was wartet, soll man
+                // sehen — sonst steuert man dieselbe Datei zweimal bei.
+                if (pending.isNotEmpty) _Header('Wartet auf Übertragung (${pending.length})'),
+                for (final t in pending) _TrailTile(t, fresh: false),
                 if (own.isNotEmpty) _Header('Meine Trails (${own.length})'),
                 for (final t in own) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
                 if (buddies.isNotEmpty) _Header('Von Buddys (${buddies.length})'),
@@ -96,21 +101,34 @@ class _TrailTile extends StatelessWidget {
     ];
     // Neuer Hinweis eines Buddys (#7): die Zeile getönt, ein Symbol am
     // Ende und das Wort dazu — Farbe allein wäre nicht für alle lesbar.
+    final failure = trail.pendingFailure;
     return ListTile(
       tileColor: fresh ? AppColors.noteYellow.withValues(alpha: 0.18) : null,
       trailing: fresh
           ? const Icon(Icons.mark_chat_unread_outlined,
               semanticLabel: 'neuer Hinweis')
           : null,
+      // Wartend (#30): Uhr statt Route, verblasst — derselbe Spot, nur
+      // noch nicht auf dem Server.
       leading: Icon(
-        trail.status.warns ? Icons.warning_amber : Icons.route,
-        color: trail.status.warns
-            ? AppColors.warningAmber
-            : (trail.isOwn ? AppColors.trailGreen : AppColors.friendBlue),
+        trail.pending
+            ? (failure == null ? Icons.schedule : Icons.error_outline)
+            : trail.status.warns
+                ? Icons.warning_amber
+                : Icons.route,
+        color: trail.pending
+            ? (failure == null
+                ? AppColors.trailGreen.withValues(alpha: 0.55)
+                : Theme.of(context).colorScheme.error)
+            : trail.status.warns
+                ? AppColors.warningAmber
+                : (trail.isOwn ? AppColors.trailGreen : AppColors.friendBlue),
       ),
       title: Text(trail.displayName),
       subtitle: Text([
         parts.join(' · '),
+        if (trail.pending) failure ?? 'wartet auf Übertragung',
+        if (trail.pendingDetails) 'Beitrag wartet auf Übertragung',
         if (trail.status.warns) trail.status.label,
         if (fresh) 'neuer Hinweis',
       ].join(' — ')),

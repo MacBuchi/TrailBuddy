@@ -3,7 +3,10 @@
 // Provider liefert ein transparentes 1×1-PNG (keine OSM-Requests) und der
 // Update-Check ist stillgelegt. Damit laufen echte End-to-End-Abläufe
 // (Login → Karte → Buddys → Profil) als schnelle Widget-Tests.
+import 'dart:async';
 import 'dart:typed_data';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -12,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:trailbuddy/app.dart';
 import 'package:trailbuddy/core/app_info.dart';
+import 'package:trailbuddy/core/connectivity.dart';
 import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
@@ -21,10 +25,12 @@ import 'package:trailbuddy/features/map/position_provider.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
 import 'package:trailbuddy/features/rides/ride_providers.dart';
 import 'package:trailbuddy/features/rides/ride_service.dart';
+import 'package:trailbuddy/features/trails/outbox_providers.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
 import 'fake_backend.dart';
 import 'fake_official_trails.dart';
+import 'fake_outbox.dart';
 import 'fake_pois.dart';
 import 'fake_rides.dart';
 import 'fake_settings.dart';
@@ -88,6 +94,8 @@ List<Override> overridesFor(FakeBackend backend,
         FakeRideFix? rideFix,
         FakeRideServiceBridge? rideBridge,
         FakeRideService? rideService,
+        FakeOutbox? outbox,
+        Stream<List<ConnectivityResult>>? connectivity,
         List<Override> extra = const []}) =>
     [
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
@@ -130,6 +138,11 @@ List<Override> overridesFor(FakeBackend backend,
       rideServiceBridgeProvider.overrideWithValue(rideBridge ?? FakeRideServiceBridge()),
       rideServiceProvider.overrideWithValue(rideService ?? FakeRideService()),
       ridePermissionProvider.overrideWithValue(() async => null),
+      // Der Ausgangskorb (#30) im Speicher; der Netzwechsel kommt aus dem
+      // Test (Vorgabe: WLAN, ohne Wechsel).
+      outboxProvider.overrideWithValue(outbox ?? FakeOutbox()),
+      connectivityProvider.overrideWith(
+          (ref) => connectivity ?? Stream.value(const [ConnectivityResult.wifi])),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
@@ -156,6 +169,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakeRideFix? rideFix,
     FakeRideServiceBridge? rideBridge,
     FakeRideService? rideService,
+    FakeOutbox? outbox,
+    Stream<List<ConnectivityResult>>? connectivity,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -173,6 +188,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         rideFix: rideFix,
         rideBridge: rideBridge,
         rideService: rideService,
+        outbox: outbox,
+        connectivity: connectivity,
         extra: extraOverrides),
     child: const TrailBuddyApp(),
   ));

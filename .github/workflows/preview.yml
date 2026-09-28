@@ -1,0 +1,108 @@
+# Deployt den Stand von `main` als Web-Vorschau (PilzBuddy #388).
+#
+# Warum überhaupt: GitHub Pages wird ausschließlich aus dem BEFÖRDERTEN
+# Tag gebaut (promote.yml). Alles auf `main` ist damit im Browser
+# unerreichbar, bis jemand befördert. Das Profil verlinkt seit Phase 1
+# auf https://macbuchi.github.io/trailbuddy-preview/ — dieser Workflow
+# füllt die Adresse.
+#
+# Warum ein EIGENES Repo und kein Unterordner:
+#   1. `promote.yml` deployt mit `force_orphan: true` und legt den
+#      Pages-Branch bei jeder Beförderung neu an — ein `preview/`-Ordner
+#      wäre danach weg.
+#   2. Gleicher Origin heißt geteilter `localStorage`: Dort liegen der
+#      Supabase-Session-Token und alle gerätelokalen Einstellungen. Eine
+#      Vorschau würde Sitzung und Einstellungen der echten App benutzen
+#      UND verändern. Der eigene Origin ist der Grund, warum man sich in
+#      der Vorschau neu anmeldet.
+#
+# Zugang ist ein Deploy Key und KEIN Token: Er hängt an genau diesem einen
+# Repo statt am Konto, kann nichts außer pushen, und er läuft nicht ab.
+name: Web-Vorschau
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: web-preview
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+      - run: flutter pub get
+
+      # `--base-href` zeigt auf das VORSCHAU-Repo, nicht auf /trailbuddy/.
+      # Steht hier die falsche Adresse, lädt die Seite ihre eigenen Assets
+      # nicht und bleibt weiß — ohne Fehlermeldung.
+      #
+      # PREVIEW_BUILD schaltet den Streifen „Entwicklungsstand" ein und
+      # dreht den Profil-Verweis um (zurück zur freigegebenen Version).
+      # Ohne das Flag sähe die Vorschau aus wie die echte App.
+      # `--no-web-resources-cdn`: Ohne den Flag holt der Loader CanvasKit
+      # von www.gstatic.com — offline tot, und die IP jedes Besuchers ginge
+      # an Google. Die Dateien liegen ohnehin im Build.
+      - run: |
+          flutter build web --release \
+            --base-href /trailbuddy-preview/ \
+            --no-web-resources-cdn \
+            --dart-define=PREVIEW_BUILD=true
+      # Derselbe Prüfer wie in promote.yml und im CI-Job „Build Web": Was
+      # hier rausgeht, muss ohne Netz starten.
+      - name: Der Service Worker startet die App ohne Server
+        run: node tool/check_service_worker.mjs build/web
+      # SPA-Fallback wie in promote.yml: Pages liefert 404.html bei
+      # Deep-Links (/trails etc.).
+      - run: cp build/web/index.html build/web/404.html
+
+      # `secrets` ist in `if:` NICHT verfügbar — GitHub verwirft die ganze
+      # Datei beim Einlesen, und der Workflow läuft dann nie (PilzBuddy,
+      # deploy-functions.yml, wochenlang). Deshalb der Feststell-Schritt:
+      # Secret in `env:` ist erlaubt, `steps` ist in `if:` verfügbar.
+      # `test/release_workflow_test.dart` wacht darüber.
+      - name: Deploy Key vorhanden?
+        id: key
+        env:
+          K: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+        run: echo "have=$([ -n "$K" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Nach MacBuchi/trailbuddy-preview deployen
+        if: steps.key.outputs.have == 'true'
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
+        with:
+          deploy_key: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+          external_repository: MacBuchi/trailbuddy-preview
+          publish_branch: gh-pages
+          publish_dir: build/web
+          # Die Historie eines Deploy-Branches interessiert niemanden, und
+          # bei jedem Merge ein voller Web-Build ließe das Repo unbegrenzt
+          # wachsen.
+          force_orphan: true
+
+      - name: Ohne Deploy Key übersprungen
+        if: steps.key.outputs.have == 'false'
+        run: |
+          {
+            echo "### Nicht deployt — \`PREVIEW_DEPLOY_KEY\` fehlt"
+            echo
+            echo "1. Öffentliches Repo \`MacBuchi/trailbuddy-preview\` anlegen (leer)."
+            echo "2. Schlüsselpaar erzeugen: \`ssh-keygen -t ed25519 -N '' -f trailbuddy-preview\`."
+            echo "3. \`trailbuddy-preview.pub\` dort unter Settings → Deploy keys"
+            echo "   mit **Allow write access** hinterlegen."
+            echo "4. \`trailbuddy-preview\` (privat) hier als Secret \`PREVIEW_DEPLOY_KEY\`."
+            echo "5. Nach dem ersten Lauf dort Pages auf Branch \`gh-pages\` / Wurzel stellen."
+          } >> "$GITHUB_STEP_SUMMARY"
