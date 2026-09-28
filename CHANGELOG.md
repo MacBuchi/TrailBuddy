@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Auch ausgeschildert
+
+*Version 0.11.0, 2026-09-28*
+
+- **„Auch ausgeschildert als …" im Trail-Blatt**: Liegt ein Trail aus
+  deinem Netz auf einem offiziellen Trail, steht das jetzt in seinem
+  Blatt — ebenso, wenn er nur ein Stück davon ist oder einen offiziellen
+  Trail enthält. Ist der offizielle Trail gesperrt, steht auch das da,
+  mit der Angabe, von wem die Sperre kommt. Ein Tipp öffnet das Blatt
+  des offiziellen Trails.
+
 ## Offizielle Trails
 
 *Version 0.10.0, 2026-09-28*

@@ -207,7 +207,12 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   S-Grad. Schalter im Blatt „Ebenen und Orte"
   (`Settings.officialTrailsEnabled`, Vorgabe an); aus heißt: keine
   Anfrage. Der Test-Harness hängt `FakeOfficialTrailsSource` und
-  einen Speicher-Cache ein.
+  einen Speicher-Cache ein. „Auch ausgeschildert als …" im Trail-Blatt
+  (`official_match.dart`, `OfficialSignposts`): Deckung wie im Abgleich
+  (15 m, 0,8, Abtastung 5 m) — **dritter Spiegel der Schwellen**
+  neben SQL und `tool/trail_match.py`, im selben PR mitändern. Ohne
+  Fréchet (nichts wird verschmolzen); Varianten zählen nicht gegen
+  „derselbe". Das Blatt lädt die Region des Trails selbst nach.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
