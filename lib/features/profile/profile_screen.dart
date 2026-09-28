@@ -68,6 +68,15 @@ class ProfileScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/profile/import'),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.directions_bike),
+            title: const Text('Meine Fahrten'),
+            subtitle: const Text(
+                'Aufgezeichnete Fahrten — liegen nur auf diesem Gerät'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/profile/rides'),
+          ),
           const Divider(height: 32),
           ChangeUsernameTile(username: profile?.username),
           const ChangeEmailTile(),

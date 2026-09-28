@@ -46,8 +46,9 @@ void main() {
     expect(play, isNot(contains('--dart-define')));
   });
 
-  test('genau die Berechtigungen, die Phase 1 braucht', () {
-    // Standort nur im Vordergrund, für den Punkt auf der Karte.
+  test('genau die Berechtigungen, die es bis Phase 2 braucht', () {
+    // Standort im Vordergrund für den Punkt, im Foreground-Service für
+    // die Fahrt (#28) — nie als Hintergrund-Berechtigung.
     final perms = RegExp(r'android:name="android\.permission\.([A-Z_]+)"')
         .allMatches(manifest)
         .map((m) => m.group(1))
@@ -57,8 +58,32 @@ void main() {
       'REQUEST_INSTALL_PACKAGES',
       'ACCESS_FINE_LOCATION',
       'ACCESS_COARSE_LOCATION',
+      'FOREGROUND_SERVICE',
+      'FOREGROUND_SERVICE_LOCATION',
+      'POST_NOTIFICATIONS',
+      'RECEIVE_BOOT_COMPLETED',
     });
     expect(manifest, isNot(contains('ACCESS_BACKGROUND_LOCATION"')));
+    expect(
+        RegExp(r'RECEIVE_BOOT_COMPLETED"\s+tools:node="remove"').hasMatch(manifest), isTrue,
+        reason: 'das Plugin bringt sie mit, wir starten nie beim Booten');
+  });
+
+  test('die Fahrt läuft über einen Foreground-Service vom Typ location', () {
+    expect(manifest, contains('com.pravera.flutter_foreground_task.service.ForegroundService'));
+    final type = RegExp(r'android:foregroundServiceType="([a-zA-Z|]+)"').firstMatch(manifest)!.group(1)!;
+    expect(type, 'location');
+    // Der Meta-Data-Name des Symbols steht in Dart und im Manifest; das
+    // Plugin liefert bei einem Tippfehler stumm die Ressourcen-id 0.
+    final dart = File('lib/features/rides/ride_service_android.dart').readAsStringSync();
+    final name = RegExp(r"rideNotificationIconMetaData = '([\w.]+)'").firstMatch(dart)!.group(1)!;
+    expect(name, startsWith('$appId.'));
+    expect(manifest, contains('android:name="$name"'));
+    expect(manifest, contains('android:resource="@drawable/ic_notification"'));
+    final icon = File('android/app/src/main/res/drawable/ic_notification.xml').readAsStringSync();
+    // Nur der Alphakanal zählt: jede Fläche weiß, keine zweite Farbe.
+    final colors = RegExp(r'android:fillColor="(#[0-9A-Fa-f]+)"').allMatches(icon).map((m) => m.group(1)).toSet();
+    expect(colors, {'#FFFFFFFF'});
   });
 
   test('beide Backup-Regeln schließen dasselbe aus', () {

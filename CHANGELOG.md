@@ -2,6 +2,27 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Fahrt aufzeichnen
+
+*Version 0.13.0, 2026-09-28*
+
+- **Der Aufnahme-Knopf auf der Karte**: Ein Tipp startet die Fahrt, die
+  App zeichnet deinen Weg auf — auch mit dem Telefon in der Tasche oder
+  wenn du die App weggewischt hast. Solange sie läuft, steht eine
+  Benachrichtigung in der Statusleiste; oben auf der Karte siehst du
+  Strecke und Dauer, und die Spur wächst als dunkle Linie mit.
+- **Die Fahrt bleibt auf deinem Gerät.** Unter „Meine Fahrten" im Profil
+  liegen alle Aufzeichnungen: ansehen, auf der Karte zeigen, löschen.
+  Nichts davon geht an den Server und nichts ins Android-Backup. Welche
+  Trails du wieder gefahren bist und wo ein neuer liegt, zeigt bald das
+  Zerlege-Blatt — bis dahin bleibt die Fahrt, wie sie ist.
+- **Nach einem Neustart geht es weiter**: Räumt Android die App zwischendurch
+  weg, hat der Dienst weiter aufgezeichnet, und die Karte holt die Fahrt
+  beim nächsten Öffnen zurück. Nach zwölf Stunden hört eine vergessene
+  Aufnahme von selbst auf.
+- Im Browser gibt es die Aufzeichnung nicht: Ein Tab im Hintergrund
+  bekommt keine Positionen.
+
 ## Wo bin ich?
 
 *Version 0.12.0, 2026-09-28*

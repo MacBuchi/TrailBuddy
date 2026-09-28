@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Das Symbol der Fahrt-Meldung in der Statusleiste (#28).
+
+     Android wertet ein Statusleisten-Symbol NUR über den Alphakanal aus:
+     Jedes nicht durchsichtige Pixel wird weiß gemalt, Farbe verworfen.
+     Deshalb eine einzige weiße Fläche — zwei Berge mit einer Spur davor,
+     die als Silhouette bis 24 px hinunter lesbar bleibt. Kein Verlauf,
+     keine Kontur, keine zweite Farbe: nichts davon überlebt dieses
+     Medium. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M2,17 L8,7 L11.5,13 L14,9.5 L22,17 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,19 C7,19 8,21 12,21 C16,21 17,19 21,19 L21,20.8 C17,20.8 16,22.8 12,22.8 C8,22.8 7,20.8 3,20.8 Z" />
+</vector>

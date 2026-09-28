@@ -12,6 +12,7 @@ import '../features/changelog/changelog_screen.dart';
 import '../features/friends/friends_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/rides/rides_screen.dart';
 import '../features/trails/trail_import_screen.dart';
 import '../features/trails/trails_screen.dart';
 import 'widgets/keyboard_inset_below_bar.dart';
@@ -90,6 +91,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'import',
                       builder: (context, state) => const TrailImportScreen()),
+                  GoRoute(
+                      path: 'rides',
+                      builder: (context, state) => const RidesScreen()),
                   GoRoute(
                       path: 'changelog',
                       builder: (context, state) => const ChangelogScreen()),

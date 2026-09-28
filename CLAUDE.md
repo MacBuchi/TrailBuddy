@@ -229,6 +229,45 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Kreis fangen keine Tipps ab. Die Karte dreht sich nicht
   (`InteractiveFlag.rotate` aus). Der Harness hängt `fakePosition` /
   `FakePositionFix` ein.
+- **Fahrt aufzeichnen** (#28, `lib/features/rides/`, seit 0.13.0): die
+  Pilztour aus PilzBuddy (#338/#342/#465 dort) ohne Leergang-Logik.
+  Foreground-Service vom Typ `location` (`flutter_foreground_task`),
+  **gemessen wird im Service-Isolate** (`ride_task_handler.dart`,
+  `recordRideTick`), nicht im Main-Isolate — der stirbt beim Wegwischen,
+  der Service nicht. JSON Lines unter `rides/` (Backup-Ausschluss),
+  angehängt je Takt (5 s); Beenden benennt `active.jsonl` in
+  `<id>.jsonl` um — die Fahrt bleibt als Ganzes auf dem Gerät, gelöscht
+  wird nur auf Wunsch („Meine Fahrten" im Profil). Fünf Dinge, die man
+  wissen muss:
+  - **`initRideCommunication()` in `main()` ist die Rückrichtung.** Ohne
+    sie meldet der Service jeden Punkt ins Leere, still, und die Karte
+    kennt nur den ersten Fix — PilzBuddy #465, vier Wochen unbemerkt.
+    `test/rides/ride_live_bridge_test.dart` prüft Rundlauf, Gegenprobe
+    UND die Zeile.
+  - **Die Brücke ist SharedPreferences** (`ride_dir`, `ride_uid`,
+    `ride_active`): flache Werte, in beiden Isolaten lesbar. Der Pfad
+    wird einmal drüben aufgelöst; im Service-Isolate gibt es kein
+    Riverpod und keinen `ErrorSink`, `recordRideTick` fängt deshalb
+    alles.
+  - **Ein Verbraucher, kein Koordinator.** Anders als PilzBuddy (Download
+    UND Tour auf einem Service) gibt es nur die Fahrt; mit Offline-Karten
+    (Phase 3) kommt der Koordinator von dort — zwei `stop()` auf einem
+    Service sind die Falle.
+  - **Die GPS-Höhe wird ROH mitgeschrieben** (`RidePoint.altM`) und
+    nirgends angezeigt: Ob sie als Höhenquelle taugt, wird gemessen,
+    bevor eine Zahl daraus wird; Dateihöhen bleiben die Quelle.
+  - **Kein Web.** `rideRecordingAvailableProvider` (= `!kIsWeb`)
+    versteckt den Knopf; ein Tab im Hintergrund bekommt keine
+    Positionen. Der Service-Import ist bedingt (`ride_service_stub`).
+  Manifest: `FOREGROUND_SERVICE(_LOCATION)`, `POST_NOTIFICATIONS`,
+  `RECEIVE_BOOT_COMPLETED` entfernt, Service-Typ `location`, Symbol
+  `ic_notification.xml` (nur Alphakanal, PilzBuddy #331) über den
+  Meta-Data-Namen `rideNotificationIconMetaData` — der Manifest-Test
+  hält alles zusammen. Ausdrücklich kein `ACCESS_BACKGROUND_LOCATION`:
+  die Dauerbenachrichtigung ist die Offenlegung. Der Harness hängt
+  `FakeRideStore`, `FakeRideFix`, `FakeRideServiceBridge` und
+  `FakeRideService` ein, sonst ginge jeder Kartentest über `restore()`
+  an `path_provider`.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
@@ -271,8 +310,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
-  MapLibre-Engine für Android, Offline-Karten, Ausgangskorb, Aufzeichnung
-  (Phase 2), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  MapLibre-Engine für Android, Offline-Karten, Ausgangskorb, das
+  Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.
