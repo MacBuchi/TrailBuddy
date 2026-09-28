@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pmtiles/pmtiles.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
+import 'package:trailbuddy/features/offline_areas/area_overlay.dart';
 import 'package:trailbuddy/features/offline_areas/area_plan.dart';
 import 'package:trailbuddy/features/offline_areas/area_providers.dart';
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
@@ -16,6 +17,7 @@ import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_keep_alive.dart';
+import '../fakes/fake_map_view.dart';
 import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
 
@@ -74,9 +76,69 @@ void main() {
   Future<void> openSaveSheet(WidgetTester tester) async {
     await tester.tap(find.byTooltip('Ebenen und Orte'));
     await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
+    await settle(tester);
     await tester.tap(find.byKey(const ValueKey('save-area-tile')));
     await settle(tester, frames: 20);
   }
+
+  testWidgets('„Offline-Karten" dunkelt die Karte ab, gespeicherte Kacheln bleiben hell — bis das Blatt zugeht',
+      (tester) async {
+    // Ein Bereich liegt schon: seine Kacheln sind die Löcher der Maske.
+    await store.putArchive('old', _sourceBytes());
+    await store.saveIndex([
+      StoredArea(
+        id: 'old',
+        name: 'Alt',
+        bounds: const AreaBounds(south: 47.99, west: 8.99, north: 48.02, east: 9.01),
+        minZoom: 8,
+        maxZoom: 10,
+        build: '20260928',
+        tiles: 5,
+        bytes: 500,
+        savedAt: DateTime.utc(2026, 9, 28),
+      ),
+    ]);
+    await start(tester);
+    expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'ohne Blatt keine Maske');
+
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
+    await settle(tester);
+    expect(find.text('Offline-Karten'), findsOneWidget);
+    expect(find.byKey(const ValueKey('offline-area-old')), findsOneWidget);
+    final mask = fakeMapLayers(tester).polygons.single;
+    expect(mask.fillColor, kOfflineDimColor);
+    expect(mask.holes, isNotEmpty, reason: 'der Bereich liegt im Ausschnitt');
+    // Jedes Loch ist eine Kachel des Bereichs (bei dessen Zoom 10).
+    final z = offlineOverlayZoom(fakeMap(tester).camera.zoom).clamp(8, 10);
+    for (final hole in mask.holes) {
+      final t = tileAt(hole.first.latitude - 1e-6, hole.first.longitude + 1e-6, z);
+      expect(tileBounds(z, t.x, t.y).contains(hole[2]), isTrue);
+    }
+
+    // Antippen zeigt den Bereich; die Karte bleibt bedienbar.
+    await tester.tap(find.byKey(const ValueKey('offline-area-old')));
+    await settle(tester);
+    expect(fakeMap(tester).camera.center.latitude, closeTo(48.005, 0.01));
+
+    await tester.tap(find.byKey(const ValueKey('offline-maps-close')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('offline-area-old')), findsNothing);
+    expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'zu heißt: keine Maske mehr');
+  });
+
+  testWidgets('ohne Bereich ist alles abgedunkelt, und das Blatt sagt es', (tester) async {
+    await start(tester);
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
+    await settle(tester);
+    expect(find.textContaining('Noch kein Bereich gespeichert'), findsOneWidget);
+    final mask = fakeMapLayers(tester).polygons.single;
+    expect(mask.holes, isEmpty);
+  });
 
   testWidgets('Größe vorher, dann gespeichert, in der Liste, gelöscht', (tester) async {
     await start(tester);

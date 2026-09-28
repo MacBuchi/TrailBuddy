@@ -302,3 +302,9 @@ final areaMapStyleProvider = FutureProvider<BaseMapStyle?>((ref) async {
 /// „Auf der Karte zeigen" aus der Liste: der Wunsch, den die Karte beim
 /// nächsten Aufbau einpasst und dann zurücksetzt.
 final mapFocusAreaProvider = StateProvider<StoredArea?>((ref) => null);
+
+/// Solange das Blatt „Offline-Karten" offen ist: Die Karte dunkelt alles
+/// ab, was nicht gespeichert ist (Stufe B). Gesetzt beim Öffnen,
+/// zurückgenommen, wenn das Blatt zugeht — vom Blatt selbst, nicht vom
+/// Screen, damit es auch bei Zurück-Taste und Wisch stimmt.
+final offlineOverlayProvider = StateProvider<bool>((ref) => false);

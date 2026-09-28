@@ -132,6 +132,18 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     return ml.Feature(geometry: ml.Polygon.build([ring]));
   }
 
+  /// Eine Fläche mit Löchern als Polygon: der äußere Ring zuerst, dann je
+  /// Loch ein innerer Ring (`build` nimmt flache Ketten lon,lat,…).
+  static ml.Feature<ml.Polygon> polygonFeature(MapViewPolygon p) {
+    List<double> ring(List<LatLng> pts) => [
+          for (final q in pts) ...[q.longitude, q.latitude],
+          // Geschlossen: GeoJSON verlangt, dass der letzte Punkt der
+          // erste ist.
+          if (pts.isNotEmpty && pts.first != pts.last) ...[pts.first.longitude, pts.first.latitude],
+        ];
+    return ml.Feature(geometry: ml.Polygon.build([ring(p.points), for (final h in p.holes) ring(h)]));
+  }
+
   /// Ein Strichmuster in Bildpunkten als MapLibre-`dasharray` — dort in
   /// Vielfachen der Linienbreite, ganzzahlig.
   static List<int> dashArrayFor(List<double> dash, double width) => [
@@ -320,6 +332,12 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       // Deklarative Layer des Pakets — NICHT `children`: Ein
       // `PolylineLayer` ist dort ein `Layer`, kein Widget.
       layers: [
+        for (final p in layers.polygons)
+          ml.PolygonLayer(
+            polygons: [polygonFeature(p)],
+            color: p.fillColor,
+            outlineColor: p.borderColor ?? p.fillColor,
+          ),
         for (final c in layers.circles) ...[
           ml.PolygonLayer(
             polygons: [circlePolygon(c)],

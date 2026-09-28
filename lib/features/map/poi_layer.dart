@@ -236,21 +236,22 @@ Future<void> showPoiSheet(BuildContext context, Poi poi) =>
 /// Gruppen von Orten zum An- und Ausschalten, je Gruppe ihre Arten als
 /// Chips (Detailfilter). Er sagt dazu, ab wann Orte erscheinen und wohin
 /// der Ausschnitt dafür geht.
-Future<void> showPoiFilterSheet(BuildContext context, {VoidCallback? onSaveArea}) =>
+Future<void> showPoiFilterSheet(BuildContext context, {VoidCallback? onOfflineMaps}) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       // Nicht bildschirmhoch: Oben bleibt Karte sichtbar (und zum
       // Schließen antippbar); was nicht passt, scrollt im Blatt.
-      builder: (_) => _PoiFilterSheet(onSaveArea: onSaveArea),
+      builder: (_) => _PoiFilterSheet(onOfflineMaps: onOfflineMaps),
     );
 
 class _PoiFilterSheet extends ConsumerWidget {
-  const _PoiFilterSheet({this.onSaveArea});
+  const _PoiFilterSheet({this.onOfflineMaps});
 
-  /// „Bereich für unterwegs speichern" (Konzept-Schritt 3) — vom
-  /// Karten-Screen gereicht, der Ausschnitt und Trails kennt.
-  final VoidCallback? onSaveArea;
+  /// „Offline-Karten" (Konzept-Schritt 3, Stufe B): das persistente Blatt
+  /// mit Bereichen, Speichern und Hervorhebung — vom Karten-Screen
+  /// gereicht, der Ausschnitt und Trails kennt.
+  final VoidCallback? onOfflineMaps;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -268,19 +269,19 @@ class _PoiFilterSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Text('Ebenen', style: text.titleLarge),
             ),
-            if (onSaveArea != null)
+            if (onOfflineMaps != null)
               ListTile(
-                key: const ValueKey('save-area-tile'),
+                key: const ValueKey('offline-maps-tile'),
                 leading: const CircleAvatar(
                   backgroundColor: AppColors.trailGreen,
                   child: Icon(Icons.download_for_offline_outlined, color: Colors.white, size: 20),
                 ),
-                title: const Text('Bereich für unterwegs speichern'),
-                subtitle: const Text('Karte und Orte dieses Ausschnitts bleiben auf dem Gerät'),
+                title: const Text('Offline-Karten'),
+                subtitle: const Text('Bereiche für unterwegs speichern und sehen, was schon liegt'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.of(context).pop();
-                  onSaveArea!();
+                  onOfflineMaps!();
                 },
               ),
             SwitchListTile(

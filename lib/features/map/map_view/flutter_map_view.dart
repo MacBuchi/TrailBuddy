@@ -185,6 +185,20 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             maximumZoom: 19,
             maximumTileSubstitutionDifference: 1,
           ),
+        if (layers.polygons.isNotEmpty)
+          PolygonLayer(polygons: [
+            for (final p in layers.polygons)
+              Polygon(
+                points: p.points,
+                holePointsList: p.holes.isEmpty ? null : p.holes,
+                color: p.fillColor,
+                borderColor: p.borderColor ?? Colors.transparent,
+                borderStrokeWidth: p.borderWidth,
+                // Kein Rand um die Löcher: Die gespeicherten Kacheln
+                // sollen hell sein, nicht umrahmt.
+                disableHolesBorder: true,
+              ),
+          ]),
         if (layers.circles.isNotEmpty)
           CircleLayer(circles: [
             for (final c in layers.circles)

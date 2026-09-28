@@ -4,8 +4,14 @@
 
 ## Karte
 
-*Version 0.24.0, 2026-09-28*
+*Versionen 0.24.0 und 0.25.0, 2026-09-28*
 
+- **„Offline-Karten" zeigt, was auf dem Gerät liegt** (0.25.0): Unter
+  „Ebenen und Orte" gibt es jetzt den Punkt „Offline-Karten". Solange
+  das Blatt offen ist, bleibt auf der Karte hell, was gespeichert ist,
+  der Rest ist abgedunkelt — die Karte lässt sich dabei schieben und
+  zoomen. Im Blatt stehen die gespeicherten Bereiche (Antippen zeigt
+  einen auf der Karte), „Bereich speichern" und der Weg zur Verwaltung.
 - **„Entlang meiner Trails" speichert nur noch, was die Trails
   berühren**: Bisher legte „Um meine Trails" ein Rechteck um alle
   Trails — bei verstreuten Trails vor allem Land dazwischen, und bei

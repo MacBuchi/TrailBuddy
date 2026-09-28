@@ -163,6 +163,11 @@ class FakeMapViewState extends State<FakeMapView>
               // Geometrie, aber eine Linie, die hier fehlt, wäre im Test
               // unsichtbar — genau der blinde Fleck, den er nicht haben
               // darf.
+              for (final polygon in l.polygons)
+                SizedBox(
+                    width: 1,
+                    height: 1,
+                    child: ColoredBox(color: polygon.fillColor)),
               for (final line in l.polylines)
                 SizedBox(
                     width: 1,

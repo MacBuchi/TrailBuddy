@@ -531,9 +531,24 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       die Form), „Aktualisieren" plant sie neu; `bounds` ist nur die
       Hülle — innerhalb kann eine Kachel FEHLEN, der Wege-Index fragt
       deshalb das Archiv (`ProviderException` ⇒ nicht gedeckt). Die
-      Orte-Zellen kommen aus der Form, nicht aus der Hülle. Stufe B
-      (gespeicherte Kacheln auf der Karte zeigen) und C (Formen
-      zeichnen, additiv/subtraktiv) sind offen. Geholt wird in Blöcken über
+      Orte-Zellen kommen aus der Form, nicht aus der Hülle.
+    - **„Offline-Karten" zeigt, was liegt** (Stufe B, seit 0.25.0,
+      `offline_maps_sheet.dart`, `area_overlay.dart` pur): ein
+      PERSISTENTES Blatt am Scaffold der KARTE (`_scaffoldKey`; aus dem
+      Build-Kontext fände `Scaffold.of` die Reiter-Hülle, deren Blatt
+      läge über dem Navigator und damit über dem modalen „Bereich
+      speichern" — im Test gefunden). Solange es offen ist
+      (`offlineOverlayProvider`, zurückgenommen über `closed`), liegt
+      EIN Polygon unter allem (`MapViewPolygon`, neu in der Fassade,
+      Löcher auf beiden Engines): der Ausschnitt plus eine Fensterbreite
+      Rand abgedunkelt, die gespeicherten Kacheln als Löcher — bei
+      `offlineOverlayZoom` (Kamera + 2, 8…13, nie über dem Zoom des
+      Bereichs), aus den FORMEN im Index (`tilesWithin`), nicht aus den
+      Archiven; über `kOfflineOverlayMaxHoles` eine Stufe gröber. Ohne
+      Bereiche ist alles dunkel — das IST die Aussage. Der Einstieg im
+      Blatt „Ebenen und Orte" heißt seither „Offline-Karten", „Bereich
+      speichern" wohnt darin. Stufe C (Formen zeichnen,
+      additiv/subtraktiv) ist offen. Geholt wird in Blöcken über
       `PmTilesArchive.tiles()` — das Paket liest je Aufruf ALLE
       zusammenhängenden Bereiche parallel, ein ganzer Bereich auf einmal
       wäre ein Sturm aus Range-Anfragen.
@@ -717,8 +732,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
-  liegen", Konzept 3.2), gespeicherte Kacheln auf der Karte hervorheben
-  und Bereiche zeichnen (Stufen B und C), Ausgangskorb und
+  liegen", Konzept 3.2), Bereiche zeichnen (Stufe C), Ausgangskorb und
   Zwischenspeicher im Browser, Nachrichten zwischen Buddys (#34, Rest),
   Meldung zu einem einzelnen Trail, Launcher-Icon (noch
   Flutter-Vorgabe), `docs/play-console.md`.

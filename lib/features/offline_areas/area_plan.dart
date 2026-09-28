@@ -179,6 +179,11 @@ sealed class AreaShape {
   /// Die Orte-Zellen, die zum Bereich gehören.
   List<PoiCell> poiCells();
 
+  /// Die Kacheln bei Zoom [z], die [box] berühren — für die Hervorhebung
+  /// auf der Karte, die nur den Ausschnitt braucht und nicht 40 000
+  /// Kacheln.
+  List<TileXYZ> tilesWithin(AreaBounds box, int z);
+
   Map<String, dynamic> toJson();
 
   static AreaShape fromJson(Map<String, dynamic> j) => switch (j['type']) {
@@ -251,6 +256,18 @@ class RectShape extends AreaShape {
   List<PoiCell> poiCells() => poiCellsCovering(bounds.south, bounds.west, bounds.north, bounds.east);
 
   @override
+  List<TileXYZ> tilesWithin(AreaBounds box, int z) {
+    if (!bounds.intersects(box)) return const [];
+    final cut = AreaBounds(
+      south: math.max(bounds.south, box.south),
+      west: math.max(bounds.west, box.west),
+      north: math.min(bounds.north, box.north),
+      east: math.min(bounds.east, box.east),
+    );
+    return tilesCovering(cut, minZoom: z, maxZoom: z);
+  }
+
+  @override
   Map<String, dynamic> toJson() => {'type': 'rect', 'bounds': bounds.toJson()};
 }
 
@@ -319,6 +336,17 @@ class TileSetShape extends AreaShape {
       cells.addAll(poiCellsCovering(b.south, b.west, b.north, b.east));
     }
     return cells.toList()..sort();
+  }
+
+  @override
+  List<TileXYZ> tilesWithin(AreaBounds box, int z) {
+    final nw = tileAt(box.north, box.west, z);
+    final se = tileAt(box.south, box.east, z);
+    return [
+      for (final k in _keysAt(z))
+        if ((k >> z) >= nw.x && (k >> z) <= se.x && (k & ((1 << z) - 1)) >= nw.y && (k & ((1 << z) - 1)) <= se.y)
+          (z: z, x: k >> z, y: k & ((1 << z) - 1)),
+    ];
   }
 
   @override
