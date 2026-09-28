@@ -1,7 +1,8 @@
 # Offizielle Trails — Konzept (Issue #13)
 
-*Stand 2026-09-28. Entscheidungen des Betreibers in Abschnitt 2; was
-vor dem Bauen noch zu klären ist, in Abschnitt 6.*
+*Stand 2026-09-28. Entscheidungen des Betreibers in Abschnitt 2, die
+Bestandsaufnahme der Quellen in Abschnitt 4, Zurückgestelltes in
+Abschnitt 6.*
 
 ## 1. Kurzfassung
 
@@ -24,10 +25,11 @@ sind öffentlich, und das Buddy-Modell bleibt unberührt.
 2. **Nur Singletrails und Bikeparks.** Ausgeschilderte Touren über
    Forstwege bleiben draußen: Sie sind nach der Importregel Fahrten, und
    ein Trail des Netzes wäre darin immer nur ein „Teil".
-3. **Regionen zum Start:** Tirol, Vorarlberg, Schweiz, Baden-Württemberg
-   — dort ausdrücklich auch Vereins-Trails (Trailsurfers
-   Baden-Württemberg e.V., Bikeländ Eberbach, Flowtrail Mosbach und
-   weitere dieser Art).
+3. **Regionen, gewünscht:** Tirol, Vorarlberg, Schweiz,
+   Baden-Württemberg — dort ausdrücklich auch Vereins-Trails
+   (Trailsurfers Baden-Württemberg e.V., Bikeländ Eberbach, Flowtrail
+   Mosbach und weitere dieser Art). Was davon heute verwendbar ist:
+   Abschnitt 4.
 4. **Kein OpenStreetMap als Quelle — Klasse statt Masse.** Nur, was
    eine zuständige Stelle ausweist oder betreibt: eine Behörde, ein
    Verein mit Genehmigung, ein Bikepark. Lieber eine dünne Ebene, auf
@@ -50,30 +52,41 @@ an der Beiträge von Nutzern hängen. Konzept 3 („sichtbar ist, was
 jemand GEFAHREN ist") gälte nicht mehr. Die getrennte Ebene hat keinen
 dieser Nachteile.
 
-## 4. Quellen — Stand der Recherche
+## 4. Quellen — Bestandsaufnahme (2026-09-28)
 
-| Quelle | Was | Singletrails erkennbar? | Lizenz | Zugang |
-|---|---|---|---|---|
-| Tirol, MTB-Modell 2.0 (Land Tirol, tiris) | Routen **und Singletrails**, Schwierigkeit grün/blau/rot/schwarz | ja, eigene Kategorie | Open Government Data — Datensatz und Lizenz genau bestimmen (der frühere Katalogeintrag ist nicht mehr erreichbar) | tiris Open-Data-Portal (Shape, GeoJSON, Dienste) |
-| Vorarlberg (Land, VOGIS) | Mountainbikenetz, Wegweiser, Streckenabschnitte | zu prüfen | Open Government Data, je Datensatz prüfen | WFS, GeoPackage, GeoJSON |
-| Schweiz, Mountainbikeland (ASTRA, SchweizMobil) | nationale, regionale, lokale Routen | **nein** — die Attribute sind Route, Routennummer, Segment | frei, Quellenangabe Pflicht | api3.geo.admin.ch, data.geo.admin.ch |
-| Schweiz, Sperrungen/Umleitungen Mountainbikeland | täglich | — | frei | wie oben |
-| Trailsurfers Baden-Württemberg e.V. | legale Naturtrails im Bottwartal, GPX auf der Vereinsseite | ja | **keine offene Lizenz** — Erlaubnis nötig | GPX-Download |
-| Bikeländ Eberbach (Kanu Club Eberbach) | 12 freigegebene Singletrails | ja | Erlaubnis nötig | Website |
-| Flowtrail Mosbach | drei Abfahrten und ein Uphill | ja | Erlaubnis nötig | Website |
-| Bikeparks | je Betreiber | ja | Erlaubnis nötig | je Betreiber |
+**Entscheidung des Betreibers:** Zuerst kommt nur, was es offiziell
+gibt und wir ohne Rückfrage verwenden dürfen. Vereine, Bikeparks und
+Anfragen (SchweizMobil) sind zurückgestellt.
+
+Geprüft an den Daten selbst (Kataloge der Länder, WFS abgerufen und
+ausgezählt; Kennzahlen, keine Koordinaten):
+
+| Quelle | Lizenz | Singletrails | Befund |
+|---|---|---|---|
+| **Tirol — „Radrouten in Tirol"** (Land Tirol, Waldschutz; data.gv.at) | **CC0** | **238** (`ROUTEN_TYP = Single Trail`) | Freigegebene Singletrails nach dem Tiroler MTB-Modell, je mit Name, Schwierigkeit (leicht 90 · mittelschwierig 102 · schwierig 46), Länge, Höhenmetern und **Status offen/gesperrt** (heute 16 gesperrt). Länge: Median 0,9 km, p90 4,2 km; 156 abfahrtsdominiert. Hauptroute 185, Variante 53. Stand der jüngsten Zeile: 23.09.2026. Zugang: WFS (GeoJSON) und GPX-Zip. |
+| Vorarlberg — `vogis:mountainbike_strecken` (VOGIS) | CC BY 4.0 | 19 Stücke, zusammen ~750 m | Das Mountainbikenetz unterscheidet Asphalt, Schotter, Schiebe-/Tragestrecke und Singletrail, aber die Singletrail-Stücke sind Verbindungen im Routennetz (Median 19 m), keine Trails. **Nicht verwendbar.** |
+| Schweiz — Mountainbikeland (ASTRA, SchweizMobil) | frei, Quellenangabe Pflicht | **kein Merkmal** | Attribute nur Route, Routennummer, Segment. **Nicht verwendbar** für Singletrails. |
+| Schweiz — Sperrungen/Umleitungen Mountainbikeland | frei | — | Täglich; für später (Abschnitt 7). |
+| Bayern — Freizeitwege, „Mountainbikewege" | CC BY 4.0 | — | Ausgeschilderte Routen, keine Singletrails. |
+| Baden-Württemberg | — | — | Kein amtlicher Datensatz zu MTB-Strecken gefunden (GovData, daten.bw). Legale Trails gibt es hier über Vereine — zurückgestellt. |
 
 Ausgeschlossen: **Trailforks** (Daten nur für nicht-kommerzielle,
 „share-alike"-Nutzung mit Registrierung, keine Kopie für
 nicht-persönliche Zwecke), **OpenStreetMap** (Entscheidung 4),
 Tourenportale (Outdooractive, Komoot, Bergfex — keine offenen Daten).
 
-Folgen für den Start: **Tirol ist die einzige Quelle, die heute alle
-drei Bedingungen erfüllt** (offen, amtlich, Singletrails unterscheidbar).
-Die Schweiz liefert Singletrails nicht als Merkmal — entweder wir fragen
-bei SchweizMobil nach, ob es das gibt, oder die Schweiz kommt zunächst
-nur mit ihren Sperrungen (Abschnitt 7). Die Vereine in
-Baden-Württemberg gehen nur mit schriftlicher Erlaubnis.
+**Folge: Der Start ist Tirol allein.** 238 Singletrails, gemeinfrei,
+mit Schwierigkeit und einem amtlichen Status. Zwei Dinge daraus fürs
+Bauen:
+
+- **Kurze Stücke.** Ein Zehntel ist unter 100 m — Abschnitte eines
+  Trails oder Varianten. Die Pipeline fasst nichts zusammen (das wäre
+  eine Behauptung über die Quelle), zeigt aber Stücke unter der
+  Mindestlänge des Abgleichs (150 m) nicht einzeln an, sondern nur als
+  Teil ihres Trails, wenn Name und Anschluss passen; sonst gar nicht.
+- **Der Status ist amtlich.** „gesperrt" kommt vom Land und wird so
+  angezeigt — als Aussage der Quelle, nicht als Statusmeldung eines
+  Buddys (Konzept 3). Das Blatt sagt, von wem die Sperre kommt.
 
 ## 5. Aufbau
 
@@ -142,21 +155,17 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 - Die Quellenangaben der sichtbaren Regionen stehen in der
   Karten-Attribution, solange die Ebene an ist.
 
-## 6. Vor dem Bauen zu klären
+## 6. Zurückgestellt (Entscheidung 2026-09-28)
 
-1. **Vereine und Bikeparks:** Anfrage je Verein durch den Betreiber
-   (was wir zeigen, mit welcher Quellenangabe, dass nichts verkauft
-   wird, dass die Zusage jederzeit widerrufbar ist). Ohne Zusage bleibt
-   der Verein draußen; die Zusage liegt im DocuHub.
-2. **Tirol:** genauen Datensatz und Lizenz bestimmen, prüfen, ob die
-   Singletrails als eigene Kategorie herauskommen.
-3. **Vorarlberg:** prüfen, ob Singletrails im Mountainbikenetz
-   unterscheidbar sind.
-4. **Schweiz:** bei SchweizMobil anfragen, ob es Singletrail-Abschnitte
-   als Daten gibt; sonst zunächst nur die Sperrungen (Abschnitt 7).
-5. **Rechtlich** (Konzept 7): Die Ebene sagt „ausgewiesen laut Quelle",
-   nie etwas über andere Trails. Ein Satz im Blatt, keine Kennzeichnung
-   der übrigen Trails als „inoffiziell".
+1. **Vereine und Bikeparks** (Baden-Württemberg: Trailsurfers,
+   Bikeländ Eberbach, Flowtrail Mosbach): nur mit schriftlicher
+   Erlaubnis. Eine Mustermail an Vereine und an SchweizMobil liegt beim
+   Betreiber; die Zusagen kämen in den DocuHub.
+2. **Schweiz:** Singletrails als Daten nur auf Nachfrage bei
+   SchweizMobil.
+3. **Rechtlich** (Konzept 7) bleibt beim Bauen zu beachten: Die Ebene
+   sagt „ausgewiesen laut Quelle", nie etwas über andere Trails — ein
+   Satz im Blatt, keine Kennzeichnung der übrigen als „inoffiziell".
 
 ## 7. Später
 
@@ -169,9 +178,11 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 
 ## 8. Fahrplan
 
-1. Dieses Konzept (Issue #13).
-2. Pipeline mit Tirol als erster Quelle, Format, Wächter, Self-Test.
-3. Ebene in der App mit Blatt und Attribution; Datenschutzerklärung
-   (kein neuer Host, aber ein neuer Abruf).
+1. Dieses Konzept mit Bestandsaufnahme (Issue #13).
+2. Pipeline mit Tirol: WFS abrufen, auf `Single Trail` filtern, Format,
+   Wächter, Self-Test.
+3. Ebene in der App mit Blatt, amtlichem Status und Quellenangabe;
+   Datenschutzerklärung (kein neuer Host, aber ein neuer Abruf).
 4. „Auch ausgeschildert als …" im Trail-Blatt.
-5. Vereine, sobald Zusagen da sind; Vorarlberg und Schweiz nach Klärung.
+5. Weitere Quellen, sobald eine die Bedingungen erfüllt; Vereine und
+   Schweiz nach Abschnitt 6.
