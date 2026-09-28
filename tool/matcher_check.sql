@@ -629,19 +629,23 @@ end $$;
 do $$
 declare
   ub uuid := '22222222-2222-4222-8222-222222222222';
+  lim integer := (app_internal.match_params()).daily_limit;
   have integer; i integer; code text; ok boolean := false;
 begin
+  -- Die Zahl kommt aus match_params, nicht aus diesem Test (Patch 006:
+  -- 500); Block 19 erwartet Bernds Linie bei y0 = 25000 (i = 50).
+  perform tb_test.check(lim = 500, format('Tageslimit ist 500 (%s)', lim));
   select count(*) into have from public.trail_recordings where user_id = ub;
-  for i in have + 1..50 loop
+  for i in have + 1..lim loop
     perform tb_test.contribute(ub, tb_test.line(200, y0 => 20000 + i * 100));
   end loop;
   begin
-    perform tb_test.contribute(ub, tb_test.line(200, y0 => 30000));
+    perform tb_test.contribute(ub, tb_test.line(200, y0 => 20000 + (lim + 1) * 100));
   exception when others then
     get stacked diagnostics code = returned_sqlstate;
     ok := code = '54000';
   end;
-  perform tb_test.check(ok, format('die 51. Aufzeichnung an einem Tag wird abgelehnt (%s)', code));
+  perform tb_test.check(ok, format('die %s. Aufzeichnung in 24 h wird abgelehnt (%s)', lim + 1, code));
 end $$;
 
 \echo -- 19. Höhen nachtragen (Patch 003, Issue #16)

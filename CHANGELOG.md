@@ -2,6 +2,14 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Ganzer Bestand auf einmal
+
+*Version 0.9.0, 2026-09-28*
+
+- **Bis zu 500 Trails am Tag beisteuern** statt 50: Dein ganzes
+  GPX-Archiv geht jetzt an einem Abend durch, statt sich über zehn Tage
+  zu ziehen.
+
 ## Hinweise für Buddys
 
 *Version 0.8.0, 2026-09-28*
