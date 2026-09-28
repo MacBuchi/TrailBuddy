@@ -44,6 +44,14 @@ void main() {
     settings = FakeSettings();
   });
 
+  /// Das Blatt ist halb so hoch wie der Schirm; die Ebenen stehen oben,
+  /// die Orte darunter — erst hinscrollen.
+  Future<void> tapInSheet(WidgetTester tester, Finder f) async {
+    await tester.ensureVisible(f);
+    await settle(tester, frames: 3);
+    await tester.tap(f);
+  }
+
   Future<void> start(WidgetTester tester, {bool withTrail = true}) async {
     // Ein Trail, damit die Karte von selbst auf Zoom 15 geht.
     if (withTrail) trails.seedTrail(backend.currentUserId!, name: 'Roots');
@@ -68,10 +76,10 @@ void main() {
 
   testWidgets('Filter: Einkehr an, Wasser aus — und gemerkt', (tester) async {
     await start(tester);
-    await tester.tap(find.byTooltip('Orte auf der Karte'));
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('poi-group-food')));
-    await tester.tap(find.byKey(const ValueKey('poi-group-water')));
+    await tapInSheet(tester, find.byKey(const ValueKey('poi-group-food')));
+    await tapInSheet(tester, find.byKey(const ValueKey('poi-group-water')));
     await settle(tester);
     expect(settings.poiGroups, ['food']);
     await tester.tapAt(const Offset(400, 20)); // Blatt schließen
@@ -95,12 +103,12 @@ void main() {
     expect(cafePin, findsOneWidget);
     final asked = pois.calls.length;
 
-    await tester.tap(find.byTooltip('Orte auf der Karte'));
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
     await settle(tester);
     // Die Arten stehen unter ihrer Gruppe; Sonstiges ist aus, also ohne.
     expect(find.byKey(const ValueKey('poi-kind-biergarten')), findsOneWidget);
     expect(find.byKey(const ValueKey('poi-kind-parking')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('poi-kind-cafe')));
+    await tapInSheet(tester, find.byKey(const ValueKey('poi-kind-cafe')));
     await settle(tester);
     expect(settings.poiHiddenKinds, ['cafe']);
     await tester.tapAt(const Offset(400, 20));

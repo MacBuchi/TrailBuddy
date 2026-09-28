@@ -51,6 +51,7 @@ void main() {
     expect(html, contains('tile.openstreetmap.org'));
     expect(html, contains('overpass-api.de'));
     expect(html, contains('FOSSGIS'));
+    expect(html, contains('Offizielle Trails'));
     expect(html, contains('Trail-Aufzeichnungen'));
     expect(html, contains('verlassen dein Gerät nie'),
         reason: 'Entscheidung 4 im Konzept: Fahrten bleiben lokal');
@@ -70,6 +71,8 @@ void main() {
       'tile.openstreetmap.org',
       // Orte auf der Karte (#12), nur mit eingeschaltetem Filter.
       'overpass-api.de',
+      // Offizielle Trails (#13), Daten-Branch, nur mit eingeschalteter Ebene.
+      'raw.githubusercontent.com',
       'api.github.com',
       'github.com',
       'macbuchi.github.io',

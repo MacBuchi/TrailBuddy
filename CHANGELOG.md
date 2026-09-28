@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Offizielle Trails
+
+*Version 0.10.0, 2026-09-28*
+
+- **Offiziell ausgewiesene Singletrails auf der Karte**: Violett
+  gestrichelt, unter den Trails deines Netzes. Den Anfang macht Tirol mit
+  gut 180 freigegebenen Singletrails vom Land. Sie erscheinen ab mittlerer
+  Zoomstufe, sobald die Karte eine Region zeigt, für die es Daten gibt.
+- **Ein Tipp zeigt, was die Quelle sagt**: Name, Länge, Höhenmeter,
+  Schwierigkeit laut Quelle, Beschreibung und ob der Trail freigegeben
+  oder gesperrt ist — mit der Angabe, von wem das kommt. Gesperrte Teile
+  sind grau.
+- **Auch ohne Empfang**: Einmal geladen, merkt sich die App die Region
+  und zeigt sie auch im Funkloch.
+- **Abschaltbar**: Der Knopf „Ebenen und Orte" unten links (vorher nur
+  „Orte") hat dafür einen Schalter.
+
 ## Lange Namen beim Import
 
 *Version 0.9.1, 2026-09-28*

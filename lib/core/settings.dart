@@ -49,6 +49,12 @@ abstract interface class Settings {
   List<String>? get seenNoteIds;
 
   Future<void> setSeenNoteIds(List<String> ids);
+
+  /// Ist die Ebene „Offizielle Trails" an (#13)? Vorgabe: an
+  /// (Entscheidung des Betreibers, Konzept offizielle Trails 2.5).
+  bool get officialTrailsEnabled;
+
+  Future<void> setOfficialTrailsEnabled(bool value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -93,6 +99,16 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setSeenNoteIds(List<String> ids) =>
       _prefs.setStringList(_seenNoteIdsKey, ids);
+
+  static const _officialTrailsEnabledKey = 'official_trails_enabled';
+
+  @override
+  bool get officialTrailsEnabled =>
+      _prefs.getBool(_officialTrailsEnabledKey) ?? true;
+
+  @override
+  Future<void> setOfficialTrailsEnabled(bool value) =>
+      _prefs.setBool(_officialTrailsEnabledKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

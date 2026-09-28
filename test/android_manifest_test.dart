@@ -63,7 +63,8 @@ void main() {
     final legacy = excludes('android/app/src/main/res/xml/full_backup_content.xml');
     expect(rules, legacy);
     expect(rules, containsAll(['sharedpref:FlutterSharedPreferences.xml',
-        'file:rides', 'file:trail_cache', 'file:outbox', 'file:updates']));
+        'file:rides', 'file:trail_cache', 'file:outbox', 'file:updates',
+        'file:official_trails']));
     expect(manifest, contains('@xml/backup_rules'));
     expect(manifest, contains('@xml/full_backup_content'));
   });

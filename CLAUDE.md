@@ -192,6 +192,22 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Hinweis" in der Liste; eigene zählen nie. Beim Ändern des Status
   bietet „Mein Beitrag" einen Hinweis an. Entscheidungen des Betreibers
   vom 2026-09-28; `matcher_check.sql` Block 20 prüft RLS und Aufräumen.
+- **Offizielle Trails in der App** (#13, `lib/features/official/`):
+  Index und Regionen von `raw.githubusercontent.com` (Daten-Branch),
+  erst ab Zoom 8 (`kOfficialMinZoom`) und nur für Regionen, deren Rahmen
+  den Ausschnitt berührt; der Index je App-Lauf einmal, eine Region nur
+  bei neuem `updated`. Gemerkt in `official_trails/` im App-Verzeichnis
+  (vom Backup ausgenommen); ohne Netz gilt der gemerkte, auch ältere
+  Stand. Im Web nur für die Laufzeit (den Rest macht der HTTP-Cache).
+  Dateinamen aus dem Index werden geprüft (werden zu Pfaden), eine
+  fremde Formatversion lässt die Ebene leer. Gestrichelt in
+  `officialViolet`, gesperrte Teile grau (Orange ist die Meldung eines
+  Buddys), zwischen Orten und Netz; ein Tipp auf das Netz gewinnt. Das
+  Blatt nennt Status und Schwierigkeit IMMER mit der Quelle, kein
+  S-Grad. Schalter im Blatt „Ebenen und Orte"
+  (`Settings.officialTrailsEnabled`, Vorgabe an); aus heißt: keine
+  Anfrage. Der Test-Harness hängt `FakeOfficialTrailsSource` und
+  einen Speicher-Cache ein.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
@@ -212,7 +228,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   In-App-Update-Weg) und `play` (ohne), gleiche `applicationId`
   `de.mcbuchi.trailbuddy`. Jeder Build braucht `--flavor`. Backup-Ausschlüsse
   in `res/xml/`: Session-Token, `offline_maps/`, `outbox/`, `trail_cache/`,
-  `rides/`, `updates/`.
+  `rides/`, `updates/`, `official_trails/`.
 - **Feedback (die Glühbirne)**: `lib/features/feedback/feedback_dialog.dart`
   (Karte unten links und Profil) schreibt in `public.feedback`;
   `tool/feedback_bot.py` (`feedback.yml`, alle 2 h) macht daraus

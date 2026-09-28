@@ -122,7 +122,9 @@ beim Betreiber (Nextcloud), nicht im Repo. Zwei Dinge fürs Bauen:
 ### 5.2 Das Format
 
 Eine GeoJSON-FeatureCollection je Region, jedes Feature eine
-`LineString` mit:
+`MultiLineString` (Hauptroute und Varianten als Teile, `sections` sagt
+je Teil `variant` und `closed`; `status` ist `open`, `partly_closed`
+oder `closed`) mit:
 
 | Feld | Inhalt |
 |---|---|
@@ -145,9 +147,10 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 
 - Eine Ebene „Offizielle Trails", ein- und ausschaltbar (Vorgabe: an,
   Entscheidung 5), gerätelokal wie der Orte-Filter.
-- Geladen wird eine Region erst, wenn der Ausschnitt ihren Rahmen
-  berührt; gemerkt auf dem Gerät, neu geholt, wenn der Index einen neuen
-  Stand nennt.
+- Geladen wird eine Region erst ab Zoom 8 und erst, wenn der Ausschnitt
+  ihren Rahmen berührt; gemerkt auf dem Gerät, neu geholt, wenn der
+  Index einen neuen Stand nennt. Ohne Netz gilt der gemerkte Stand, auch
+  ein älterer. (Umgesetzt in 0.10.0, `lib/features/official/`.)
 - **Eigene Linienart**, gestrichelt und in einer Farbe, die keine
   Trail-Farbe ist (Grün, Blau, Orange sagen, was ICH mit einem Trail zu
   tun habe). Unter den Trails des Netzes, über den Orten.
@@ -160,8 +163,11 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
   derselben Deckung wie der Abgleich (Korridor 15 m, ≥ 0,8). Beide
   Linien sieht der Nutzer ohnehin; über Netzgrenzen geht nichts
   (Konzept 12).
-- Die Quellenangaben der sichtbaren Regionen stehen in der
+- Die Quellenangaben der geladenen Regionen stehen in der
   Karten-Attribution, solange die Ebene an ist.
+- Gesperrte Teile sind grau, nicht orange: Orange ist die Meldung eines
+  Buddys. Das Blatt nennt Status und Schwierigkeit immer mit der Quelle
+  („Gesperrt laut Land Tirol").
 
 ## 6. Zurückgestellt (Entscheidung 2026-09-28)
 
@@ -190,7 +196,8 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 2. Pipeline mit Tirol: WFS abrufen, auf `Single Trail` filtern, Format,
    Wächter, Self-Test.
 3. Ebene in der App mit Blatt, amtlichem Status und Quellenangabe;
-   Datenschutzerklärung (kein neuer Host, aber ein neuer Abruf).
+   Datenschutzerklärung (`raw.githubusercontent.com`). **Erledigt,
+   0.10.0.**
 4. „Auch ausgeschildert als …" im Trail-Blatt.
 5. Weitere Quellen, sobald eine die Bedingungen erfüllt; Vereine und
    Schweiz nach Abschnitt 6.

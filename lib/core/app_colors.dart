@@ -21,4 +21,10 @@ abstract final class AppColors {
   /// neben Grün, Blau und dem Warn-Orange als eigene Aussage lesbar
   /// bleibt — es färbt nie die Linie selbst, die bleibt bei ihrer Farbe.
   static const noteYellow = Color(0xFFFFC400);
+
+  /// Offizielle Trails (#13): gestrichelt in Violett — keine der
+  /// Trail-Farben, die sagen, was ICH mit einem Trail zu tun habe.
+  /// Gesperrte Teile grau, nicht orange: Orange ist die Meldung eines
+  /// Buddys, die Sperre kommt von der Quelle.
+  static const officialViolet = Color(0xFF7B1FA2);
 }

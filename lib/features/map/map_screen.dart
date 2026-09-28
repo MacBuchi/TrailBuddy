@@ -6,6 +6,9 @@ import 'package:latlong2/latlong.dart';
 import '../../core/app_colors.dart';
 import '../../models/trail.dart';
 import '../feedback/feedback_dialog.dart';
+import '../official/official_trails.dart';
+import '../official/official_trails_layer.dart';
+import '../official/official_trails_source.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
@@ -19,7 +22,9 @@ import 'poi_source.dart';
 /// nicht, wie gut der Trail ist. Ein gelber Rand heißt: Ein Buddy hat
 /// in den letzten Tagen einen Hinweis dazu geschrieben (#7). Darunter, auf Wunsch, Orte aus
 /// OpenStreetMap als Stecknadeln (#12) — unter den Trails, damit ein
-/// Tipp auf eine Linie nie an einer Nadel hängen bleibt.
+/// Tipp auf eine Linie nie an einer Nadel hängen bleibt. Dazwischen,
+/// gestrichelt, die offiziellen Trails (#13): eine eigene Ebene aus
+/// Behördendaten, die nichts mit dem Netz zu tun hat.
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
@@ -30,6 +35,7 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   final _controller = MapController();
   final LayerHitNotifier<String> _hits = ValueNotifier(null);
+  final LayerHitNotifier<OfficialTrail> _officialHits = ValueNotifier(null);
   bool _fittedOnce = false;
 
   static const _dachCenter = LatLng(48.8, 10.5);
@@ -37,6 +43,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     _hits.dispose();
+    _officialHits.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -61,6 +68,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final seenNotes = ref.watch(seenNotesProvider);
     final poiUnavailable = ref.watch(poiGroupsProvider).isNotEmpty &&
         ref.watch(poiControllerProvider.select((s) => s.unavailable));
+    final officialOn = ref.watch(officialTrailsEnabledProvider);
+    final official = ref.watch(officialTrailsControllerProvider);
 
     // Einmal auf das Netz zoomen, sobald es da ist; danach nie wieder
     // von selbst — wer die Karte verschoben hat, will nicht zurückgeholt
@@ -95,11 +104,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               initialCenter: _dachCenter,
               initialZoom: 6,
               onTap: (_, _) {
-                final hit = _hits.value;
-                final id = hit?.hitValues.firstOrNull;
-                if (id == null) return;
-                final trail = ref.read(trailByIdProvider(id));
-                if (trail != null) showTrailSheet(context, trail);
+                // Die Trails des Netzes liegen oben und gewinnen.
+                final id = _hits.value?.hitValues.firstOrNull;
+                final trail = id == null ? null : ref.read(trailByIdProvider(id));
+                if (trail != null) {
+                  showTrailSheet(context, trail);
+                  return;
+                }
+                final off = _officialHits.value?.hitValues.firstOrNull;
+                if (off != null) showOfficialTrailSheet(context, off);
               },
             ),
             children: [
@@ -109,6 +122,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 tileProvider: ref.watch(mapTileProviderProvider),
               ),
               const PoiLayer(),
+              OfficialTrailsLayer(hits: _officialHits),
               PolylineLayer<String>(
                 hitNotifier: _hits,
                 polylines: [
@@ -126,10 +140,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                 ],
               ),
-              const RichAttributionWidget(
-                animationConfig: ScaleRAWA(),
+              RichAttributionWidget(
+                animationConfig: const ScaleRAWA(),
                 attributions: [
-                  TextSourceAttribution('OpenStreetMap-Mitwirkende'),
+                  const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
+                  // Die Quellen der offiziellen Trails, solange die Ebene
+                  // an ist und eine ihrer Regionen geladen.
+                  if (officialOn)
+                    for (final src in official.loadedSources)
+                      TextSourceAttribution(
+                        '${src.attribution} (${src.license})',
+                        prependCopyright: false,
+                      ),
                 ],
               ),
             ],
@@ -152,6 +174,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (officialOn && official.unavailable)
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          child: Text('Offizielle Trails gerade nicht erreichbar'),
+                        ),
+                      ),
                     if (poiUnavailable)
                       const Card(
                         child: Padding(
@@ -162,9 +192,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     FloatingActionButton.small(
                       heroTag: 'poi-filter',
-                      tooltip: 'Orte auf der Karte',
+                      tooltip: 'Ebenen und Orte',
                       onPressed: () => showPoiFilterSheet(context),
-                      child: const Icon(Icons.place_outlined),
+                      child: const Icon(Icons.layers_outlined),
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton.small(
