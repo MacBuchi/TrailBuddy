@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.11.0+15
+version: 0.12.0+16
 
 environment:
   sdk: ^3.11.0
@@ -35,6 +35,7 @@ dependencies:
   share_plus: ^13.3.0
   path_provider: ^2.1.5
   archive: ^4.3.0
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

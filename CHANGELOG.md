@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Wo bin ich?
+
+*Version 0.12.0, 2026-09-28*
+
+- **Deine Position auf der Karte**: Der neue Knopf „Meine Position"
+  unten links springt zu dir und zeigt dich als dunklen Punkt mit einem
+  Kreis für die Genauigkeit. Beim ersten Tipp fragt die App nach dem
+  Standort; vorher nie. Der Standort bleibt auf deinem Telefon.
+- **Die Karte dreht sich nicht mehr**: Norden bleibt oben, auch wenn
+  beim Zoomen mit zwei Fingern die Hand etwas dreht.
+
 ## Auch ausgeschildert
 
 *Version 0.11.0, 2026-09-28*

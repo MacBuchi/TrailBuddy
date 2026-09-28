@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:trailbuddy/app.dart';
 import 'package:trailbuddy/core/app_info.dart';
 import 'package:trailbuddy/core/settings.dart';
@@ -16,6 +17,7 @@ import 'package:trailbuddy/core/update_check.dart';
 import 'package:trailbuddy/data/providers.dart';
 import 'package:trailbuddy/features/map/map_providers.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
+import 'package:trailbuddy/features/map/position_provider.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
@@ -35,6 +37,34 @@ final Uint8List kTransparentTile = Uint8List.fromList(const [
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
 
+/// Test-Position ohne Geolocator-Plugin (alle Pflichtfelder gefüllt).
+Position fakePosition(double lat, double lon, {double accuracy = 8}) => Position(
+      latitude: lat,
+      longitude: lon,
+      timestamp: DateTime(2026, 9, 28, 12),
+      accuracy: accuracy,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+
+/// Der EINZELNE Fix hinter „Meine Position" — zählt, wie oft gefragt
+/// wurde (nur dort darf nach der Berechtigung gefragt werden).
+class FakePositionFix {
+  FakePositionFix([this.next]);
+
+  Position? next;
+  int calls = 0;
+
+  Future<Position?> call() async {
+    calls++;
+    return next;
+  }
+}
+
 class FakeTileProvider extends TileProvider {
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>
@@ -49,6 +79,8 @@ List<Override> overridesFor(FakeBackend backend,
         FakePoiSource? pois,
         FakeOfficialTrailsSource? official,
         MemoryOfficialTrailsCache? officialCache,
+        Position? position,
+        FakePositionFix? positionFix,
         List<Override> extra = const []}) =>
     [
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
@@ -77,6 +109,11 @@ List<Override> overridesFor(FakeBackend backend,
           .overrideWithValue(official ?? FakeOfficialTrailsSource()),
       officialTrailsCacheProvider
           .overrideWithValue(officialCache ?? MemoryOfficialTrailsCache()),
+      // Kein Plattform-Kanal für den Standort: Die Position kommt aus dem
+      // Test (Vorgabe: keine, wie ohne Berechtigung).
+      positionStreamProvider.overrideWith((ref) => Stream.value(position)),
+      positionFixProvider
+          .overrideWithValue((positionFix ?? FakePositionFix(position)).call),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.
@@ -97,6 +134,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
     FakePoiSource? pois,
     FakeOfficialTrailsSource? official,
     MemoryOfficialTrailsCache? officialCache,
+    Position? position,
+    FakePositionFix? positionFix,
     List<Override> extraOverrides = const []}) async {
   addTearDown(backend.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -108,6 +147,8 @@ Future<void> pumpApp(WidgetTester tester, FakeBackend backend,
         pois: pois,
         official: official,
         officialCache: officialCache,
+        position: position,
+        positionFix: positionFix,
         extra: extraOverrides),
     child: const TrailBuddyApp(),
   ));

@@ -47,11 +47,18 @@ void main() {
   });
 
   test('genau die Berechtigungen, die Phase 1 braucht', () {
+    // Standort nur im Vordergrund, für den Punkt auf der Karte.
     final perms = RegExp(r'android:name="android\.permission\.([A-Z_]+)"')
         .allMatches(manifest)
         .map((m) => m.group(1))
         .toSet();
-    expect(perms, {'INTERNET', 'REQUEST_INSTALL_PACKAGES'});
+    expect(perms, {
+      'INTERNET',
+      'REQUEST_INSTALL_PACKAGES',
+      'ACCESS_FINE_LOCATION',
+      'ACCESS_COARSE_LOCATION',
+    });
+    expect(manifest, isNot(contains('ACCESS_BACKGROUND_LOCATION"')));
   });
 
   test('beide Backup-Regeln schließen dasselbe aus', () {
