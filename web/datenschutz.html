@@ -52,9 +52,8 @@
       nach Trails und keine Auswertung über alle Nutzer.</li>
     <li>Die Daten liegen bei Supabase (Auftragsverarbeiter, Region
       Frankfurt am Main). Beim Kartenabruf geht deine IP-Adresse an
-      Cloudflare (dort liegt die Karte), für die Orte auf der Karte an
-      die Overpass-API des FOSSGIS e.V., bei der Update-Prüfung an
-      GitHub.</li>
+      Cloudflare (dort liegen die Karte und die Orte auf der Karte), bei
+      der Update-Prüfung an GitHub.</li>
     <li>Keine Werbung, kein Tracking, keine Weitergabe an Dritte zu deren
       Zwecken.</li>
   </ul>
@@ -149,15 +148,19 @@
       davon nur die Stücke, die der sichtbare Ausschnitt braucht. Bei
       jedem Kartenausschnitt geht deine IP-Adresse samt den angeforderten
       Stücken an Cloudflare. Ohne Empfang zeigt die App eine
-      mitgelieferte Übersichtskarte, dafür wird nichts abgerufen.</li>
-    <li><strong>overpass-api.de</strong> — die Orte auf der Karte
-      (Einkehr, Wasser, Rad-Service, Sonstiges). Nur solange im Filter
-      eine Gruppe eingeschaltet ist — anfangs ist das „Wasser" — und erst
-      ab Zoomstufe 12: Dann gehen deine IP-Adresse, der Rahmen um den
-      sichtbaren Kartenausschnitt und die eingeschalteten Gruppen an die
-      Overpass-API des FOSSGIS e.V. (Deutschland). Keine Trails, keine
-      Fahrten, keine Kontodaten. Ganz ausschalten lässt sich das, indem
-      man im Filter alle Gruppen abwählt.</li>
+      mitgelieferte Übersichtskarte, dafür wird nichts abgerufen.
+      <br>Auf demselben Speicher liegen die <strong>Orte auf der
+      Karte</strong> (Einkehr, Wasser, Rad-Service, Sonstiges; Daten von
+      OpenStreetMap, ODbL), als kleine Dateien je Rasterzelle von etwa
+      11 × 11 km. Nur solange im Filter eine Gruppe eingeschaltet ist —
+      anfangs ist das „Wasser" — und erst ab Zoomstufe 12: Dann lädt die
+      App die Dateien der Zellen, die der Ausschnitt berührt. An
+      Cloudflare gehen damit deine IP-Adresse und die Rasterzellen, nicht
+      der genaue Ausschnitt — keine Trails, keine Fahrten, keine
+      Kontodaten. Ganz ausschalten lässt sich das, indem man im Filter
+      alle Gruppen abwählt. Bis Version 0.17 kamen die Orte live von der
+      Overpass-API des FOSSGIS e.V.; diese Verbindung gibt es nicht
+      mehr.</li>
     <li><strong>raw.githubusercontent.com</strong> — die offiziellen
       Trails auf der Karte (öffentliche Daten von Behörden, etwa dem Land
       Tirol). Nur solange die Ebene „Offizielle Trails" an ist — anfangs

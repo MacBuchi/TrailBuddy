@@ -5,11 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 /// Orte auf der Karte (Issue #12): Einkehr, Wasser, Rad-Service und
-/// Sonstiges aus OpenStreetMap, abgefragt über die Overpass-API.
+/// Sonstiges aus OpenStreetMap — seit 0.18.0 als fertige Dateien je
+/// Rasterzelle und Gruppe auf dem eigenen Kartenhost (`tiles.mcbuchi.de`,
+/// gebaut von `poi-data.yml` aus `tool/poi_extract.py`), vorher live von
+/// der Overpass-API.
 ///
-/// Reine Daten und reine Funktionen — Abfrage bauen, Antwort lesen,
+/// Reine Daten und reine Funktionen — Manifest und Zellendatei lesen,
 /// Raster rechnen. Das Netz steckt in `poi_source.dart`, die Anzeige in
-/// `poi_layer.dart`.
+/// `poi_layer.dart`. Die Arten und ihre Regeln stehen ZWEIMAL: hier für
+/// die App und in `tool/pois/kinds.json` für das Werkzeug, das die
+/// Dateien baut; `test/map/poi_test.dart` hält beide zusammen.
 
 /// Die Gruppen, die man im Filter an- und ausschaltet.
 enum PoiGroup {
@@ -114,19 +119,19 @@ enum PoiKind {
     return rules.any((r) => r.entries.every((e) => tags[e.key] == e.value));
   }
 
-  /// Die Overpass-Filter für diese Art, ohne Rahmen (der steht global).
-  List<String> get selectors => [
-        for (final r in rules)
-          [
-            'nwr',
-            for (final e in r.entries) '["${e.key}"="${e.value}"]',
-            if (excludeAccess) '["access"!~"^(private|no)\$"]',
-          ].join(),
-      ];
-
   static PoiKind? of(Map<String, String> tags) {
     for (final k in values) {
       if (k.matches(tags)) return k;
+    }
+    return null;
+  }
+
+  /// Die Art aus ihrem Namen in einer Zellendatei — null für einen Namen,
+  /// den diese App-Version nicht kennt (eine neuere Datei darf eine
+  /// ältere App nicht brechen; die Art fällt dann still weg).
+  static PoiKind? byName(String? name) {
+    for (final k in values) {
+      if (k.name == name) return k;
     }
     return null;
   }
@@ -163,10 +168,6 @@ class Poi {
 /// Ein Ausschnitt über halb Bayern wäre eine Abfrage über zehntausende
 /// Orte, und lesbar wären sie ohnehin nicht.
 const kPoiMinZoom = 12.0;
-
-/// Höchstens so viele Orte je Abfrage — schützt Speicher und Karte, wenn
-/// jemand in der Stadt „Einkehr" einschaltet.
-const kPoiMaxResults = 3000;
 
 /// Höchstens so viele Rasterzellen in einer Abfrage. Ein Tablet quer auf
 /// Zoom 12 braucht etwa neun; mehr heißt, es wird gerade herausgezoomt.
@@ -214,48 +215,72 @@ List<PoiCell> poiCellsCovering(double s, double w, double n, double e) {
   );
 }
 
-/// Die Overpass-Abfrage für die Gruppen im Rahmen. `out center` gibt
-/// Flächen (Biergärten, Parkplätze) als Mittelpunkt zurück.
-String overpassQuery(
-    ({double s, double w, double n, double e}) box, Set<PoiGroup> groups) {
-  String f(double v) => v.toStringAsFixed(5);
-  final bbox = '${f(box.s)},${f(box.w)},${f(box.n)},${f(box.e)}';
-  final selectors = [
-    for (final k in PoiKind.values)
-      if (groups.contains(k.group))
-        for (final sel in k.selectors) '$sel;',
-  ];
-  return '[out:json][timeout:25][bbox:$bbox];'
-      '(${selectors.join()});'
-      'out center $kPoiMaxResults;';
+/// Der Dateiname einer Zelle je Gruppe unter dem Präfix des Baus:
+/// `<zeile>_<spalte>.<gruppe>.json` — das Komma des Zellenschlüssels
+/// taugt nicht für eine URL. Dieselbe Regel in `tool/poi_extract.py`
+/// (`cell_file`).
+String poiCellFileName(PoiCell cell, PoiGroup group) =>
+    '${cell.replaceAll(',', '_')}.${group.name}.json';
+
+/// Das Manifest `pois.json` des Kartenhosts: welcher Bau gerade gilt und
+/// welche Zellen je Gruppe überhaupt eine Datei haben. Eine Zelle, die
+/// hier nicht steht, ist leer — die App fragt dann gar nicht erst.
+class PoiManifest {
+  const PoiManifest({required this.build, required this.prefix, required this.cells});
+
+  /// `JJJJMMTT` des Baus.
+  final String build;
+
+  /// Der Ordner unter dem Kartenhost, `pois-<build>`.
+  final String prefix;
+
+  final Map<PoiGroup, Set<PoiCell>> cells;
+
+  bool has(PoiCell cell, PoiGroup group) => cells[group]?.contains(cell) ?? false;
+
+  /// Liest das Manifest; wirft bei allem, was nicht passt. Das Präfix
+  /// wird geprüft, weil es zu einem Pfad wird. Gruppen, die diese
+  /// App-Version nicht kennt, fallen still weg.
+  factory PoiManifest.fromJson(Map<String, dynamic> j) {
+    if (j['format'] != 1) throw FormatException('Orte-Manifest: Format ${j['format']}');
+    final prefix = j['prefix'] as String;
+    if (!RegExp(r'^pois-\d{8}$').hasMatch(prefix)) {
+      throw FormatException('Unerwartetes Orte-Präfix: $prefix');
+    }
+    final raw = j['cells'] as Map<String, dynamic>;
+    return PoiManifest(
+      build: j['build'] as String,
+      prefix: prefix,
+      cells: {
+        for (final g in PoiGroup.values)
+          g: {for (final c in (raw[g.name] as List? ?? const [])) c as String},
+      },
+    );
+  }
 }
 
-/// Liest eine Overpass-Antwort. Was keiner Art zugeordnet werden kann
-/// oder keine Lage hat, fällt still heraus.
-List<Poi> parseOverpass(String body) {
+/// Liest eine Zellendatei (`pois-<build>/<zeile>_<spalte>.<gruppe>.json`).
+/// Was keiner bekannten Art zugeordnet ist oder keine Lage hat, fällt
+/// still heraus; die Art selbst hat schon das Werkzeug entschieden.
+List<Poi> parsePoiFile(String body) {
   final json = jsonDecode(body) as Map<String, dynamic>;
+  if (json['format'] != 1) throw FormatException('Orte-Datei: Format ${json['format']}');
   final out = <Poi>[];
-  for (final el in (json['elements'] as List? ?? const [])) {
+  for (final el in (json['pois'] as List? ?? const [])) {
     if (el is! Map<String, dynamic>) continue;
-    final rawTags = el['tags'];
-    if (rawTags is! Map) continue;
-    final tags = {
-      for (final e in rawTags.entries) '${e.key}': '${e.value}',
-    };
-    final kind = PoiKind.of(tags);
-    if (kind == null) continue;
-    final center = el['center'];
-    final lat = (el['lat'] ?? (center is Map ? center['lat'] : null)) as num?;
-    final lon = (el['lon'] ?? (center is Map ? center['lon'] : null)) as num?;
-    if (lat == null || lon == null) continue;
-    final dw = tags['drinking_water'];
+    final kind = PoiKind.byName(el['kind'] as String?);
+    final lat = el['lat'] as num?;
+    final lng = el['lng'] as num?;
+    final id = el['id'] as String?;
+    if (kind == null || lat == null || lng == null || id == null) continue;
+    final water = el['water'];
     out.add(Poi(
-      id: '${el['type']}/${el['id']}',
+      id: id,
       kind: kind,
-      position: LatLng(lat.toDouble(), lon.toDouble()),
-      name: tags['name'],
-      openingHours: tags['opening_hours'],
-      drinkable: dw == 'yes' ? true : (dw == 'no' ? false : null),
+      position: LatLng(lat.toDouble(), lng.toDouble()),
+      name: el['name'] as String?,
+      openingHours: el['hours'] as String?,
+      drinkable: water == 'yes' ? true : (water == 'no' ? false : null),
     ));
   }
   return out;

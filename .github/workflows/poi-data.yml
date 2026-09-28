@@ -1,0 +1,233 @@
+name: POI Data
+
+# The places on the map (#12), served from our own host instead of
+# Overpass (docs/konzept-offline-karten.md 3.4, way 3 — operator
+# decision 2026-09-28).
+#
+# Reads the Geofabrik extracts of the countries the map covers, keeps
+# the fifteen kinds the app shows (tool/pois/kinds.json), and writes one
+# small JSON file per grid cell and group plus a manifest that lists the
+# cells with content. Uploads them next to the basemap on Cloudflare R2
+# and then reads the PUBLIC copy back over tiles.mcbuchi.de with an
+# Origin header, exactly as the app does.
+#
+# Why not the vector tiles: Protomaps writes huts, restaurants and
+# drinking water into tiles from zoom 15 only; our archive ends at 13.
+# Why not Overpass from the device: a volunteer service, online only,
+# and a cell that was asked yesterday is asked again today. A file per
+# cell is cacheable at the edge (small objects are, the 2.8 GB archive is
+# not), works the same in the browser, and comes along with a stored
+# area later (concept step 3).
+#
+# Dated prefixes (`pois-<build>/`) plus a short-cached manifest that
+# names the current one, like the basemap: a session holds the manifest
+# it read, and the previous build stays for one more run.
+#
+# Two modes: `plan` builds and reports, uploads nothing; `publish`
+# builds, uploads, verifies. Monthly on the 2nd, the day after the
+# basemap.
+#
+# Secrets through `env:` into a detection step; `secrets.` is not
+# available in `if:` and GitHub silently drops the whole file
+# (PilzBuddy, 2026-08-13).
+#
+# No Version Guard concern: nothing here lands in a binary.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan = build and report only, publish = build, upload, verify"
+        required: true
+        type: choice
+        options: ["plan", "publish"]
+        default: "plan"
+  schedule:
+    # Monthly, 2nd at 03:47 UTC — publish.
+    - cron: "47 3 2 * *"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  MODE: ${{ inputs.mode || 'publish' }}
+  # Geofabrik extracts, one per line of the map's coverage. DACH is one
+  # file (Germany, Austria, Switzerland); Liechtenstein sits between AT
+  # and CH and is its own extract. Adding a neighbour is one entry — the
+  # tool deduplicates objects that two extracts both carry.
+  EXTRACTS: "europe/dach europe/liechtenstein"
+  # Public values, deliberately in the file: the app carries the same
+  # host as a constant, and the privacy policy guard reads it from there.
+  R2_BUCKET: buddy-tiles
+  R2_PREFIX: trailbuddy
+  PUBLIC_BASE: https://tiles.mcbuchi.de/trailbuddy
+
+jobs:
+  pois:
+    name: Build, upload and verify the places
+    runs-on: ubuntu-latest
+    # ~6 GB of extracts to download and filter, then a few thousand small
+    # uploads.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Are the R2 secrets there?
+        id: r2
+        env:
+          ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+          KEY: ${{ secrets.R2_ACCESS_KEY_ID }}
+          SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -n "$ACCOUNT" ] && [ -n "$KEY" ] && [ -n "$SECRET" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## POI Data: no upload"
+              echo
+              echo "One of R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY is missing."
+              echo "Create an R2 API token (Object Read & Write, bucket \`$R2_BUCKET\`) in the"
+              echo "Cloudflare dashboard and store the three values as repository secrets."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install osmium
+        if: env.MODE == 'plan' || steps.r2.outputs.present == 'true'
+        # The official OSM reader does the 5 GB part; tool/poi_extract.py
+        # only classifies and writes. A second PBF reader of our own would
+        # be the slowest and least tested code in the repository.
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq osmium-tool > /dev/null
+          osmium --version | head -1
+
+      - name: Download the extracts
+        if: env.MODE == 'plan' || steps.r2.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          rm -rf build/pois-src && mkdir -p build/pois-src
+          df -h . | tail -1
+          for extract in $EXTRACTS; do
+            name=$(basename "$extract")
+            url="https://download.geofabrik.de/${extract}-latest.osm.pbf"
+            echo "$url"
+            curl -sSL --fail --retry 3 --retry-delay 10 -o "build/pois-src/${name}.osm.pbf" "$url"
+            ls -l "build/pois-src/${name}.osm.pbf"
+          done
+
+      - name: Build the cell files
+        if: env.MODE == 'plan' || steps.r2.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          export BUILD="$(date -u +%Y%m%d)"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          rm -rf build/pois && mkdir -p build/pois
+          python3 tool/poi_extract.py build --build "$BUILD" --out build/pois \
+            --summary build/pois/summary.md build/pois-src/*.osm.pbf
+          rm -rf build/pois-src
+          cat build/pois/summary.md >> "$GITHUB_STEP_SUMMARY"
+          # Tiny outputs are a broken extract, not a quiet month: the run
+          # must not replace a full build with an empty one.
+          python3 - <<'PY'
+          import json, sys
+          m = json.load(open("build/pois/pois.json"))
+          total = sum(m["counts"].values())
+          if total < 100000 or m["files"] < 1000:
+              print(f"::error::Only {total} places in {m['files']} files — an extract is broken or truncated; not publishing.")
+              sys.exit(1)
+          print(f"{total} places in {m['files']} files")
+          PY
+
+      - name: Upload to R2
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_DEFAULT_REGION: auto
+          AWS_EC2_METADATA_DISABLED: "true"
+        # The cell files first, under their dated prefix, immutable and
+        # long-cached; the manifest last and short-cached — it is the
+        # pointer that flips. Builds older than the previous one are
+        # removed afterwards. `.eu.` in the endpoint: the bucket has EU
+        # jurisdiction and exists only behind the EU endpoint.
+        run: |
+          set -euo pipefail
+          endpoint="https://${R2_ACCOUNT_ID}.eu.r2.cloudflarestorage.com"
+          aws --endpoint-url "$endpoint" s3 sync "build/pois/pois-${BUILD}/" \
+            "s3://${R2_BUCKET}/${R2_PREFIX}/pois-${BUILD}/" \
+            --content-type application/json \
+            --cache-control "public, max-age=31536000, immutable" --no-progress --only-show-errors
+          aws --endpoint-url "$endpoint" s3 cp build/pois/pois.json \
+            "s3://${R2_BUCKET}/${R2_PREFIX}/pois.json" \
+            --content-type application/json \
+            --cache-control "public, max-age=300" --no-progress
+          builds=$(aws --endpoint-url "$endpoint" s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/" \
+                    | sed -n 's/^ *PRE \(pois-[0-9]\{8\}\)\/$/\1/p' | sort)
+          keep2=$(echo "$builds" | tail -2)
+          for old in $builds; do
+            if ! echo "$keep2" | grep -qx "$old"; then
+              aws --endpoint-url "$endpoint" s3 rm --recursive --only-show-errors \
+                "s3://${R2_BUCKET}/${R2_PREFIX}/$old/"
+              echo "removed $old/"
+            fi
+          done
+
+      - name: Verify the public copy the way the app reads it
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        # The manifest with an Origin header (the browser needs the CORS
+        # header, without it the app sees nothing and no error), naming
+        # this build; then one cell file of every group byte for byte
+        # against what was uploaded. A Cloudflare bot challenge is named
+        # as such (map-data.yml, 2026-09-28). The manifest is fetched with
+        # a cache-busting query: its edge copy may be up to 300 s old if a
+        # client read it just before the upload, and the app's own read
+        # tolerates that — this check must not.
+        run: |
+          set -euo pipefail
+          url="$PUBLIC_BASE/pois.json?verify=$BUILD"
+          headers=$(curl -sSL -D - -o build/pois/public-manifest.json --max-time 60 \
+                      -H "Origin: https://macbuchi.github.io" "$url" | tr -d '\r' | tr 'A-Z' 'a-z')
+          echo "$headers"
+          if echo "$headers" | grep -q '^cf-mitigated: challenge'; then
+            ray=$(echo "$headers" | sed -n 's/^cf-ray: *//p')
+            echo "::error::$url: Cloudflare challenged the request (cf-ray $ray) — a zone setting, see #55; the bucket and the upload are fine."
+            exit 1
+          fi
+          echo "$headers" | grep -q '^http/[0-9.]* 200' || { echo "::error::$url: no 200"; exit 1; }
+          echo "$headers" | grep -q '^access-control-allow-origin:' || { echo "::error::$url: no access-control-allow-origin — set the bucket's CORS rule"; exit 1; }
+          python3 - <<'PY'
+          import json, os, sys, urllib.request
+          local = json.load(open("build/pois/pois.json"))
+          public = json.load(open("build/pois/public-manifest.json"))
+          assert public == local, "the public manifest is not the one just uploaded"
+          base = os.environ["PUBLIC_BASE"]
+          checked = 0
+          for group, cells in local["cells"].items():
+              if not cells:
+                  continue
+              cell = cells[len(cells) // 2]
+              name = f"{cell.replace(',', '_')}.{group}.json"
+              req = urllib.request.Request(f"{base}/{local['prefix']}/{name}",
+                                           headers={"Origin": "https://macbuchi.github.io"})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  body = r.read()
+                  cors = r.headers.get("access-control-allow-origin")
+              assert cors, f"{name}: no access-control-allow-origin"
+              with open(f"build/pois/{local['prefix']}/{name}", "rb") as h:
+                  assert body == h.read(), f"{name}: public bytes differ from the upload"
+              checked += 1
+              print(f"ok  {name} ({len(body)} bytes)")
+          assert checked == 4, f"only {checked} groups had a cell to check"
+          PY
+          {
+            echo "## Places published"
+            echo
+            echo "- \`$PUBLIC_BASE/pois-$BUILD/\`, manifest \`$PUBLIC_BASE/pois.json\`"
+            echo "- 200 + CORS verified on the manifest, one cell file per group byte-identical"
+          } >> "$GITHUB_STEP_SUMMARY"

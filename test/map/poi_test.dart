@@ -1,10 +1,17 @@
-// Orte auf der Karte (#12): Arten erkennen, Overpass-Abfrage bauen und
-// lesen, das Raster, und dass jede Zelle je Gruppe nur einmal gefragt wird.
+// Orte auf der Karte (#12): Arten erkennen, Manifest und Zellendatei des
+// Kartenhosts lesen, das Raster, die Quelle vom Host (nur genannte Zellen,
+// Manifest einmal), und dass jede Zelle je Gruppe nur einmal gefragt wird.
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trailbuddy/core/settings.dart';
+import 'package:trailbuddy/features/map/map_providers.dart';
 import 'package:trailbuddy/features/map/poi.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
 
@@ -39,37 +46,73 @@ void main() {
       expect(PoiKind.of({'amenity': 'parking'}), PoiKind.parking);
       expect(PoiKind.of({'amenity': 'parking', 'access': 'private'}), isNull);
     });
+
+    test('die Arten der App sind die des Werkzeugs — Reihenfolge, Regeln, Gruppe',
+        () {
+      // EINE Liste für zwei Leser: tool/poi_extract.py baut damit die
+      // Dateien, die App zeigt damit. Laufen sie auseinander, sieht der
+      // Nutzer Nadeln ohne Art oder Arten ohne Nadel.
+      final json = jsonDecode(File('tool/pois/kinds.json').readAsStringSync())
+          as Map<String, dynamic>;
+      expect(json['format'], 1);
+      expect(json['groups'], [for (final g in PoiGroup.values) g.name]);
+      final kinds = (json['kinds'] as List).cast<Map<String, dynamic>>();
+      expect([for (final k in kinds) k['kind']],
+          [for (final k in PoiKind.values) k.name],
+          reason: 'gleiche Arten in gleicher Reihenfolge — die erste passende gewinnt');
+      for (final (i, k) in kinds.indexed) {
+        final dart = PoiKind.values[i];
+        expect(k['group'], dart.group.name, reason: dart.name);
+        expect(
+            [for (final r in k['rules'] as List) (r as Map).cast<String, String>()],
+            dart.rules,
+            reason: '${dart.name}: Regeln');
+        final excluded = (k['exclude_access'] as List?)?.cast<String>() ?? const [];
+        expect(excluded.isNotEmpty, dart.excludeAccess, reason: '${dart.name}: access');
+        if (excluded.isNotEmpty) expect(excluded, ['private', 'no']);
+      }
+      expect(PoiKind.byName('spring'), PoiKind.spring);
+      expect(PoiKind.byName('teleporter'), isNull);
+    });
   });
 
-  test('die Abfrage fragt nur die eingeschalteten Gruppen im Rahmen', () {
-    // Ein erfundener Rahmen: Fünfstellige Paare wie in echten Abfragen
-    // hält `private_info_check.py` zu Recht für Koordinaten.
-    final q = overpassQuery(
-        (s: 1.5, w: 2.0, n: 1.6, e: 2.15), {PoiGroup.water});
-    expect(q, contains('[bbox:1.50000,2.00000,1.60000,2.15000]'));
-    expect(q, contains('nwr["amenity"="drinking_water"]'));
-    expect(q, contains('nwr["natural"="spring"]'));
-    expect(q, isNot(contains('cafe')));
-    expect(overpassQuery((s: 0, w: 0, n: 1, e: 1), {PoiGroup.food}),
-        allOf(contains('nwr["amenity"="biergarten"];'),
-            contains('nwr["biergarten"="yes"];'),
-            contains('nwr["beer_garden"="yes"];')));
-    expect(q, endsWith('out center $kPoiMaxResults;'));
+  test('das Manifest: Präfix geprüft, Zellen je Gruppe, Unbekanntes egal', () {
+    final m = PoiManifest.fromJson({
+      'format': 1,
+      'build': '20260928',
+      'prefix': 'pois-20260928',
+      'cells': {
+        'water': ['475,60', '472,75'],
+        'food': ['475,60'],
+        'zeppelin': ['1,1'],
+      },
+    });
+    expect(m.build, '20260928');
+    expect(m.has('475,60', PoiGroup.water), isTrue);
+    expect(m.has('472,75', PoiGroup.food), isFalse);
+    expect(m.has('475,60', PoiGroup.other), isFalse);
     expect(
-        overpassQuery((s: 0, w: 0, n: 1, e: 1), {PoiGroup.other}),
-        contains('nwr["amenity"="parking"]["access"!~"^(private|no)\$"]'));
+        () => PoiManifest.fromJson(
+            {'format': 1, 'build': 'x', 'prefix': '../etc', 'cells': {}}),
+        throwsFormatException,
+        reason: 'das Präfix wird ein Pfad');
+    expect(
+        () => PoiManifest.fromJson(
+            {'format': 2, 'build': 'x', 'prefix': 'pois-20260928', 'cells': {}}),
+        throwsFormatException);
+    expect(poiCellFileName('475,60', PoiGroup.water), '475_60.water.json');
+    expect(poiCellFileName('-3,-12', PoiGroup.bikeService), '-3_-12.bikeService.json');
   });
 
-  test('die Antwort: Knoten, Flächen mit Mittelpunkt, Unbekanntes fällt weg',
-      () {
-    final pois = parseOverpass('''
-      {"elements": [
-        {"type": "node", "id": 1, "lat": 47.51, "lon": 9.01,
-         "tags": {"natural": "spring", "name": "Kalte Quelle", "drinking_water": "no"}},
-        {"type": "way", "id": 2, "center": {"lat": 47.52, "lon": 9.02},
-         "tags": {"amenity": "biergarten", "opening_hours": "Mo-Su 11:00-22:00"}},
-        {"type": "node", "id": 3, "lat": 47.53, "lon": 9.03},
-        {"type": "node", "id": 4, "lat": 47.54, "lon": 9.04, "tags": {"amenity": "bench"}}
+  test('die Zellendatei: Felder, Trinkwasser, unbekannte Art fällt weg', () {
+    final pois = parsePoiFile('''
+      {"format": 1, "build": "20260928", "cell": "475,60", "group": "water", "pois": [
+        {"id": "node/1", "kind": "spring", "lat": 47.51, "lng": 9.01,
+         "name": "Kalte Quelle", "water": "no"},
+        {"id": "way/2", "kind": "biergarten", "lat": 47.52, "lng": 9.02,
+         "hours": "Mo-Su 11:00-22:00"},
+        {"id": "node/3", "kind": "teleporter", "lat": 47.53, "lng": 9.03},
+        {"id": "node/4", "kind": "cafe"}
       ]}''');
     expect(pois.map((p) => p.id), ['node/1', 'way/2']);
     expect(pois[0].kind, PoiKind.spring);
@@ -78,6 +121,87 @@ void main() {
     expect(pois[1].position, const LatLng(47.52, 9.02));
     expect(pois[1].openingHours, 'Mo-Su 11:00-22:00');
     expect(pois[1].drinkable, isNull);
+    expect(() => parsePoiFile('{"format": 7, "pois": []}'), throwsFormatException);
+  });
+
+  group('Quelle vom Host', () {
+    const manifest = {
+      'format': 1,
+      'build': '20260928',
+      'prefix': 'pois-20260928',
+      'cells': {
+        'water': ['475,60'],
+        'food': ['475,60', '475,61'],
+      },
+    };
+    const spring = {
+      'format': 1,
+      'build': '20260928',
+      'cell': '475,60',
+      'group': 'water',
+      'pois': [
+        {'id': 'node/1', 'kind': 'spring', 'lat': 47.55, 'lng': 9.05}
+      ],
+    };
+
+    test('Manifest einmal, dann nur die Zellen, die es nennt', () async {
+      final asked = <String>[];
+      final source = HostPoiSource(MockClient((req) async {
+        asked.add(req.url.toString());
+        if (req.url.toString() == kPoiManifestUrl) {
+          return http.Response(jsonEncode(manifest), 200);
+        }
+        if (req.url.path.endsWith('475_60.water.json')) {
+          return http.Response(jsonEncode(spring), 200);
+        }
+        if (req.url.path.endsWith('475_61.food.json')) {
+          return http.Response('', 404);
+        }
+        return http.Response(jsonEncode({...spring, 'pois': []}), 200);
+      }));
+      final pois = await source.fetch(
+          ['475,60', '475,61', '476,60'], {PoiGroup.water, PoiGroup.food});
+      expect(pois.map((p) => p.id), ['node/1']);
+      expect(asked, [
+        kPoiManifestUrl,
+        '$kMapTilesBase/pois-20260928/475_60.water.json',
+        '$kMapTilesBase/pois-20260928/475_60.food.json',
+        '$kMapTilesBase/pois-20260928/475_61.food.json',
+      ], reason: '476,60 steht nicht im Manifest, 475,61 nicht unter Wasser');
+
+      await source.fetch(['475,60'], {PoiGroup.water});
+      expect(asked.where((u) => u == kPoiManifestUrl), hasLength(1),
+          reason: 'das Manifest gilt für den App-Lauf');
+    });
+
+    test('kein Manifest (noch kein Bau, Host weg): nicht erreichbar, beim nächsten Mal wieder',
+        () async {
+      var manifestCalls = 0;
+      final source = HostPoiSource(MockClient((req) async {
+        if (req.url.toString() == kPoiManifestUrl) {
+          manifestCalls++;
+          if (manifestCalls == 1) return http.Response('', 404);
+          return http.Response(jsonEncode(manifest), 200);
+        }
+        return http.Response(jsonEncode(spring), 200);
+      }));
+      await expectLater(source.fetch(['475,60'], {PoiGroup.water}),
+          throwsA(isA<PoiUnavailable>()));
+      final pois = await source.fetch(['475,60'], {PoiGroup.water});
+      expect(pois, hasLength(1));
+      expect(manifestCalls, 2);
+    });
+
+    test('eine Zellendatei mit 5xx: nicht erreichbar', () async {
+      final source = HostPoiSource(MockClient((req) async {
+        if (req.url.toString() == kPoiManifestUrl) {
+          return http.Response(jsonEncode(manifest), 200);
+        }
+        return http.Response('', 503);
+      }));
+      await expectLater(source.fetch(['475,60'], {PoiGroup.water}),
+          throwsA(isA<PoiUnavailable>()));
+    });
   });
 
   test('Raster: Zellen um einen Rahmen und der Rahmen um Zellen', () {
@@ -113,6 +237,7 @@ void main() {
       await ctl.ensure(['475,60'], {PoiGroup.water});
       await ctl.ensure(['475,60'], {PoiGroup.water});
       expect(source.calls, hasLength(1));
+      expect(source.cellsAsked.single, ['475,60']);
       expect(c.read(poiControllerProvider).inCells(['475,60'], {PoiGroup.water}),
           [spring]);
 
@@ -136,7 +261,7 @@ void main() {
     test('nicht erreichbar: sagt es und fragt beim nächsten Mal wieder',
         () async {
       final ctl = c.read(poiControllerProvider.notifier);
-      source.failWith = const PoiUnavailable(429);
+      source.failWith = const PoiUnavailable(503);
       await ctl.ensure(['475,60'], {PoiGroup.water});
       expect(c.read(poiControllerProvider).unavailable, isTrue);
       await ctl.ensure(['475,60'], {PoiGroup.water});

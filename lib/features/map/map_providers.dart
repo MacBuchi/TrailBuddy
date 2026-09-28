@@ -15,3 +15,9 @@ const kMapTilesBase = 'https://tiles.mcbuchi.de/trailbuddy';
 /// Versätze in eine andere Datei zeigen. Dateien mit Datum im Namen sind
 /// unveränderlich; nur der Zeiger wechselt.
 const kMapManifestUrl = '$kMapTilesBase/dach.json';
+
+/// Das Manifest der Orte (`pois.json`, geschrieben von `poi-data.yml`):
+/// welcher Bau gerade gilt (`pois-<build>/`) und welche Rasterzellen je
+/// Gruppe eine Datei haben. Dieselbe Zeiger-Idee wie beim Archiv — die
+/// Dateien eines Baus sind unveränderlich, nur der Zeiger wechselt.
+const kPoiManifestUrl = '$kMapTilesBase/pois.json';

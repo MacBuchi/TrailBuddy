@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "_comment": "The places the map shows (#12), ONE list for two readers: tool/poi_extract.py filters the OSM extract with it, and test/map/poi_test.dart holds PoiKind in lib/features/map/poi.dart to it, kind for kind and rule for rule, in this order. Order matters: the FIRST matching kind wins (a restaurant with biergarten=yes is a Biergarten). A rule is a set of tags that must ALL match; one matching rule suffices. exclude_access drops objects whose access tag is one of the listed values.",
+  "groups": ["food", "water", "bikeService", "other"],
+  "kinds": [
+    {"kind": "biergarten", "group": "food",
+     "rules": [{"amenity": "biergarten"}, {"biergarten": "yes"}, {"beer_garden": "yes"}]},
+    {"kind": "cafe", "group": "food", "rules": [{"amenity": "cafe"}]},
+    {"kind": "pub", "group": "food", "rules": [{"amenity": "pub"}]},
+    {"kind": "restaurant", "group": "food", "rules": [{"amenity": "restaurant"}]},
+    {"kind": "hut", "group": "food", "rules": [{"tourism": "alpine_hut"}]},
+    {"kind": "drinkingWater", "group": "water", "rules": [{"amenity": "drinking_water"}]},
+    {"kind": "waterPoint", "group": "water", "rules": [{"amenity": "water_point"}]},
+    {"kind": "spring", "group": "water", "rules": [{"natural": "spring"}]},
+    {"kind": "repairStation", "group": "bikeService",
+     "rules": [{"amenity": "bicycle_repair_station"}]},
+    {"kind": "bikeShop", "group": "bikeService", "rules": [{"shop": "bicycle"}]},
+    {"kind": "eBikeCharging", "group": "bikeService",
+     "rules": [{"amenity": "charging_station", "bicycle": "yes"}]},
+    {"kind": "shelter", "group": "other", "rules": [{"amenity": "shelter"}]},
+    {"kind": "toilets", "group": "other", "rules": [{"amenity": "toilets"}]},
+    {"kind": "viewpoint", "group": "other", "rules": [{"tourism": "viewpoint"}]},
+    {"kind": "parking", "group": "other", "rules": [{"amenity": "parking"}],
+     "exclude_access": ["private", "no"]}
+  ]
+}

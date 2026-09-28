@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,52 +8,92 @@ import 'package:http/http.dart' as http;
 
 import '../../core/errors.dart';
 import '../../core/settings.dart';
+import 'map_providers.dart';
 import 'poi.dart';
 
 /// Woher die Orte kommen. Eine Schnittstelle, damit Tests ein Fake
-/// einhängen — kein Netz in Tests.
+/// einhängen — kein Netz in Tests. Gefragt wird je ZELLE und Gruppe;
+/// das ist die Einheit, in der der Host die Dateien hält.
 abstract interface class PoiSource {
-  Future<List<Poi>> fetch(
-      ({double s, double w, double n, double e}) box, Set<PoiGroup> groups);
+  Future<List<Poi>> fetch(List<PoiCell> cells, Set<PoiGroup> groups);
 }
 
-/// Die öffentliche Overpass-Instanz des FOSSGIS e.V. — neues Netzziel,
-/// steht in der Datenschutzerklärung. Übertragen werden nur Rahmen und
-/// Kategorien, nie Trails, Fahrten oder das Konto.
-class OverpassPoiSource implements PoiSource {
-  OverpassPoiSource([http.Client? client]) : _client = client ?? http.Client();
+/// Die Orte vom eigenen Kartenhost (`tiles.mcbuchi.de`, seit 0.18.0;
+/// vorher Overpass): erst einmal je App-Lauf das Manifest, dann je Zelle
+/// und Gruppe die fertige Datei — nur für Zellen, die das Manifest
+/// nennt, eine leere Zelle kostet keine Anfrage. Übertragen wird die
+/// Rasterzelle (etwa 11 × 11 km), nie der genaue Ausschnitt, nie Trails,
+/// Fahrten oder das Konto. Derselbe Host steht schon für die Karte in
+/// der Datenschutzerklärung.
+class HostPoiSource implements PoiSource {
+  HostPoiSource([http.Client? client]) : _client = client ?? http.Client();
 
   final http.Client _client;
 
-  static final _endpoint = Uri.parse('https://overpass-api.de/api/interpreter');
+  /// Das Manifest dieses App-Laufs. Scheitert der Abruf, bleibt es null
+  /// und der nächste Wunsch versucht es wieder.
+  PoiManifest? _manifest;
+
+  /// So viele Dateien auf einmal — ein Tablet auf Zoom 12 mit allen
+  /// Gruppen braucht bis zu 64, die einzeln nacheinander eine Weile
+  /// dauerten; alle zugleich wären ein Sturm auf den Host.
+  static const _parallel = 6;
+
+  static const _timeout = Duration(seconds: 20);
+
+  Future<PoiManifest> _loadManifest() async {
+    final cached = _manifest;
+    if (cached != null) return cached;
+    final res = await _client.get(Uri.parse(kPoiManifestUrl)).timeout(_timeout);
+    if (res.statusCode != 200) throw PoiUnavailable(res.statusCode);
+    return _manifest =
+        PoiManifest.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
+  }
 
   @override
-  Future<List<Poi>> fetch(({double s, double w, double n, double e}) box,
-      Set<PoiGroup> groups) async {
-    final res = await _client.post(
-      _endpoint,
-      // Formular statt JSON: Im Web bleibt das eine „einfache" Anfrage
-      // ohne CORS-Vorabprüfung. Aus demselben Grund im Web kein eigener
-      // User-Agent — den setzt dort ohnehin der Browser.
-      headers: kIsWeb ? null : const {'User-Agent': 'TrailBuddy (de.mcbuchi.trailbuddy)'},
-      body: {'data': overpassQuery(box, groups)},
-    ).timeout(const Duration(seconds: 30));
+  Future<List<Poi>> fetch(List<PoiCell> cells, Set<PoiGroup> groups) async {
+    final manifest = await _loadManifest();
+    final wanted = [
+      for (final c in cells)
+        for (final g in groups)
+          if (manifest.has(c, g)) (c, g),
+    ];
+    final out = <Poi>[];
+    for (var i = 0; i < wanted.length; i += _parallel) {
+      final batch = wanted.sublist(i, math.min(i + _parallel, wanted.length));
+      final results = await Future.wait([
+        for (final (c, g) in batch) _fetchCell(manifest, c, g),
+      ]);
+      for (final r in results) {
+        out.addAll(r);
+      }
+    }
+    return out;
+  }
+
+  Future<List<Poi>> _fetchCell(PoiManifest m, PoiCell cell, PoiGroup g) async {
+    final uri = Uri.parse('$kMapTilesBase/${m.prefix}/${poiCellFileName(cell, g)}');
+    final res = await _client.get(uri).timeout(_timeout);
+    // Eine Datei, die das Manifest nennt und die nicht da ist: der Bau
+    // wurde gerade abgelöst und das alte Präfix ist schon weg. Leer, und
+    // beim nächsten App-Start gilt das neue Manifest.
+    if (res.statusCode == 404) return const [];
     if (res.statusCode != 200) throw PoiUnavailable(res.statusCode);
-    return parseOverpass(res.body);
+    return parsePoiFile(res.body);
   }
 }
 
-/// Overpass hat gerade keine Antwort (429 bei zu vielen Anfragen, 504 bei
-/// Überlast). Kein Fehler der App — die Karte sagt es und fragt beim
-/// nächsten Verschieben wieder.
+/// Der Orte-Host hat gerade keine Antwort (5xx, oder 404 auf das Manifest,
+/// solange noch kein Bau veröffentlicht ist). Kein Fehler der App — die
+/// Karte sagt es und fragt beim nächsten Verschieben wieder.
 class PoiUnavailable implements Exception {
   const PoiUnavailable(this.statusCode);
   final int statusCode;
   @override
-  String toString() => 'Overpass antwortet mit $statusCode';
+  String toString() => 'Der Orte-Host antwortet mit $statusCode';
 }
 
-final poiSourceProvider = Provider<PoiSource>((ref) => OverpassPoiSource());
+final poiSourceProvider = Provider<PoiSource>((ref) => HostPoiSource());
 
 /// Die eingeschalteten Gruppen — gerätelokal gemerkt, wie
 /// [RememberedFlag]: Der Zustand springt sofort, das Merken läuft nach.
@@ -172,7 +214,7 @@ class PoiController extends Notifier<PoiState> {
     try {
       pois = await ref
           .read(poiSourceProvider)
-          .fetch(poiCellsBounds(missingCells), missingGroups);
+          .fetch(missingCells.toList(), missingGroups);
     } on PoiUnavailable {
       state = PoiState(byCell: state.byCell, unavailable: true);
       return;

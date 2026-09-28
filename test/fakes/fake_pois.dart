@@ -1,23 +1,27 @@
 import 'package:trailbuddy/features/map/poi.dart';
 import 'package:trailbuddy/features/map/poi_source.dart';
 
-/// Orte aus dem Speicher statt von Overpass — kein Netz in Tests. Merkt
+/// Orte aus dem Speicher statt vom Kartenhost — kein Netz in Tests. Merkt
 /// sich jede Abfrage, damit Tests zählen können, WANN gefragt wird (und
 /// wann gerade nicht: unterhalb Zoom 12, alles aus).
 class FakePoiSource implements PoiSource {
   FakePoiSource([List<Poi>? pois]) : pois = pois ?? [];
 
   final List<Poi> pois;
+
+  /// Je Abfrage der Rahmen um die gefragten Zellen.
   final calls = <({double s, double w, double n, double e})>[];
+  final cellsAsked = <List<PoiCell>>[];
   final groupsAsked = <Set<PoiGroup>>[];
 
   /// Gesetzt: Die nächste Abfrage scheitert damit.
   Object? failWith;
 
   @override
-  Future<List<Poi>> fetch(({double s, double w, double n, double e}) box,
-      Set<PoiGroup> groups) async {
+  Future<List<Poi>> fetch(List<PoiCell> cells, Set<PoiGroup> groups) async {
+    final box = poiCellsBounds(cells);
     calls.add(box);
+    cellsAsked.add(cells);
     groupsAsked.add(groups);
     final f = failWith;
     if (f != null) {

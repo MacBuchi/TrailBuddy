@@ -119,7 +119,7 @@ List<Override> overridesFor(FakeBackend backend,
       // Kein Netz in Tests: kein Manifest vom Kartenhost, also keine
       // Online-Karte — und die Übersicht kommt aus keinem Asset (oben).
       mapManifestLoaderProvider.overrideWithValue(() async => null),
-      // Und keine Overpass-Abfragen: Eine Karte, die auf einen Trail
+      // Und keine Orte-Dateien vom Host: Eine Karte, die auf einen Trail
       // zoomt, liegt über Zoom 12 und fragte sonst wirklich an.
       poiSourceProvider.overrideWithValue(pois ?? FakePoiSource()),
       // Ebenso die offiziellen Trails: Vorgabe ist ein Index ohne

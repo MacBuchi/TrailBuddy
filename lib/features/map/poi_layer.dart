@@ -333,8 +333,9 @@ class _PoiFilterSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(
                 'Orte erscheinen ab Zoomstufe ${kPoiMinZoom.round()}. Sie kommen '
-                'aus OpenStreetMap: Dafür geht der sichtbare Kartenausschnitt '
-                'an overpass-api.de — keine Trails, keine Fahrten, kein Konto.',
+                'aus OpenStreetMap, als fertige Dateien vom Kartenspeicher der '
+                'App (tiles.mcbuchi.de): Dafür gehen die Rasterzellen des '
+                'Ausschnitts dorthin — keine Trails, keine Fahrten, kein Konto.',
                 style: text.bodySmall,
               ),
             ),
