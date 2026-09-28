@@ -7,16 +7,17 @@
 *Version 0.8.0, 2026-09-28*
 
 - **„Baum liegt quer nach der zweiten Kehre"**: Zu jedem Trail, den du
-  selbst gefahren bist, kannst du im Trail-Blatt einen Hinweis schreiben.
-  Deine Buddys sehen ihn dort, mit Datum — genau die, die auch deinen
-  Beitrag sehen. Steht er auf „Nur für mich", bleibt auch der Hinweis bei
-  dir.
+  siehst, kannst du im Trail-Blatt einen Hinweis schreiben. Deine Buddys,
+  die den Trail auch sehen, finden ihn dort mit Datum.
 - **Neues fällt auf**: Hat ein Buddy in den letzten sieben Tagen einen
   Hinweis geschrieben, leuchtet der Trail auf der Karte gelb umrandet, und
-  in der Liste steht „neuer Hinweis".
+  in der Liste steht „neuer Hinweis" — bis du das Trail-Blatt geöffnet
+  hast.
+- **Erledigt?** Ist der Baum weggeräumt, kann jeder, der den Hinweis
+  sieht, ihn entfernen. Nach drei Monaten verschwinden alte Hinweise von
+  selbst; der jüngste bleibt stehen, bis ihn jemand entfernt.
 - **Status mit Grund**: Wer den Zustand eines Trails ändert (etwa auf
   gesperrt), kann gleich dazuschreiben, warum.
-- Eigene Hinweise lassen sich jederzeit löschen.
 
 ## Orte: eigene Symbole und Detailfilter
 

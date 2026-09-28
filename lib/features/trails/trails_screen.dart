@@ -49,14 +49,15 @@ class TrailsScreen extends ConsumerWidget {
                 ),
               ]);
             }
+            final seen = ref.watch(seenNotesProvider);
             final own = trails.where((t) => t.isOwn).toList();
             final buddies = trails.where((t) => !t.isOwn).toList();
             return ListView(
               children: [
                 if (own.isNotEmpty) _Header('Meine Trails (${own.length})'),
-                for (final t in own) _TrailTile(t),
+                for (final t in own) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
                 if (buddies.isNotEmpty) _Header('Von Buddys (${buddies.length})'),
-                for (final t in buddies) _TrailTile(t),
+                for (final t in buddies) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
               ],
             );
           },
@@ -78,8 +79,11 @@ class _Header extends StatelessWidget {
 }
 
 class _TrailTile extends StatelessWidget {
-  const _TrailTile(this.trail);
+  const _TrailTile(this.trail, {required this.fresh});
   final Trail trail;
+
+  /// Neuer, noch nicht gesehener Hinweis eines Buddys (#7).
+  final bool fresh;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +96,6 @@ class _TrailTile extends StatelessWidget {
     ];
     // Neuer Hinweis eines Buddys (#7): die Zeile getönt, ein Symbol am
     // Ende und das Wort dazu — Farbe allein wäre nicht für alle lesbar.
-    final fresh = trail.hasFreshNote();
     return ListTile(
       tileColor: fresh ? AppColors.noteYellow.withValues(alpha: 0.18) : null,
       trailing: fresh

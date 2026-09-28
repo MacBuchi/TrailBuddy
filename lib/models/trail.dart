@@ -218,9 +218,10 @@ class TrailDetails {
       );
 }
 
-/// Ein Hinweis zu einem Trail für Buddys (Issue #7, Patch 004): „Baum
-/// liegt quer". Sichtbar, wo der Beitrag des Schreibenden sichtbar ist;
-/// kein Verfall, kein Bearbeiten — das Alter steht dabei.
+/// Ein Hinweis zu einem Trail für Buddys (Issue #7, Patch 004/005):
+/// „Baum liegt quer". Schreiben darf jeder, der den Trail sieht; sehen
+/// seine direkten Buddys, die den Trail auch sehen. Kein Bearbeiten — das
+/// Alter steht dabei.
 class TrailNote {
   const TrailNote({
     required this.id,
@@ -254,8 +255,14 @@ class TrailNote {
 }
 
 /// So lange gilt ein Hinweis eines Buddys als neu: Liste und Karte heben
-/// den Trail hervor. Danach steht er nur noch im Blatt, mit seinem Alter.
+/// den Trail hervor, bis man ihn im Blatt gesehen hat. Danach steht er
+/// nur noch dort, mit seinem Alter.
 const kFreshNoteDays = 7;
+
+/// Nach so vielen Tagen verschwindet ein Hinweis — außer dem jüngsten
+/// (Entscheidung des Betreibers). Der Server räumt je Autor auf
+/// (`sweep_old_notes`), das Blatt zeigt von den alten nur den jüngsten.
+const kNoteRetentionDays = 90;
 
 /// Ein Trail, wie ICH ihn sehe: die Kennung plus alle sichtbaren Belege
 /// und Beiträge. Alles Angezeigte ist daraus GERECHNET (Konzept 3):
@@ -276,7 +283,7 @@ class Trail {
   final String myId;
 
   /// Die sichtbaren Hinweise, in beliebiger Reihenfolge — angezeigt über
-  /// [notesNewestFirst].
+  /// [notesShown].
   final List<TrailNote> notes;
 
   bool get isOwn => recordings.any((r) => r.userId == myId);
@@ -396,16 +403,30 @@ class Trail {
 
   TrailStatus get status => latestStatus?.status ?? TrailStatus.open;
 
-  List<TrailNote> get notesNewestFirst =>
-      List.of(notes)..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  /// Was das Blatt zeigt, neueste zuerst: alles aus den letzten
+  /// [kNoteRetentionDays] Tagen, und immer den jüngsten — der bleibt
+  /// stehen, bis ihn jemand entfernt.
+  List<TrailNote> notesShown({DateTime? now}) {
+    final sorted = List.of(notes)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final since = (now ?? DateTime.now())
+        .subtract(const Duration(days: kNoteRetentionDays));
+    return [
+      for (var i = 0; i < sorted.length; i++)
+        if (i == 0 || sorted[i].createdAt.isAfter(since)) sorted[i],
+    ];
+  }
 
   /// Ein Buddy hat in den letzten [kFreshNoteDays] Tagen etwas dazu
-  /// geschrieben. Eigene Hinweise zählen nicht — die sind für mich nichts
-  /// Neues.
-  bool hasFreshNote({DateTime? now}) {
+  /// geschrieben, das auf diesem Gerät noch nicht im Blatt zu sehen war
+  /// ([seen]). Eigene Hinweise zählen nicht — die sind nichts Neues.
+  bool hasFreshNote({DateTime? now, Set<String> seen = const {}}) =>
+      notes.any((n) => isFreshNote(n, now: now, seen: seen));
+
+  bool isFreshNote(TrailNote n, {DateTime? now, Set<String> seen = const {}}) {
     final since =
         (now ?? DateTime.now()).subtract(const Duration(days: kFreshNoteDays));
-    return notes.any((n) => n.userId != myId && n.createdAt.isAfter(since));
+    return n.userId != myId && n.createdAt.isAfter(since) && !seen.contains(n.id);
   }
 
   /// Wer den Trail belegt hat, ohne mich — für „3 Buddys kennen ihn".

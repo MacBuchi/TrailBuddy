@@ -10,25 +10,28 @@ import 'trail_sheet.dart';
 
 /// Hinweise zu einem Trail für Buddys (Issue #7): „Baum liegt quer nach
 /// der zweiten Kehre". Kein Feedback an den Betreiber — das bleibt die
-/// Glühbirne —, sondern eine Nachricht an alle, die den Trail über mich
-/// sehen. Schreiben nur mit eigenem Beleg (Konzept 3), löschen nur die
-/// eigenen, bearbeiten gar nicht: Das Alter soll stimmen.
+/// Glühbirne —, sondern eine Nachricht an meine Buddys, die den Trail
+/// sehen. Schreiben darf jeder, der den Trail sieht; entfernen jeder, der
+/// den Hinweis sieht (wer am Trail steht, sagt „erledigt"); bearbeiten
+/// niemand: Das Alter soll stimmen.
 
 /// Höchstlänge eines Hinweises, dieselbe wie im Check der Tabelle.
 const kNoteMaxLength = 500;
 
-/// Der Abschnitt im Trail-Blatt: die sichtbaren Hinweise, neueste zuerst,
-/// und — für Trails, die ich selbst belegt habe — der Knopf zum Schreiben.
+/// Der Abschnitt im Trail-Blatt: die Hinweise, neueste zuerst, und der
+/// Knopf zum Schreiben. [seenBefore] sind die Hinweise, die schon VOR dem
+/// Öffnen gesehen waren — was jetzt neu ist, bleibt im Blatt getönt, auch
+/// wenn es beim Öffnen als gesehen gemerkt wird.
 class TrailNotesSection extends ConsumerWidget {
-  const TrailNotesSection({super.key, required this.trail});
+  const TrailNotesSection(
+      {super.key, required this.trail, this.seenBefore = const {}});
   final Trail trail;
+  final Set<String> seenBefore;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notes = trail.notesNewestFirst;
-    if (notes.isEmpty && !trail.isOwn) return const SizedBox.shrink();
+    final notes = trail.notesShown();
     final theme = Theme.of(context);
-    final since = DateTime.now().subtract(const Duration(days: kFreshNoteDays));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,13 +39,12 @@ class TrailNotesSection extends ConsumerWidget {
           children: [
             Text('Hinweise', style: theme.textTheme.titleSmall),
             const Spacer(),
-            if (trail.isOwn)
-              TextButton.icon(
-                key: const ValueKey('add-note'),
-                onPressed: () => _add(context, ref),
-                icon: const Icon(Icons.add_comment_outlined),
-                label: const Text('Hinweis schreiben'),
-              ),
+            TextButton.icon(
+              key: const ValueKey('add-note'),
+              onPressed: () => _add(context, ref),
+              icon: const Icon(Icons.add_comment_outlined),
+              label: const Text('Hinweis schreiben'),
+            ),
           ],
         ),
         if (notes.isEmpty)
@@ -53,13 +55,15 @@ class TrailNotesSection extends ConsumerWidget {
           _NoteTile(
             note: n,
             mine: n.userId == trail.myId,
-            fresh: n.userId != trail.myId && n.createdAt.isAfter(since),
+            fresh: trail.isFreshNote(n, seen: seenBefore),
           ),
       ],
     );
   }
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
+    // Privat zählt nur, wenn ich selbst einen Beitrag habe — sonst gibt
+    // es nichts, was ich verbergen könnte.
     final private = trail.myDetails?.visibility == TrailVisibility.private;
     final body = await showNoteDialog(context, private: private);
     if (body == null || !context.mounted) return;
@@ -116,6 +120,13 @@ class _NoteTile extends ConsumerWidget {
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.delete_outline),
               onPressed: () => _delete(context, ref),
+            )
+          else
+            IconButton(
+              tooltip: 'Erledigt — Hinweis entfernen',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.check_circle_outline),
+              onPressed: () => _delete(context, ref),
             ),
         ],
       ),
@@ -126,8 +137,11 @@ class _NoteTile extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hinweis löschen?'),
-        content: Text('„${note.body}"'),
+        title: Text(mine ? 'Hinweis löschen?' : 'Als erledigt entfernen?'),
+        content: Text(mine
+            ? '„${note.body}"'
+            : '„${note.body}"\n\nDer Hinweis verschwindet für alle, die ihn '
+                'sehen — auch für ${note.username ?? 'deinen Buddy'}.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -135,7 +149,7 @@ class _NoteTile extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Löschen'),
+            child: Text(mine ? 'Löschen' : 'Entfernen'),
           ),
         ],
       ),
@@ -145,7 +159,7 @@ class _NoteTile extends ConsumerWidget {
     try {
       final fresh = await ref.read(trailsProvider.notifier).deleteNote(note.id);
       messenger.showSnackBar(SnackBar(
-          content: Text('Hinweis gelöscht${fresh ? '' : staleAfterWriteHint}')));
+          content: Text('Hinweis entfernt${fresh ? '' : staleAfterWriteHint}')));
     } catch (e, st) {
       logError('Hinweis löschen', e, st);
       messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
@@ -157,7 +171,7 @@ class _NoteTile extends ConsumerWidget {
 /// Beitrag. Bei privatem Beitrag sagt er ehrlich, dass es niemand ist.
 String noteAudience({required bool private}) => private
     ? 'Dein Beitrag steht auf „Nur für mich" — dann siehst nur du den Hinweis.'
-    : 'Sehen deine Buddys, die diesen Trail über dich sehen.';
+    : 'Sehen deine Buddys, die diesen Trail auch sehen.';
 
 /// Der Text eines neuen Hinweises, oder null bei Abbruch.
 Future<String?> showNoteDialog(BuildContext context, {required bool private}) {

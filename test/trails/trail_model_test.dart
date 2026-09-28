@@ -146,7 +146,7 @@ void main() {
         .single.gradeRange, isNull);
   });
 
-  test('Hinweise: neueste zuerst, „neu" nur von Buddys und nur 7 Tage', () {
+  test('Hinweise: neueste zuerst, „neu" nur von Buddys, 7 Tage, ungesehen', () {
     final now = DateTime(2026, 9, 28, 12);
     TrailNote note(String user, int daysAgo) => TrailNote(
           id: '$user-$daysAgo',
@@ -164,10 +164,34 @@ void main() {
 
     final t = trail([note('bob', 9), note('me', 0), note('bob', 3)]);
     expect(t.notes, hasLength(3), reason: 'Hinweise anderer Trails bleiben dort');
-    expect(t.notesNewestFirst.map((n) => n.id), ['me-0', 'bob-3', 'bob-9']);
+    expect(t.notesShown(now: now).map((n) => n.id), ['me-0', 'bob-3', 'bob-9']);
     expect(t.hasFreshNote(now: now), isTrue);
+    expect(t.hasFreshNote(now: now, seen: {'bob-3'}), isFalse,
+        reason: 'im Blatt gesehen: nicht mehr hervorgehoben');
     expect(trail([note('me', 0), note('bob', 8)]).hasFreshNote(now: now), isFalse,
         reason: 'der eigene zählt nicht, der alte ist nicht mehr neu');
+  });
+
+  test('nach 90 Tagen nur noch der jüngste', () {
+    final now = DateTime(2026, 9, 28, 12);
+    TrailNote note(String user, int daysAgo) => TrailNote(
+          id: '$user-$daysAgo',
+          trailId: 't',
+          userId: user,
+          body: 'x',
+          createdAt: now.subtract(Duration(days: daysAgo)),
+        );
+    Trail trail(List<TrailNote> notes) => Trail(
+        id: 't', myId: 'me', recordings: [rec('t', 'me')], details: const [], notes: notes);
+
+    expect(trail([note('bob', 200), note('anna', 120), note('bob', 95)])
+            .notesShown(now: now)
+            .map((n) => n.id),
+        ['bob-95'], reason: 'alle alt: der jüngste bleibt stehen');
+    expect(trail([note('bob', 200), note('anna', 10), note('bob', 89)])
+            .notesShown(now: now)
+            .map((n) => n.id),
+        ['anna-10', 'bob-89']);
   });
 
   test('TrailNote.fromJson liest den Autor aus dem Embed', () {

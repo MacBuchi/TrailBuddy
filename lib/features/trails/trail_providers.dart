@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
+import '../../core/settings.dart';
 import '../../data/providers.dart';
 import '../../data/trail_repository.dart';
 import '../../models/trail.dart';
@@ -113,6 +115,31 @@ final trailsProvider =
 
 final trailByIdProvider = Provider.family<Trail?, String>((ref, id) =>
     ref.watch(trailsProvider).valueOrNull?.where((t) => t.id == id).firstOrNull);
+
+/// Die Hinweise, die auf DIESEM Gerät schon im Trail-Blatt zu sehen
+/// waren (#7): Sie heben den Trail in Karte und Liste nicht mehr hervor.
+/// Gerätelokal wie der Orte-Filter — gelesen ist eine Frage des Geräts,
+/// nicht des Kontos, und der Server erfährt nicht, wer was gelesen hat.
+class SeenNotesNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => {...?ref.read(settingsProvider).seenNoteIds};
+
+  /// Merkt [ids] als gesehen. Gespeichert wird nur, was es noch gibt
+  /// ([known]: alle geladenen Hinweise) — so wächst die Liste nicht mit
+  /// jedem gelöschten Hinweis weiter.
+  void markSeen(Iterable<String> ids, {required Set<String> known}) {
+    final next = {...state, ...ids}.where(known.contains).toSet();
+    if (next.length == state.length && next.containsAll(state)) return;
+    state = next;
+    unawaited(ref
+        .read(settingsProvider)
+        .setSeenNoteIds(next.toList())
+        .catchError((Object e, StackTrace s) => logError('Gelesene Hinweise merken', e, s)));
+  }
+}
+
+final seenNotesProvider =
+    NotifierProvider<SeenNotesNotifier, Set<String>>(SeenNotesNotifier.new);
 
 /// Wunsch der Liste an die Karte: diesen Trail zeigen (Muster PilzBuddy
 /// #345, erst Reiter wechseln, dann Wunsch stellen).

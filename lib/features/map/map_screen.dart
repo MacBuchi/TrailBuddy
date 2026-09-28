@@ -58,6 +58,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget build(BuildContext context) {
     final trailsAsync = ref.watch(trailsProvider);
     final trails = trailsAsync.valueOrNull ?? const <Trail>[];
+    final seenNotes = ref.watch(seenNotesProvider);
     final poiUnavailable = ref.watch(poiGroupsProvider).isNotEmpty &&
         ref.watch(poiControllerProvider.select((s) => s.unavailable));
 
@@ -118,7 +119,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       strokeWidth: 4,
                       // Neuer Hinweis eines Buddys (#7): ein gelber
                       // Leuchtrand, die Linie behält ihre Farbe.
-                      borderStrokeWidth: t.hasFreshNote() ? 4 : 0,
+                      borderStrokeWidth:
+                          t.hasFreshNote(seen: seenNotes) ? 4 : 0,
                       borderColor: AppColors.noteYellow,
                       hitValue: t.id,
                     ),

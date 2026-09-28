@@ -43,6 +43,12 @@ abstract interface class Settings {
   List<String>? get poiHiddenKinds;
 
   Future<void> setPoiHiddenKinds(List<String> kinds);
+
+  /// Hinweise (`TrailNote.id`), die auf diesem Gerät schon im Trail-Blatt
+  /// zu sehen waren — sie heben den Trail nicht mehr hervor (#7).
+  List<String>? get seenNoteIds;
+
+  Future<void> setSeenNoteIds(List<String> ids);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -78,6 +84,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setPoiHiddenKinds(List<String> kinds) =>
       _prefs.setStringList(_poiHiddenKindsKey, kinds);
+
+  static const _seenNoteIdsKey = 'seen_note_ids';
+
+  @override
+  List<String>? get seenNoteIds => _prefs.getStringList(_seenNoteIdsKey);
+
+  @override
+  Future<void> setSeenNoteIds(List<String> ids) =>
+      _prefs.setStringList(_seenNoteIdsKey, ids);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

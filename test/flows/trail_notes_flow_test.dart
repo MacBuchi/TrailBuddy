@@ -1,12 +1,14 @@
-// Hinweise für Buddys (Issue #7): „Baum liegt quer". Schreiben nur mit
-// eigenem Beleg, sehen wie beim Beitrag, löschen nur die eigenen; ein
-// neuer Hinweis eines Buddys hebt den Trail in der Liste hervor, und beim
-// Ändern des Status lässt sich einer gleich mitgeben.
+// Hinweise für Buddys (Issue #7): „Baum liegt quer". Schreiben darf, wer
+// den Trail sieht; sehen die direkten Buddys, die ihn auch sehen;
+// entfernen, wer ihn sieht („erledigt"). Ein neuer Hinweis eines Buddys
+// hebt den Trail in der Liste hervor, bis man ihn im Blatt gesehen hat,
+// und beim Ändern des Status lässt sich einer gleich mitgeben.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
 
@@ -47,13 +49,16 @@ void main() {
     await settle(tester);
   }
 
-  testWidgets('neuer Hinweis eines Buddys: Liste hebt hervor, Blatt zeigt ihn',
+  testWidgets('neuer Hinweis eines Buddys: hervorgehoben, bis man ihn gesehen hat',
       (tester) async {
     trails.seedNote(bobId, bobsFlow, 'Baum liegt quer nach der zweiten Kehre',
         at: DateTime.now().subtract(const Duration(days: 1)));
     trails.seedNote(bobId, roots, 'Alter Hinweis',
         at: DateTime.now().subtract(const Duration(days: 30)));
-    await openList(tester);
+    final settings = FakeSettings();
+    await pumpApp(tester, backend, trails: trails, settings: settings);
+    await openTab(tester, 'Trails');
+    await settle(tester, frames: 20);
 
     expect(find.textContaining('neuer Hinweis'), findsOneWidget,
         reason: 'nur Bobs Flow — der Hinweis zu Roots ist älter als 7 Tage');
@@ -63,10 +68,45 @@ void main() {
     await settle(tester);
     expect(find.text('Baum liegt quer nach der zweiten Kehre'), findsOneWidget);
     expect(find.text('bob · gestern gemeldet'), findsOneWidget);
-    expect(find.text('Hinweis schreiben'), findsNothing,
-        reason: 'ohne eigenen Beleg kein Hinweis (Konzept 3)');
-    expect(find.byTooltip('Hinweis löschen'), findsNothing,
-        reason: 'fremde Hinweise lassen sich nicht löschen');
+    expect(find.byTooltip('Hinweis löschen'), findsNothing);
+    expect(find.byTooltip('Erledigt — Hinweis entfernen'), findsOneWidget);
+
+    await tester.tapAt(const Offset(5, 5));
+    await settle(tester);
+    expect(find.textContaining('neuer Hinweis'), findsNothing,
+        reason: 'im Blatt gesehen — nicht mehr hervorgehoben');
+    expect(settings.seenNoteIds, hasLength(1));
+
+    // Und nach einem Neustart auch nicht.
+    await pumpApp(tester, backend, trails: trails, settings: settings);
+    await openTab(tester, 'Trails');
+    await settle(tester, frames: 20);
+    expect(find.text('Bobs Flow'), findsOneWidget);
+    expect(find.textContaining('neuer Hinweis'), findsNothing);
+  });
+
+  testWidgets('wer den Trail nur über einen Buddy sieht, darf schreiben und erledigen',
+      (tester) async {
+    trails.seedNote(bobId, bobsFlow, 'Baum liegt quer');
+    await openTrail(tester, 'Bobs Flow');
+
+    await tester.ensureVisible(find.byKey(const ValueKey('add-note')));
+    await tester.tap(find.byKey(const ValueKey('add-note')));
+    await settle(tester);
+    await tester.enterText(find.byKey(const ValueKey('note-text')), 'Umfahrung links');
+    await settle(tester);
+    await tester.tap(find.text('Speichern'));
+    await settle(tester, frames: 20);
+    expect(trails.notes.where((n) => n.userId == annaId).single.trailId, bobsFlow);
+
+    await tester.ensureVisible(find.byTooltip('Erledigt — Hinweis entfernen'));
+    await tester.tap(find.byTooltip('Erledigt — Hinweis entfernen'));
+    await settle(tester);
+    expect(find.textContaining('auch für bob'), findsOneWidget);
+    await tester.tap(find.text('Entfernen'));
+    await settle(tester, frames: 20);
+    expect(trails.notes.map((n) => n.body), ['Umfahrung links']);
+    expect(find.text('Baum liegt quer'), findsNothing);
   });
 
   testWidgets('Hinweis schreiben und wieder löschen', (tester) async {

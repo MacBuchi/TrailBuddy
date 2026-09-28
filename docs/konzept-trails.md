@@ -197,16 +197,20 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   Widerspruch zwischen Buddys gewinnt der jüngste, ohne Abstimmung.
 - **Hinweise** (#7, entschieden am 2026-09-28) = freier Text zum
   Trail, der das Warum trägt, das der Status nicht sagen kann („Baum
-  liegt quer nach der zweiten Kehre"). Eine eigene Liste, mehrere je
-  Beitrag, neueste zuerst, mit Alter; kein Verfall, kein Bearbeiten,
-  der Schreibende kann löschen. Schreiben nur mit eigenem Beleg,
-  sichtbar genau dort, wo der Beitrag des Schreibenden sichtbar ist —
-  direkte Buddys, nicht bei „privat", keine Transitivität. Ein Hinweis
-  hängt am Beitrag und geht mit ihm. Beim Ändern des Status wird einer
-  angeboten. Ohne Push (kommt mit „Nachrichten") hebt die App Trails
-  mit einem Hinweis eines Buddys aus den letzten sieben Tagen in Karte
-  und Liste hervor. Dezentral (12) passt das: Zeilen je Autor, nichts
-  über Netzgrenzen.
+  liegt quer nach der zweiten Kehre"). Eine eigene Liste, neueste
+  zuerst, mit Alter, kein Bearbeiten. **Schreiben darf jeder, der den
+  Trail sieht** — anders als Name, Grad und Status braucht ein Hinweis
+  keinen eigenen Beleg: Wer vor dem Baum steht, muss den Trail nicht
+  aufgezeichnet haben. Sehen der Autor und seine direkten Buddys, die
+  den Trail auch sehen; nicht bei „privat", keine Transitivität.
+  **Entfernen darf jeder, der ihn sieht** — „erledigt" sagt, wer am
+  Trail war. Nach 90 Tagen räumt der Server auf; der jüngste Hinweis
+  eines Autors zu einem Trail bleibt, bis ihn jemand entfernt (je Autor,
+  weil „der jüngste über alle Netze" eine Rechnung über Netzgrenzen
+  wäre). Beim Ändern des Status wird einer angeboten. Ohne Push (kommt
+  mit „Nachrichten") hebt die App Trails mit einem neuen, noch nicht
+  gelesenen Hinweis eines Buddys aus den letzten sieben Tagen in Karte
+  und Liste hervor; was gelesen ist, weiß nur das Gerät.
 
 Eine zentrale Sicht (`trails_visible`) rechnet das serverseitig, damit
 Karte, Liste und Blatt dieselbe Antwort geben — dieselbe Regel wie in

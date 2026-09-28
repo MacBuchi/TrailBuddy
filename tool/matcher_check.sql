@@ -700,7 +700,7 @@ begin
                         'hat sie schon Höhen: false, nichts überschrieben');
 end $$;
 
-\echo -- 20. Hinweise für Buddys (Patch 004, Issue #7)
+\echo -- 20. Hinweise für Buddys (Patch 004/005, Issue #7)
 do $$
 declare
   ua uuid := '11111111-1111-4111-8111-111111111111';
@@ -709,32 +709,36 @@ declare
   t uuid;
   note uuid;
   code text; ok boolean;
+  cnt text := 'select count(*) from public.trail_notes where trail_id = %L';
 begin
-  -- Ein Trail, den Anna mit Bernd teilt und den Bernd selbst NICHT belegt hat.
+  -- Ein Trail, den Anna mit Bernd teilt, den Bernd nicht selbst belegt
+  -- hat und von dem Carla nichts weiß.
   select d.trail_id into t from public.trail_details d
    where d.user_id = ua and d.visibility = 'buddies'
      and not exists (select 1 from public.trail_recordings r
-                      where r.trail_id = d.trail_id and r.user_id = ub)
+                      where r.trail_id = d.trail_id and r.user_id <> ua)
    limit 1;
-  perform tb_test.check(t is not null, 'geteilter Trail von Anna ohne Beleg von Bernd');
+  perform tb_test.check(t is not null, 'geteilter Trail nur von Anna');
+  perform tb_test.check(app_internal.can_see_trail(ub, t) and not app_internal.can_see_trail(uc, t),
+                        'Bernd sieht ihn über Anna, Carla nicht');
 
   perform tb_test.exec_as(ua, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
                                      t, ua, 'Baum liegt quer'));
-  perform tb_test.check(tb_test.count_as(ua, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 1,
-                        'Anna sieht ihren Hinweis');
-  perform tb_test.check(tb_test.count_as(ub, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 1,
-                        'Bernd (Buddy) sieht ihn');
-  perform tb_test.check(tb_test.count_as(uc, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 0,
-                        'Carla (kein Buddy) sieht ihn nicht');
+  -- Bernd hat keinen eigenen Beleg, sieht den Trail aber: Er darf schreiben.
+  perform tb_test.exec_as(ub, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
+                                     t, ub, 'Umfahrung links'));
+  perform tb_test.check(tb_test.count_as(ua, format(cnt, t)) = 2, 'Anna sieht beide Hinweise');
+  perform tb_test.check(tb_test.count_as(ub, format(cnt, t)) = 2, 'Bernd sieht beide Hinweise');
+  perform tb_test.check(tb_test.count_as(uc, format(cnt, t)) = 0, 'Carla (kein Buddy, sieht den Trail nicht) sieht keinen');
 
-  -- Abgelehnt: ohne eigenen Beleg, im Namen eines anderen, leer, zu lang.
-  foreach code in array array['ohne Beleg', 'fremder Name', 'leer', 'zu lang'] loop
+  -- Abgelehnt: wer den Trail nicht sieht, im Namen eines anderen, leer, zu lang.
+  foreach code in array array['sieht den Trail nicht', 'fremder Name', 'leer', 'zu lang'] loop
     ok := false;
     begin
-      perform tb_test.exec_as(case code when 'ohne Beleg' then ub else ua end,
+      perform tb_test.exec_as(case code when 'sieht den Trail nicht' then uc else ua end,
         format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
                t,
-               case code when 'ohne Beleg' then ub when 'fremder Name' then ub else ua end,
+               case code when 'sieht den Trail nicht' then uc when 'fremder Name' then ub else ua end,
                case code when 'leer' then '   ' when 'zu lang' then repeat('x', 501) else 'Hinweis' end));
     exception when others then
       ok := sqlstate = case when code in ('leer', 'zu lang') then '23514' else '42501' end;
@@ -743,7 +747,6 @@ begin
     perform tb_test.check(ok, format('Hinweis „%s" abgelehnt', code));
   end loop;
 
-  -- Kein Bearbeiten, und fremde löschen filtert still.
   ok := false;
   begin
     perform tb_test.exec_as(ua, format('update public.trail_notes set body = %L where trail_id = %L', 'anders', t));
@@ -752,17 +755,23 @@ begin
   end;
   perform tb_test.as_owner();
   perform tb_test.check(ok, 'Hinweise lassen sich nicht bearbeiten (42501)');
-  perform tb_test.exec_as(ub, format('delete from public.trail_notes where trail_id = %L', t));
-  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 1,
-                        'Bernd kann Annas Hinweis nicht löschen');
 
-  -- Privat nimmt den Hinweis mit aus Bernds Sicht.
+  -- Privat nimmt Annas Hinweis aus Bernds Sicht (und den Trail gleich mit).
   perform tb_test.exec_as(ua, format('update public.trail_details set visibility = %L where trail_id = %L and user_id = %L', 'private', t, ua));
-  perform tb_test.check(tb_test.count_as(ub, format('select count(*) from public.trail_notes where trail_id = %L', t)) = 0,
-                        'privat: Bernd sieht den Hinweis nicht mehr');
+  perform tb_test.check(tb_test.count_as(ub, format(cnt || ' and user_id = %L', t, ua)) = 0,
+                        'privat: Bernd sieht Annas Hinweis nicht mehr');
+  perform tb_test.check(tb_test.count_as(ub, format(cnt || ' and user_id = %L', t, ub)) = 1,
+                        'seinen eigenen sieht Bernd weiter');
   perform tb_test.exec_as(ua, format('update public.trail_details set visibility = %L where trail_id = %L and user_id = %L', 'buddies', t, ua));
 
-  -- anon: kein Grant.
+  -- Entfernen: Carla (sieht nichts) filtert still, Bernd darf Annas „erledigt" machen.
+  perform tb_test.exec_as(uc, format('delete from public.trail_notes where trail_id = %L', t));
+  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 2,
+                        'Carla kann nichts entfernen');
+  perform tb_test.exec_as(ub, format('delete from public.trail_notes where trail_id = %L and user_id = %L', t, ua));
+  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t and user_id = ua) = 0,
+                        'Bernd entfernt Annas Hinweis (erledigt)');
+
   ok := false;
   begin
     perform set_config('request.jwt.claims', '', true);
@@ -774,16 +783,19 @@ begin
   execute 'reset role';
   perform tb_test.check(ok, 'anon hat keinen Grant auf trail_notes');
 
-  -- Eigenen löschen geht; der Beitrag nimmt die übrigen mit.
-  select id into note from public.trail_notes where trail_id = t and user_id = ua;
-  perform tb_test.exec_as(ua, format('delete from public.trail_notes where id = %L', note));
-  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 0,
-                        'Anna löscht ihren Hinweis');
-  perform tb_test.exec_as(ua, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
-                                     t, ua, 'Neuer Drop am Ende'));
-  perform tb_test.exec_as(ua, format('delete from public.trail_details where trail_id = %L and user_id = %L', t, ua));
-  perform tb_test.check((select count(*) from public.trail_notes where trail_id = t) = 0,
-                        'Beitrag gelöscht: seine Hinweise sind mit weg');
+  -- Aufbewahrung: nach 90 Tagen weg, der jüngste je Autor und Trail bleibt.
+  delete from public.trail_notes where trail_id = t;
+  insert into public.trail_notes (trail_id, user_id, body, created_at) values
+    (t, ua, 'a-alt-1', now() - interval '120 days'),
+    (t, ua, 'a-alt-2', now() - interval '100 days'),
+    (t, ua, 'a-neu', now() - interval '1 day'),
+    (t, ub, 'b-alt-1', now() - interval '200 days'),
+    (t, ub, 'b-alt-2', now() - interval '150 days');
+  perform tb_test.check(app_internal.sweep_old_notes() = 3, 'drei alte Hinweise aufgeräumt');
+  perform tb_test.check((select array_agg(body order by body) from public.trail_notes where trail_id = t)
+                        = array['a-neu', 'b-alt-2'],
+                        'es bleiben Annas neuer und Bernds jüngster, obwohl alt');
+  perform tb_test.check(app_internal.sweep_old_notes() = 0, 'zweiter Lauf räumt nichts mehr');
 end $$;
 
 \echo -- Alle Prüfungen bestanden.

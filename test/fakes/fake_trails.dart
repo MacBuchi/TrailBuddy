@@ -6,8 +6,9 @@ import 'package:trailbuddy/features/trails/trail_providers.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 /// Spiegelt die RLS der Trail-Tabellen (Konzept 3): sichtbar ist ein
-/// Beleg — und ein Hinweis (Patch 004) —, wenn er mir gehört oder einem
-/// Buddy, dessen Beitrag zu diesem Trail nicht `private` ist. Den Abgleich ersetzt eine Vorgabe
+/// Beleg, wenn er mir gehört oder einem Buddy, dessen Beitrag zu diesem
+/// Trail nicht `private` ist; ein Hinweis (Patch 005) zusätzlich nur,
+/// wenn ich den Trail sehe. Den Abgleich ersetzt eine Vorgabe
 /// ([matcher]) — die Geometrie prüft `tool/matcher_check.sql` gegen die
 /// echte Datenbank, hier geht es um die App drumherum.
 class FakeTrailRepository implements TrailRepository {
@@ -201,13 +202,20 @@ class FakeTrailRepository implements TrailRepository {
 
   final notes = <TrailNote>[];
 
-  /// Spiegelt `notes_select`: dieselbe Regel wie für Aufzeichnungen.
+  /// Spiegelt `app_internal.can_see_trail`.
+  bool _canSeeTrail(String trailId) =>
+      recordings.any((r) => r.trailId == trailId && _visible(r.userId, trailId));
+
+  /// Spiegelt `notes_select` (und `notes_delete`).
+  bool _noteVisible(TrailNote n) =>
+      n.userId == myId() || (_visible(n.userId, n.trailId) && _canSeeTrail(n.trailId));
+
   @override
   Future<List<TrailNote>> fetchNotes() async {
     if (failFetch != null) throw failFetch!;
     return [
       for (final n in notes)
-        if (_visible(n.userId, n.trailId))
+        if (_noteVisible(n))
           TrailNote(
             id: n.id,
             trailId: n.trailId,
@@ -219,13 +227,13 @@ class FakeTrailRepository implements TrailRepository {
     ];
   }
 
-  /// Spiegelt `notes_insert_own` und den Check der Tabelle: nur mit
-  /// eigener Aufzeichnung des Trails, 1–500 Zeichen.
+  /// Spiegelt `notes_insert` und den Check der Tabelle: nur, wer den
+  /// Trail sieht, 1–500 Zeichen.
   @override
   Future<void> addNote({required String trailId, required String body}) async {
     final me = myId();
-    if (!recordings.any((r) => r.trailId == trailId && r.userId == me)) {
-      throw StateError('42501: ohne eigenen Beleg kein Hinweis');
+    if (!_canSeeTrail(trailId)) {
+      throw StateError('42501: Trail nicht sichtbar');
     }
     final len = body.trim().length;
     if (len < 1 || len > 500) throw StateError('23514: Länge $len');
@@ -238,11 +246,11 @@ class FakeTrailRepository implements TrailRepository {
     ));
   }
 
-  /// Spiegelt `notes_delete_own`: Fremdes filtert still.
+  /// Spiegelt `notes_delete`: entfernen darf, wer den Hinweis sieht;
+  /// alles andere filtert still.
   @override
   Future<void> deleteNote(String id) async {
-    final me = myId();
-    notes.removeWhere((n) => n.id == id && n.userId == me);
+    notes.removeWhere((n) => n.id == id && _noteVisible(n));
   }
 
   /// Ein Hinweis von [userId], ohne Prüfung — für Ausgangslagen in Tests.

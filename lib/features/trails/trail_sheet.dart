@@ -55,20 +55,47 @@ String formatMeanGrade(double descentPct) {
   return descentPct > 0 ? 'Ø $v % Gefälle' : 'Ø $v % Steigung';
 }
 
-class _TrailSheet extends ConsumerWidget {
+class _TrailSheet extends ConsumerStatefulWidget {
   const _TrailSheet({required this.trailId, required this.showOnMapButton});
   final String trailId;
   final bool showOnMapButton;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final trail = ref.watch(trailByIdProvider(trailId));
+  ConsumerState<_TrailSheet> createState() => _TrailSheetState();
+}
+
+class _TrailSheetState extends ConsumerState<_TrailSheet> {
+  /// Was vor dem Öffnen schon gesehen war — damit das Neue im Blatt
+  /// getönt bleibt, obwohl es beim Öffnen als gesehen gemerkt wird.
+  late final Set<String> _seenBefore = ref.read(seenNotesProvider);
+
+  /// Wer das Blatt sieht, hat die Hinweise gesehen (#7): Karte und Liste
+  /// heben den Trail danach nicht mehr hervor.
+  void _markSeen(Trail trail) {
+    final seen = ref.read(seenNotesProvider);
+    if (trail.notes.every((n) => seen.contains(n.id))) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final known = {
+        for (final t in ref.read(trailsProvider).valueOrNull ?? const <Trail>[])
+          for (final n in t.notes) n.id,
+      };
+      ref
+          .read(seenNotesProvider.notifier)
+          .markSeen(trail.notes.map((n) => n.id), known: known);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trail = ref.watch(trailByIdProvider(widget.trailId));
     if (trail == null) {
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Text('Dieser Trail ist nicht mehr sichtbar.'),
       );
     }
+    _markSeen(trail);
     final theme = Theme.of(context);
     final status = trail.latestStatus;
     final mine = trail.myDetails;
@@ -149,7 +176,7 @@ class _TrailSheet extends ConsumerWidget {
                 child: Text(mine.description!),
               ),
             const SizedBox(height: 12),
-            TrailNotesSection(trail: trail),
+            TrailNotesSection(trail: trail, seenBefore: _seenBefore),
             if (trail.isOwn) ...[
               const SizedBox(height: 12),
               OwnGradePicker(trail: trail),
@@ -164,7 +191,7 @@ class _TrailSheet extends ConsumerWidget {
                     label: const Text('Mein Beitrag'),
                   ),
                 const Spacer(),
-                if (showOnMapButton)
+                if (widget.showOnMapButton)
                   TextButton.icon(
                     onPressed: () {
                       // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
