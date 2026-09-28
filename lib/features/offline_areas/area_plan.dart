@@ -1,12 +1,22 @@
-// Die Planung eines Bereichs (Konzept 3.2), pur: welche Kacheln ein
-// Rahmen von Zoom [kAreaMinZoom] bis zum Zoom des Archivs berührt, und
+// Die Planung eines Bereichs (Konzept 3.2), pur: welche Kacheln eine
+// FORM von Zoom [kAreaMinZoom] bis zum Zoom des Archivs berührt, und
 // welche Kachel-Ids das im Archiv sind. Die Größe kommt später aus dem
 // Verzeichnis des Archivs (jede Kachel nennt dort ihre Bytes) — hier
 // wird nur GEZÄHLT, nicht geschätzt.
+//
+// Zwei Formen ([AreaShape]): ein Rahmen ([RectShape], der Ausschnitt)
+// und eine Kachelmenge ([TileSetShape], seit 0.24.0 die Form von „Um
+// meine Trails"). Bis 0.23.0 war auch „Um meine Trails" ein Rahmen —
+// EIN Rechteck um alle Trails plus Rand, und bei verstreuten Trails
+// bestand das vor allem aus Land dazwischen: 40 779 Kacheln beim
+// Betreiber, die Obergrenze sind 40 000. Ein Archiv braucht kein
+// Rechteck; sein Rahmen im Header ist nur die Hülle.
 import 'dart:math' as math;
 
 import 'package:latlong2/latlong.dart';
 import 'package:pmtiles/pmtiles.dart' show ZXY;
+
+import '../map/poi.dart' show PoiCell, poiCellsCovering;
 
 /// Unter Zoom 8 liegt die mitgelieferte Übersicht (Zoom 0–7), die hat
 /// jedes Gerät. Ein Bereich beginnt darüber.
@@ -18,9 +28,20 @@ const kAreaMinZoom = 8;
 /// Verzeichnis) würde spürbar. Wer mehr will, speichert zwei Bereiche.
 const kAreaMaxTiles = 40000;
 
-/// Der Rand um „meine Trails" (Konzept 3.2: „ein Rahmen um die eigenen
-/// Trails mit Rand").
+/// Der Rand um einen Rahmen aus Punkten ([AreaBounds.around]); bis
+/// 0.23.0 der Rand von „Um meine Trails".
 const kAreaTrailsMarginKm = 2.0;
+
+/// Der Korridor entlang der Trails (seit 0.24.0): Eine Kachel gehört
+/// dazu, wenn ein Trail ihr näher als so viele Kilometer kommt
+/// (Betreiber, 2026-09-28: 1 km statt der 2 km des Rechtecks — gezählt
+/// wird ohnehin je Kachel, und die ist bei Zoom 13 rund 3 km breit).
+const kAreaTrailsCorridorKm = 1.0;
+
+/// Der Zoom, in dem eine [TileSetShape] ihre Kacheln merkt — fest, damit
+/// die Form nicht vom Zoom des Hosts abhängt: Ein höherer Zoom des
+/// Archivs sind die Kinder dieser Kacheln, ein niedrigerer die Eltern.
+const kAreaShapeZoom = 13;
 
 /// Ein Rahmen in Grad, Süden/Westen/Norden/Osten.
 class AreaBounds {
@@ -125,6 +146,184 @@ int countTilesCovering(AreaBounds bounds, {int minZoom = kAreaMinZoom, required 
 }
 
 int tileIdOf(TileXYZ t) => ZXY(t.z, t.x, t.y).toTileId();
+
+/// Der Rahmen einer Kachel (Umkehrung von [tileAt]).
+AreaBounds tileBounds(int z, int x, int y) {
+  final n = 1 << z;
+  double lat(int row) =>
+      math.atan(_sinh(math.pi * (1 - 2 * row / n))) * 180 / math.pi;
+  return AreaBounds(
+    south: lat(y + 1),
+    west: x / n * 360 - 180,
+    north: lat(y),
+    east: (x + 1) / n * 360 - 180,
+  );
+}
+
+double _sinh(double v) => (math.exp(v) - math.exp(-v)) / 2;
+
+/// Die Form eines Bereichs: Rahmen oder Kachelmenge. Beide sagen, welche
+/// Kacheln je Zoom dazugehören, welche Orte-Zellen, und was ihre Hülle
+/// ist (der Rahmen im Archiv-Header, „auf der Karte zeigen").
+sealed class AreaShape {
+  const AreaShape();
+
+  AreaBounds get hull;
+
+  List<TileXYZ> tiles({int minZoom = kAreaMinZoom, required int maxZoom});
+
+  /// Wie viele Kacheln [tiles] liefern würde — für die Obergrenze, bevor
+  /// jemand 40 000 Einträge anlegt.
+  int countTiles({int minZoom = kAreaMinZoom, required int maxZoom});
+
+  /// Die Orte-Zellen, die zum Bereich gehören.
+  List<PoiCell> poiCells();
+
+  Map<String, dynamic> toJson();
+
+  static AreaShape fromJson(Map<String, dynamic> j) => switch (j['type']) {
+        'tiles' => TileSetShape(
+            zoom: j['zoom'] as int,
+            keys: {for (final k in j['keys'] as List) k as int},
+          ),
+        _ => RectShape(AreaBounds.fromJson(j['bounds'] as Map<String, dynamic>)),
+      };
+
+  /// Die Kacheln entlang der Linien, [corridorKm] beiderseits — leer
+  /// (null), wenn es keine Punkte gibt.
+  ///
+  /// Abgetastet je halben Korridor: Um jede Probe kommt das Quadrat mit
+  /// dem Korridor als halber Seite dazu (ein Quadrat statt eines Kreises
+  /// — an den Ecken eine Kachel zu viel ist die harmlose Richtung).
+  static TileSetShape? alongLines(Iterable<List<LatLng>> lines,
+      {double corridorKm = kAreaTrailsCorridorKm, int zoom = kAreaShapeZoom}) {
+    final keys = <int>{};
+    final dLat = corridorKm / 111.0;
+    final stepM = corridorKm * 1000 / 2;
+    void sample(LatLng p) {
+      final dLon = corridorKm / (111.0 * math.max(0.2, math.cos(p.latitude * math.pi / 180)));
+      final nw = tileAt(p.latitude + dLat, p.longitude - dLon, zoom);
+      final se = tileAt(p.latitude - dLat, p.longitude + dLon, zoom);
+      for (var x = nw.x; x <= se.x; x++) {
+        for (var y = nw.y; y <= se.y; y++) {
+          keys.add(TileSetShape.keyOf(x, y, zoom));
+        }
+      }
+    }
+
+    for (final line in lines) {
+      if (line.isEmpty) continue;
+      sample(line.first);
+      for (var i = 1; i < line.length; i++) {
+        final a = line[i - 1], b = line[i];
+        final dy = (b.latitude - a.latitude) * 111320.0;
+        final dx = (b.longitude - a.longitude) * 111320.0 * math.cos(a.latitude * math.pi / 180);
+        final steps = (math.sqrt(dx * dx + dy * dy) / stepM).ceil().clamp(1, 1 << 20);
+        for (var k = 1; k <= steps; k++) {
+          final f = k / steps;
+          sample(LatLng(a.latitude + (b.latitude - a.latitude) * f,
+              a.longitude + (b.longitude - a.longitude) * f));
+        }
+      }
+    }
+    return keys.isEmpty ? null : TileSetShape(zoom: zoom, keys: keys);
+  }
+}
+
+/// Ein Rahmen — der aktuelle Ausschnitt.
+class RectShape extends AreaShape {
+  const RectShape(this.bounds);
+
+  final AreaBounds bounds;
+
+  @override
+  AreaBounds get hull => bounds;
+
+  @override
+  List<TileXYZ> tiles({int minZoom = kAreaMinZoom, required int maxZoom}) =>
+      tilesCovering(bounds, minZoom: minZoom, maxZoom: maxZoom);
+
+  @override
+  int countTiles({int minZoom = kAreaMinZoom, required int maxZoom}) =>
+      countTilesCovering(bounds, minZoom: minZoom, maxZoom: maxZoom);
+
+  @override
+  List<PoiCell> poiCells() => poiCellsCovering(bounds.south, bounds.west, bounds.north, bounds.east);
+
+  @override
+  Map<String, dynamic> toJson() => {'type': 'rect', 'bounds': bounds.toJson()};
+}
+
+/// Eine Menge Kacheln bei [zoom] (Schlüssel aus [keyOf]) — die Form
+/// entlang der Trails. Andere Zooms folgen daraus: Eltern darunter,
+/// Kinder darüber.
+class TileSetShape extends AreaShape {
+  const TileSetShape({required this.zoom, required this.keys});
+
+  final int zoom;
+  final Set<int> keys;
+
+  static int keyOf(int x, int y, int zoom) => (x << zoom) | y;
+
+  ({int x, int y}) _xy(int key) => (x: key >> zoom, y: key & ((1 << zoom) - 1));
+
+  /// Die Kacheln bei Zoom [z] — als Menge, weil Eltern mehrfach kommen.
+  Set<int> _keysAt(int z) {
+    if (z == zoom) return keys;
+    if (z < zoom) {
+      final d = zoom - z;
+      return {for (final k in keys) TileSetShape.keyOf(_xy(k).x >> d, _xy(k).y >> d, z)};
+    }
+    final d = z - zoom;
+    return {
+      for (final k in keys)
+        for (var dx = 0; dx < (1 << d); dx++)
+          for (var dy = 0; dy < (1 << d); dy++)
+            TileSetShape.keyOf((_xy(k).x << d) + dx, (_xy(k).y << d) + dy, z),
+    };
+  }
+
+  @override
+  List<TileXYZ> tiles({int minZoom = kAreaMinZoom, required int maxZoom}) => [
+        for (var z = minZoom; z <= maxZoom; z++)
+          for (final k in _keysAt(z)) (z: z, x: k >> z, y: k & ((1 << z) - 1)),
+      ];
+
+  @override
+  int countTiles({int minZoom = kAreaMinZoom, required int maxZoom}) {
+    var count = 0;
+    for (var z = minZoom; z <= maxZoom; z++) {
+      count += z > zoom ? keys.length << (2 * (z - zoom)) : _keysAt(z).length;
+    }
+    return count;
+  }
+
+  @override
+  AreaBounds get hull {
+    var s = 90.0, w = 180.0, n = -90.0, e = -180.0;
+    for (final k in keys) {
+      final b = tileBounds(zoom, _xy(k).x, _xy(k).y);
+      s = math.min(s, b.south);
+      n = math.max(n, b.north);
+      w = math.min(w, b.west);
+      e = math.max(e, b.east);
+    }
+    return AreaBounds(south: s, west: w, north: n, east: e);
+  }
+
+  @override
+  List<PoiCell> poiCells() {
+    final cells = <PoiCell>{};
+    for (final k in keys) {
+      final b = tileBounds(zoom, _xy(k).x, _xy(k).y);
+      cells.addAll(poiCellsCovering(b.south, b.west, b.north, b.east));
+    }
+    return cells.toList()..sort();
+  }
+
+  @override
+  Map<String, dynamic> toJson() => {'type': 'tiles', 'zoom': zoom, 'keys': keys.toList()..sort()};
+}
 
 /// Lesbare Größe, wie sie das Blatt und die Liste zeigen.
 String formatBytes(int bytes) {

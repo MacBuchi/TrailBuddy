@@ -51,9 +51,12 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
 
 ### 3.2 Bereiche
 
-- **Wahl**: der aktuelle Ausschnitt, oder ein Rahmen um die eigenen
-  Trails mit Rand. Die App zählt die Kacheln von Zoom 8 bis 14 auf, die
-  den Rahmen berühren.
+- **Wahl**: der aktuelle Ausschnitt, oder die Kacheln entlang der
+  eigenen Trails (seit 0.24.0: 1 km beiderseits, keine Kachel für das
+  Land dazwischen — das Rechteck um alle Trails lief beim Betreiber
+  auf 40 779 Kacheln, die Obergrenze sind 40 000). Die App zählt die
+  Kacheln von Zoom 8 bis zum Zoom des Hosts auf, die die Form berühren;
+  ein Archiv braucht kein Rechteck, sein Rahmen im Header ist die Hülle.
 - **Größe vorher, exakt**: Das PMTiles-Verzeichnis nennt die Bytezahl
   jeder Kachel. „Diesen Bereich speichern — 12,4 MB" ist eine Messung,
   keine Schätzung. Faustzahl aus den PilzBuddy-Werten: 5,54 GB auf

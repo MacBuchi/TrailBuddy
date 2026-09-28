@@ -1,7 +1,9 @@
-// „Bereich speichern" (Konzept 3.2): der aktuelle Ausschnitt oder ein
-// Rahmen um die eigenen Trails mit Rand; die Größe steht VOR dem
-// Speichern da, exakt aus dem Verzeichnis des Archivs; dann Fortschritt
-// und Abbruch. Ohne Empfang gibt es keinen Bereich — das Blatt sagt es.
+// „Bereich speichern" (Konzept 3.2): der aktuelle Ausschnitt oder die
+// Kacheln entlang der eigenen Trails (seit 0.24.0 kein Rechteck mehr um
+// alles — bei verstreuten Trails war das vor allem Land dazwischen); die
+// Größe steht VOR dem Speichern da, exakt aus dem Verzeichnis des
+// Archivs; dann Fortschritt und Abbruch. Ohne Empfang gibt es keinen
+// Bereich — das Blatt sagt es.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -17,7 +19,7 @@ enum _Choice { viewport, trails }
 Future<void> showSaveAreaSheet(
   BuildContext context, {
   required AreaBounds? viewport,
-  required AreaBounds? aroundTrails,
+  required AreaShape? aroundTrails,
 }) =>
     showModalBottomSheet<void>(
       context: context,
@@ -30,7 +32,7 @@ class _SaveAreaSheet extends ConsumerStatefulWidget {
   const _SaveAreaSheet({required this.viewport, required this.aroundTrails});
 
   final AreaBounds? viewport;
-  final AreaBounds? aroundTrails;
+  final AreaShape? aroundTrails;
 
   @override
   ConsumerState<_SaveAreaSheet> createState() => _SaveAreaSheetState();
@@ -45,8 +47,8 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
   String? _planError;
   bool _planning = false;
 
-  AreaBounds? get _bounds => switch (_choice) {
-        _Choice.viewport => widget.viewport,
+  AreaShape? get _shape => switch (_choice) {
+        _Choice.viewport => widget.viewport == null ? null : RectShape(widget.viewport!),
         _Choice.trails => widget.aroundTrails,
       };
 
@@ -70,15 +72,15 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
   }
 
   Future<void> _measure() async {
-    final bounds = _bounds;
-    if (bounds == null) return;
+    final shape = _shape;
+    if (shape == null) return;
     setState(() {
       _planning = true;
       _plan = null;
       _planError = null;
     });
     try {
-      final plan = await ref.read(areaDownloadProvider.notifier).plan(bounds);
+      final plan = await ref.read(areaDownloadProvider.notifier).plan(shape);
       if (!mounted) return;
       setState(() => _plan = plan);
     } on AreaTooLarge catch (e) {
@@ -108,8 +110,10 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
     final download = ref.watch(areaDownloadProvider);
     final manifest = ref.watch(mapManifestProvider).valueOrNull;
     final plan = _plan;
+    // Scrollbar, weil das Blatt auf einem kurzen Schirm (oder mit
+    // Tastatur) sonst unten überläuft — im Test bei 600 px gesehen.
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -174,10 +178,11 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
                     value: _Choice.trails,
                     enabled: widget.aroundTrails != null,
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Um meine Trails'),
+                    title: const Text('Entlang meiner Trails'),
                     subtitle: Text(widget.aroundTrails == null
                         ? 'Noch keine Trails auf der Karte'
-                        : 'Mit ${kAreaTrailsMarginKm.round()} km Rand'),
+                        : 'Nur die Kacheln, denen ein Trail näher als '
+                            '${kAreaTrailsCorridorKm.round()} km kommt'),
                   ),
                 ]),
               ),

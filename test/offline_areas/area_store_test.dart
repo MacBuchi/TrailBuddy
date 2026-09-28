@@ -41,6 +41,14 @@ void main() {
     expect(back.poiBuild, isNull);
   });
 
+  test('ein Index-Eintrag ohne Form (vor 0.24.0) lädt mit dem Rahmen als Form', () {
+    final json = _area('alt').toJson()..remove('shape');
+    final back = StoredArea.fromJson(json);
+    expect(back.shape, isA<RectShape>());
+    expect((back.shape as RectShape).bounds.north, back.bounds.north);
+    expect(back.toJson()['shape'], isNotNull, reason: 'beim nächsten Schreiben trägt er sie');
+  });
+
   Future<void> exercise(AreaStore store, {required bool hasPath}) async {
     expect(await store.list(), isEmpty);
     final bytes = Uint8List.fromList(List.generate(300, (i) => i % 251));

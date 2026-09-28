@@ -98,14 +98,14 @@ class _AreaTile extends ConsumerWidget {
     await ref.read(storedAreasProvider.notifier).delete(area.id);
   }
 
-  /// Denselben Rahmen mit dem neuen Kartenstand noch einmal holen — unter
+  /// Dieselbe Form mit dem neuen Kartenstand noch einmal holen — unter
   /// derselben Id, der alte Bereich wird ersetzt. Angeboten, nicht
   /// aufgezwungen; ob das Netz frei ist, entscheidet, wer tippt.
   Future<void> _update(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
     final notifier = ref.read(areaDownloadProvider.notifier);
     try {
-      final plan = await notifier.plan(area.bounds);
+      final plan = await notifier.plan(area.shape);
       await notifier.start(plan, name: area.name, id: area.id);
     } on AreaTooLarge {
       messenger.showSnackBar(const SnackBar(content: Text('Der Bereich ist für den neuen Stand zu groß.')));

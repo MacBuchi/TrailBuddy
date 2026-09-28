@@ -23,12 +23,18 @@ import 'pmtiles_writer.dart';
 /// Der Plan: was geholt würde, und wie viel das ist.
 class AreaPlan {
   const AreaPlan({
+    required this.shape,
     required this.bounds,
     required this.maxZoom,
     required this.tiles,
     required this.bytes,
   });
 
+  /// Die Form, die geplant wurde — wird mit dem Bereich gemerkt, damit
+  /// „Aktualisieren" dieselbe Form noch einmal holt.
+  final AreaShape shape;
+
+  /// Die Hülle der Form: der Rahmen im Archiv-Header.
   final AreaBounds bounds;
   final int maxZoom;
 
@@ -95,11 +101,11 @@ class AreaDownloader {
 
   final DateTime Function()? now;
 
-  Future<AreaPlan> plan(AreaBounds bounds) async {
+  Future<AreaPlan> plan(AreaShape shape) async {
     final maxZoom = manifest.maxZoom;
-    final count = countTilesCovering(bounds, maxZoom: maxZoom);
+    final count = shape.countTiles(maxZoom: maxZoom);
     if (count > kAreaMaxTiles) throw AreaTooLarge(count);
-    final wanted = tilesCovering(bounds, maxZoom: maxZoom);
+    final wanted = shape.tiles(maxZoom: maxZoom);
     final present = <TileXYZ>[];
     var bytes = 0;
     for (final t in wanted) {
@@ -108,7 +114,7 @@ class AreaDownloader {
       present.add(t);
       bytes += entry.length;
     }
-    return AreaPlan(bounds: bounds, maxZoom: maxZoom, tiles: present, bytes: bytes);
+    return AreaPlan(shape: shape, bounds: shape.hull, maxZoom: maxZoom, tiles: present, bytes: bytes);
   }
 
   /// Holt und speichert den Bereich; wirft [AreaCancelled], sobald
@@ -142,13 +148,14 @@ class AreaDownloader {
 
     // Die Orte der berührten Zellen, alle Gruppen — was das Manifest
     // nennt. Alle Gruppen, damit der Filter offline umschaltbar bleibt;
-    // die Dateien sind klein.
+    // die Dateien sind klein. Die Zellen kommen aus der FORM, nicht aus
+    // der Hülle: Entlang der Trails sind das die Zellen der Kacheln, nicht
+    // alles dazwischen.
     final poiFiles = <String, String>{};
     final pm = poiManifest;
     if (pm != null) {
-      final b = plan.bounds;
       final wanted = [
-        for (final cell in poiCellsCovering(b.south, b.west, b.north, b.east))
+        for (final cell in plan.shape.poiCells())
           for (final g in PoiGroup.values)
             if (pm.has(cell, g)) poiCellFileName(cell, g),
       ];
@@ -184,6 +191,7 @@ class AreaDownloader {
     final area = StoredArea(
       id: areaId,
       name: name,
+      shape: plan.shape,
       bounds: plan.bounds,
       minZoom: kAreaMinZoom,
       maxZoom: plan.maxZoom,

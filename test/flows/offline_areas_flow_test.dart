@@ -107,7 +107,8 @@ void main() {
     expect(saved.maxZoom, 10);
     expect(saved.build, '20260928');
     expect(saved.tiles, greaterThan(0));
-    // Der Rahmen um die Trails, mit Rand.
+    // Die Kacheln entlang des Trails (0.24.0), die Hülle umschließt ihn.
+    expect(saved.shape, isA<TileSetShape>());
     expect(saved.bounds.south, lessThan(48.0));
     expect(saved.bounds.north, greaterThan(48.009));
     // Das Archiv liest der Leser beider Engines.
