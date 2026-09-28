@@ -280,6 +280,16 @@ jobs:
           headers=$(curl -sSL -D - -o /dev/null -r 0-15 --max-time 60 \
                       -H "Origin: https://macbuchi.github.io" "$url" | tr -d '\r' | tr 'A-Z' 'a-z')
           echo "$headers"
+          # A Cloudflare bot challenge is a ZONE setting (Bot Fight Mode,
+          # Security Level, a WAF rule), not a bucket or CORS problem — and
+          # the app's clients cannot solve a challenge any more than curl
+          # can. Name it, with the Ray ID that Security → Events resolves
+          # to the rule that fired (first publish run, 2026-09-28).
+          if echo "$headers" | grep -q '^cf-mitigated: challenge'; then
+            ray=$(echo "$headers" | sed -n 's/^cf-ray: *//p')
+            echo "::error::$url: Cloudflare challenged the request (cf-ray $ray). A bot-protection setting on the zone blocks non-browser clients — look the Ray ID up under Security → Events and exempt this hostname (or switch the rule off); the bucket and the upload are fine."
+            exit 1
+          fi
           echo "$headers" | grep -q '^http/[0-9.]* 206' || { echo "::error::$url: no 206 on a Range request — the app cannot read this host"; exit 1; }
           echo "$headers" | grep -q '^accept-ranges: bytes' || { echo "::error::$url: no accept-ranges: bytes"; exit 1; }
           echo "$headers" | grep -q '^access-control-allow-origin:' || { echo "::error::$url: no access-control-allow-origin — set the bucket's CORS rule (GET/HEAD, range headers exposed)"; exit 1; }
