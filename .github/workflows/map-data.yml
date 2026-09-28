@@ -235,9 +235,12 @@ jobs:
         # the build); the manifest last and short-cached — it is the
         # pointer that flips. Older archives beyond the previous one are
         # removed afterwards: sessions in flight keep the previous file.
+        # `.eu.` in the endpoint: the bucket was created with EU
+        # jurisdiction (operator, 2026-09-28), and such a bucket exists only
+        # behind the EU endpoint — the plain one answers "no such bucket".
         run: |
           set -euo pipefail
-          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          endpoint="https://${R2_ACCOUNT_ID}.eu.r2.cloudflarestorage.com"
           aws --endpoint-url "$endpoint" s3 cp "build/maps/$file" \
             "s3://${R2_BUCKET}/${R2_PREFIX}/$file" \
             --content-type application/octet-stream \

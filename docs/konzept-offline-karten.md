@@ -180,8 +180,15 @@ selben PR, wo sich ein Netzziel oder eine Datenkategorie ändert.
 eigenen Domain `tiles.mcbuchi.de`; **Zoomziel 13** (Forstwege ab z12,
 Pfade, Steige, Fußwege ab z13 in den Kacheln — PilzBuddy-Messung; der
 erzeugte Stil zeichnet ab z14 nur noch kleine Bäche; 2,9 statt 5,5 GB;
-der Schnitt lässt sich in CI jederzeit auf 14 wiederholen). Offen bleibt
-das iPhone im Browser. Die drei Ausgänge unten bleiben als Begründung
+der Schnitt lässt sich in CI jederzeit auf 14 wiederholen). Gemessen am
+2026-09-28 an einer Zoom-13-Kachel des Protomaps-Tagesbaus im Gebiet der
+Isartrails: `roads` trägt `path` mit `kind_detail` track, footway, path
+und bridleway, dazu `pois` mit peak, protected_area, water und
+`water` mit stream — die Wege sind bei 13 vollständig da; ob 14 mehr
+Orte-Arten trägt, ist damit nicht entschieden (die 14er-Kachel deckt nur
+ein Viertel der Fläche) und bleibt die Messung aus 3.4. Der Bucket hat
+EU-Jurisdiktion (Standort WEUR); sein S3-Endpunkt trägt deshalb `.eu.`
+Offen bleibt das iPhone im Browser. Die drei Ausgänge unten bleiben als Begründung
 stehen.
 
 1. **Der Host.** Drei Ausgänge, wie in PilzBuddy #496 beschrieben:

@@ -273,6 +273,8 @@ void main() {
     expect(mapData, contains("steps.r2.outputs.present == 'true'"));
     // Das Manifest ist der Zeiger, die Archive tragen das Datum.
     expect(mapData, contains('dach-\${SOURCE_BUILD}.pmtiles'));
+    // EU-Jurisdiktion: der Bucket liegt nur hinter dem EU-Endpunkt.
+    expect(mapData, contains('.eu.r2.cloudflarestorage.com'));
     expect(mapData, contains('max-age=300'));
   });
 

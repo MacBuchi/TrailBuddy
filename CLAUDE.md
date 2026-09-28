@@ -407,7 +407,10 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `test/privacy_policy_test.dart` die Erklärung. R2-Zugang: die drei
     Secrets `R2_*` (API-Token, Object Read & Write auf den Bucket);
     fehlen sie, sagt es die Run-Summary. Bucket `buddy-tiles` mit
-    Präfix je App — PilzBuddy kann später denselben Host nutzen.
+    Präfix je App — PilzBuddy kann später denselben Host nutzen. **Der
+    Bucket hat EU-Jurisdiktion, und sein S3-Endpunkt heißt deshalb
+    `<account>.eu.r2.cloudflarestorage.com`** — ohne `.eu` findet der
+    Upload den Bucket nicht (Betreiber, 2026-09-28).
   - **Der Stil ist ERZEUGT, die Übersicht auch** (`assets/map_style/`,
     `assets/offline_maps/overview_dach.pmtiles`, Zoom 0–7, ~9 MB;
     Glyphs `assets/map_glyphs/`, SIL OFL). `tool/transform_map_style.py`
