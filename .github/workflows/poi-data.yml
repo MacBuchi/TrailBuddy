@@ -213,8 +213,13 @@ jobs:
                   continue
               cell = cells[len(cells) // 2]
               name = f"{cell.replace(',', '_')}.{group}.json"
+              # A User-Agent of our own: Cloudflare's Browser Integrity Check
+              # answers Python's default "Python-urllib/3.x" with 403 (second
+              # publish run, 2026-09-28) — a zone setting the app never
+              # meets, because Dart and the browser send their own agents.
               req = urllib.request.Request(f"{base}/{local['prefix']}/{name}",
-                                           headers={"Origin": "https://macbuchi.github.io"})
+                                           headers={"Origin": "https://macbuchi.github.io",
+                                                    "User-Agent": "TrailBuddy poi-data verify (github.com/MacBuchi/trailbuddy)"})
               with urllib.request.urlopen(req, timeout=60) as r:
                   body = r.read()
                   cors = r.headers.get("access-control-allow-origin")
