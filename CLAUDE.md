@@ -268,6 +268,48 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `FakeRideStore`, `FakeRideFix`, `FakeRideServiceBridge` und
   `FakeRideService` ein, sonst ginge jeder Kartentest über `restore()`
   an `path_provider`.
+- **Ausgangskorb** (#30, `lib/data/outbox*.dart` +
+  `lib/features/trails/outbox_providers.dart`, seit 0.14.0; PilzBuddy
+  #267 als Vorlage): Genau ZWEI Aufträge — Aufzeichnung beisteuern
+  (`ContributeJob`, die Linie so, wie sie an die RPC ging, plus Name) und
+  eigenen Beitrag speichern (`DetailsJob`, samt Status-Hinweis). Alles
+  andere (Höhen nachtragen, Hinweise allein, Löschen) scheitert weiter
+  sichtbar. Sechs Dinge, die man wissen muss:
+  - **Nur `looksOffline` führt in den Korb** (`_queueIfOffline`). Ein
+    Serverfehler muss sichtbar scheitern — sonst sammelte der Korb still
+    Aufträge, die nie durchgehen, und ein kaputtes Deployment bliebe
+    unbemerkt. Ein Flow-Test hält es fest.
+  - **Der Korb wirft beim Schreiben** (`.part` + `rename`, nichts
+    geschluckt): Er trägt das Original. Landet der Auftrag nicht auf der
+    Platte, meldet die App den ursprünglichen Netzfehler weiter.
+  - **Der Auftrag entsteht VOR dem ersten Sendeversuch**, mit der
+    `client_id` — so trägt schon der erste Versuch die Kennung, und ein
+    Abriss nach dem Insert legt beim Nachholen keine zweite Aufzeichnung
+    an (`contribute_recording` antwortet auf eine bekannte Kennung mit
+    der Trail-Kennung von damals).
+  - **Wartende Trails stehen auf Karte und Liste** (`withPendingJobs`,
+    `Trail.pending`): gestrichelt, Uhr statt Route, „Wartet auf
+    Übertragung" — sonst steuert man dieselbe Datei zweimal bei. Ohne
+    Server-Kennung gibt es dort keinen Beitrag, keinen Hinweis, keine
+    Einschätzung; das Blatt sagt es. Ein wartender Beitrag überlagert
+    die eigene Zeile (`Trail.pendingDetails`). Ein Korb-Wechsel lädt NICHT
+    neu vom Server (`_applyPending` legt den Korb auf den letzten
+    Stand) — der Auftrag entsteht ja gerade, weil es kein Netz gibt.
+  - **Die Wiedervorlage** (`OutboxRunner`, Riverpod-frei) schreibt den
+    Korb am Ende EINMAL neu. Kein Netz, keine Sitzung und das Tageslimit
+    brechen den Lauf ab, ohne den Zähler anzufassen; eine Ablehnung des
+    Servers (`PostgrestException`, `WriteRejectedException`) ist sofort
+    endgültig, alles andere nach fünf Anläufen. Abgelehnte bleiben
+    stehen, bis jemand entscheidet („Erneut versuchen" / „Aus dem
+    Ausgangskorb entfernen"). Angestoßen beim Kartenstart, bei der
+    Rückkehr der Verbindung (`noConnectivityProvider`,
+    `connectivity_plus`) und auf Tippen im Banner — NICHT am App-Resume.
+  - **Kein Korb im Web, ausdrücklich** (`NoOutbox`, `append` wirft): Dort
+    kommt der Netzfehler wie bisher. IndexedDB (PilzBuddy #386) ist ein
+    eigener Schritt. `outbox/` steht in beiden Backup-Ausschlüssen; beim
+    Abmelden bleibt der Korb liegen — er ist an das Konto gebunden
+    (`uid` im Kopf), ein fremdes sieht nichts. Der Harness hängt
+    `FakeOutbox` und einen `connectivityProvider` ohne Wechsel ein.
 - **Kein Netzziel ohne Datenschutzerklärung**: `test/privacy_policy_test.dart`
   prüft jeden Host in `lib/` und `web/` gegen seine Einordnung.
 - **Web**: `web/flutter_bootstrap.js` + `web/sw.js` sind PilzBuddys
@@ -310,8 +352,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `SUPABASE_SERVICE_ROLE_KEY`, sagt es die Run-Summary, der Job bleibt
     grün. Die Projekt-URL liest der Bot aus `supabase_config.dart`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
-  MapLibre-Engine für Android, Offline-Karten, Ausgangskorb, das
-  Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
+  MapLibre-Engine für Android, Offline-Karten, der Ausgangskorb im
+  Browser, das Zerlege-Blatt nach der Fahrt (#29), Nachrichten und Push, Fehlerbericht-Digest, Meldung zu einem
   einzelnen Trail,
   Beendigungsgründe (`MainActivity.kt` ist noch die Vorlage),
   Launcher-Icon (noch Flutter-Vorgabe), `docs/play-console.md`.

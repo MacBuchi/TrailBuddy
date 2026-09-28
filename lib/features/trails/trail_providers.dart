@@ -6,42 +6,87 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
 import '../../core/settings.dart';
+import '../../data/outbox.dart';
+import '../../data/outbox_runner.dart';
 import '../../data/providers.dart';
 import '../../data/trail_repository.dart';
 import '../../models/trail.dart';
 import 'elevation_backfill.dart';
 import 'gpx.dart';
+import 'outbox_providers.dart';
 import 'trail_geometry.dart';
 
 final trailRepositoryProvider = Provider<TrailRepository>(
     (ref) => SupabaseTrailRepository(ref.watch(supabaseClientProvider)));
 
+/// Was aus einem Schreibvorgang geworden ist (#30).
+enum WriteOutcome {
+  /// Auf dem Server, Liste frisch.
+  done,
+
+  /// Auf dem Server, aber das Neuladen scheiterte — die Liste ist alt
+  /// ([staleAfterWriteHint]).
+  doneStale,
+
+  /// Kein Netz: liegt im Ausgangskorb und geht, sobald wieder Verbindung
+  /// besteht.
+  queued,
+}
+
+/// Ergebnis von [TrailsNotifier.contribute]: die Trail-Kennung — bei
+/// [queued] die des Auftrags, unter der der wartende Trail auf der Karte
+/// steht.
+typedef ContributeResult = ({String trailId, bool queued});
+
 /// Alle Trails meines Netzes — eigene Belege plus die meiner Buddys, so
-/// wie die RLS sie liefert. Zwei Abfragen, gruppiert im Client.
+/// wie die RLS sie liefert, dazu die Aufträge aus dem Ausgangskorb
+/// (#30) als wartende Trails. Zwei Abfragen, gruppiert im Client.
 class TrailsNotifier extends AsyncNotifier<List<Trail>>
     with ReadAfterWrite<List<Trail>> {
+  /// Der letzte erfolgreiche Stand vom Server — die Grundlage, auf die
+  /// der Korb gelegt wird, ohne dafür neu zu laden.
+  List<Trail> _server = const [];
+
   @override
   Future<List<Trail>> build() async {
     final myId = ref.watch(currentUserIdProvider);
     if (myId == null) return const [];
+    // Ändert sich der Korb, wird NICHT neu vom Server geladen — ein
+    // Auftrag entsteht ja gerade, weil es kein Netz gibt. Der Korb wird
+    // auf den letzten bekannten Stand gelegt.
+    ref.listen(outboxJobsProvider, (_, next) {
+      final jobs = next.valueOrNull;
+      if (jobs != null) _applyPending(jobs, myId);
+    });
     final repo = ref.watch(trailRepositoryProvider);
     final results = await Future.wait(
         [repo.fetchRecordings(), repo.fetchDetails(), repo.fetchNotes()]);
-    return buildTrails(
+    _server = buildTrails(
       recordings: results[0] as List<TrailRecording>,
       details: results[1] as List<TrailDetails>,
       notes: results[2] as List<TrailNote>,
       myId: myId,
     );
+    final cached = ref.read(outboxJobsProvider).valueOrNull;
+    final List<OutboxJob> jobs = cached ?? await ref.read(outboxJobsProvider.future);
+    return withPendingJobs(_server, jobs, myId: myId);
+  }
+
+  void _applyPending(List<OutboxJob> jobs, String myId) {
+    // Ohne je einen Server-Stand und ohne Aufträge gibt es nichts zu
+    // zeigen — der Fehlerzustand bleibt dann stehen.
+    if (!state.hasValue && jobs.isEmpty) return;
+    state = AsyncData(withPendingJobs(_server, jobs, myId: myId));
   }
 
   /// Steuert eine Spur bei: vereinfacht (mit Höhe, siehe [simplify]),
-  /// schickt Linie und Höhen an die RPC und legt
-  /// den eigenen Beitrag mit dem Namen aus der Datei an. Gibt die
-  /// Trail-Kennung zurück. Wirft, wenn das SCHREIBEN scheitert; ein
-  /// gescheitertes Neuladen meldet der Rückgabewert von [reloadAfterWrite]
-  /// beim Aufrufer.
-  Future<String> contribute(GpxTrack track, {String? clientId}) async {
+  /// schickt Linie und Höhen an die RPC und legt den eigenen Beitrag mit
+  /// dem Namen aus der Datei an. Ohne Netz wandert der Auftrag in den
+  /// Ausgangskorb (#30) und der Trail steht sofort als wartender auf der
+  /// Karte. Wirft, wenn das SCHREIBEN aus einem anderen Grund scheitert;
+  /// ein gescheitertes Neuladen meldet der Rückgabewert von
+  /// [reloadAfterWrite] beim Aufrufer.
+  Future<ContributeResult> contribute(GpxTrack track, {String? clientId}) async {
     final repo = ref.read(trailRepositoryProvider);
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
@@ -49,15 +94,59 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     final source = sourceOf(track.points);
     final recordedAt =
         source == RecordingSource.planned ? null : track.points.first.time;
-    final trailId = await repo.contribute(
+    // Der Auftrag entsteht VOR dem Sendeversuch, mit seiner Kennung: So
+    // trägt schon der erste Versuch die `client_id`, und ein Abriss nach
+    // dem Insert legt beim Nachholen keine zweite Aufzeichnung an.
+    final job = ContributeJob(
+      id: clientId ?? newClientId(),
+      createdAt: DateTime.now().toUtc(),
       coords: flatCoords(pts),
       eles: trackElevations(pts),
       source: source,
       recordedAt: recordedAt,
-      clientId: clientId ?? newClientId(),
+      name: track.name,
     );
-    await adoptName(trailId, track.name);
-    return trailId;
+    try {
+      final trailId = await repo.contribute(
+        coords: job.coords,
+        eles: job.eles,
+        source: job.source,
+        recordedAt: job.recordedAt,
+        clientId: job.id,
+      );
+      await adoptName(trailId, track.name);
+      return (trailId: trailId, queued: false);
+    } catch (error, stackTrace) {
+      await _queueIfOffline(error, stackTrace, job);
+      return (trailId: job.id, queued: true);
+    }
+  }
+
+  /// Nur `looksOffline` führt in den Korb; alles andere wirft weiter,
+  /// samt dem Fall, dass der Korb selbst nicht schreiben kann.
+  Future<void> _queueIfOffline(Object error, StackTrace stackTrace, OutboxJob job) async {
+    if (!looksOffline(error)) Error.throwWithStackTrace(error, stackTrace);
+    try {
+      await ref.read(outboxJobsProvider.notifier).append(job);
+    } catch (_) {
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+
+  /// Arbeitet den Ausgangskorb ab und lädt danach neu. Angestoßen beim
+  /// Start, bei der Rückkehr der Verbindung und auf Tippen im Banner;
+  /// Doppelläufe hält der Runner auseinander.
+  Future<OutboxRunResult> sendOutbox() async {
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return (sent: 0, remaining: 0, failed: 0);
+    // Den Korb ABWARTEN, nicht den Zähler lesen: Beim Kartenstart ist er
+    // noch nicht geladen, und ein Zähler von 0 hieße dann „nichts zu tun".
+    final jobs = await ref.read(outboxJobsProvider.future);
+    if (jobs.isEmpty) return (sent: 0, remaining: 0, failed: 0);
+    final result = await ref.read(outboxRunnerProvider).run(uid: uid);
+    await ref.read(outboxJobsProvider.notifier).refresh();
+    if (result.sent > 0) await reloadAfterWrite('Trails nach dem Ausgangskorb laden');
+    return result;
   }
 
   /// Übernimmt den Namen aus der Datei als eigenen Namen des Trails —
@@ -84,15 +173,30 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   }
 
   /// Speichert den eigenen Beitrag; ein [note] (etwa zum geänderten
-  /// Status) geht als Hinweis mit — ein Neuladen für beides.
-  Future<bool> saveDetails(TrailDetails details, {String? note}) async {
+  /// Status) geht als Hinweis mit — ein Neuladen für beides. Ohne Netz
+  /// wartet beides zusammen im Ausgangskorb (#30).
+  Future<WriteOutcome> saveDetails(TrailDetails details, {String? note}) async {
     final repo = ref.read(trailRepositoryProvider);
-    await repo.saveDetails(details);
     final text = note?.trim() ?? '';
-    if (text.isNotEmpty) {
-      await repo.addNote(trailId: details.trailId, body: text);
+    try {
+      await repo.saveDetails(details);
+      if (text.isNotEmpty) {
+        await repo.addNote(trailId: details.trailId, body: text);
+      }
+    } catch (error, stackTrace) {
+      await _queueIfOffline(
+          error,
+          stackTrace,
+          DetailsJob(
+              id: newClientId(),
+              createdAt: DateTime.now().toUtc(),
+              details: details,
+              note: text.isEmpty ? null : text));
+      return WriteOutcome.queued;
     }
-    return reloadAfterWrite('Trail-Beitrag speichern');
+    return await reloadAfterWrite('Trail-Beitrag speichern')
+        ? WriteOutcome.done
+        : WriteOutcome.doneStale;
   }
 
   Future<bool> addNote(String trailId, String body) async {
@@ -122,6 +226,14 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
 
 final trailsProvider =
     AsyncNotifierProvider<TrailsNotifier, List<Trail>>(TrailsNotifier.new);
+
+/// Die Wiedervorlage (#30). Den Namen übernimmt sie über den Notifier,
+/// der den Bestand kennt und keinen bewusst eingetragenen überschreibt.
+final outboxRunnerProvider = Provider<OutboxRunner>((ref) => OutboxRunner(
+      repository: ref.watch(trailRepositoryProvider),
+      outbox: ref.watch(outboxProvider),
+      adoptName: (trailId, name) => ref.read(trailsProvider.notifier).adoptName(trailId, name),
+    ));
 
 final trailByIdProvider = Provider.family<Trail?, String>((ref, id) =>
     ref.watch(trailsProvider).valueOrNull?.where((t) => t.id == id).firstOrNull);

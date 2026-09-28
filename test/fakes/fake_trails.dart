@@ -182,8 +182,15 @@ class FakeTrailRepository implements TrailRepository {
     return true;
   }
 
+  Object? failNextSaveDetails;
+
   @override
   Future<void> saveDetails(TrailDetails d) async {
+    if (failNextSaveDetails != null) {
+      final e = failNextSaveDetails!;
+      failNextSaveDetails = null;
+      throw e;
+    }
     final me = myId();
     // Spiegelt den Check an trail_details.name (1–80 Zeichen).
     final name = d.name;

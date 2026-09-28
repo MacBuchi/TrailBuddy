@@ -291,12 +291,28 @@ class Trail {
     required this.details,
     required this.myId,
     this.notes = const [],
+    this.pending = false,
+    this.pendingFailure,
+    this.pendingDetails = false,
   }) : assert(recordings.isNotEmpty, 'ein Trail ohne sichtbaren Beleg');
 
   final String id;
   final List<TrailRecording> recordings;
   final List<TrailDetails> details;
   final String myId;
+
+  /// Wartet im Ausgangskorb (#30): Die Aufzeichnung ist noch nicht auf
+  /// dem Server, [id] ist die Kennung des Auftrags. Kein Beitrag, kein
+  /// Hinweis, keine Einschätzung — dafür fehlt die Server-Kennung.
+  final bool pending;
+
+  /// Der Server hat den Auftrag dauerhaft abgelehnt; der Text ist für den
+  /// Nutzer. Nur bei [pending].
+  final String? pendingFailure;
+
+  /// Der eigene Beitrag zu diesem (übertragenen) Trail wartet noch im
+  /// Korb — die eigene Zeile in [details] ist die wartende Fassung.
+  final bool pendingDetails;
 
   /// Die sichtbaren Hinweise, in beliebiger Reihenfolge — angezeigt über
   /// [notesShown].

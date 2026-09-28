@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.13.0+17
+version: 0.14.0+18
 
 environment:
   sdk: ^3.11.0
@@ -41,6 +41,8 @@ dependencies:
   # App). Kein Web — nur über bedingten Import in
   # lib/features/rides/ride_service.dart eingebunden.
   flutter_foreground_task: ^11.0.3
+  # Ausgangskorb (#30): Verbindung zurück ⇒ wartende Aufträge senden.
+  connectivity_plus: ^7.3.1
 
 dev_dependencies:
   flutter_test:

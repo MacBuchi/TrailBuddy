@@ -687,7 +687,8 @@ Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
 - **Phase 2 — Aufzeichnen.** Fahrt-Aufzeichnung aus der Pilztour
   (#28, seit 0.13.0: Aufzeichnen, Liste „Meine Fahrten", Wiederaufnahme
   nach Prozess-Kill), Kandidaten-Heuristik und Zerlege-Blatt (#29),
-  Ausgangskorb (#30).
+  Ausgangskorb (#30, seit 0.14.0: Beisteuern und Beitrag ohne Netz,
+  wartende Trails gestrichelt, Android; Web bewusst noch ohne).
 - **Phase 3 — Offline und Austausch.** Offline-Karten, Trails im
   Zwischenspeicher, Nachrichten, Statusmeldungen, Zusammenführen im
   Netz.
