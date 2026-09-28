@@ -198,6 +198,10 @@ niemand abgegeben hat. Das Blatt zeigt den Originalwert.
 3. Ebene in der App mit Blatt, amtlichem Status und Quellenangabe;
    Datenschutzerklärung (`raw.githubusercontent.com`). **Erledigt,
    0.10.0.**
-4. „Auch ausgeschildert als …" im Trail-Blatt.
+4. „Auch ausgeschildert als …" im Trail-Blatt. **Erledigt, 0.11.0**:
+   drei Sätze je nach Richtung der Deckung („auch ausgeschildert als",
+   „Teil des offiziellen Trails", „enthält den offiziellen Trail"),
+   ohne Fréchet — es wird nichts verschmolzen. Varianten zählen nicht
+   gegen „derselbe"; eine amtliche Sperre steht mit Quelle dabei.
 5. Weitere Quellen, sobald eine die Bedingungen erfüllt; Vereine und
    Schweiz nach Abschnitt 6.

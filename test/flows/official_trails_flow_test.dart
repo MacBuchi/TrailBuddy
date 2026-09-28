@@ -134,4 +134,49 @@ void main() {
     await settle(tester);
     expect(find.text('Flowline neu'), findsOneWidget);
   });
+
+  testWidgets('Trail-Blatt: auch ausgeschildert als …, mit Sperre der Quelle',
+      (tester) async {
+    source.files['testland.geojson'] = fakeRegion(extra: [fakeOnRoots()]);
+    await start(tester);
+    await openTab(tester, 'Trails');
+    await tester.tap(find.text('Roots'));
+    await settle(tester);
+    expect(find.text('Auch ausgeschildert als „Wurzelpfad" · gesperrt laut Land Testland'),
+        findsOneWidget);
+    // Flowline liegt daneben, nicht darauf.
+    expect(find.textContaining('Flowline'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('official-testland:3')));
+    await settle(tester);
+    expect(find.text('Schwierigkeit laut Quelle: leicht'), findsOneWidget);
+    expect(find.text('Gesperrt laut Land Testland.'), findsOneWidget);
+  });
+
+  testWidgets('Trail-Blatt aus der Liste lädt die Region nach', (tester) async {
+    source.files['testland.geojson'] = fakeRegion(extra: [fakeOnRoots(status: 'open')]);
+    // Ein zweiter Trail weit im Norden: Die Karte passt beide ein, bleibt
+    // unter Zoom 8 und lädt selbst nichts.
+    trails.seedTrail(backend.currentUserId!, name: 'Norden', lat: 53.5, lon: 13.0);
+    await start(tester);
+    expect(lines(tester), isEmpty);
+    expect(source.asked, isNot(contains('testland.geojson')));
+
+    await openTab(tester, 'Trails');
+    await tester.tap(find.text('Roots'));
+    await settle(tester);
+    expect(source.asked, contains('testland.geojson'));
+    expect(find.text('Auch ausgeschildert als „Wurzelpfad"'), findsOneWidget);
+  });
+
+  testWidgets('Ebene aus: kein Satz, keine Anfrage', (tester) async {
+    source.files['testland.geojson'] = fakeRegion(extra: [fakeOnRoots()]);
+    settings.officialTrailsEnabled = false;
+    await start(tester);
+    await openTab(tester, 'Trails');
+    await tester.tap(find.text('Roots'));
+    await settle(tester);
+    expect(find.textContaining('ausgeschildert'), findsNothing);
+    expect(source.asked, isEmpty);
+  });
 }
