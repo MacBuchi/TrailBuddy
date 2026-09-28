@@ -1167,5 +1167,6 @@ insert into public.applied_patches (filename) values
   ('patch_003_attach_elevation.sql'),
   ('patch_004_trail_notes.sql'),
   ('patch_005_trail_notes_open.sql'),
-  ('patch_006_daily_limit_500.sql')
+  ('patch_006_daily_limit_500.sql'),
+  ('patch_007_decode_trail_names.sql')
 on conflict do nothing;
