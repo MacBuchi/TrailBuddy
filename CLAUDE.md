@@ -262,6 +262,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Zerlege-Blatt. Ohne Fréchet (nichts wird verschmolzen); Varianten
   zählen nicht gegen „derselbe". Das Blatt lädt die Region des Trails
   selbst nach.
+- **Nach dem Annehmen einer Buddy-Anfrage** (#33 Teil 1, seit 0.22.0,
+  `connect_summary.dart` pur): `FriendshipsNotifier.accept` merkt sich
+  den Trail-Stand VOR dem Annehmen, lädt Freundschaften und Trails neu
+  und rechnet „gemeinsam / neu von / neu für" aus den zwei sichtbaren
+  Ständen — auf dem Gerät, nie auf dem Server (Konzept 12). Privat
+  zählt nicht als „neu für", wartend (Ausgangskorb) gar nicht.
+  Scheitert das Neuladen, gibt es keine Zahlen, aber die Annahme steht.
+  Teil 2 (Overlap-Vorschläge, RPC über `trail_overlaps`) wartet auf die
+  Regel fürs Zusammenführen im Konzept.
 - **Eigene Position** (`lib/features/map/position_provider.dart`,
   PilzBuddy-Muster): Der Strom (`positionStreamProvider`) fragt NIE nach
   der Berechtigung, nur der Knopf „Meine Position" über

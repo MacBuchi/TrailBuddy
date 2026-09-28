@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Buddys
+
+*Version 0.22.0, 2026-09-28*
+
+- **Nach dem Annehmen einer Anfrage sagt die App, was sich auf der Karte
+  tut**: „Mit Jan verbunden: 14 Trails gemeinsam, 8 neu von Jan, 5 neu
+  für Jan." Gemeinsam sind Trails, die ihr beide belegt habt — sie sind
+  ab jetzt EIN Trail auf beiden Karten. Gezählt wird erst nach dem
+  Annehmen, nie davor: Vorher wäre die Zahl ein Blick in die Sammlung
+  eines Fremden. Deine privaten Trails zählen nicht als „neu für Jan",
+  er sieht sie ja nicht.
+
 ## Wenn die App abstürzt
 
 *Version 0.21.0, 2026-09-28*
