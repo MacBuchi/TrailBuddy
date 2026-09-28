@@ -49,4 +49,12 @@ void main() {
     expect(() => parseGpx('<<<'), throwsA(isA<GpxFormatException>()));
     expect(() => parseGpx('<kml/>'), throwsA(isA<GpxFormatException>()));
   });
+
+  test('URL-kodierte Namen werden dekodiert, echte Prozentzeichen bleiben', () {
+    expect(decodeTrackName('DREI%20EICHEN%20-%20Sponsored'), 'DREI EICHEN - Sponsored');
+    expect(decodeTrackName('Tr%C3%A4umerle'), 'Träumerle');
+    expect(decodeTrackName('100 % Flow'), '100 % Flow');
+    expect(decodeTrackName('kaputt %E2%28 Ende'), 'kaputt %E2%28 Ende',
+        reason: 'kein gültiges UTF-8: lieber roh als falsch');
+  });
 }

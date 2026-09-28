@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Lange Namen beim Import
+
+*Version 0.9.1, 2026-09-28*
+
+- **Kein Fehler mehr bei langen Trail-Namen**: Manche Apps (etwa Locus bei
+  Spuren aus Trailforks) schreiben Namen wie „DREI%20EICHEN%20-%20…" in
+  die Datei. Die App macht daraus wieder „DREI EICHEN - …" und kürzt, was
+  länger als 80 Zeichen ist, statt den Import abzubrechen.
+- **Namenlose Trails reparieren**: Ist ein Trail dadurch früher ohne Namen
+  angelegt worden, importiere die Datei einfach noch einmal — der Name
+  wird übernommen, ohne einen zweiten Trail anzulegen.
+
 ## Ganzer Bestand auf einmal
 
 *Version 0.9.0, 2026-09-28*

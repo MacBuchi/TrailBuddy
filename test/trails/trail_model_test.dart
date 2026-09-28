@@ -194,6 +194,18 @@ void main() {
         ['anna-10', 'bob-89']);
   });
 
+  test('Namen aus Dateien passen in den Check der Datenbank', () {
+    expect(clampTrailName('  Wurzeltrail '), 'Wurzeltrail');
+    final exact = 'x' * kTrailNameMaxLength;
+    expect(clampTrailName(exact), exact);
+    final words = List.filled(20, 'Wort').join(' ');   // 99 Zeichen
+    final cut = clampTrailName(words);
+    expect(cut.length, lessThanOrEqualTo(kTrailNameMaxLength));
+    expect(cut, endsWith('Wort…'), reason: 'am Wortende gekürzt');
+    final blob = 'y' * 120;
+    expect(clampTrailName(blob), '${'y' * (kTrailNameMaxLength - 1)}…');
+  });
+
   test('TrailNote.fromJson liest den Autor aus dem Embed', () {
     final n = TrailNote.fromJson({
       'id': 'n1',

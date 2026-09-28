@@ -56,21 +56,31 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       recordedAt: recordedAt,
       clientId: clientId ?? newClientId(),
     );
-    final name = track.name.trim();
-    if (name.isNotEmpty) {
-      final existing = state.valueOrNull
-          ?.where((t) => t.id == trailId)
-          .firstOrNull
-          ?.myDetails;
-      // Ein vorhandener eigener Name bleibt — der Import überschreibt
-      // nicht, was jemand bewusst eingetragen hat.
-      if (existing == null || (existing.name ?? '').trim().isEmpty) {
-        await repo.saveDetails(
-            (existing ?? TrailDetails(trailId: trailId, userId: myId))
-                .copyWith(name: name));
-      }
-    }
+    await adoptName(trailId, track.name);
     return trailId;
+  }
+
+  /// Übernimmt den Namen aus der Datei als eigenen Namen des Trails —
+  /// gekürzt auf [kTrailNameMaxLength]. Ein vorhandener eigener Name
+  /// bleibt: Der Import überschreibt nicht, was jemand bewusst eingetragen
+  /// hat. Kein Neuladen hier (der Import lädt einmal am Ende). Gibt
+  /// zurück, ob geschrieben wurde.
+  Future<bool> adoptName(String trailId, String fileName) async {
+    final myId = ref.read(currentUserIdProvider);
+    if (myId == null) throw const NotSignedInException();
+    final name = clampTrailName(fileName);
+    if (name.isEmpty) return false;
+    final existing = state.valueOrNull
+        ?.where((t) => t.id == trailId)
+        .firstOrNull
+        ?.myDetails;
+    if (existing != null && (existing.name ?? '').trim().isNotEmpty) {
+      return false;
+    }
+    await ref.read(trailRepositoryProvider).saveDetails(
+        (existing ?? TrailDetails(trailId: trailId, userId: myId))
+            .copyWith(name: name));
+    return true;
   }
 
   /// Speichert den eigenen Beitrag; ein [note] (etwa zum geänderten
