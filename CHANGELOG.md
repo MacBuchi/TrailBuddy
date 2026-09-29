@@ -4,8 +4,19 @@
 
 ## Karte
 
-*Versionen 0.24.0 und 0.25.0, 2026-09-28*
+*Versionen 0.24.0 bis 0.26.0, 2026-09-28 bis 2026-09-29*
 
+- **Bereiche zeichnen** (0.26.0): Im Blatt „Offline-Karten" gibt es
+  „Bereich zeichnen". Stift antippen, dann auf der Karte mit dem Finger
+  eine Fläche umfahren — jedes Kartenstück, das sie berührt oder
+  umschließt, kommt dazu und steht grün auf der Karte. Weitere Striche
+  kommen dazu, der Radierer nimmt wieder weg, was man umfährt oder
+  überwischt. „Entlang meiner Trails" lässt sich als Ausgangspunkt
+  übernehmen und dann zurechtschneiden; „Rückgängig" nimmt den letzten
+  Schritt zurück. Zwischen zwei Strichen lässt sich die Karte ganz normal
+  verschieben. Die Zahl der Kartenstücke steht live da, „Speichern …"
+  misst die Größe und lädt wie gewohnt — samt Orten. Wer das Blatt
+  zwischendurch schließt, verliert seine Striche nicht.
 - **„Offline-Karten" zeigt, was auf dem Gerät liegt** (0.25.0): Unter
   „Ebenen und Orte" gibt es jetzt den Punkt „Offline-Karten". Solange
   das Blatt offen ist, bleibt auf der Karte hell, was gespeichert ist,

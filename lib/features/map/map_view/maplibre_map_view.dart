@@ -144,6 +144,27 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     return ml.Feature(geometry: ml.Polygon.build([ring(p.points), for (final h in p.holes) ring(h)]));
   }
 
+  /// Die Flächen nach Stil gruppiert, in der Reihenfolge des ersten
+  /// Auftretens — wie die Linien: Der Entwurf eines gezeichneten Bereichs
+  /// (Stufe C) sind hunderte Rechtecke derselben Farbe, und eine
+  /// Style-Ebene je Rechteck wäre für die Engine eine Zumutung.
+  static List<ml.Layer> polygonLayers(List<MapViewPolygon> polygons) {
+    final groups = <String, List<MapViewPolygon>>{};
+    for (final p in polygons) {
+      if (p.points.length < 3) continue;
+      final key = '${p.fillColor.toARGB32()}|${p.borderColor?.toARGB32() ?? ''}';
+      (groups[key] ??= []).add(p);
+    }
+    return [
+      for (final group in groups.values)
+        ml.PolygonLayer(
+          polygons: [for (final p in group) polygonFeature(p)],
+          color: group.first.fillColor,
+          outlineColor: group.first.borderColor ?? group.first.fillColor,
+        ),
+    ];
+  }
+
   /// Ein Strichmuster in Bildpunkten als MapLibre-`dasharray` — dort in
   /// Vielfachen der Linienbreite, ganzzahlig.
   static List<int> dashArrayFor(List<double> dash, double width) => [
@@ -332,12 +353,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       // Deklarative Layer des Pakets — NICHT `children`: Ein
       // `PolylineLayer` ist dort ein `Layer`, kein Widget.
       layers: [
-        for (final p in layers.polygons)
-          ml.PolygonLayer(
-            polygons: [polygonFeature(p)],
-            color: p.fillColor,
-            outlineColor: p.borderColor ?? p.fillColor,
-          ),
+        ...polygonLayers(layers.polygons),
         for (final c in layers.circles) ...[
           ml.PolygonLayer(
             polygons: [circlePolygon(c)],

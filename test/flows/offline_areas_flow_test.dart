@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pmtiles/pmtiles.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:trailbuddy/features/offline_areas/area_draw.dart';
 import 'package:trailbuddy/features/offline_areas/area_overlay.dart';
 import 'package:trailbuddy/features/offline_areas/area_plan.dart';
 import 'package:trailbuddy/features/offline_areas/area_providers.dart';
@@ -127,6 +129,138 @@ void main() {
     await settle(tester);
     expect(find.byKey(const ValueKey('offline-area-old')), findsNothing);
     expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'zu heißt: keine Maske mehr');
+  });
+
+  /// Ein Strich über die Karte, als geschlossene Schleife durch [pts].
+  Future<void> stroke(WidgetTester tester, List<Offset> pts) async {
+    final g = await tester.startGesture(pts.first);
+    for (final p in pts.skip(1)) {
+      await g.moveTo(p);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await g.up();
+    await settle(tester);
+  }
+
+  int draftTiles(WidgetTester tester) {
+    final text = (tester.widget(find.byKey(const ValueKey('area-draw-count'))) as Text).data!;
+    return int.parse(RegExp(r'^(\d+) Kacheln').firstMatch(text)!.group(1)!);
+  }
+
+  testWidgets('Bereich zeichnen: Stift, Radierer, Rückgängig, Speichern — der Entwurf wird zum Bereich',
+      (tester) async {
+    await start(tester);
+    // Weit draußen: Der Host des Tests endet bei Zoom 10, gezählt wird
+    // bis dorthin — ein Strich soll mehrere 10er-Kacheln fassen.
+    fakeMap(tester).move(const LatLng(48.0, 9.0), 8);
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('draw-area-tile')));
+    await settle(tester);
+    expect(find.text('Bereich zeichnen'), findsOneWidget);
+    expect(find.text('Noch keine Kachel'), findsOneWidget);
+    // Ohne Werkzeug liegt keine Zeichenfläche: Die Karte lässt sich
+    // verschieben.
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('area-draw-add')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
+    expect(find.byKey(const ValueKey('area-draw-hint')), findsOneWidget);
+    await stroke(tester, const [
+      Offset(250, 120), Offset(450, 120), Offset(550, 170), Offset(450, 230), Offset(250, 230), Offset(250, 125),
+    ]);
+    // Nach dem Strich ist das Werkzeug weg und die Karte wieder frei.
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing);
+    final added = draftTiles(tester);
+    expect(added, greaterThan(5));
+    final draft = fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill);
+    expect(draft, isNotEmpty, reason: 'der Entwurf steht grün auf der Karte');
+    expect(fakeMapLayers(tester).polygons.first.fillColor, kOfflineDimColor,
+        reason: 'unter der Abdunkelung liegt nichts, darüber der Entwurf');
+
+    // Der Radierer umfährt die linke Hälfte.
+    const erase = [Offset(240, 100), Offset(400, 100), Offset(400, 250), Offset(240, 250), Offset(240, 105)];
+    await tester.tap(find.byKey(const ValueKey('area-draw-remove')));
+    await settle(tester);
+    await stroke(tester, erase);
+    final erased = draftTiles(tester);
+    expect(erased, lessThan(added));
+    expect(erased, greaterThan(0));
+
+    await tester.tap(find.byKey(const ValueKey('area-draw-undo')));
+    await settle(tester);
+    expect(draftTiles(tester), added);
+    await tester.tap(find.byKey(const ValueKey('area-draw-remove')));
+    await settle(tester);
+    await stroke(tester, erase);
+    expect(draftTiles(tester), erased);
+
+    // Speichern: das bekannte Blatt, die gezeichnete Fläche vorgewählt,
+    // die Größe gemessen.
+    await tester.tap(find.byKey(const ValueKey('area-draw-save')));
+    await settle(tester, frames: 20);
+    expect(find.byKey(const ValueKey('area-choice-drawn')), findsOneWidget);
+    expect(find.byKey(const ValueKey('area-size')), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('area-name')), 'Gezeichnet');
+    await tester.tap(find.byKey(const ValueKey('area-save')));
+    await settle(tester, frames: 30);
+    expect(find.textContaining('„Gezeichnet" gespeichert'), findsOneWidget);
+    await tester.tap(find.text('Fertig'));
+    await settle(tester);
+
+    final saved = (await store.list()).single;
+    final shape = saved.shape as TileSetShape;
+    expect(shape.zoom, kAreaShapeZoom);
+    // Gespeichert ist der Entwurf — Zoom 8–10 aus den 13er-Kacheln.
+    expect(shape.countTiles(maxZoom: 10), erased);
+    // Und der Entwurf ist erledigt: Das Blatt zeigt wieder die Liste.
+    expect(find.byKey(const ValueKey('draw-area-tile')), findsOneWidget);
+    expect(find.byKey(ValueKey('offline-area-${saved.id}')), findsOneWidget);
+    expect(fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill), isEmpty);
+  });
+
+  testWidgets('der Entwurf überlebt das Schließen des Blatts, das Werkzeug nicht; Verwerfen räumt ab',
+      (tester) async {
+    await start(tester);
+    fakeMap(tester).move(const LatLng(48.0, 9.0), 11);
+    await settle(tester);
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('draw-area-tile')));
+    await settle(tester);
+    // Entlang der Trails als Ausgangspunkt.
+    await tester.tap(find.byKey(const ValueKey('area-draw-trails')));
+    await settle(tester);
+    final along = draftTiles(tester);
+    expect(along, greaterThan(0));
+    await tester.tap(find.byKey(const ValueKey('area-draw-add')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('offline-maps-close')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
+        reason: 'ohne Blatt kein Werkzeug — sonst stünde die Karte fest');
+    expect(fakeMapLayers(tester).polygons, isEmpty);
+
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
+    await settle(tester);
+    expect(find.text('Bereich zeichnen'), findsOneWidget);
+    expect(draftTiles(tester), along);
+
+    await tester.tap(find.byKey(const ValueKey('area-draw-discard')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('draw-area-tile')), findsOneWidget);
+    expect(fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill), isEmpty);
   });
 
   testWidgets('ohne Bereich ist alles abgedunkelt, und das Blatt sagt es', (tester) async {

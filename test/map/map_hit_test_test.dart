@@ -51,6 +51,14 @@ void main() {
     expect(mid.dy, closeTo(250, 1));
   });
 
+  test('Umkehrung: Bildpunkt zurück zur Stelle (Bereiche zeichnen, Stufe C)', () {
+    for (final p in const [LatLng(48.05, 11.0), LatLng(48.0, 11.1), LatLng(48.013, 11.071)]) {
+      final back = unprojectFromScreen(_camera, projectToScreen(_camera, p));
+      expect(back.latitude, closeTo(p.latitude, 1e-9));
+      expect(back.longitude, closeTo(p.longitude, 1e-9));
+    }
+  });
+
   test('Zoom aus Fenster und Breite: 256er Web-Mercator', () {
     // 0,1° auf 1000 px ⇒ 360° auf 3,6 Mio px ⇒ 2^z · 256 = 3,6 Mio ⇒ z ≈ 13,78.
     expect(_camera.zoom, closeTo(13.78, 0.01));
