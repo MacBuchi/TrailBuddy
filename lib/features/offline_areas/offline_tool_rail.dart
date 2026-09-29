@@ -20,6 +20,7 @@ import 'area_downloader.dart';
 import 'area_draw.dart';
 import 'area_plan.dart';
 import 'area_providers.dart';
+import 'area_trim.dart';
 
 /// Kachelzahl kurz, für den Platz unter dem Speichern-Symbol.
 String compactCount(int n) {
@@ -43,7 +44,7 @@ class OfflineToolRail extends ConsumerWidget {
   final VoidCallback onSnapshot;
   final VoidCallback? onTrails;
   final VoidCallback onManage;
-  final void Function(AreaShape drawn) onSave;
+  final void Function(AreaDraft draft) onSave;
   final VoidCallback onClose;
 
   @override
@@ -52,8 +53,11 @@ class OfflineToolRail extends ConsumerWidget {
     final notifier = ref.read(areaDraftProvider.notifier);
     final maxZoom = ref.watch(mapManifestProvider).valueOrNull?.maxZoom ?? kAreaShapeZoom;
     final empty = draft == null || draft.isEmpty;
-    final count = empty ? 0 : draft.shape.countTiles(maxZoom: maxZoom);
-    final tooLarge = count > kAreaMaxTiles;
+    // Kacheln über alle Zoomstufen, wie sie geladen bzw. frei werden.
+    final adds = draft == null || draft.adds.isEmpty ? 0 : draft.addShape.countTiles(maxZoom: maxZoom);
+    final removes = draft == null || draft.removes.isEmpty ? 0 : draft.removeShape.countTiles(maxZoom: maxZoom);
+    final tooLarge = adds > kAreaMaxTiles;
+    final countStyle = Theme.of(context).textTheme.labelSmall;
     final scheme = Theme.of(context).colorScheme;
 
     Widget button(String key, String tip, Widget icon, VoidCallback? onPressed, {bool selected = false}) =>
@@ -103,26 +107,34 @@ class OfflineToolRail extends ConsumerWidget {
             button(
               'area-draw-save',
               tooLarge
-                  ? '$count Kacheln — zu groß, erlaubt sind $kAreaMaxTiles'
+                  ? '+$adds Kacheln — zu viel auf einmal, erlaubt sind $kAreaMaxTiles'
                   : empty
-                      ? 'Speichern — noch keine Kachel gewählt'
-                      : 'Speichern ($count Kacheln)',
+                      ? 'Speichern — noch keine Änderung'
+                      : 'Speichern (+$adds / −$removes Kacheln)',
               const Icon(Icons.save_outlined),
               empty || tooLarge
                   ? null
                   : () {
                       notifier.disarm();
-                      onSave(draft.shape);
+                      onSave(draft);
                     },
             ),
+            // Was dazukommt (grün) und was wegfällt (rot) — getrennt, wie
+            // auf der Karte.
             Text(
-              empty ? '–' : compactCount(count),
+              adds == 0 ? (removes == 0 ? '–' : '') : '+${compactCount(adds)}',
               key: const ValueKey('area-draw-count'),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: tooLarge ? scheme.error : null,
-                    fontWeight: tooLarge ? FontWeight.bold : null,
-                  ),
+              style: countStyle?.copyWith(
+                color: tooLarge ? scheme.error : kAreaAddHatch.withValues(alpha: 1),
+                fontWeight: FontWeight.bold,
+              ),
             ),
+            if (removes > 0)
+              Text(
+                '−${compactCount(removes)}',
+                key: const ValueKey('area-draw-remove-count'),
+                style: countStyle?.copyWith(color: kAreaRemoveHatch.withValues(alpha: 1), fontWeight: FontWeight.bold),
+              ),
             const _RailDivider(),
             button('offline-maps-close', 'Schließen', const Icon(Icons.close), onClose),
           ],
@@ -208,21 +220,23 @@ Future<bool> confirmDiscardDraft(BuildContext context) async =>
     ) ??
     false;
 
-/// Der Dialog vor dem Speichern: misst Kacheln, Bytes und Orte, fragt
-/// nach dem Namen, lädt dann mit Fortschritt und Abbruch. `true`, wenn
-/// gespeichert wurde.
-Future<bool> showSaveDraftDialog(BuildContext context, AreaShape shape) async =>
+/// Der Dialog vor dem Speichern: misst, was dazukommt (Kacheln, Bytes,
+/// Orte — braucht den Kartenhost) und was wegfällt (lokal, ohne Netz),
+/// fragt nach dem Namen des neuen Bereichs, schreibt dann erst die
+/// Bereiche ohne die wegfallenden Kacheln neu und lädt danach. `true`,
+/// wenn alles gespeichert ist.
+Future<bool> showSaveDraftDialog(BuildContext context, AreaDraft draft) async =>
     await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _SaveDraftDialog(shape: shape),
+      builder: (_) => _SaveDraftDialog(draft: draft),
     ) ??
     false;
 
 class _SaveDraftDialog extends ConsumerStatefulWidget {
-  const _SaveDraftDialog({required this.shape});
+  const _SaveDraftDialog({required this.draft});
 
-  final AreaShape shape;
+  final AreaDraft draft;
 
   @override
   ConsumerState<_SaveDraftDialog> createState() => _SaveDraftDialogState();
@@ -234,7 +248,13 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
   late final TextEditingController _name =
       TextEditingController(text: 'Bereich vom ${_date.format(DateTime.now())}');
   AreaPlan? _plan;
+  TrimPlan? _trim;
   String? _error;
+  bool _measuring = true;
+  bool _trimming = false;
+
+  bool get _hasAdds => widget.draft.adds.isNotEmpty;
+  bool get _hasRemoves => widget.draft.removes.isNotEmpty;
 
   @override
   void initState() {
@@ -255,24 +275,68 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
 
   Future<void> _measure() async {
     try {
-      final plan = await ref.read(areaDownloadProvider.notifier).plan(widget.shape);
-      if (mounted) setState(() => _plan = plan);
+      if (_hasRemoves) {
+        final trim = await ref.read(storedAreasProvider.notifier).planTrim(widget.draft.removes);
+        if (mounted) setState(() => _trim = trim);
+      }
+      if (_hasAdds) {
+        final plan = await ref.read(areaDownloadProvider.notifier).plan(widget.draft.addShape);
+        if (mounted) setState(() => _plan = plan);
+      }
     } on AreaTooLarge catch (e) {
-      if (mounted) setState(() => _error = 'Zu groß: ${e.tiles} Kacheln, erlaubt sind $kAreaMaxTiles.');
+      if (mounted) setState(() => _error = 'Zu viel auf einmal: ${e.tiles} Kacheln, erlaubt sind $kAreaMaxTiles.');
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = looksOffline(e) || e is StateError
-          ? 'Ohne Empfang lässt sich kein Bereich speichern — der Kartenhost ist nicht erreichbar.'
+          ? 'Ohne Empfang lässt sich nichts dazuladen — der Kartenhost ist nicht erreichbar. '
+              'Entfernen geht auch offline: dazu die grünen Kacheln wegnehmen.'
           : 'Die Größe ließ sich nicht messen.');
+    } finally {
+      if (mounted) setState(() => _measuring = false);
     }
   }
 
+  bool get _ready =>
+      !_measuring &&
+      _error == null &&
+      (!_hasAdds || (_plan != null && _plan!.tiles.isNotEmpty) || (_hasRemoves && _plan != null)) &&
+      (!_hasRemoves || _trim != null);
+
   Future<void> _save() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final trim = _trim;
+    if (trim != null && !trim.isEmpty) {
+      setState(() => _trimming = true);
+      try {
+        await ref.read(storedAreasProvider.notifier).applyTrim(trim);
+      } catch (e, s) {
+        logError('Kacheln entfernen', e, s);
+        if (mounted) {
+          setState(() {
+            _trimming = false;
+            _error = 'Das Entfernen ließ sich nicht speichern.';
+          });
+        }
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _trimming = false);
+    }
     final plan = _plan;
-    if (plan == null) return;
-    final name = _name.text.trim().isEmpty ? 'Bereich' : _name.text.trim();
-    final area = await ref.read(areaDownloadProvider.notifier).start(plan, name: name);
-    if (area != null && mounted) Navigator.of(context).pop(true);
+    if (plan != null && plan.tiles.isNotEmpty) {
+      final name = _name.text.trim().isEmpty ? 'Bereich' : _name.text.trim();
+      final area = await ref.read(areaDownloadProvider.notifier).start(plan, name: name);
+      if (area == null) {
+        // Gescheitert oder abgebrochen: Der Fehler steht im Dialog. Das
+        // Entfernen ist schon gespeichert — der Entwurf behält es nicht.
+        if (trim != null && !trim.isEmpty) {
+          ref.read(areaDraftProvider.notifier).dropRemoves();
+          messenger.showSnackBar(const SnackBar(content: Text('Entfernt ist gespeichert, das Laden nicht.')));
+        }
+        return;
+      }
+    }
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   static String _progressLine(AreaProgress? p) {
@@ -289,44 +353,59 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
     final text = Theme.of(context).textTheme;
     final download = ref.watch(areaDownloadProvider);
     final plan = _plan;
+    final trim = _trim;
     final running = download.phase == AreaDownloadPhase.running;
     final errorStyle = text.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error);
 
     final Widget body;
-    if (running) {
+    if (running || _trimming) {
       body = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('„${download.name}" wird gespeichert …'),
+        Text(_trimming ? 'Kacheln werden entfernt …' : '„${download.name}" wird gespeichert …'),
         const SizedBox(height: 8),
-        LinearProgressIndicator(value: download.progress?.fraction),
-        const SizedBox(height: 4),
-        Text(_progressLine(download.progress), style: text.bodySmall),
+        LinearProgressIndicator(value: _trimming ? null : download.progress?.fraction),
+        if (!_trimming) ...[
+          const SizedBox(height: 4),
+          Text(_progressLine(download.progress), style: text.bodySmall),
+        ],
       ]);
-    } else if (_error != null) {
-      body = Text(_error!, style: errorStyle);
-    } else if (plan == null) {
+    } else if (_measuring) {
       body = const Row(children: [
         SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
         SizedBox(width: 12),
         Expanded(child: Text('Größe und Orte werden gemessen …')),
       ]);
-    } else if (plan.tiles.isEmpty) {
-      body = const Text('Hier liegt keine Karte — außerhalb von Deutschland, Österreich und der Schweiz.');
     } else {
-      final pois = plan.poiCount;
+      final pois = plan?.poiCount;
       body = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(
-          '${formatBytes(plan.totalBytes)} · ${plan.tiles.length} Kacheln'
-          '${pois == null ? ' · ohne Orte' : ' · $pois ${pois == 1 ? 'Ort' : 'Orte'}'}',
-          key: const ValueKey('area-size'),
-          style: text.titleMedium,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          key: const ValueKey('area-name'),
-          controller: _name,
-          decoration: const InputDecoration(labelText: 'Name'),
-          textCapitalization: TextCapitalization.sentences,
-        ),
+        if (plan != null)
+          Text(
+            plan.tiles.isEmpty
+                ? 'Dazu: hier liegt keine Karte — außerhalb von Deutschland, Österreich und der Schweiz.'
+                : 'Lädt ${formatBytes(plan.totalBytes)} · ${plan.tiles.length} Kacheln'
+                    '${pois == null ? ' · ohne Orte' : ' · $pois ${pois == 1 ? 'Ort' : 'Orte'}'}',
+            key: const ValueKey('area-size'),
+            style: text.titleMedium?.copyWith(color: kAreaAddHatch.withValues(alpha: 1)),
+          ),
+        if (trim != null)
+          Text(
+            'Gibt ${formatBytes(trim.freedBytes)} frei · ${trim.freedTiles} Kacheln'
+            '${trim.trims.where((t) => t.shape == null).isEmpty ? '' : ' · ${trim.trims.where((t) => t.shape == null).length} Bereich(e) ganz'}',
+            key: const ValueKey('area-free'),
+            style: text.titleMedium?.copyWith(color: kAreaRemoveHatch.withValues(alpha: 1)),
+          ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: errorStyle),
+        ],
+        if (plan != null && plan.tiles.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('area-name'),
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Name des neuen Bereichs'),
+            textCapitalization: TextCapitalization.sentences,
+          ),
+        ],
         if (download.phase == AreaDownloadPhase.failed && download.error != null) ...[
           const SizedBox(height: 8),
           Text(download.error!, style: errorStyle),
@@ -335,7 +414,7 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
     }
 
     return AlertDialog(
-      title: const Text('Bereich speichern?'),
+      title: const Text('Änderungen speichern?'),
       content: SingleChildScrollView(child: body),
       actions: [
         if (running)
@@ -347,12 +426,12 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
         else ...[
           TextButton(
             key: const ValueKey('area-save-cancel'),
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: _trimming ? null : () => Navigator.of(context).pop(false),
             child: const Text('Abbrechen'),
           ),
           FilledButton(
             key: const ValueKey('area-save'),
-            onPressed: plan != null && plan.tiles.isNotEmpty ? _save : null,
+            onPressed: _ready && !_trimming ? _save : null,
             child: const Text('Speichern'),
           ),
         ],

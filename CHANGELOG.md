@@ -16,8 +16,17 @@
   Schließen — über das X, den Ebenen-Knopf oder die Zurück-Taste —
   fragt nach, wenn etwas noch nicht gespeichert ist.
 - **Die hervorgehobenen Kacheln bleiben beim Zoomen stehen**: Gespeichertes
-  und Gezeichnetes erscheint jetzt immer in den feinen Kartenstücken,
+  und Geändertes erscheint jetzt immer in den feinen Kartenstücken,
   nicht mehr je nach Zoom in größeren.
+- **Gespeichertes lässt sich wieder wegnehmen, und man sieht, was sich
+  ändert**: Hell ist, was auf dem Gerät liegt. Grün schraffiert ist,
+  was beim Speichern dazukommt; rot und andersherum schraffiert, was
+  wegfällt. Der Radierer über hellen Kacheln markiert sie zum Entfernen,
+  der Stift über schon Gespeichertem ändert nichts — es wird nicht
+  doppelt geladen. Die Leiste zählt beides getrennt (+ und −), der
+  Speicher-Dialog nennt, was geladen wird und wie viel Platz frei wird.
+  Entfernen geht auch ohne Empfang; ein Bereich, von dem nichts übrig
+  bleibt, verschwindet ganz.
 - **Die Knöpfe der Karte stehen jetzt rechts**, Maßstab und
   Quellenhinweis links unten — dort liegt nichts mehr darüber.
 - **Einpassen stürzt auf Android nicht mehr ab** (0.26.1): Wenn die Karte

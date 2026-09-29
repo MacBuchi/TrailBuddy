@@ -29,6 +29,7 @@ import '../map/poi_source.dart';
 import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_store.dart';
+import 'area_trim.dart';
 
 /// Die Liste aus dem Index, in Speicherreihenfolge.
 class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
@@ -39,6 +40,16 @@ class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
 
   Future<void> delete(String id) async {
     await ref.read(areaStoreProvider).delete(id);
+    await refresh();
+  }
+
+  /// Was das Entfernen von [removes] (Kacheln bei Zoom 13) aus den
+  /// gespeicherten Bereichen macht — lokal gemessen, ohne Netz.
+  Future<TrimPlan> planTrim(Set<int> removes) async =>
+      AreaTrimmer(ref.read(areaStoreProvider)).plan(await future, removes);
+
+  Future<void> applyTrim(TrimPlan plan) async {
+    await AreaTrimmer(ref.read(areaStoreProvider)).apply(plan);
     await refresh();
   }
 }

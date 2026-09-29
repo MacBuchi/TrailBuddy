@@ -110,13 +110,24 @@ void main() {
     await settle(tester);
   }
 
+  /// Was dazukommt, laut Leiste (grün, „+N").
   int draftTiles(WidgetTester tester) {
     final text = (tester.widget(find.byKey(const ValueKey('area-draw-count'))) as Text).data!;
-    return text == '–' ? 0 : int.parse(text);
+    return text.startsWith('+') ? int.parse(text.substring(1)) : 0;
+  }
+
+  /// Was wegfällt, laut Leiste (rot, „−N").
+  int removedTiles(WidgetTester tester) {
+    final f = find.byKey(const ValueKey('area-draw-remove-count'));
+    if (f.evaluate().isEmpty) return 0;
+    return int.parse((tester.widget(f) as Text).data!.substring(1));
   }
 
   Iterable<MapViewPolygon> draftRects(WidgetTester tester) =>
-      fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill);
+      fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaAddFill);
+
+  Iterable<MapViewPolyline> hatch(WidgetTester tester, Color color) =>
+      fakeMapLayers(tester).polylines.where((l) => l.color == color);
 
   StoredArea oldArea({String build = '20260928'}) => StoredArea(
         id: 'old',
@@ -205,13 +216,15 @@ void main() {
     await openTools(tester);
     await tapRail(tester, 'rail-snapshot');
     expect(draftTiles(tester), greaterThan(0));
-    expect(draftRects(tester), isNotEmpty, reason: 'der Entwurf steht grün auf der Karte');
+    expect(draftRects(tester), isNotEmpty, reason: 'was dazukommt, ist grün getönt');
+    expect(hatch(tester, kAreaAddHatch), isNotEmpty, reason: '… und grün schraffiert');
+    expect(hatch(tester, kAreaRemoveHatch), isEmpty);
 
     await tapRail(tester, 'area-draw-save');
     await settle(tester, frames: 20);
-    expect(find.text('Bereich speichern?'), findsOneWidget);
+    expect(find.text('Änderungen speichern?'), findsOneWidget);
     final size = (tester.widget(find.byKey(const ValueKey('area-size'))) as Text).data!;
-    expect(size, matches(RegExp(r'^\d+ kB · \d+ Kacheln · \d+ Orte$')));
+    expect(size, matches(RegExp(r'^Lädt \d+ kB · \d+ Kacheln · \d+ Orte$')));
     // Zwei Orte je Zelle, so viele Zellen wie der Ausschnitt berührt.
     final orte = int.parse(RegExp(r'(\d+) Orte').firstMatch(size)!.group(1)!);
     expect(orte, isPositive);
@@ -220,7 +233,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('area-name')), 'Roots-Runde');
     await tester.tap(find.byKey(const ValueKey('area-save')));
     await settle(tester, frames: 30);
-    expect(find.text('Bereich speichern?'), findsNothing, reason: 'fertig heißt: Dialog zu');
+    expect(find.text('Änderungen speichern?'), findsNothing, reason: 'fertig heißt: Dialog zu');
     expect(find.textContaining('„Roots-Runde" gespeichert'), findsOneWidget);
     expect(keepAlive.starts, 1);
     expect(keepAlive.running, isFalse);
@@ -258,7 +271,7 @@ void main() {
     await tapRail(tester, 'rail-snapshot');
     await tapRail(tester, 'area-draw-save');
     await settle(tester, frames: 20);
-    expect(find.textContaining('Ohne Empfang lässt sich kein Bereich speichern'), findsOneWidget);
+    expect(find.textContaining('Ohne Empfang lässt sich nichts dazuladen'), findsOneWidget);
     final save = tester.widget<FilledButton>(find.byKey(const ValueKey('area-save')));
     expect(save.onPressed, isNull);
     await tester.tap(find.byKey(const ValueKey('area-save-cancel')));
@@ -307,6 +320,45 @@ void main() {
     final saved = (await store.list()).single;
     expect((saved.shape as TileSetShape).countTiles(maxZoom: 10), erased);
     expect(draftTiles(tester), 0);
+  });
+
+  testWidgets('Gespeichertes wegnehmen: rot gespiegelt schraffiert, offline gespeichert, der Bereich ist weg',
+      (tester) async {
+    await store.putArchive('old', _sourceBytes());
+    await store.saveIndex([oldArea()]);
+    // Ohne Kartenhost: Entfernen braucht kein Netz.
+    await start(tester, host: false);
+    fakeMap(tester).move(const LatLng(48.005, 9.0), 12);
+    await settle(tester);
+    await openTools(tester);
+
+    // Der Stift über Gespeichertem ändert nichts: es liegt schon.
+    const loop = [Offset(250, 100), Offset(550, 100), Offset(550, 420), Offset(250, 420), Offset(250, 105)];
+    await tapRail(tester, 'area-draw-add');
+    await stroke(tester, loop);
+    expect(removedTiles(tester), 0);
+
+    await tapRail(tester, 'area-draw-remove');
+    await stroke(tester, loop);
+    expect(draftTiles(tester), 0, reason: 'die offene Zugabe ist zurückgenommen');
+    expect(removedTiles(tester), greaterThan(0), reason: 'das Gespeicherte fällt weg');
+    expect(hatch(tester, kAreaRemoveHatch), isNotEmpty, reason: 'rot schraffiert');
+    expect(hatch(tester, kAreaAddHatch), isEmpty);
+
+    await tapRail(tester, 'area-draw-save');
+    await settle(tester, frames: 20);
+    final free = (tester.widget(find.byKey(const ValueKey('area-free'))) as Text).data!;
+    expect(free, matches(RegExp(r'^Gibt \d+ Byte|^Gibt \d+ kB|^Gibt [\d,]+ MB')));
+    expect(free, contains('1 Bereich(e) ganz'));
+    expect(find.byKey(const ValueKey('area-name')), findsNothing, reason: 'kein neuer Bereich, kein Name');
+    await tester.tap(find.byKey(const ValueKey('area-save')));
+    await settle(tester, frames: 20);
+    expect(find.text('Änderungen speichern?'), findsNothing);
+    expect(await store.list(), isEmpty);
+    expect(await store.readArchive('old'), isNull);
+    expect(removedTiles(tester), 0);
+    expect(fakeMapLayers(tester).polygons.first.holes, isEmpty, reason: 'nichts liegt mehr — alles dunkel');
+    expect(keepAlive.starts, 0, reason: 'nichts geladen');
   });
 
   testWidgets('Schließen mit Änderungen fragt nach: X, Ebenen-Knopf und Zurück-Taste', (tester) async {

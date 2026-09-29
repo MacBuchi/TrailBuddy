@@ -21,6 +21,7 @@ import '../map/map_view/map_hit_test.dart' show kMercatorMaxLat;
 import '../map/map_view/map_view.dart';
 import 'area_overlay.dart' show mergeTileRects, offlineOverlayBox, rectRing;
 import 'area_plan.dart';
+import 'area_providers.dart' show storedAreasProvider;
 
 /// Größer als so viele Kacheln (Rahmen des Strichs, bei Zoom 13) wird
 /// ein Strich nicht ausgewertet: ein Kreis um halb Europa ist ein
@@ -36,9 +37,7 @@ const kAreaDraftHistory = 20;
 /// Ausschnitt selbst, ohne Rand — nie gröber (wie die Maske).
 const kAreaDraftMaxRects = 3000;
 
-/// Die Farbe des Entwurfs auf der Karte: sichtbar über der Abdunkelung,
-/// verschieden von den hellen gespeicherten Kacheln.
-const kAreaDraftFill = Color(0x5530A46C);
+/// Der Strich des Stifts, solange der Finger auf der Karte ist.
 const kAreaDraftBorder = Color(0xCC1F6F5F);
 
 /// Der Strich des Radierers, solange der Finger auf der Karte ist.
@@ -112,44 +111,61 @@ Set<int>? tilesTouchedByRing(List<LatLng> ring,
   return keys;
 }
 
+
 /// Wie ein Strich wirkt: dazu oder weg.
 enum AreaDrawTool { add, remove }
 
-/// Der Entwurf eines gezeichneten Bereichs: die Kacheln bei
-/// [kAreaShapeZoom], die Schritte davor (für „Rückgängig") und das
-/// Werkzeug, das gerade auf den nächsten Strich wartet.
+/// Der Entwurf: was zum gespeicherten Bestand DAZUKOMMT und was davon
+/// WEGFÄLLT (seit 0.27.0, Betreiber, 2026-09-29 — die Leiste bearbeitet
+/// den ganzen Offline-Bestand, nicht nur einen neuen Bereich). Beides als
+/// Kacheln bei [kAreaShapeZoom]; [adds] enthält nie eine gespeicherte,
+/// [removes] nur gespeicherte Kacheln — dafür sorgt der Notifier.
 @immutable
 class AreaDraft {
-  AreaDraft({required Set<int> keys, this.history = const [], this.tool})
-      : shape = TileSetShape(zoom: kAreaShapeZoom, keys: Set.unmodifiable(keys));
+  AreaDraft({Set<int> adds = const {}, Set<int> removes = const {}, this.history = const [], this.tool})
+      : addShape = TileSetShape(zoom: kAreaShapeZoom, keys: Set.unmodifiable(adds)),
+        removeShape = TileSetShape(zoom: kAreaShapeZoom, keys: Set.unmodifiable(removes));
 
-  /// Die Form, einmal je Stand gebaut — sie geht so in den Plan.
-  final TileSetShape shape;
-  final List<Set<int>> history;
+  /// Was geladen wird — geht so in den Plan.
+  final TileSetShape addShape;
+
+  /// Was aus den gespeicherten Archiven herausgeschrieben wird.
+  final TileSetShape removeShape;
+  final List<({Set<int> adds, Set<int> removes})> history;
   final AreaDrawTool? tool;
 
-  Set<int> get keys => shape.keys;
-  bool get isEmpty => keys.isEmpty;
+  Set<int> get adds => addShape.keys;
+  Set<int> get removes => removeShape.keys;
+  bool get isEmpty => adds.isEmpty && removes.isEmpty;
 
-  AreaDraft _with({Set<int>? keys, List<Set<int>>? history, AreaDrawTool? tool, bool clearTool = false}) =>
-      AreaDraft(
-        keys: keys ?? this.keys,
-        history: history ?? this.history,
+  AreaDraft _with({AreaDrawTool? tool, bool clearTool = false}) => AreaDraft(
+        adds: adds,
+        removes: removes,
+        history: history,
         tool: clearTool ? null : (tool ?? this.tool),
       );
 
+  static bool _same(Set<int> a, Set<int> b) => a.length == b.length && a.containsAll(b);
+
   /// Ein neuer Stand; der alte wandert in die Geschichte. Ohne Änderung
   /// kein Schritt — „Rückgängig" soll immer etwas tun.
-  AreaDraft _step(Set<int> next) {
-    if (next.length == keys.length && next.containsAll(keys)) return _with(clearTool: true);
-    final h = [...history, keys];
-    return _with(
-      keys: next,
+  AreaDraft _step(Set<int> nextAdds, Set<int> nextRemoves) {
+    if (_same(nextAdds, adds) && _same(nextRemoves, removes)) return _with(clearTool: true);
+    final h = [...history, (adds: adds, removes: removes)];
+    return AreaDraft(
+      adds: nextAdds,
+      removes: nextRemoves,
       history: h.length > kAreaDraftHistory ? h.sublist(h.length - kAreaDraftHistory) : h,
-      clearTool: true,
     );
   }
 }
+
+/// Der gespeicherte Bestand als Kacheln bei [kAreaShapeZoom] — gegen ihn
+/// rechnet der Entwurf („kommt dazu" nur, was nicht schon liegt).
+final storedTileKeysProvider = Provider<Set<int>>((ref) {
+  final areas = ref.watch(storedAreasProvider).valueOrNull ?? const [];
+  return {for (final a in areas) ...a.shape.keysAt(kAreaShapeZoom)};
+});
 
 /// Der Entwurf — null heißt leer. Er lebt, solange die Werkzeugleiste
 /// „Ebenen" offen ist; beim Schließen wird er verworfen (mit Rückfrage,
@@ -158,12 +174,12 @@ class AreaDraftNotifier extends Notifier<AreaDraft?> {
   @override
   AreaDraft? build() => null;
 
-  AreaDraft get _draft => state ?? AreaDraft(keys: const {});
+  AreaDraft get _draft => state ?? AreaDraft();
 
   /// Steht etwas im Entwurf, das noch nicht gespeichert ist?
   bool get hasChanges => !(state?.isEmpty ?? true);
 
-  void start() => state ??= AreaDraft(keys: const {});
+  void start() => state ??= AreaDraft();
 
   /// Das Werkzeug für den NÄCHSTEN Strich; derselbe Knopf noch einmal
   /// nimmt es zurück. Nach dem Strich ist es wieder weg — die Karte lässt
@@ -182,32 +198,47 @@ class AreaDraftNotifier extends Notifier<AreaDraft?> {
   void applyStroke(Set<int> stroke) {
     final d = state;
     if (d == null || d.tool == null) return;
-    state = d._step(d.tool == AreaDrawTool.add
-        ? {...d.keys, ...stroke}
-        : ({...d.keys}..removeAll(stroke)));
+    d.tool == AreaDrawTool.add ? addAll(stroke) : removeAll(stroke);
   }
 
-  /// Kacheln dazu, ohne Strich: der Ausschnitt („Schnappschuss") oder
-  /// die Kacheln entlang der eigenen Trails.
+  /// Dazu: was nicht schon liegt, kommt dazu; was wegfallen sollte, bleibt.
   void addAll(Set<int> keys) {
     final d = _draft;
-    state = d._step({...d.keys, ...keys});
+    final stored = ref.read(storedTileKeysProvider);
+    state = d._step(
+      {...d.adds, ...keys.where((k) => !stored.contains(k))},
+      {...d.removes}..removeAll(keys),
+    );
+  }
+
+  /// Weg: was dazukommen sollte, kommt nicht; was liegt, fällt weg.
+  void removeAll(Set<int> keys) {
+    final d = _draft;
+    final stored = ref.read(storedTileKeysProvider);
+    state = d._step(
+      {...d.adds}..removeAll(keys),
+      {...d.removes, ...keys.where(stored.contains)},
+    );
   }
 
   void undo() {
     final d = state;
     if (d == null || d.history.isEmpty) return;
-    state = AreaDraft(keys: d.history.last, history: d.history.sublist(0, d.history.length - 1));
+    final last = d.history.last;
+    state = AreaDraft(adds: last.adds, removes: last.removes, history: d.history.sublist(0, d.history.length - 1));
   }
 
   void discard() => state = null;
 
-  /// Ein fertiger Download mit genau diesen Kacheln war dieser Entwurf —
-  /// er ist gespeichert, also weg.
-  void discardIfSaved(AreaShape saved) {
+  /// Nach dem Speichern: ein leerer Entwurf, die Leiste bleibt offen.
+  void clear() => state = AreaDraft();
+
+  /// Das Entfernen ist gespeichert, das Laden nicht: Nur „kommt dazu"
+  /// bleibt offen (Rückgängig kann nicht hinter Gespeichertes zurück).
+  void dropRemoves() {
     final d = state;
-    if (d == null || saved is! TileSetShape || saved.zoom != kAreaShapeZoom) return;
-    if (saved.keys.length == d.keys.length && saved.keys.containsAll(d.keys)) state = null;
+    if (d == null) return;
+    state = AreaDraft(adds: d.adds);
   }
 }
 
@@ -224,18 +255,110 @@ Set<int>? tilesInBounds(AreaBounds bounds,
   };
 }
 
-/// Der Entwurf auf der Karte: im Ausschnitt (mit Rand), IMMER bei
-/// [kAreaShapeZoom] wie die Maske — beim Zoomen bleibt er stehen. Die
-/// Kacheln werden zu Rechtecken zusammengefasst ([mergeTileRects]),
-/// ohne Rand je Rechteck: Innere Kanten sähen aus wie ein Gitter, das es
-/// nicht gibt.
-List<MapViewPolygon> draftPolygons(AreaDraft draft, MapViewBounds view) {
-  if (draft.isEmpty || view.east <= view.west || view.north <= view.south) return const [];
-  var rects = mergeTileRects(draft.shape.tilesWithin(offlineOverlayBox(view), kAreaShapeZoom));
-  if (rects.length > kAreaDraftMaxRects) {
-    rects = mergeTileRects(draft.shape.tilesWithin(offlineOverlayBox(view, margin: false), kAreaShapeZoom));
+// ---- Die Darstellung offener Änderungen ----------------------------------
+//
+// Betreiber, 2026-09-29: „Schraffur mit halbtransparent Grün kommt hinzu,
+// gespiegelte Schraffur mit halbtransparent Rot kommt weg." Die Helligkeit
+// der Maske zeigt weiter den gespeicherten Stand (hell = liegt); die
+// Schraffur zeigt die offene Änderung — auf dunklem Grund grün (wird
+// hell), auf hellem Grund rot und gespiegelt (wird dunkel).
+//
+// Die Schraffur sind LINIEN, keine Füllmuster: Ein Muster bräuchte in
+// MapLibre ein eigenes Bild im Stil, Linien können beide Engines. Sie
+// hängen am Weltraster der Kamera-Zoomstufe (x ± y = k · Abstand in
+// Weltpixeln), damit sie beim Verschieben stehen bleiben und nur beim
+// Zoomen neu gerechnet werden.
+
+const kAreaAddHatch = Color(0x9930A46C);
+const kAreaAddFill = Color(0x1F30A46C);
+const kAreaRemoveHatch = Color(0x99D32F2F);
+const kAreaRemoveFill = Color(0x1FD32F2F);
+
+/// Abstand der Schraffurlinien in Bildpunkten.
+const kAreaHatchSpacingPx = 10.0;
+
+/// Mehr Linien als das zeichnet die Schraffur nicht — dann bleibt nur die
+/// Tönung (weit draußen ist die Schraffur ohnehin ein Grauschleier).
+const kAreaHatchMaxLines = 2500;
+
+/// Die Schraffurlinien über [rects] bei [zoom] (256er-Stufen): `/` für
+/// „kommt dazu", gespiegelt `\` für „fällt weg". Null über [maxLines].
+List<List<LatLng>>? hatchLines(List<AreaBounds> rects, double zoom,
+    {required bool mirrored, double spacingPx = kAreaHatchSpacingPx, int maxLines = kAreaHatchMaxLines}) {
+  final world = 256 * math.pow(2, zoom).toDouble();
+  double wx(double lon) => (lon + 180) / 360 * world;
+  double wy(double lat) {
+    final r = lat.clamp(-kMercatorMaxLat, kMercatorMaxLat) * math.pi / 180;
+    return (1 - math.log(math.tan(r) + 1 / math.cos(r)) / math.pi) / 2 * world;
   }
-  return [
-    for (final r in rects) MapViewPolygon(points: rectRing(r), fillColor: kAreaDraftFill),
-  ];
+
+  LatLng back(double x, double y) {
+    final n = math.pi * (1 - 2 * y / world);
+    final lat = math.atan((math.exp(n) - math.exp(-n)) / 2) * 180 / math.pi;
+    return LatLng(lat, x / world * 360 - 180);
+  }
+
+  final out = <List<LatLng>>[];
+  for (final r in rects) {
+    final x0 = wx(r.west), x1 = wx(r.east), y0 = wy(r.north), y1 = wy(r.south);
+    // `/` auf dem Schirm (y nach unten): x + y = c. Gespiegelt: x − y = c.
+    final cMin = mirrored ? x0 - y1 : x0 + y0;
+    final cMax = mirrored ? x1 - y0 : x1 + y1;
+    for (var c = (cMin / spacingPx).ceil() * spacingPx; c <= cMax; c += spacingPx) {
+      final double xa, xb;
+      if (mirrored) {
+        xa = math.max(x0, c + y0);
+        xb = math.min(x1, c + y1);
+      } else {
+        xa = math.max(x0, c - y1);
+        xb = math.min(x1, c - y0);
+      }
+      if (xb <= xa) continue;
+      final ya = mirrored ? xa - c : c - xa;
+      final yb = mirrored ? xb - c : c - xb;
+      out.add([back(xa, ya), back(xb, yb)]);
+      if (out.length > maxLines) return null;
+    }
+  }
+  return out;
+}
+
+/// Die offenen Änderungen auf der Karte: je Seite eine leichte Tönung
+/// (Rechtecke, [mergeTileRects]) und die Schraffur darüber — IMMER bei
+/// [kAreaShapeZoom] wie die Maske, im Ausschnitt mit Rand.
+({List<MapViewPolygon> polygons, List<MapViewPolyline> lines}) draftLayers(
+    AreaDraft draft, MapViewCamera camera) {
+  final view = camera.bounds;
+  if (draft.isEmpty || view.east <= view.west || view.north <= view.south) {
+    return (polygons: const [], lines: const []);
+  }
+  List<AreaBounds> rectsOf(TileSetShape shape) {
+    if (shape.keys.isEmpty) return const [];
+    var rects = mergeTileRects(shape.tilesWithin(offlineOverlayBox(view), kAreaShapeZoom));
+    if (rects.length > kAreaDraftMaxRects) {
+      rects = mergeTileRects(shape.tilesWithin(offlineOverlayBox(view, margin: false), kAreaShapeZoom));
+    }
+    return rects;
+  }
+
+  final polygons = <MapViewPolygon>[];
+  final lines = <MapViewPolyline>[];
+  for (final (shape, fill, hatch, mirrored) in [
+    (draft.addShape, kAreaAddFill, kAreaAddHatch, false),
+    (draft.removeShape, kAreaRemoveFill, kAreaRemoveHatch, true),
+  ]) {
+    final rects = rectsOf(shape);
+    if (rects.isEmpty) continue;
+    final hatched = hatchLines(rects, camera.zoom, mirrored: mirrored);
+    // Ohne Schraffur (zu viele Linien) eine kräftigere Tönung, damit die
+    // Änderung trotzdem sichtbar bleibt.
+    final tint = hatched == null ? hatch.withValues(alpha: 0.35) : fill;
+    for (final r in rects) {
+      polygons.add(MapViewPolygon(points: rectRing(r), fillColor: tint));
+    }
+    for (final l in hatched ?? const <List<LatLng>>[]) {
+      lines.add(MapViewPolyline(points: l, color: hatch, width: 2));
+    }
+  }
+  return (polygons: polygons, lines: lines);
 }

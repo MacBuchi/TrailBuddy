@@ -1,0 +1,158 @@
+// Kacheln aus gespeicherten Bereichen herausnehmen (0.27.0), gegen
+// Archive aus dem eigenen Schreiber: Der Plan misst lokal, was frei wird;
+// das Ausführen schreibt das Archiv ohne die Kacheln neu (der Leser beider
+// Engines zählt es richtig), behält gröbere Kacheln, solange darunter
+// etwas liegt, streicht Orte-Dateien leerer Zellen — und ein Bereich,
+// der leer wird, verschwindet ganz.
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pmtiles/pmtiles.dart';
+import 'package:trailbuddy/features/map/poi.dart';
+import 'package:trailbuddy/features/offline_areas/area_plan.dart';
+import 'package:trailbuddy/features/offline_areas/area_store.dart';
+import 'package:trailbuddy/features/offline_areas/area_trim.dart';
+import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
+
+const _z = kAreaShapeZoom;
+
+void main() {
+  late MemoryAreaStore store;
+
+  // Ein Bereich aus vier 13er-Kacheln in einer Reihe, gespeichert bis 13.
+  final origin = tileAt(47.9, 11.6, _z);
+  final x = origin.x, y = origin.y;
+  final keys = {for (var i = 0; i < 4; i++) TileSetShape.keyOf(x + i, y, _z)};
+  final shape = TileSetShape(zoom: _z, keys: keys);
+
+  Future<StoredArea> seed({String id = 'a', TileSetShape? s, List<String> poiFiles = const []}) async {
+    final sh = s ?? shape;
+    final tiles = sh.tiles(maxZoom: _z);
+    final bytes = writePmTiles(
+      tiles: [
+        for (final t in tiles) TileToWrite(t.z, t.x, t.y, Uint8List.fromList(utf8.encode('t${t.z}/${t.x}/${t.y}'))),
+      ],
+      tileCompression: Compression.none,
+      bounds: TileBounds(west: sh.hull.west, south: sh.hull.south, east: sh.hull.east, north: sh.hull.north),
+    );
+    await store.putArchive(id, bytes);
+    final area = StoredArea(
+      id: id,
+      name: 'Bereich $id',
+      bounds: sh.hull,
+      shape: sh,
+      minZoom: 8,
+      maxZoom: _z,
+      build: '20260928',
+      tiles: tiles.length,
+      bytes: bytes.length,
+      savedAt: DateTime.utc(2026, 9, 28),
+      poiFiles: poiFiles,
+    );
+    await store.saveIndex([...await store.list(), area]);
+    return area;
+  }
+
+  setUp(() => store = MemoryAreaStore());
+
+  test('zwei Kacheln raus: gemessen, neu geschrieben, gegengelesen', () async {
+    final area = await seed();
+    final trimmer = AreaTrimmer(store);
+    final removes = {TileSetShape.keyOf(x + 2, y, _z), TileSetShape.keyOf(x + 3, y, _z)};
+    final plan = await trimmer.plan([area], removes);
+    expect(plan.trims, hasLength(1));
+    // Zwei 13er-Kacheln; ihr 12er-Elternteil nur, wenn keine Geschwister
+    // mehr darunter liegen.
+    expect(plan.freedTiles, greaterThanOrEqualTo(2));
+    expect(plan.freedBytes, greaterThan(0));
+
+    await trimmer.apply(plan);
+    final after = (await store.list()).single;
+    final newShape = after.shape as TileSetShape;
+    expect(newShape.keys, {TileSetShape.keyOf(x, y, _z), TileSetShape.keyOf(x + 1, y, _z)});
+    expect(after.tiles, area.tiles - plan.freedTiles);
+    expect(after.bytes, (await store.readArchive('a'))!.length);
+    final archive = await PmTilesArchive.fromBytes((await store.readArchive('a'))!);
+    expect(archive.header.numberOfAddressedTiles, after.tiles);
+    // Die verbliebenen Kacheln kommen Byte für Byte wie vorher zurück,
+    // samt ihrer gröberen Eltern bis Zoom 8.
+    for (final t in newShape.tiles(maxZoom: _z)) {
+      final got = utf8.decode((await archive.tile(tileIdOf(t))).compressedBytes());
+      expect(got, 't${t.z}/${t.x}/${t.y}');
+    }
+    expect(await archive.lookup(tileIdOf((z: _z, x: x + 3, y: y))), isNull);
+  });
+
+  test('eine Kachel, die keine Form hat, fasst der Plan nicht an', () async {
+    final area = await seed();
+    final plan = await AreaTrimmer(store).plan([area], {TileSetShape.keyOf(x + 20, y, _z)});
+    expect(plan.isEmpty, isTrue);
+  });
+
+  test('alles raus: der Bereich verschwindet samt Archiv', () async {
+    final area = await seed();
+    await seed(id: 'b', s: TileSetShape(zoom: _z, keys: {TileSetShape.keyOf(x + 40, y, _z)}));
+    final trimmer = AreaTrimmer(store);
+    final plan = await trimmer.plan(await store.list(), keys);
+    expect(plan.trims.single.shape, isNull);
+    expect(plan.freedBytes, area.bytes);
+    await trimmer.apply(plan);
+    expect((await store.list()).map((a) => a.id), ['b'], reason: 'der andere bleibt');
+    expect(await store.readArchive('a'), isNull);
+  });
+
+  test('Orte-Dateien bleiben nur für Zellen, die der Bereich noch berührt', () async {
+    // Zwei Bereichshälften in verschiedenen Orte-Zellen: weit genug
+    // auseinander, dass sie sicher in verschiedenen Zellen liegen.
+    final far = tileAt(47.9, 11.9, _z);
+    final twoCells = TileSetShape(zoom: _z, keys: {
+      TileSetShape.keyOf(x, y, _z),
+      TileSetShape.keyOf(far.x, far.y, _z),
+    });
+    final cellsNear = TileSetShape(zoom: _z, keys: {TileSetShape.keyOf(x, y, _z)}).poiCells();
+    final cellsFar = TileSetShape(zoom: _z, keys: {TileSetShape.keyOf(far.x, far.y, _z)}).poiCells();
+    final files = [
+      for (final c in {...cellsNear, ...cellsFar}) poiCellFileName(c, PoiGroup.water),
+    ];
+    final area = await seed(s: twoCells, poiFiles: files);
+    final trimmer = AreaTrimmer(store);
+    await trimmer.apply(await trimmer.plan([area], {TileSetShape.keyOf(far.x, far.y, _z)}));
+    final after = (await store.list()).single;
+    expect(after.poiFiles, [for (final c in cellsNear) poiCellFileName(c, PoiGroup.water)]);
+  });
+
+  test('ein Rahmen-Bereich wird zur Kachelmenge ohne die herausgenommenen', () async {
+    final rect = tileBounds(_z, x, y);
+    const id = 'r';
+    final rectShape = RectShape(AreaBounds(
+        south: rect.south + 1e-6, west: rect.west + 1e-6, north: rect.north - 1e-6,
+        east: tileBounds(_z, x + 2, y).east - 1e-6));
+    final tiles = rectShape.tiles(maxZoom: _z);
+    await store.putArchive(
+        id,
+        writePmTiles(
+          tiles: [for (final t in tiles) TileToWrite(t.z, t.x, t.y, Uint8List.fromList([t.z, t.x % 256, t.y % 256]))],
+          tileCompression: Compression.none,
+          bounds: TileBounds(west: rect.west, south: rect.south, east: rect.east, north: rect.north),
+        ));
+    final area = StoredArea(
+      id: id,
+      name: 'Rahmen',
+      bounds: rectShape.bounds,
+      shape: rectShape,
+      minZoom: 8,
+      maxZoom: _z,
+      build: '20260928',
+      tiles: tiles.length,
+      bytes: 1,
+      savedAt: DateTime.utc(2026, 9, 28),
+    );
+    await store.saveIndex([area]);
+    final trimmer = AreaTrimmer(store);
+    await trimmer.apply(await trimmer.plan([area], {TileSetShape.keyOf(x + 1, y, _z)}));
+    final after = (await store.list()).single;
+    expect(after.shape, isA<TileSetShape>());
+    expect((after.shape as TileSetShape).keys, {TileSetShape.keyOf(x, y, _z), TileSetShape.keyOf(x + 2, y, _z)});
+  });
+}

@@ -67,10 +67,13 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
   entsteht ein Entwurf: der aktuelle Ausschnitt, Fingerstriche (jeder
   eine geschlossene Fläche; jede Kachel, die sie berührt oder
   umschließt, kommt dazu oder fällt weg) und die Kacheln entlang der
-  eigenen Trails. Der Entwurf steht grün auf der Karte, mit Kachelzahl.
-  Speichern fragt nach und nennt Größe, Kacheln und Orte; Schließen
-  fragt nach, wenn der Entwurf nicht leer ist. Offen: einen
-  gespeicherten Bereich nachträglich bearbeiten.
+  eigenen Trails. Seit 0.27.0 bearbeitet die Leiste den ganzen Bestand:
+  Der Radierer über gespeicherten Kacheln markiert sie zum Entfernen.
+  Hell ist gespeichert, grün schraffiert kommt dazu, rot gespiegelt
+  schraffiert fällt weg (Betreiber, 2026-09-29). Speichern fragt nach und
+  nennt, was geladen wird (Größe, Kacheln, Orte) und was frei wird;
+  Entfernen schreibt die betroffenen Archive auf dem Gerät neu, ohne
+  Netz. Schließen fragt nach, wenn der Entwurf nicht leer ist.
 - **Größe vorher, exakt**: Das PMTiles-Verzeichnis nennt die Bytezahl
   jeder Kachel. „Diesen Bereich speichern — 12,4 MB" ist eine Messung,
   keine Schätzung. Faustzahl aus den PilzBuddy-Werten: 5,54 GB auf

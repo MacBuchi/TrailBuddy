@@ -2,6 +2,7 @@
 // umschließt oder berührt; der Entwurf, der Striche addiert und abzieht,
 // sich zurücknehmen lässt und nach dem Speichern verschwindet; und die
 // Anzeige, die eine Zeile Kacheln zu EINEM Rechteck zieht.
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -85,48 +86,64 @@ void main() {
     expect(tilesTouchedByRing(const [LatLng(47.9, 11.6)]), isEmpty);
   });
 
-  test('der Entwurf: dazu, weg, zurück — und nach jedem Strich ist das Werkzeug weg', () {
-    final c = ProviderContainer();
+  /// Ein Container, in dem [stored] der gespeicherte Bestand ist.
+  ProviderContainer container(Set<int> stored) {
+    final c = ProviderContainer(overrides: [storedTileKeysProvider.overrideWithValue(stored)]);
     addTearDown(c.dispose);
+    return c;
+  }
+
+  test('der Entwurf rechnet gegen den Bestand: Gespeichertes kommt nicht dazu, Neues fällt nicht weg', () {
+    // Gespeichert: x, x+1. Neu: x+2, x+3.
+    final c = container({_key(x, y), _key(x + 1, y)});
     final n = c.read(areaDraftProvider.notifier);
-    expect(c.read(areaDraftProvider), isNull);
+    AreaDraft d() => c.read(areaDraftProvider)!;
     n.start();
-    expect(c.read(areaDraftProvider)!.isEmpty, isTrue);
     n.applyStroke({_key(x, y)});
-    expect(c.read(areaDraftProvider)!.isEmpty, isTrue, reason: 'ohne Werkzeug zählt kein Strich');
+    expect(d().isEmpty, isTrue, reason: 'ohne Werkzeug zählt kein Strich');
 
     n.arm(AreaDrawTool.add);
-    expect(c.read(areaDraftProvider)!.tool, AreaDrawTool.add);
-    n.applyStroke({_key(x, y), _key(x + 1, y), _key(x + 2, y)});
-    expect(c.read(areaDraftProvider)!.keys, hasLength(3));
-    expect(c.read(areaDraftProvider)!.tool, isNull);
+    expect(d().tool, AreaDrawTool.add);
+    n.applyStroke({_key(x, y), _key(x + 1, y), _key(x + 2, y), _key(x + 3, y)});
+    expect(d().adds, {_key(x + 2, y), _key(x + 3, y)}, reason: 'was liegt, kommt nicht noch einmal');
+    expect(d().removes, isEmpty);
+    expect(d().tool, isNull, reason: 'nach dem Strich ist das Werkzeug weg');
 
     n.arm(AreaDrawTool.remove);
-    n.applyStroke({_key(x + 1, y), _key(x + 9, y)});
-    expect(c.read(areaDraftProvider)!.keys, {_key(x, y), _key(x + 2, y)});
+    n.applyStroke({_key(x + 1, y), _key(x + 2, y), _key(x + 9, y)});
+    expect(d().adds, {_key(x + 3, y)}, reason: 'eine offene Zugabe wird zurückgenommen');
+    expect(d().removes, {_key(x + 1, y)}, reason: 'Gespeichertes fällt weg, Unbekanntes nicht');
+
+    // Wieder dazu: nimmt das Wegfallen zurück.
+    n.addAll({_key(x + 1, y)});
+    expect(d().removes, isEmpty);
+    expect(d().adds, {_key(x + 3, y)});
 
     // Derselbe Knopf noch einmal nimmt das Werkzeug zurück.
     n.arm(AreaDrawTool.add);
     n.arm(AreaDrawTool.add);
-    expect(c.read(areaDraftProvider)!.tool, isNull);
+    expect(d().tool, isNull);
 
     n.undo();
-    expect(c.read(areaDraftProvider)!.keys, hasLength(3));
+    expect(d().removes, {_key(x + 1, y)});
     n.undo();
-    expect(c.read(areaDraftProvider)!.isEmpty, isTrue);
-    expect(c.read(areaDraftProvider)!.history, isEmpty);
+    n.undo();
+    expect(d().isEmpty, isTrue);
+    expect(d().history, isEmpty);
 
-    n.addAll({_key(x, y)});
-    // Gespeichert mit ANDEREN Kacheln: bleibt; mit denselben: weg.
-    n.discardIfSaved(TileSetShape(zoom: _z, keys: {_key(x + 5, y)}));
-    expect(c.read(areaDraftProvider), isNotNull);
-    n.discardIfSaved(TileSetShape(zoom: _z, keys: {_key(x, y)}));
-    expect(c.read(areaDraftProvider), isNull);
+    // Nach einem halben Speichern bleibt nur „kommt dazu".
+    n.addAll({_key(x + 5, y)});
+    n.removeAll({_key(x, y)});
+    n.dropRemoves();
+    expect(d().adds, {_key(x + 5, y)});
+    expect(d().removes, isEmpty);
+    n.clear();
+    expect(d().isEmpty, isTrue);
+    expect(n.hasChanges, isFalse);
   });
 
   test('ein Strich ohne Änderung ist kein Schritt — Rückgängig tut immer etwas', () {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = container(const {});
     final n = c.read(areaDraftProvider.notifier)..start();
     n.arm(AreaDrawTool.remove);
     n.applyStroke({_key(x, y)});
@@ -144,8 +161,7 @@ void main() {
   });
 
   test('Werkzeuge und „dazunehmen" beginnen den Entwurf selbst', () {
-    final c = ProviderContainer();
-    addTearDown(c.dispose);
+    final c = container(const {});
     final n = c.read(areaDraftProvider.notifier);
     expect(n.hasChanges, isFalse);
     n.addAll({_key(x, y)});
@@ -156,30 +172,68 @@ void main() {
     expect(n.hasChanges, isFalse, reason: 'ein Werkzeug allein ist keine Änderung');
   });
 
-  test('die Anzeige zieht eine Zeile zu einem Rechteck, zwei Zeilen zu zweien', () {
-    final draft = AreaDraft(keys: {
-      for (var i = x; i < x + 5; i++) _key(i, y),
-      _key(x, y + 1),
-      _key(x + 3, y + 1),
+  group('Schraffur (Betreiber, 2026-09-29: grün dazu, rot gespiegelt weg)', () {
+    final rect = tileBounds(_z, x, y);
+    const zoom = 14.0;
+
+    test('die Linien liegen im Rechteck, laufen diagonal, und gespiegelt in die andere Richtung', () {
+      final lines = hatchLines([rect], zoom, mirrored: false)!;
+      final mirrored = hatchLines([rect], zoom, mirrored: true)!;
+      expect(lines, isNotEmpty);
+      expect(mirrored, isNotEmpty);
+      for (final l in [...lines, ...mirrored]) {
+        for (final p in l) {
+          expect(p.latitude, inInclusiveRange(rect.south - 1e-9, rect.north + 1e-9));
+          expect(p.longitude, inInclusiveRange(rect.west - 1e-9, rect.east + 1e-9));
+        }
+      }
+      // `/`: nach Osten geht es nach Norden. Gespiegelt: nach Süden.
+      bool rising(List<LatLng> l) {
+        final a = l.first, b = l.last;
+        return (b.longitude - a.longitude) * (b.latitude - a.latitude) > 0;
+      }
+      expect(lines.every(rising), isTrue);
+      expect(mirrored.every((l) => !rising(l)), isTrue);
+      // Eine 13er-Kachel ist bei Zoom 14 zweimal 256 px, bei 10 px Abstand
+      // also rund hundert Linien.
+      expect(lines.length, inInclusiveRange(95, 105));
     });
-    final center = tileBounds(_z, x + 2, y).center;
-    const half = 0.1;
-    final view = MapViewBounds(
-        west: center.longitude - half, east: center.longitude + half,
-        south: center.latitude - half / 2, north: center.latitude + half / 2);
-    // Kamera weit genug drin, dass die Anzeige Zoom 13 nimmt.
-    final polys = draftPolygons(draft, view);
-    expect(polys, hasLength(3), reason: 'eine Zeile aus fünf, dann zwei einzelne');
-    expect(polys.every((p) => p.fillColor == kAreaDraftFill), isTrue);
-    final run = polys.firstWhere((p) => p.points[1].longitude - p.points[0].longitude > 0.2);
-    expect(run.points[0].longitude, closeTo(tileBounds(_z, x, y).west, 1e-9));
-    expect(run.points[1].longitude, closeTo(tileBounds(_z, x + 4, y).east, 1e-9));
-    // Leer oder ohne Fenster: nichts.
-    expect(draftPolygons(AreaDraft(keys: const {}), view), isEmpty);
-    // Weit draußen dieselben Rechtecke: Der Entwurf hängt nicht am Zoom.
-    final wide = MapViewBounds(
-        west: center.longitude - 2, east: center.longitude + 2,
-        south: center.latitude - 1, north: center.latitude + 1);
-    expect(draftPolygons(draft, wide).map((p) => p.points.first), polys.map((p) => p.points.first));
+
+    test('die Linien hängen am Weltraster: zwei Hälften ergeben dieselben Linien wie das Ganze', () {
+      final left = tileBounds(_z, x, y), right = tileBounds(_z, x + 1, y);
+      final whole = AreaBounds(south: left.south, west: left.west, north: left.north, east: right.east);
+      int count(List<List<LatLng>>? l) => l!.length;
+      // Jede Linie, die über die Naht läuft, zerfällt in zwei — mehr nicht.
+      final split = count(hatchLines([left], zoom, mirrored: false)) + count(hatchLines([right], zoom, mirrored: false));
+      final one = count(hatchLines([whole], zoom, mirrored: false));
+      expect(split - one, inInclusiveRange(0, 52));
+    });
+
+    test('zu viele Linien ⇒ null, dann trägt die Tönung allein', () {
+      expect(hatchLines([rect], zoom, mirrored: false, maxLines: 10), isNull);
+    });
+
+    test('auf der Karte: grüne Tönung und Schraffur für dazu, rote gespiegelte für weg — beim Zoomen dieselben Kacheln', () {
+      final draft = AreaDraft(adds: {_key(x, y), _key(x + 1, y)}, removes: {_key(x + 3, y)});
+      final center = tileBounds(_z, x + 2, y).center;
+      MapViewCamera cam(double half, double width) => MapViewCamera(
+            center: center,
+            bounds: MapViewBounds(
+                west: center.longitude - half, east: center.longitude + half,
+                south: center.latitude - half / 2, north: center.latitude + half / 2),
+            size: Size(width, width / 2),
+          );
+      final near = draftLayers(draft, cam(0.1, 800));
+      expect(near.polygons.where((p) => p.fillColor == kAreaAddFill), hasLength(1),
+          reason: 'zwei Kacheln nebeneinander sind ein Rechteck');
+      expect(near.polygons.where((p) => p.fillColor == kAreaRemoveFill), hasLength(1));
+      expect(near.lines.where((l) => l.color == kAreaAddHatch), isNotEmpty);
+      expect(near.lines.where((l) => l.color == kAreaRemoveHatch), isNotEmpty);
+      expect(near.lines.every((l) => l.hitValue == null), isTrue, reason: 'ein Tipp geht hindurch');
+      // Weit draußen: dieselben Rechtecke, nur die Schraffur fällt weg.
+      final far = draftLayers(draft, cam(3, 400));
+      expect(far.polygons.map((p) => p.points.first), near.polygons.map((p) => p.points.first));
+      expect(draftLayers(AreaDraft(), cam(0.1, 800)).polygons, isEmpty);
+    });
   });
 }

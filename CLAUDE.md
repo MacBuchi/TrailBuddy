@@ -576,12 +576,36 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
         der Download holt sie nicht noch einmal), fragt nach dem Namen,
         lädt mit Fortschritt und Abbruch. Orte und offizielle Trails
         filtert der erste Knopf der Leiste (das bekannte Blatt).
-    - **Bereiche zeichnen** (Stufe C, #67, seit 0.26.0,
-      `area_draw.dart` pur + Notifier, `area_draw_overlay.dart`): Die
-      Leiste füllt einen ENTWURF (`areaDraftProvider`, Kacheln bei
-      `kAreaShapeZoom`, am Ende eine `TileSetShape`): Ausschnitt
-      (`tilesInBounds`), Fläche dazu, Fläche weg, entlang der Trails,
-      Rückgängig. Fünf Dinge, die man wissen muss:
+    - **Bereiche zeichnen und bearbeiten** (Stufe C, #67, seit 0.26.0;
+      seit 0.27.0 gegen den ganzen Bestand; `area_draw.dart` pur +
+      Notifier, `area_draw_overlay.dart`, `area_trim.dart`): Die Leiste
+      füllt einen ENTWURF aus ZWEI Mengen bei `kAreaShapeZoom` — was
+      dazukommt (`adds`, nie eine gespeicherte Kachel) und was wegfällt
+      (`removes`, nur gespeicherte), gerechnet gegen
+      `storedTileKeysProvider` (Vereinigung aller Formen,
+      `AreaShape.keysAt`). Stift/Ausschnitt/Trails fügen hinzu und nehmen
+      ein Wegfallen zurück, der Radierer umgekehrt. Sechs Dinge, die man
+      wissen muss:
+      - **Die Darstellung hat eine Regel** (Betreiber, 2026-09-29):
+        Helligkeit = gespeichert, Schraffur = offene Änderung — grün
+        `/` für „kommt dazu" (auf dunklem Grund), rot gespiegelt `\` für
+        „fällt weg" (auf hellem), beides halbtransparent über einer
+        leichten Tönung (`draftLayers`). Die Schraffur sind LINIEN
+        (`hatchLines`), kein Füllmuster: Ein Muster bräuchte in MapLibre
+        ein Bild im Stil. Sie hängen am Weltraster der Kamera-Zoomstufe
+        (x ± y = k · 10 px), bleiben beim Verschieben stehen und werden
+        bei Stillstand neu gerechnet; über `kAreaHatchMaxLines` bleibt
+        nur eine kräftigere Tönung. Die Linien tragen keine Kennung und
+        liegen unter allen Trails — ein Tipp geht hindurch.
+      - **Entfernen braucht kein Netz** (`AreaTrimmer`): Das eigene
+        Archiv wird ohne die Kacheln neu geschrieben (derselbe
+        Schreiber, gegengelesen, bevor es das alte ersetzt), eine
+        gröbere Kachel bleibt, solange darunter noch etwas liegt; die
+        Form wird zur `TileSetShape`, Orte-Dateien leerer Zellen fallen
+        aus dem Index (die Datei bleibt liegen, gelesen wird nur, was
+        der Index nennt). Leer ⇒ der Bereich wird gelöscht. Gespeichert
+        wird ERST das Entfernen (lokal), DANN das Laden; scheitert das
+        Laden, bleibt im Entwurf nur „kommt dazu" (`dropRemoves`).
       - **Ein Strich ist eine Fläche**: geschlossen (Ende zum Anfang),
         dazu jede Kachel, die der Rand berührt oder die innen liegt
         (`tilesTouchedByRing`: Rand in Zehntelkachel-Schritten
@@ -600,17 +624,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       - **Der Entwurf lebt mit der Leiste**: Schließen verwirft ihn (mit
         Rückfrage), damit auch ein armiertes Werkzeug — sonst stünde die
         Karte fest. Gezeigt wird er nur mit Leiste.
-      - **Angezeigt als Rechtecke** (`draftPolygons`, `mergeTileRects`),
-        IMMER bei Zoom 13 wie die Maske, ohne Rand je Rechteck (innere
-        Kanten sähen aus wie ein Gitter). MapLibre gruppiert Flächen nach
-        Stil in EINE Ebene (`polygonLayers`) wie die Linien.
-      - **Gespeichert wird über den Dialog** — Größe gemessen,
-        Obergrenze, Orte, Fortschritt. Ein fertiger Download mit genau
-        diesen Kacheln leert den Entwurf (`discardIfSaved`, im
-        Karten-Screen an `areaDownloadProvider`).
-      Bestehende Bereiche bearbeiten gibt es nicht: Ein neuer Bereich
-      aus Entwurf ist der Weg, das alte Archiv löscht man in „Meine
-      Bereiche".
+      - **Tönung als Rechtecke** (`mergeTileRects`), IMMER bei Zoom 13
+        wie die Maske, ohne Rand je Rechteck (innere Kanten sähen aus wie
+        ein Gitter). MapLibre gruppiert Flächen und Linien nach Stil in
+        je EINE Ebene (`polygonLayers`, `polylineLayers`).
+      - **Gespeichert wird über den Dialog**: „Lädt … · Kacheln · Orte"
+        (Netz) und „Gibt … frei · Kacheln" (lokal gemessen); ein Name nur,
+        wenn etwas dazukommt. Danach leert der Karten-Screen den Entwurf
+        (`clear`), die Leiste bleibt offen.
     - **Die Orte kommen mit**: die Zellendateien aller Gruppen, die das
       Orte-Manifest für den Rahmen nennt; `HostPoiSource` liest sie
       ZUERST (`readLocal`), was lokal liegt, braucht weder Manifest noch
@@ -794,7 +815,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
-  liegen", Konzept 3.2), bestehende Bereiche bearbeiten, Ausgangskorb und
+  liegen", Konzept 3.2), Ausgangskorb und
   Zwischenspeicher im Browser, Nachrichten zwischen Buddys (#34, Rest),
   Meldung zu einem einzelnen Trail, Launcher-Icon (noch
   Flutter-Vorgabe), `docs/play-console.md`.

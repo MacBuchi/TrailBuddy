@@ -179,6 +179,10 @@ sealed class AreaShape {
   /// Die Orte-Zellen, die zum Bereich gehören.
   List<PoiCell> poiCells();
 
+  /// Alle Kacheln der Form bei Zoom [z] als Schlüssel ([TileSetShape.keyOf])
+  /// — der gespeicherte Bestand, gegen den ein Entwurf rechnet.
+  Set<int> keysAt(int z);
+
   /// Die Kacheln bei Zoom [z], die [box] berühren — für die Hervorhebung
   /// auf der Karte, die nur den Ausschnitt braucht und nicht 40 000
   /// Kacheln.
@@ -268,6 +272,11 @@ class RectShape extends AreaShape {
   }
 
   @override
+  Set<int> keysAt(int z) => {
+        for (final t in tilesCovering(bounds, minZoom: z, maxZoom: z)) TileSetShape.keyOf(t.x, t.y, z),
+      };
+
+  @override
   Map<String, dynamic> toJson() => {'type': 'rect', 'bounds': bounds.toJson()};
 }
 
@@ -348,6 +357,9 @@ class TileSetShape extends AreaShape {
           (z: z, x: k >> z, y: k & ((1 << z) - 1)),
     ];
   }
+
+  @override
+  Set<int> keysAt(int z) => _keysAt(z);
 
   @override
   Map<String, dynamic> toJson() => {'type': 'tiles', 'zoom': zoom, 'keys': keys.toList()..sort()};

@@ -146,14 +146,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (along != null) ref.read(areaDraftProvider.notifier).addAll(along.keys);
   }
 
-  Future<void> _saveDraft(AreaShape drawn) async {
+  /// Speichern: der Dialog misst, fragt und führt aus; danach ist der
+  /// Entwurf leer, die Leiste bleibt offen und zeigt den neuen Bestand.
+  Future<void> _saveDraft(AreaDraft draft) async {
     final messenger = ScaffoldMessenger.of(context);
-    final saved = await showSaveDraftDialog(context, drawn);
+    final saved = await showSaveDraftDialog(context, draft);
     if (!saved || !mounted) return;
-    final area = ref.read(areaDownloadProvider).result;
+    ref.read(areaDraftProvider.notifier).clear();
+    final area = draft.adds.isEmpty ? null : ref.read(areaDownloadProvider).result;
     messenger.showSnackBar(SnackBar(
         content: Text(area == null
-            ? 'Bereich gespeichert.'
+            ? 'Änderungen gespeichert.'
             : '„${area.name}" gespeichert: ${formatBytes(area.bytes)}.')));
   }
 
@@ -398,16 +401,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ref.read(mapFocusAreaProvider.notifier).state = null;
     });
 
-    // Ein gespeicherter Entwurf ist erledigt (Stufe C) — der Download
-    // läuft im Notifier weiter, auch wenn das Blatt schon zu ist.
-    ref.listen(areaDownloadProvider, (previous, next) {
-      final saved = next.result;
-      if (next.phase == AreaDownloadPhase.done && saved != null &&
-          previous?.phase != AreaDownloadPhase.done) {
-        ref.read(areaDraftProvider.notifier).discardIfSaved(saved.shape);
-      }
-    });
-
     // Was der Ausschnitt braucht — und was davon fehlt, wird nachgeladen.
     final camera = _camera;
     final cells = poiCellsFor(camera, groups);
@@ -424,16 +417,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final mask = overlayAreas != null && camera != null
         ? offlineCoverageMask(overlayAreas, camera.bounds)
         : null;
-    // Der Entwurf grün über der Abdunkelung — nur mit Werkzeugleiste.
+    // Offene Änderungen über der Abdunkelung — „kommt dazu" grün
+    // schraffiert, „fällt weg" rot und gespiegelt; nur mit Werkzeugleiste.
     final toolsOpen = overlayOn;
     final draft = overlayOn ? ref.watch(areaDraftProvider) : null;
     final drawTool = draft?.tool;
+    final pending = draft != null && camera != null ? draftLayers(draft, camera) : null;
 
     final layers = MapViewLayers(
       polygons: [
         ?mask,
-        if (draft != null && camera != null)
-          ...draftPolygons(draft, camera.bounds),
+        ...?pending?.polygons,
       ],
       circles: [
         if (position != null && position.accuracy > 0)
@@ -446,8 +440,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
       ],
       polylines: [
-        // Unten die offiziellen Trails, darüber die Fahrt, oben das Netz —
-        // ein Tipp trifft zuerst das Netz.
+        // Ganz unten die Schraffur offener Änderungen (ohne Kennung, ein
+        // Tipp geht hindurch); dann die offiziellen Trails, darüber die
+        // Fahrt, oben das Netz — ein Tipp trifft zuerst das Netz.
+        ...?pending?.lines,
         if (officialOn && camera != null && camera.zoom >= kOfficialMinZoom)
           ...officialPolylines(official),
         // Während das Zerlege-Blatt offen ist, zeichnet es die Fahrt
