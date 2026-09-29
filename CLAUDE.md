@@ -873,16 +873,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Functions ein. `tool/push_flush_check.sh` ruft den Versand im Dry
     Run WIRKLICH auf (zurückgerollt): PL/pgSQL prüft den Rumpf erst beim
     Aufruf, und live läuft er jede Minute.
-  - **Firebase: Android ja, Web noch nicht** (seit 0.37.0, Projekt
+  - **Firebase ist eingerichtet** (seit 0.37.0, Projekt
     `trailbuddy-6207b`, nur Cloud Messaging, ohne Analytics).
     `android/app/google-services.json` liegt im Repo — ihr Inhalt ist
     öffentlich (steckt in jeder APK), sie wird aus der Konsole GEHOLT,
     nie editiert; der Manifest-Test prüft den Paketnamen darin. Das
     Gradle-Plugin wird nur mit der Datei angewendet, ein Build ohne sie
-    läuft weiter. `lib/core/push_config.dart` ist für das Web noch leer
-    (Web-App und VAPID-Schlüssel gehören zusammen gesetzt, Test), der
-    Schalter sagt dort „noch nicht eingerichtet". Fehlende Konfiguration
-    ist kein Fehlerbericht (`isMissingFirebaseConfig`: `[core/…]` UND die
+    läuft weiter. Das Web liest Web-App und VAPID-Schlüssel aus
+    `lib/core/push_config.dart` (öffentlich wie der Publishable Key;
+    beide gehören zusammen gesetzt, Test). Fehlende Konfiguration ist
+    kein Fehlerbericht (`isMissingFirebaseConfig`: `[core/…]` UND die
     native `PlatformException` „Failed to load FirebaseOptions" — die
     zweite kam bis 0.36.x in den Wochendigest). Der Versand braucht
     zusätzlich die Vault- und Function-Geheimnisse oben und ein deploytes

@@ -6,12 +6,12 @@
 
 *Version 0.37.0, 2026-09-29*
 
-- **Benachrichtigungen auf Android eingerichtet** (0.37.0): Im Profil
-  lassen sich die Benachrichtigungen jetzt einschalten. Du erfährst
-  dann, wenn ein Buddy einen Trail meldet, den du siehst, oder einen
-  Hinweis dazu schreibt. Die Meldung nennt weder den Trail noch den
-  Buddy. Was los ist, siehst du erst nach dem Antippen in der App. Im
-  Browser kommt das später.
+- **Benachrichtigungen eingerichtet** (0.37.0): Im Profil lassen sich
+  die Benachrichtigungen jetzt einschalten, auf dem Telefon und im
+  Browser. Du erfährst dann, wenn ein Buddy einen Trail meldet, den du
+  siehst, oder einen Hinweis dazu schreibt. Die Meldung nennt weder den
+  Trail noch den Buddy. Was los ist, siehst du erst nach dem Antippen in
+  der App.
 
 ## Offline-Karten
 
