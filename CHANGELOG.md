@@ -4,8 +4,15 @@
 
 ## Aussehen
 
-*Version 0.28.0, 2026-09-29*
+*Versionen 0.28.0 bis 0.29.0, 2026-09-29*
 
+- **Ein eigenes Logo** (0.29.0): eine Serpentine — zwei Kehren und ein
+  Ziel. Sie ersetzt das Flutter-Standardsymbol auf dem Startbildschirm
+  des Telefons, im Browser-Tab und bei der installierten Web-App, und sie
+  steht jetzt auch in der Anmeldung.
+- **Auch die Benachrichtigungen tragen das Logo**: Meldungen von Buddys
+  und die laufende Fahrt zeigen oben in der Statusleiste die Serpentine
+  statt der Berge.
 - **Neue Farben und Schriften**: TrailBuddy trägt jetzt Lime als
   Markenfarbe, eine schmale Titelschrift und für Kilometer, Höhenmeter
   und Schwierigkeit eine Schrift, in der Zahlen sauber untereinander

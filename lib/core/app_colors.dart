@@ -40,6 +40,7 @@ abstract final class AppColors {
     text: Color(0xFFF2F4EF),
     muted: Color(0xFF9AA69D),
     accentText: brand,
+    brandMark: brand,
     warningText: Color(0xFFFF8A3D),
     buddyText: Color(0xFF5AD0F0),
     map: MapPalette.dark,
@@ -58,6 +59,8 @@ abstract final class AppColors {
     // (≥ 3:1), als Text nicht (4,2:1) — dafür je eine dunklere Stufe,
     // ≥ 4,8:1 auf Grund und Fläche (`test/core/app_theme_test.dart`).
     accentText: Color(0xFF3D6E0B),
+    // „Marke auf Hell" (Design 1a): das Logo und große Flächen der Marke.
+    brandMark: Color(0xFF4F8A10),
     warningText: Color(0xFFA94510),
     buddyText: Color(0xFF0A7299),
     map: MapPalette.light,
@@ -76,6 +79,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.text,
     required this.muted,
     required this.accentText,
+    required this.brandMark,
     required this.warningText,
     required this.buddyText,
     required this.map,
@@ -102,6 +106,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Die Marke als Schrift: Lime im Dunkeln, ein dunkles Grün im Hellen.
   final Color accentText;
+
+  /// Die Marke als ZEICHEN (Logo, große Formen): Lime im Dunkeln,
+  /// Moosgrün #4F8A10 im Hellen — als Fläche reicht 3:1, als Text nicht.
+  final Color brandMark;
 
   /// Warnung als Schrift.
   final Color warningText;

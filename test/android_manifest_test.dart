@@ -97,7 +97,7 @@ void main() {
     expect(manifest, contains('android:resource="@drawable/ic_notification"'));
     final icon = File('android/app/src/main/res/drawable/ic_notification.xml').readAsStringSync();
     // Nur der Alphakanal zählt: jede Fläche weiß, keine zweite Farbe.
-    final colors = RegExp(r'android:fillColor="(#[0-9A-Fa-f]+)"').allMatches(icon).map((m) => m.group(1)).toSet();
+    final colors = RegExp(r'android:(?:fill|stroke)Color="(#[0-9A-Fa-f]+)"').allMatches(icon).map((m) => m.group(1)).toSet();
     expect(colors, {'#FFFFFFFF'});
   });
 

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../app_distribution.dart';
 import '../app_info.dart';
 import '../update_check.dart';
+import 'trailbuddy_logo.dart';
 
 /// Sperrt die App, solange die installierte Version unter der
 /// server-seitigen Mindestversion liegt.
@@ -75,7 +76,7 @@ class _UpdateRequiredScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.pedal_bike, size: 96, color: scheme.primary),
+                  const TrailBuddyLogo(size: 88),
                   const SizedBox(height: 24),
                   Text('Update erforderlich',
                       style: textTheme.headlineSmall
