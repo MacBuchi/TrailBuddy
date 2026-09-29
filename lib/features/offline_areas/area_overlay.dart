@@ -16,6 +16,12 @@
 // Rechtecken zusammen — eine Fläche aus Kacheln bleibt eine Handvoll
 // Rechtecke. Gerechnet wird aus den FORMEN im Index, nicht aus den
 // Archiven.
+//
+// **Um den ganzen Bestand läuft ein durchgehender Rand** (Design Turn 2,
+// seit 0.31.0): Helligkeit allein sagt „liegt", der Rand sagt „bis hier".
+// Er ist der Umriss der Kachelmenge ([tileOutline]), nicht der Rand der
+// Rechtecke — die Nähte zwischen zwei Rechtecken sähen sonst aus wie ein
+// Gitter.
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -28,6 +34,16 @@ import 'area_store.dart';
 /// Die Abdunkelung: dunkel genug, dass der Unterschied sofort zu sehen
 /// ist, hell genug, dass die Karte darunter lesbar bleibt.
 const kOfflineDimColor = Color(0x66000000);
+
+/// Der Rand um den Bestand: durchgehend, in der Textfarbe des App-Modus
+/// (Design Turn 2: dunkel hell, hell `#131A16`) — die Farbe kommt vom
+/// Aufrufer, die Breite steht hier.
+const kOfflineOutlineWidth = 2.0;
+
+/// Mehr Linienstücke als das bekommt ein Umriss nicht — weit draußen
+/// wäre er ohnehin nur ein Saum um die Löcher; dann trägt die Helligkeit
+/// allein.
+const kOfflineOutlineMaxLines = 4000;
 
 /// Mehr Rechtecke als das zeichnet die Maske nur im Ausschnitt selbst,
 /// ohne den Rand darum — nie gröber: Die Kacheln sollen beim Zoomen
@@ -114,32 +130,114 @@ List<LatLng> rectRing(AreaBounds b) => [
 /// Die Maske für [areas] im Ausschnitt [view] — null nur, wenn der
 /// Ausschnitt leer ist. Ohne Bereiche ist alles dunkel: Das IST die
 /// Aussage.
-MapViewPolygon? offlineCoverageMask(List<StoredArea> areas, MapViewBounds view) {
-  if (view.east <= view.west || view.north <= view.south) return null;
+MapViewPolygon? offlineCoverageMask(List<StoredArea> areas, MapViewBounds view) =>
+    offlineCoverage(areas, view).mask;
+
+/// Maske UND durchgehender Rand um den Bestand, im selben Rahmen (mit
+/// Rand, weit draußen ohne). Der Rand fehlt ohne Bereiche, ohne
+/// [outlineColor] und über [kOfflineOutlineMaxLines].
+({MapViewPolygon? mask, List<MapViewPolyline> outline}) offlineCoverage(
+    List<StoredArea> areas, MapViewBounds view,
+    {Color? outlineColor}) {
+  if (view.east <= view.west || view.north <= view.south) return (mask: null, outline: const []);
   var box = offlineOverlayBox(view);
-  var holes = _holes(areas, box);
+  var byZoom = _tilesByZoom(areas, box);
+  var holes = _holes(byZoom);
   if (holes.length > kOfflineOverlayMaxHoles) {
     box = offlineOverlayBox(view, margin: false);
-    holes = _holes(areas, box);
+    byZoom = _tilesByZoom(areas, box);
+    holes = _holes(byZoom);
   }
-  return MapViewPolygon(
-    points: rectRing(box),
-    holes: holes,
-    fillColor: kOfflineDimColor,
+  final outline = <MapViewPolyline>[];
+  if (outlineColor != null) {
+    for (final tiles in byZoom.values) {
+      final lines = tileOutline(tiles, box);
+      if (lines == null) {
+        outline.clear();
+        break;
+      }
+      for (final l in lines) {
+        outline.add(MapViewPolyline(points: l, color: outlineColor, width: kOfflineOutlineWidth));
+      }
+    }
+  }
+  return (
+    mask: MapViewPolygon(points: rectRing(box), holes: holes, fillColor: kOfflineDimColor),
+    outline: outline,
   );
 }
 
-List<List<LatLng>> _holes(List<StoredArea> areas, AreaBounds box) {
-  // Je Zoom gesammelt: Bereiche mit verschiedenem Zoom (ein alter bis
-  // 10) liegen sonst doppelt übereinander.
+List<List<LatLng>> _holes(Map<int, Set<TileXYZ>> byZoom) => [
+      for (final tiles in byZoom.values)
+        for (final r in mergeTileRects(tiles)) rectRing(r),
+    ];
+
+/// Die Kacheln der Bereiche in [box], je Zoom gesammelt: Bereiche mit
+/// verschiedenem Zoom (ein alter bis 10) liegen sonst doppelt übereinander.
+Map<int, Set<TileXYZ>> _tilesByZoom(List<StoredArea> areas, AreaBounds box) {
   final byZoom = <int, Set<TileXYZ>>{};
   for (final a in areas) {
     final z = offlineOverlayZoomOf(a);
     if (z < a.minZoom) continue;
     (byZoom[z] ??= {}).addAll(a.shape.tilesWithin(box, z));
   }
-  return [
-    for (final tiles in byZoom.values)
-      for (final r in mergeTileRects(tiles)) rectRing(r),
-  ];
+  return byZoom;
+}
+
+/// Der Umriss einer Kachelmenge EINES Zooms: jede Kachelkante, auf deren
+/// anderer Seite keine Kachel der Menge liegt, zu geraden Läufen
+/// zusammengefasst (eine Linie je Lauf, nicht je Kante). Kanten zu einem
+/// Nachbarn außerhalb von [box] fehlen — was dort liegt, ist nicht
+/// gefragt worden, und ein Rand am Bildrand wäre erfunden. Null über
+/// [maxLines].
+List<List<LatLng>>? tileOutline(Iterable<TileXYZ> tiles, AreaBounds box,
+    {int maxLines = kOfflineOutlineMaxLines}) {
+  final set = <(int, int)>{};
+  var z = -1;
+  for (final t in tiles) {
+    z = t.z;
+    set.add((t.x, t.y));
+  }
+  if (set.isEmpty) return const [];
+  final nw = tileAt(box.north, box.west, z);
+  final se = tileAt(box.south, box.east, z);
+  bool known(int x, int y) => x >= nw.x && x <= se.x && y >= nw.y && y <= se.y;
+
+  // Waagerechte Kanten je Gitterlinie y (die Oberkante der Zeile y), als
+  // Spalten x; senkrechte je Gitterlinie x, als Zeilen y.
+  final horizontal = <int, List<int>>{};
+  final vertical = <int, List<int>>{};
+  for (final (x, y) in set) {
+    if (!set.contains((x, y - 1)) && known(x, y - 1)) (horizontal[y] ??= []).add(x);
+    if (!set.contains((x, y + 1)) && known(x, y + 1)) (horizontal[y + 1] ??= []).add(x);
+    if (!set.contains((x - 1, y)) && known(x - 1, y)) (vertical[x] ??= []).add(y);
+    if (!set.contains((x + 1, y)) && known(x + 1, y)) (vertical[x + 1] ??= []).add(y);
+  }
+
+  final n = 1 << z;
+  double lon(int x) => x / n * 360 - 180;
+  double lat(int y) => tileBounds(z, 0, y).north;
+  final out = <List<LatLng>>[];
+  // Aufeinanderfolgende Kanten derselben Linie zu einem Lauf.
+  bool runs(Map<int, List<int>> edges, List<LatLng> Function(int line, int a, int b) segment) {
+    for (final e in edges.entries) {
+      final at = e.value..sort();
+      var a = at.first, b = at.first;
+      for (final v in at.skip(1)) {
+        if (v == b + 1) {
+          b = v;
+          continue;
+        }
+        out.add(segment(e.key, a, b + 1));
+        a = b = v;
+      }
+      out.add(segment(e.key, a, b + 1));
+      if (out.length > maxLines) return false;
+    }
+    return true;
+  }
+
+  if (!runs(horizontal, (y, a, b) => [LatLng(lat(y), lon(a)), LatLng(lat(y), lon(b))])) return null;
+  if (!runs(vertical, (x, a, b) => [LatLng(lat(a), lon(x)), LatLng(lat(b), lon(x))])) return null;
+  return out;
 }

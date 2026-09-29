@@ -19,7 +19,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../map/map_view/map_hit_test.dart' show kMercatorMaxLat;
 import '../map/map_view/map_view.dart';
-import 'area_overlay.dart' show mergeTileRects, offlineOverlayBox, rectRing;
+import 'area_overlay.dart' show mergeTileRects, offlineOverlayBox, rectRing, tileOutline;
 import 'area_plan.dart';
 import 'area_providers.dart' show storedAreasProvider;
 
@@ -37,11 +37,6 @@ const kAreaDraftHistory = 20;
 /// Ausschnitt selbst, ohne Rand — nie gröber (wie die Maske).
 const kAreaDraftMaxRects = 3000;
 
-/// Der Strich des Stifts, solange der Finger auf der Karte ist.
-const kAreaDraftBorder = Color(0xCC1F6F5F);
-
-/// Der Strich des Radierers, solange der Finger auf der Karte ist.
-const kAreaEraseStroke = Color(0xCCC62828);
 
 double _tileX(double lon, int n) => (lon + 180) / 360 * n;
 
@@ -257,11 +252,20 @@ Set<int>? tilesInBounds(AreaBounds bounds,
 
 // ---- Die Darstellung offener Änderungen ----------------------------------
 //
-// Betreiber, 2026-09-29: „Schraffur mit halbtransparent Grün kommt hinzu,
-// gespiegelte Schraffur mit halbtransparent Rot kommt weg." Die Helligkeit
-// der Maske zeigt weiter den gespeicherten Stand (hell = liegt); die
-// Schraffur zeigt die offene Änderung — auf dunklem Grund grün (wird
-// hell), auf hellem Grund rot und gespiegelt (wird dunkel).
+// Design Turn 2 (seit 0.31.0; davor grün dazu, rot weg): **Helligkeit =
+// was auf dem Gerät liegt, Schraffur + gestrichelter Rand = offene
+// Änderung.** Die Schraffur hat immer die Gegenhelligkeit ihres Grunds,
+// deshalb reicht EINE Regel für beide Richtungen, und es braucht keine
+// neue Farbe — Grün heißt „mein Trail", Rot gibt es auf der Karte nicht.
+//
+// | Zustand     | Grund       | Schraffur | Rand         |
+// |-------------|-------------|-----------|--------------|
+// | kommt dazu  | dunkel      | hell `/`  | hell, gestr. |
+// | fällt weg   | hell        | dunkel `\` | dunkel, gestr. |
+//
+// Den Grund liefert die Maske (area_overlay.dart): Was dazukommt, liegt
+// noch nicht und ist deshalb abgedunkelt; was wegfällt, liegt noch und
+// ist hell. Hier kommt nur die Zeichnung obendrauf.
 //
 // Die Schraffur sind LINIEN, keine Füllmuster: Ein Muster bräuchte in
 // MapLibre ein eigenes Bild im Stil, Linien können beide Engines. Sie
@@ -269,17 +273,34 @@ Set<int>? tilesInBounds(AreaBounds bounds,
 // Weltpixeln), damit sie beim Verschieben stehen bleiben und nur beim
 // Zoomen neu gerechnet werden.
 
-const kAreaAddHatch = Color(0x9930A46C);
-const kAreaAddFill = Color(0x1F30A46C);
-const kAreaRemoveHatch = Color(0x99D32F2F);
-const kAreaRemoveFill = Color(0x1FD32F2F);
+/// Hell: Schraffur, Rand und Strich auf dunklem Grund („kommt dazu").
+const kAreaInkLight = Color(0xE6FFFFFF);
 
-/// Abstand der Schraffurlinien in Bildpunkten.
-const kAreaHatchSpacingPx = 10.0;
+/// Dunkel: Schraffur, Rand und Strich auf hellem Grund („fällt weg") —
+/// der Textton des hellen Modus.
+const kAreaInkDark = Color(0xD9131A16);
 
-/// Mehr Linien als das zeichnet die Schraffur nicht — dann bleibt nur die
-/// Tönung (weit draußen ist die Schraffur ohnehin ein Grauschleier).
+/// Abstand der Schraffurlinien in Bildpunkten (Design: ~7 px).
+const kAreaHatchSpacingPx = 7.0;
+
+/// Breite einer Schraffurlinie.
+const kAreaHatchWidth = 1.5;
+
+/// Der gestrichelte Rand um eine offene Änderung.
+const kAreaChangeBorderWidth = 2.0;
+const kAreaChangeBorderDash = [6.0, 4.0];
+
+/// Mehr Linien als das zeichnet die Schraffur nicht — dann gilt der
+/// Rückfall 2e: eine halbe Abdunkelung (dazu: halb aufgehellt, weg: halb
+/// abgedunkelt), und nur der Rand unterscheidet (weit draußen wäre die
+/// Schraffur ohnehin ein Grauschleier).
 const kAreaHatchMaxLines = 2500;
+
+/// Rückfall 2e: „kommt dazu" hellt die Abdunkelung zur Hälfte auf …
+const kAreaAddHalfTone = Color(0x33FFFFFF);
+
+/// … „fällt weg" dunkelt das Helle zur Hälfte ab.
+const kAreaRemoveHalfTone = Color(0x33000000);
 
 /// Die Schraffurlinien über [rects] bei [zoom] (256er-Stufen): `/` für
 /// „kommt dazu", gespiegelt `\` für „fällt weg". Null über [maxLines].
@@ -323,42 +344,49 @@ List<List<LatLng>>? hatchLines(List<AreaBounds> rects, double zoom,
   return out;
 }
 
-/// Die offenen Änderungen auf der Karte: je Seite eine leichte Tönung
-/// (Rechtecke, [mergeTileRects]) und die Schraffur darüber — IMMER bei
-/// [kAreaShapeZoom] wie die Maske, im Ausschnitt mit Rand.
+/// Die offenen Änderungen auf der Karte: je Seite die Schraffur in der
+/// Gegenhelligkeit und ein gestrichelter Rand um die Kachelmenge — IMMER
+/// bei [kAreaShapeZoom] wie die Maske, im Ausschnitt mit Rand. Flächen
+/// gibt es nur im Rückfall 2e (zu viele Linien).
 ({List<MapViewPolygon> polygons, List<MapViewPolyline> lines}) draftLayers(
     AreaDraft draft, MapViewCamera camera) {
   final view = camera.bounds;
   if (draft.isEmpty || view.east <= view.west || view.north <= view.south) {
     return (polygons: const [], lines: const []);
   }
-  List<AreaBounds> rectsOf(TileSetShape shape) {
-    if (shape.keys.isEmpty) return const [];
-    var rects = mergeTileRects(shape.tilesWithin(offlineOverlayBox(view), kAreaShapeZoom));
-    if (rects.length > kAreaDraftMaxRects) {
-      rects = mergeTileRects(shape.tilesWithin(offlineOverlayBox(view, margin: false), kAreaShapeZoom));
-    }
-    return rects;
-  }
-
   final polygons = <MapViewPolygon>[];
-  final lines = <MapViewPolyline>[];
-  for (final (shape, fill, hatch, mirrored) in [
-    (draft.addShape, kAreaAddFill, kAreaAddHatch, false),
-    (draft.removeShape, kAreaRemoveFill, kAreaRemoveHatch, true),
+  final hatches = <MapViewPolyline>[];
+  final borders = <MapViewPolyline>[];
+  for (final (shape, ink, halfTone, mirrored) in [
+    (draft.addShape, kAreaInkLight, kAreaAddHalfTone, false),
+    (draft.removeShape, kAreaInkDark, kAreaRemoveHalfTone, true),
   ]) {
-    final rects = rectsOf(shape);
+    if (shape.keys.isEmpty) continue;
+    var box = offlineOverlayBox(view);
+    var tiles = shape.tilesWithin(box, kAreaShapeZoom);
+    var rects = mergeTileRects(tiles);
+    if (rects.length > kAreaDraftMaxRects) {
+      box = offlineOverlayBox(view, margin: false);
+      tiles = shape.tilesWithin(box, kAreaShapeZoom);
+      rects = mergeTileRects(tiles);
+    }
     if (rects.isEmpty) continue;
     final hatched = hatchLines(rects, camera.zoom, mirrored: mirrored);
-    // Ohne Schraffur (zu viele Linien) eine kräftigere Tönung, damit die
-    // Änderung trotzdem sichtbar bleibt.
-    final tint = hatched == null ? hatch.withValues(alpha: 0.35) : fill;
-    for (final r in rects) {
-      polygons.add(MapViewPolygon(points: rectRing(r), fillColor: tint));
+    if (hatched == null) {
+      for (final r in rects) {
+        polygons.add(MapViewPolygon(points: rectRing(r), fillColor: halfTone));
+      }
+    } else {
+      for (final l in hatched) {
+        hatches.add(MapViewPolyline(points: l, color: ink, width: kAreaHatchWidth));
+      }
     }
-    for (final l in hatched ?? const <List<LatLng>>[]) {
-      lines.add(MapViewPolyline(points: l, color: hatch, width: 2));
+    for (final l in tileOutline(tiles, box) ?? const <List<LatLng>>[]) {
+      borders.add(MapViewPolyline(
+          points: l, color: ink, width: kAreaChangeBorderWidth, dash: kAreaChangeBorderDash));
     }
   }
-  return (polygons: polygons, lines: lines);
+  // Die Ränder über der Schraffur: Sie sagen „bis hier", auch wo die
+  // Schraffur weggefallen ist.
+  return (polygons: polygons, lines: [...hatches, ...borders]);
 }

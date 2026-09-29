@@ -4,8 +4,14 @@
 
 ## Aussehen
 
-*Versionen 0.28.0 bis 0.30.0, 2026-09-29*
+*Versionen 0.28.0 bis 0.31.0, 2026-09-29*
 
+- **Offline-Karten: eine Regel statt Grün und Rot** (0.31.0): Hell ist,
+  was auf dem Gerät liegt, abgedunkelt der Rest — und um alles
+  Gespeicherte läuft jetzt ein durchgehender Rand. Was du gerade dazu-
+  oder wegnimmst, ist schraffiert und gestrichelt umrandet: helle
+  Streifen auf Dunklem kommen dazu, dunkle Streifen auf Hellem fallen
+  weg. Grün bleibt damit deinen Trails vorbehalten.
 - **Neue Knöpfe auf der Karte** (0.30.0): Rechts unten stehen runde
   Knöpfe — Idee, Ebenen, Position — und darunter, gut mit dem Daumen
   erreichbar, der große Aufnahmeknopf: Lime zum Starten, orange mit

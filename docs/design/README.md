@@ -112,10 +112,17 @@ Lime bleibt „mein Trail".
 
 Variante A (die Leiste bearbeitet den ganzen Bestand) ist gebaut; der
 Speichern-Dialog nennt beide Seiten und die betroffenen Bereiche beim
-Namen (2c). Schraffur als **gerechnete Linien** je Zeilenlauf über die
-`MapViewPolyline`-Fassade, Abstand in Bildschirm-Pixeln (~7 px), kein
-Füllmuster im Stil. Rückfall 2e, falls das auf MapLibre nicht trägt: halbe
-Abdunkelung, nur die Randfarbe unterscheidet (hell = dazu, dunkel = weg).
+Namen (2c). Schraffur als **gerechnete Linien** je zusammengefasstem
+Kachelrechteck über die `MapViewPolyline`-Fassade, Abstand in
+Bildschirm-Pixeln (7 px), kein Füllmuster im Stil. Rückfall 2e: halbe
+Tönung, nur die Randfarbe unterscheidet (hell = dazu, dunkel = weg) — er
+greift, wenn die Schraffur über `kAreaHatchMaxLines` Linien bräuchte; auf
+MapLibre selbst tragen die Linien.
+
+Umgesetzt in `area_overlay.dart` (Maske, `offlineCoverage` mit dem Rand
+um den Bestand in der Textfarbe des Modus, `tileOutline`) und
+`area_draw.dart` (`draftLayers`, `kAreaInkLight`/`kAreaInkDark`). Auch
+der Strich beim Zeichnen folgt der Regel.
 
 ## 6. Karte mit zwei Leisten (Turn 3, Spezifikation 3e)
 
@@ -204,7 +211,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | #74 | Tokens, Theme hell/dunkel, Schriften, „Erscheinungsbild" | 0.28.0 |
 | 2 | Logo, App-Symbole, Statusleisten-Symbol, Login | 0.29.0 |
 | 3 | Hülle und Karte (Turn 3) | 0.30.0 |
-| 4 | Offline-Kacheln: eine Regel (Turn 2) | |
+| 4 | Offline-Kacheln: eine Regel (Turn 2) | 0.31.0 |
 | 5 | Listen und Blätter (Turn 1g–1l, 4e/4f) | |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | |
 | 7 | Animationen (Turn 1p–1t) | |

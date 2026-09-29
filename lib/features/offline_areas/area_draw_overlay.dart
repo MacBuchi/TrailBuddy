@@ -71,7 +71,8 @@ class _AreaDrawOverlayState extends State<AreaDrawOverlay> {
           child: CustomPaint(
             painter: _StrokePainter(
               List.of(_points),
-              color: add ? kAreaDraftBorder : kAreaEraseStroke,
+              // Die Regel der Kacheln (Turn 2): dazu hell, weg dunkel.
+              color: add ? kAreaInkLight : kAreaInkDark,
             ),
           ),
         ),
@@ -124,15 +125,20 @@ class _StrokePainter extends CustomPainter {
     // Geschlossen gezeigt, wie er gerechnet wird: Ende zum Anfang.
     final closed = Path.from(path)..close();
     canvas.drawPath(closed, Paint()..color = color.withValues(alpha: 0.15));
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
+    // Darunter ein Saum in der Gegenhelligkeit: Der Strich läuft über
+    // Abgedunkeltes UND Helles und soll auf beidem stehen.
+    final halo = color.computeLuminance() > 0.5 ? kAreaInkDark : kAreaInkLight;
+    for (final (c, w) in [(halo.withValues(alpha: 0.6), 5.0), (color, 3.0)]) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = c
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = w
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
+    }
   }
 
   @override

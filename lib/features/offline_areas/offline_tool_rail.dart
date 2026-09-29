@@ -3,8 +3,8 @@
 // den halben Schirm deckte. Der Ebenen-Knopf öffnet sie, derselbe Knopf,
 // das X und die Zurück-Taste schließen sie — mit Rückfrage, wenn im
 // Entwurf noch etwas steht (map_screen.dart). Solange sie offen ist, ist
-// abgedunkelt, was nicht auf dem Gerät liegt, und der Entwurf liegt grün
-// darüber (area_overlay.dart, area_draw.dart).
+// abgedunkelt, was nicht auf dem Gerät liegt, und der Entwurf liegt
+// schraffiert darüber (area_overlay.dart, area_draw.dart).
 //
 // Oben die Werkzeuge, die den ENTWURF ändern (Ausschnitt, Fläche dazu,
 // Fläche weg, entlang der Trails, Rückgängig), darunter Verwalten,
@@ -278,7 +278,7 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
       if (!mounted) return;
       setState(() => _error = looksOffline(e) || e is StateError
           ? 'Ohne Empfang lässt sich nichts dazuladen — der Kartenhost ist nicht erreichbar. '
-              'Entfernen geht auch offline: dazu die grünen Kacheln wegnehmen.'
+              'Entfernen geht auch offline: dazu nur wegnehmen, nichts dazunehmen.'
           : 'Die Größe ließ sich nicht messen.');
     } finally {
       if (mounted) setState(() => _measuring = false);
@@ -373,14 +373,14 @@ class _SaveDraftDialogState extends ConsumerState<_SaveDraftDialog> {
                 : 'Lädt ${formatBytes(plan.totalBytes)} · ${plan.tiles.length} Kacheln'
                     '${pois == null ? ' · ohne Orte' : ' · $pois ${pois == 1 ? 'Ort' : 'Orte'}'}',
             key: const ValueKey('area-size'),
-            style: text.titleMedium?.copyWith(color: kAreaAddHatch.withValues(alpha: 1)),
+            style: text.titleMedium,
           ),
         if (trim != null)
           Text(
             'Gibt ${formatBytes(trim.freedBytes)} frei · ${trim.freedTiles} Kacheln'
             '${trim.trims.where((t) => t.shape == null).isEmpty ? '' : ' · ${trim.trims.where((t) => t.shape == null).length} Bereich(e) ganz'}',
             key: const ValueKey('area-free'),
-            style: text.titleMedium?.copyWith(color: kAreaRemoveHatch.withValues(alpha: 1)),
+            style: text.titleMedium?.copyWith(color: AppPalette.of(context).muted),
           ),
         if (_error != null) ...[
           const SizedBox(height: 8),

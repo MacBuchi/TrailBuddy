@@ -1,7 +1,9 @@
 // Die Hervorhebung gespeicherter Kacheln, pur: eine Maske über dem
 // Ausschnitt mit Rand, die gespeicherten Kacheln als Löcher — seit 0.27.0
 // IMMER beim Zoom des Bereichs (13), unabhängig von der Kamera, und
-// zusammenhängende Kacheln als Rechtecke.
+// zusammenhängende Kacheln als Rechtecke. Dazu seit 0.31.0 (Design Turn 2)
+// ein durchgehender Rand um den ganzen Bestand.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
@@ -117,5 +119,67 @@ void main() {
     const wide = MapViewBounds(south: 46, west: 6, north: 55, east: 17);
     final mask = offlineCoverageMask([_area('d', dach)], wide)!;
     expect(mask.holes, hasLength(1));
+  });
+
+  group('Rand um den Bestand (Design Turn 2)', () {
+    final origin = tileAt(47.92, 11.64, 13);
+    final x = origin.x, y = origin.y;
+    // Ein großer Rahmen, damit kein Nachbar außerhalb liegt.
+    const box = AreaBounds(south: 47.0, west: 11.0, north: 48.5, east: 12.5);
+
+    /// Die Länge des Umrisses in Kachelkanten.
+    int edges(List<List<LatLng>> lines) {
+      final w = tileBounds(13, x, y).east - tileBounds(13, x, y).west;
+      final h = tileBounds(13, x, y).north - tileBounds(13, x, y).south;
+      var n = 0.0;
+      for (final l in lines) {
+        n += (l[1].longitude - l[0].longitude).abs() / w + (l[1].latitude - l[0].latitude).abs() / h;
+      }
+      return n.round();
+    }
+
+    test('ein Block hat vier Linien, keine Nähte im Innern', () {
+      final block = {
+        for (var i = 0; i < 4; i++)
+          for (var j = 0; j < 3; j++) (z: 13, x: x + i, y: y + j),
+      };
+      final lines = tileOutline(block, box)!;
+      expect(lines, hasLength(4), reason: 'je Seite ein Lauf');
+      expect(edges(lines), 2 * (4 + 3));
+    });
+
+    test('ein Loch im Bestand bekommt seinen eigenen Rand, eine L-Form ihre Stufe', () {
+      final ring = {
+        for (var i = 0; i < 3; i++)
+          for (var j = 0; j < 3; j++)
+            if (i != 1 || j != 1) (z: 13, x: x + i, y: y + j),
+      };
+      expect(edges(tileOutline(ring, box)!), 12 + 4);
+      final l = {(z: 13, x: x, y: y), (z: 13, x: x, y: y + 1), (z: 13, x: x + 1, y: y + 1)};
+      expect(tileOutline(l, box), hasLength(6));
+    });
+
+    test('am Rand des Rahmens kein Rand: Was dahinter liegt, ist nicht gefragt', () {
+      final tiles = {(z: 13, x: x, y: y), (z: 13, x: x + 1, y: y)};
+      final b = tileBounds(13, x, y);
+      // Der Rahmen endet in der linken Kachel.
+      final tight = AreaBounds(south: b.south - 0.1, west: b.west + 1e-6, north: b.north + 0.1, east: b.east + 0.5);
+      expect(edges(tileOutline(tiles, tight)!), edges(tileOutline(tiles, box)!) - 1);
+      expect(tileOutline(tiles, box, maxLines: 1), isNull);
+      expect(tileOutline(const [], box), isEmpty);
+    });
+
+    test('auf der Karte: in der Farbe des Aufrufers, durchgehend, ohne Kennung; ohne Bereich keiner', () {
+      final a = tileBounds(13, x, y);
+      final cov = offlineCoverage([_area('r', RectShape(a))], _view, outlineColor: const Color(0xFF131A16));
+      expect(cov.outline, hasLength(4));
+      for (final l in cov.outline) {
+        expect(l.color, const Color(0xFF131A16));
+        expect(l.dash, isNull, reason: 'durchgehend — gestrichelt heißt „offene Änderung"');
+        expect(l.hitValue, isNull, reason: 'ein Tipp geht hindurch');
+      }
+      expect(offlineCoverage([_area('r', RectShape(a))], _view).outline, isEmpty, reason: 'ohne Farbe kein Rand');
+      expect(offlineCoverage(const [], _view, outlineColor: Colors.white).outline, isEmpty);
+    });
   });
 }

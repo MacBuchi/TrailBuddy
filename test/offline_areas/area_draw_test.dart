@@ -172,7 +172,7 @@ void main() {
     expect(n.hasChanges, isFalse, reason: 'ein Werkzeug allein ist keine Änderung');
   });
 
-  group('Schraffur (Betreiber, 2026-09-29: grün dazu, rot gespiegelt weg)', () {
+  group('Schraffur (Design Turn 2: dazu hell auf dunkel, weg dunkel auf hell, gespiegelt)', () {
     final rect = tileBounds(_z, x, y);
     const zoom = 14.0;
 
@@ -194,9 +194,9 @@ void main() {
       }
       expect(lines.every(rising), isTrue);
       expect(mirrored.every((l) => !rising(l)), isTrue);
-      // Eine 13er-Kachel ist bei Zoom 14 zweimal 256 px, bei 10 px Abstand
-      // also rund hundert Linien.
-      expect(lines.length, inInclusiveRange(95, 105));
+      // Eine 13er-Kachel ist bei Zoom 14 zweimal 256 px, bei 7 px Abstand
+      // also rund 146 Linien (Diagonalen über 512 + 512 px).
+      expect(lines.length, inInclusiveRange(140, 152));
     });
 
     test('die Linien hängen am Weltraster: zwei Hälften ergeben dieselben Linien wie das Ganze', () {
@@ -206,14 +206,15 @@ void main() {
       // Jede Linie, die über die Naht läuft, zerfällt in zwei — mehr nicht.
       final split = count(hatchLines([left], zoom, mirrored: false)) + count(hatchLines([right], zoom, mirrored: false));
       final one = count(hatchLines([whole], zoom, mirrored: false));
-      expect(split - one, inInclusiveRange(0, 52));
+      expect(split - one, inInclusiveRange(0, 75));
     });
 
-    test('zu viele Linien ⇒ null, dann trägt die Tönung allein', () {
+    test('zu viele Linien ⇒ null, dann gilt der Rückfall 2e', () {
       expect(hatchLines([rect], zoom, mirrored: false, maxLines: 10), isNull);
     });
 
-    test('auf der Karte: grüne Tönung und Schraffur für dazu, rote gespiegelte für weg — beim Zoomen dieselben Kacheln', () {
+    test('auf der Karte: hell schraffiert dazu, dunkel gespiegelt weg, je ein gestrichelter Rand — kein Grün, kein Rot',
+        () {
       final draft = AreaDraft(adds: {_key(x, y), _key(x + 1, y)}, removes: {_key(x + 3, y)});
       final center = tileBounds(_z, x + 2, y).center;
       MapViewCamera cam(double half, double width) => MapViewCamera(
@@ -223,17 +224,46 @@ void main() {
                 south: center.latitude - half / 2, north: center.latitude + half / 2),
             size: Size(width, width / 2),
           );
+      Iterable<MapViewPolyline> hatch(List<MapViewPolyline> l, Color c) =>
+          l.where((l) => l.color == c && l.dash == null);
+      Iterable<MapViewPolyline> border(List<MapViewPolyline> l, Color c) =>
+          l.where((l) => l.color == c && l.dash != null);
+
       final near = draftLayers(draft, cam(0.1, 800));
-      expect(near.polygons.where((p) => p.fillColor == kAreaAddFill), hasLength(1),
-          reason: 'zwei Kacheln nebeneinander sind ein Rechteck');
-      expect(near.polygons.where((p) => p.fillColor == kAreaRemoveFill), hasLength(1));
-      expect(near.lines.where((l) => l.color == kAreaAddHatch), isNotEmpty);
-      expect(near.lines.where((l) => l.color == kAreaRemoveHatch), isNotEmpty);
+      expect(near.polygons, isEmpty, reason: 'den Grund liefert die Maske, hier nur die Zeichnung');
+      expect(hatch(near.lines, kAreaInkLight), isNotEmpty);
+      expect(hatch(near.lines, kAreaInkDark), isNotEmpty);
+      expect(border(near.lines, kAreaInkLight), hasLength(4), reason: 'zwei Kacheln nebeneinander: ein Rechteck');
+      expect(border(near.lines, kAreaInkDark), hasLength(4));
+      expect(near.lines.map((l) => l.color).toSet(), {kAreaInkLight, kAreaInkDark},
+          reason: 'eine Regel, keine neue Farbe');
       expect(near.lines.every((l) => l.hitValue == null), isTrue, reason: 'ein Tipp geht hindurch');
-      // Weit draußen: dieselben Rechtecke, nur die Schraffur fällt weg.
+      // Die Ränder liegen über der Schraffur.
+      final firstBorder = near.lines.indexWhere((l) => l.dash != null);
+      expect(near.lines.skip(firstBorder).every((l) => l.dash != null), isTrue);
+
+      // Weit draußen: dieselben Ränder, die Schraffur ist ein Strich je
+      // Kachel — und ohne Linien nichts zu tönen.
       final far = draftLayers(draft, cam(3, 400));
-      expect(far.polygons.map((p) => p.points.first), near.polygons.map((p) => p.points.first));
-      expect(draftLayers(AreaDraft(), cam(0.1, 800)).polygons, isEmpty);
+      expect(border(far.lines, kAreaInkLight), hasLength(4));
+      expect(far.polygons, isEmpty);
+
+      // Zu viele Linien (ein großer Block, nah dran): Rückfall 2e — halbe
+      // Tönung, der Rand bleibt und unterscheidet allein.
+      final block = AreaDraft(adds: {
+        for (var i = -10; i < 0; i++)
+          for (var j = -10; j < 10; j++) _key(x + i, y + j),
+      }, removes: {
+        for (var i = 1; i < 10; i++)
+          for (var j = -10; j < 10; j++) _key(x + i, y + j),
+      });
+      final dense = draftLayers(block, cam(0.1, 8000));
+      expect(dense.lines.where((l) => l.dash == null), isEmpty, reason: 'keine Schraffur');
+      expect(dense.polygons.where((p) => p.fillColor == kAreaAddHalfTone), isNotEmpty);
+      expect(dense.polygons.where((p) => p.fillColor == kAreaRemoveHalfTone), isNotEmpty);
+      expect(border(dense.lines, kAreaInkLight), isNotEmpty);
+      expect(border(dense.lines, kAreaInkDark), isNotEmpty);
+      expect(draftLayers(AreaDraft(), cam(0.1, 800)).lines, isEmpty);
     });
   });
 }

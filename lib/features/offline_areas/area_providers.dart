@@ -322,5 +322,5 @@ final mapFocusAreaProvider = StateProvider<StoredArea?>((ref) => null);
 
 /// Solange die Werkzeugleiste „Ebenen" offen ist (seit 0.27.0; davor das
 /// Blatt „Offline-Karten"): Die Karte dunkelt alles ab, was nicht
-/// gespeichert ist, und der Entwurf liegt grün darüber.
+/// gespeichert ist, und der Entwurf liegt schraffiert darüber.
 final offlineOverlayProvider = StateProvider<bool>((ref) => false);
