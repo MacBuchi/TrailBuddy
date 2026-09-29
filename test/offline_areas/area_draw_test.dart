@@ -209,6 +209,17 @@ void main() {
       expect(split - one, inInclusiveRange(0, 75));
     });
 
+    test('die Tinte ist hell bzw. dunkel und farblos — eine Regel, keine neue Farbe', () {
+      final light = HSLColor.fromColor(kAreaInkLight), dark = HSLColor.fromColor(kAreaInkDark);
+      expect(light.lightness, greaterThan(0.85));
+      expect(dark.lightness, lessThan(0.15));
+      // Kein Grün, kein Rot: fast grau (#131A16 hat einen Hauch Grün,
+      // bei 9 % Helligkeit unsichtbar).
+      for (final c in [kAreaInkLight, kAreaInkDark]) {
+        expect((c.r - c.g).abs() + (c.g - c.b).abs(), lessThan(0.06), reason: '$c');
+      }
+    });
+
     test('zu viele Linien ⇒ null, dann gilt der Rückfall 2e', () {
       expect(hatchLines([rect], zoom, mirrored: false, maxLines: 10), isNull);
     });
