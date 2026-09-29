@@ -10,6 +10,7 @@ import 'trail_filter_chips.dart';
 import 'trail_list.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
+import 'trail_traits.dart';
 
 /// Die Karte als Liste: erst die eigenen Trails, dann die, die nur Buddys
 /// belegt haben. Antippen öffnet das Blatt; von dort geht es auf die Karte.
@@ -268,9 +269,21 @@ class _TrailTile extends StatelessWidget {
     final failure = trail.pendingFailure;
     return ListTile(
       tileColor: fresh ? AppPalette.of(context).map.note.withValues(alpha: 0.18) : null,
-      trailing: fresh
-          ? const Icon(Icons.mark_chat_unread_outlined,
-              semanticLabel: 'neuer Hinweis')
+      // Rechts der Charakter (#72, die zwei häufigsten) und ein neuer
+      // Hinweis.
+      trailing: fresh || trail.topTraits.isNotEmpty
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TrailTraitIcons(trail.topTraits,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                if (fresh)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.mark_chat_unread_outlined, semanticLabel: 'neuer Hinweis'),
+                  ),
+              ],
+            )
           : null,
       // Wartend (#30): Uhr statt Route, verblasst — derselbe Spot, nur
       // noch nicht auf dem Server.

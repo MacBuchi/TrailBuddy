@@ -32,7 +32,7 @@ void main() {
   );
   final details = TrailDetails(
     trailId: 'trail-1', userId: 'bob', username: 'bob', name: 'Roots',
-    description: 'wurzelig', grade: 3, kind: TrailKind.tech,
+    description: 'wurzelig', grade: 3, traits: const {TrailTrait.rocky, TrailTrait.steep},
     visibility: TrailVisibility.buddies, status: TrailStatus.closed,
     statusAt: at.toLocal(), updatedAt: at.toLocal(),
   );
@@ -65,7 +65,7 @@ void main() {
     expect(d.name, 'Roots');
     expect(d.description, 'wurzelig');
     expect(d.grade, 3);
-    expect(d.kind, TrailKind.tech);
+    expect(d.traits, {TrailTrait.rocky, TrailTrait.steep});
     expect(d.status, TrailStatus.closed);
     expect(d.statusAt, details.statusAt);
     expect(d.updatedAt, details.updatedAt);

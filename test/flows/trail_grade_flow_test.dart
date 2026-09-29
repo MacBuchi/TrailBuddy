@@ -79,7 +79,7 @@ void main() {
     await tester.tap(find.text('Mein Beitrag'));
     await settle(tester);
     final dialog = find.byType(AlertDialog);
-    // „Keine Angabe" steht auch in der Auswahl „Art" — über den Typ.
+    // „Keine Angabe" über den Typ — das Feld ist eine Auswahl, kein Text.
     await tester.tap(find.widgetWithText(DropdownButtonFormField<int?>, 'Keine Angabe'));
     await settle(tester);
     expect(find.text('S3 · ${singletrailGrade(3).short}'), findsWidgets);

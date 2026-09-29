@@ -55,7 +55,7 @@ const kRecordingColumns =
 /// Der Embed heißt nach dem Fremdschlüssel; wird er in einem Patch
 /// umbenannt, muss diese Zeile mitziehen (der Schema Check fällt sonst).
 const kDetailsColumns =
-    'trail_id, user_id, name, description, grade, kind, visibility, status, status_at, updated_at, '
+    'trail_id, user_id, name, description, grade, traits, visibility, status, status_at, updated_at, '
     'contributor:profiles!trail_details_user_id_fkey(username)';
 
 /// Wie [kDetailsColumns]: Der Embed heißt nach dem Fremdschlüssel, und

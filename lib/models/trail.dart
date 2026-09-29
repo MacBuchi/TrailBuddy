@@ -99,20 +99,45 @@ String clampTrailName(String name) {
 /// Singletrail-Skala S0–S5, die in DACH übliche Schwierigkeitsangabe.
 String gradeLabel(int grade) => 'S$grade';
 
-enum TrailKind {
+/// Der Charakter eines Trails (#72, Patch 009, seit 0.34.0) — MEHRFACHWAHL
+/// je Beitrag, ersetzt die frühere Einzelwahl „Art" (`kind`). Die sieben
+/// Merkmale hat der Betreiber festgelegt (2026-09-29): die fünf aus dem
+/// Design (Turn 4) plus Naturtrail und Verbindung aus der alten Art,
+/// damit beim Übernehmen nichts verloren geht. Beschreibungen und
+/// Symbole: `trail_traits.dart`. Die Reihenfolge hier ist die Reihenfolge
+/// überall (Auswahl, Chips, Gleichstand beim Zählen).
+enum TrailTrait {
+  flowy('flowy', 'Flowig'),
+  jumps('jumps', 'Jump-Line'),
+  rocky('rocky', 'Verblockt'),
+  steep('steep', 'Steil'),
+  uphill('uphill', 'Uphill'),
   natural('natural', 'Naturtrail'),
-  flow('flow', 'Flowtrail'),
-  tech('tech', 'Technisch'),
-  jump('jump', 'Sprungstrecke'),
   connection('connection', 'Verbindung');
 
-  const TrailKind(this.db, this.label);
+  const TrailTrait(this.db, this.label);
   final String db;
   final String label;
 
-  static TrailKind? fromDb(String? s) =>
+  static TrailTrait? fromDb(String? s) =>
       s == null ? null : values.where((k) => k.db == s).firstOrNull;
+
+  /// Die alte „Art" (`kind`) als Merkmal — dieselbe Zuordnung wie im
+  /// Patch 009, für Zeilen, die noch keine `traits` tragen (ein alter
+  /// Zwischenspeicher, ein wartender Auftrag im Ausgangskorb).
+  static TrailTrait? fromLegacyKind(String? kind) => switch (kind) {
+        'flow' => flowy,
+        'jump' => jumps,
+        'tech' => rocky,
+        'natural' => natural,
+        'connection' => connection,
+        _ => null,
+      };
 }
+
+/// Höchstens so viele Merkmale zeigt ein Trail (Design Turn 4): die
+/// häufigsten über alle sichtbaren Beiträge.
+const kShownTraits = 2;
 
 enum TrailVisibility {
   buddies('buddies', 'Für Buddys'),
@@ -153,7 +178,7 @@ class TrailDetails {
     this.name,
     this.description,
     this.grade,
-    this.kind,
+    this.traits = const {},
     this.visibility = TrailVisibility.buddies,
     this.status = TrailStatus.open,
     this.statusAt,
@@ -169,7 +194,9 @@ class TrailDetails {
   final String? name;
   final String? description;
   final int? grade;
-  final TrailKind? kind;
+
+  /// Der Charakter laut DIESEM Beitrag, leer = keine Angabe.
+  final Set<TrailTrait> traits;
   final TrailVisibility visibility;
   final TrailStatus status;
   final DateTime? statusAt;
@@ -184,7 +211,7 @@ class TrailDetails {
       name: json['name'] as String?,
       description: json['description'] as String?,
       grade: json['grade'] as int?,
-      kind: TrailKind.fromDb(json['kind'] as String?),
+      traits: _traitsFromJson(json),
       visibility: TrailVisibility.fromDb(json['visibility'] as String?),
       status: TrailStatus.fromDb(json['status'] as String?),
       statusAt: json['status_at'] == null
@@ -202,7 +229,9 @@ class TrailDetails {
         'name': name,
         'description': description,
         'grade': grade,
-        'kind': kind?.db,
+        // `kind` schreibt die App nicht mehr; der Server behält den
+        // alten Wert, bis Patch-Folge die Spalte entfernt.
+        'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
         'visibility': visibility.db,
         'status': status.db,
         'status_at': statusAt?.toUtc().toIso8601String(),
@@ -213,8 +242,7 @@ class TrailDetails {
     String? description,
     int? grade,
     bool clearGrade = false,
-    TrailKind? kind,
-    bool clearKind = false,
+    Set<TrailTrait>? traits,
     TrailVisibility? visibility,
     TrailStatus? status,
     DateTime? statusAt,
@@ -226,12 +254,23 @@ class TrailDetails {
         name: name ?? this.name,
         description: description ?? this.description,
         grade: clearGrade ? null : (grade ?? this.grade),
-        kind: clearKind ? null : (kind ?? this.kind),
+        traits: traits ?? this.traits,
         visibility: visibility ?? this.visibility,
         status: status ?? this.status,
         statusAt: statusAt ?? this.statusAt,
         updatedAt: updatedAt,
       );
+}
+
+/// `traits` aus einer Zeile; fehlt die Spalte (Zwischenspeicher oder
+/// Ausgangskorb von vor 0.34.0), zählt die alte Art.
+Set<TrailTrait> _traitsFromJson(Map<String, dynamic> json) {
+  final raw = json['traits'];
+  if (raw is List) {
+    return {for (final v in raw) ?TrailTrait.fromDb(v as String?)};
+  }
+  final legacy = TrailTrait.fromLegacyKind(json['kind'] as String?);
+  return {?legacy};
 }
 
 /// Ein Hinweis zu einem Trail für Buddys (Issue #7, Patch 004/005):
@@ -415,6 +454,31 @@ class Trail {
     final grades = details.map((d) => d.grade).whereType<int>().toList()..sort();
     if (grades.isEmpty) return null;
     return grades[grades.length ~/ 2];
+  }
+
+  /// Wie viele sichtbare Beiträge welches Merkmal nennen (#72) — wie der
+  /// Grad von Buddys vergeben, je Beitrag höchstens einmal.
+  Map<TrailTrait, int> get traitCounts {
+    final counts = <TrailTrait, int>{};
+    for (final d in details) {
+      for (final t in d.traits) {
+        counts[t] = (counts[t] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  /// Die höchstens [kShownTraits] häufigsten Merkmale — das, was Liste,
+  /// Blatt und Filter „der Charakter" nennen. Gleichstand: die
+  /// Reihenfolge von [TrailTrait].
+  List<TrailTrait> get topTraits {
+    final counts = traitCounts;
+    final sorted = counts.keys.toList()
+      ..sort((a, b) {
+        final c = counts[b]!.compareTo(counts[a]!);
+        return c != 0 ? c : a.index.compareTo(b.index);
+      });
+    return sorted.take(kShownTraits).toList();
   }
 
   /// Die jüngste Statusmeldung gewinnt (Entscheidung 6); ohne Datum

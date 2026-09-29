@@ -4,7 +4,15 @@
 
 ## Trails finden
 
-*Versionen 0.32.0 bis 0.33.0, 2026-09-29*
+*Versionen 0.32.0 bis 0.34.0, 2026-09-29*
+
+- **Der Charakter eines Trails** (0.34.0): Statt einer einzigen „Art"
+  wählst du in „Mein Beitrag" jetzt alles, was passt — Flowig, Jump-Line,
+  Verblockt, Steil, Uphill, Naturtrail, Verbindung. Das Blatt zeigt die
+  zwei Merkmale, die du und deine Buddys am häufigsten nennen, mit
+  Anzahl („Verblockt · 3"), die Liste zeigt sie als Symbole. Neu in den
+  Filtern: „Flowig" und „Jumps", für Liste und Karte. Deine bisherige
+  Art ist übernommen.
 
 - **Der Filter gilt jetzt auch auf der Karte** (0.33.0): Was du in der
   Liste filterst — Meine oder Von Buddys, „bis S2", neuer Hinweis,

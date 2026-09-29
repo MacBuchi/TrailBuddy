@@ -76,7 +76,7 @@ class FakeTrailRepository implements TrailRepository {
             name: d.name,
             description: d.description,
             grade: d.grade,
-            kind: d.kind,
+            traits: d.traits,
             visibility: d.visibility,
             status: d.status,
             statusAt: d.statusAt,
@@ -213,7 +213,7 @@ class FakeTrailRepository implements TrailRepository {
       name: d.name,
       description: d.description,
       grade: d.grade,
-      kind: d.kind,
+      traits: d.traits,
       visibility: d.visibility,
       status: d.status,
       statusAt: d.statusAt,
@@ -291,7 +291,8 @@ class FakeTrailRepository implements TrailRepository {
       {String? name, double lat = 48.0, double lon = 9.0, double quality = 0.4,
       TrailStatus status = TrailStatus.open, DateTime? statusAt,
       TrailVisibility visibility = TrailVisibility.buddies, String? trailId,
-      List<double>? ele, bool reversed = false, int? grade}) {
+      List<double>? ele, bool reversed = false, int? grade,
+      Set<TrailTrait> traits = const {}}) {
     final id = trailId ?? 'trail-${newClientId()}';
     recordings.add(TrailRecording(
       id: 'rec-${newClientId()}',
@@ -311,6 +312,7 @@ class FakeTrailRepository implements TrailRepository {
       userId: userId,
       name: name,
       grade: grade,
+      traits: traits,
       status: status,
       statusAt: statusAt,
       visibility: visibility,

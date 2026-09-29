@@ -185,7 +185,14 @@ create table public.trail_details (
   name text check (name is null or char_length(name) between 1 and 80),
   description text check (description is null or char_length(description) <= 2000),
   grade smallint check (grade between 0 and 5),   -- Singletrail-Skala S0–S5
+  -- Veraltet seit Patch 009: nur für Clients bis 0.33.0, ersetzt durch
+  -- traits (erweitern → ausliefern → entfernen).
   kind text check (kind in ('natural', 'flow', 'tech', 'jump', 'connection')),
+  -- Der Charakter (Patch 009, Issue #72): Mehrfachwahl je Beitrag.
+  traits text[] not null default '{}'
+    constraint trail_details_traits_check check (
+      traits <@ array['flowy', 'jumps', 'rocky', 'steep', 'uphill', 'natural', 'connection']::text[]
+      and cardinality(traits) <= 7),
   visibility text not null default 'buddies' check (visibility in ('buddies', 'private')),
   status text not null default 'open' check (status in ('open', 'closed', 'destroyed', 'changed')),
   status_at timestamptz,
@@ -198,6 +205,8 @@ create table public.trail_details (
   primary key (trail_id, user_id)
 );
 create index trail_details_user_idx on public.trail_details (user_id);
+comment on column public.trail_details.kind is
+  'Veraltet seit Patch 009 (Issue #72): nur noch für Clients bis 0.33.0; ersetzt durch traits.';
 
 -- Hinweise zu einem Trail für Buddys (Patch 004/005, Issue #7): „Baum
 -- liegt quer". Schreiben darf jeder, der den Trail sieht; mehrere je
@@ -1421,5 +1430,6 @@ insert into public.applied_patches (filename) values
   ('patch_005_trail_notes_open.sql'),
   ('patch_006_daily_limit_500.sql'),
   ('patch_007_decode_trail_names.sql'),
-  ('patch_008_push.sql')
+  ('patch_008_push.sql'),
+  ('patch_009_trail_traits.sql')
 on conflict do nothing;

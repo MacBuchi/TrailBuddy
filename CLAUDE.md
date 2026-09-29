@@ -189,6 +189,31 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   überall aufrufbar, wo man einen Grad angibt: Auswahl im Beitrag und
   Chips im Blatt. Die Einschätzung im Blatt gibt es nur für selbst
   belegte Trails (Konzept 3: ohne Beleg kein Beitrag).
+- **Charakter** (#72, Patch 009, seit 0.34.0): Mehrfachwahl je Beitrag
+  (`trail_details.traits`, sieben Merkmale: Flowig, Jump-Line, Verblockt,
+  Steil, Uphill, Naturtrail, Verbindung), ersetzt die Einzelwahl „Art".
+  Angezeigt die höchstens zwei häufigsten über alle sichtbaren Beiträge
+  (`Trail.topTraits`, Gleichstand nach Reihenfolge von `TrailTrait`);
+  Beschreibung und Symbol an EINER Stelle (`trail_traits.dart`, Symbole
+  farblos — die Farbe gehört der Beziehung). Die Filter „Flowig"/„Jumps"
+  prüfen die ANGEZEIGTEN zwei, nicht jede Nennung. Vier Dinge, die man
+  wissen muss:
+  - **`kind` bleibt vorerst stehen** (erweitern → ausliefern →
+    entfernen): Clients bis 0.33.0 lesen und schreiben weiter nur sie,
+    ihre Änderungen erreichen `traits` nicht. Die App schreibt `kind` nicht
+    mehr (`toRow`), sonst überschriebe sie, was ein alter Client liest.
+    Entfernt wird die Spalte in einem eigenen Patch, wenn
+    `minimum_supported_version` über 0.33.0 steht.
+  - **Patch 009 übernimmt die alte Art** (flow → flowy, jump → jumps,
+    tech → rocky, natural, connection) und `fromJson` fällt auf dieselbe
+    Zuordnung zurück, wenn `traits` fehlt (Zwischenspeicher, Ausgangskorb
+    von vor 0.34.0).
+  - **Unbekannte Merkmale fallen beim Lesen weg**, statt zu werfen — ein
+    neueres Merkmal darf eine ältere App nicht umwerfen. Der Check in der
+    Datenbank lässt nur die sieben zu.
+  - **Das Zerlege-Blatt kennt den Charakter noch nicht** (Betreiber,
+    2026-09-29: eigener kleiner PR); `adoptDetails` schreibt nur Name und
+    Grad.
 - **Orte auf der Karte** (#12, `lib/features/map/poi*.dart`): seit
   0.18.0 als fertige Dateien vom EIGENEN Kartenhost (Konzept
   `docs/konzept-offline-karten.md` 3.4, Weg 3 — Betreiber, 2026-09-28),
