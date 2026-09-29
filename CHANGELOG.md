@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Trails finden
+
+*Version 0.32.0, 2026-09-29*
+
+- **Suche in der Trail-Liste**: Tippe einen Trailnamen oder den Namen
+  eines Buddys. Umlaute, Bindestriche und Leerzeichen sind egal —
+  „rosskopf sued" findet „Roßkopf Süd". Bei einem Tippfehler zeigt die
+  Liste den nächsten Namen und sagt dazu „Meintest du …?".
+- **Filter und Sortierung**: Meine oder die meiner Buddys, „bis S2", nur
+  mit neuem Hinweis, nur gemeldete. Sortieren nach zuletzt aktiv, Name,
+  Länge, Abfahrt oder Schwierigkeit. Bei „bis S2" fehlen Trails, die noch
+  niemand eingeschätzt hat — die Liste sagt, wie viele.
+
 ## Aussehen
 
 *Versionen 0.28.0 bis 0.31.0, 2026-09-29*

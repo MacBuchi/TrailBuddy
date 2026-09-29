@@ -165,7 +165,7 @@ Verblockt (Steine, Wurzeln, Stufen), Steil (anhaltendes Gefälle), Uphill
 S0 `#2E9E4F` · S1 `#1F6FD1` · S2 `#D6322F` · S3–S5 schwarz, S4+
 gestrichelt. Dann sagt die Breite die Beziehung: meiner 5, nur Buddy 3,5.
 
-Liste (4e): Filter-Chips „Alle", „bis S2", „Flowig", „Jumps"; Zeile als
+Liste (4e): Filter-Chips „Alle", „bis S2", „Flowig", „Jumps" (Suche, „Alle/Meine/Von Buddys", „bis S2" und die Sortierung gibt es seit 0.32.0, #66 — `trail_list.dart`; „Flowig"/„Jumps" kommen mit dem Charakter); Zeile als
 Karte mit Farbstreifen links, Zahlen in Mono, Schild und Symbole rechts.
 Blatt (4f): Name, „Du und 2 Buddys", Charakter-Chips mit Anzahl, drei
 Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".

@@ -6,16 +6,36 @@ import '../../core/app_colors.dart';
 import '../../core/errors.dart';
 import '../../models/trail.dart';
 import '../map/map_screen.dart' show formatCachedAt;
+import 'trail_list.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
 
+/// Sortierung und Filter der Liste (#66) — für die Sitzung, nicht
+/// gemerkt: Wer die App neu öffnet, sieht wieder alles.
+final trailSortProvider = StateProvider<TrailSort>((ref) => TrailSort.recent);
+final trailListFilterProvider = StateProvider<TrailListFilter>((ref) => const TrailListFilter());
+
 /// Die Karte als Liste: erst die eigenen Trails, dann die, die nur Buddys
 /// belegt haben. Antippen öffnet das Blatt; von dort geht es auf die Karte.
-class TrailsScreen extends ConsumerWidget {
+/// Darüber Suche, Filter und Sortierung (#66, `trail_list.dart`).
+class TrailsScreen extends ConsumerStatefulWidget {
   const TrailsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrailsScreen> createState() => _TrailsScreenState();
+}
+
+class _TrailsScreenState extends ConsumerState<TrailsScreen> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final trailsAsync = ref.watch(trailsProvider);
     return Scaffold(
       appBar: AppBar(
@@ -52,11 +72,34 @@ class TrailsScreen extends ConsumerWidget {
             }
             final seen = ref.watch(seenNotesProvider);
             final cachedAt = ref.watch(trailsCachedAtProvider);
-            final pending = trails.where((t) => t.pending).toList();
-            final own = trails.where((t) => t.isOwn && !t.pending).toList();
-            final buddies = trails.where((t) => !t.isOwn).toList();
+            final sort = ref.watch(trailSortProvider);
+            final filter = ref.watch(trailListFilterProvider);
+            final query = _search.text;
+            final result = trailListOf(trails,
+                query: query, filter: filter, sort: sort, seenNotes: seen);
+            final shown = result.trails;
+            final pending = shown.where((t) => t.pending).toList();
+            final own = shown.where((t) => t.isOwn && !t.pending).toList();
+            final buddies = shown.where((t) => !t.isOwn).toList();
+            // Der Dreier-Schalter nur, wenn es beides gibt — sonst hätte
+            // eine Hälfte immer „keine Trails".
+            final mixed = trails.any((t) => t.isOwn) && trails.any((t) => !t.isOwn);
+            final searching = query.trim().isNotEmpty || filter.isActive;
             return ListView(
               children: [
+                _Controls(
+                  search: _search,
+                  onSearch: () => setState(() {}),
+                  filter: filter,
+                  showOwner: mixed,
+                  sort: sort,
+                ),
+                if (searching)
+                  _Summary(
+                    count: shown.length,
+                    isGuess: result.isGuess,
+                    hiddenUngraded: result.hiddenUngraded,
+                  ),
                 if (cachedAt != null)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -79,6 +122,155 @@ class TrailsScreen extends ConsumerWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// Suchfeld, Filter und Sortierung über der Liste.
+class _Controls extends ConsumerWidget {
+  const _Controls({
+    required this.search,
+    required this.onSearch,
+    required this.filter,
+    required this.showOwner,
+    required this.sort,
+  });
+
+  final TextEditingController search;
+  final VoidCallback onSearch;
+  final TrailListFilter filter;
+  final bool showOwner;
+  final TrailSort sort;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    void setFilter(TrailListFilter f) => ref.read(trailListFilterProvider.notifier).state = f;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Die Sortierung neben der Suche, nicht bei den Chips: Dort
+          // schnitt sie auf 360 dp den dritten Chip ab.
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('trail-search'),
+                  controller: search,
+                  onChanged: (_) => onSearch(),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Trail oder Buddy',
+                    suffixIcon: search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Suche leeren',
+                            onPressed: () {
+                              search.clear();
+                              onSearch();
+                            },
+                          ),
+                  ),
+                ),
+              ),
+              PopupMenuButton<TrailSort>(
+                key: const ValueKey('trail-sort'),
+                tooltip: 'Sortieren: ${sort.label}',
+                icon: const Icon(Icons.sort),
+                initialValue: sort,
+                onSelected: (v) => ref.read(trailSortProvider.notifier).state = v,
+                itemBuilder: (_) => [
+                  for (final v in TrailSort.values)
+                    CheckedPopupMenuItem(
+                      key: ValueKey('trail-sort-${v.name}'),
+                      value: v,
+                      checked: v == sort,
+                      child: Text(v.label),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          if (showOwner) ...[
+            const SizedBox(height: 8),
+            SegmentedButton<TrailOwnerFilter>(
+              key: const ValueKey('trail-owner'),
+              showSelectedIcon: false,
+              segments: [
+                for (final v in TrailOwnerFilter.values) ButtonSegment(value: v, label: Text(v.label)),
+              ],
+              selected: {filter.owner},
+              onSelectionChanged: (s) => setFilter(filter.copyWith(owner: s.first)),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilterChip(
+                key: const ValueKey('trail-filter-easy'),
+                label: Text('bis ${gradeLabel(kEasyMaxGrade)}'),
+                selected: filter.easyOnly,
+                onSelected: (v) => setFilter(filter.copyWith(easyOnly: v)),
+              ),
+              FilterChip(
+                key: const ValueKey('trail-filter-fresh'),
+                label: const Text('Neuer Hinweis'),
+                selected: filter.freshNotesOnly,
+                onSelected: (v) => setFilter(filter.copyWith(freshNotesOnly: v)),
+              ),
+              FilterChip(
+                key: const ValueKey('trail-filter-reported'),
+                label: const Text('Gemeldet'),
+                selected: filter.reportedOnly,
+                onSelected: (v) => setFilter(filter.copyWith(reportedOnly: v)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Was die Suche gefunden hat — und ob geraten wurde.
+class _Summary extends StatelessWidget {
+  const _Summary({required this.count, required this.isGuess, required this.hiddenUngraded});
+
+  final int count;
+  final bool isGuess;
+  final int hiddenUngraded;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = count == 0
+        ? 'Keine Trails für diese Suche.'
+        : isGuess
+            ? 'Kein Trail heißt so. Meintest du …?'
+            : count == 1
+                ? 'Ein Trail gefunden.'
+                : '$count Trails gefunden.';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Text.rich(
+        TextSpan(children: [
+          TextSpan(text: text),
+          if (hiddenUngraded > 0)
+            TextSpan(
+              text: hiddenUngraded == 1
+                  ? ' Ein Trail ohne Einschätzung ist nicht dabei.'
+                  : ' $hiddenUngraded Trails ohne Einschätzung sind nicht dabei.',
+              style: TextStyle(color: AppPalette.of(context).muted),
+            ),
+        ]),
+        key: const ValueKey('trail-search-summary'),
+        style: Theme.of(context).textTheme.bodyMedium,
       ),
     );
   }

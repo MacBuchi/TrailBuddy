@@ -245,6 +245,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Hinweis" in der Liste; eigene zählen nie. Beim Ändern des Status
   bietet „Mein Beitrag" einen Hinweis an. Entscheidungen des Betreibers
   vom 2026-09-28; `matcher_check.sql` Block 20 prüft RLS und Aufräumen.
+- **Suche, Filter, Sortierung der Trail-Liste** (#66, seit 0.32.0,
+  `trail_list.dart` pur, `lib/core/search_text.dart`): fehlertolerant wie
+  PilzBuddy #395 — `foldSearchText` (klein, ä/ae → a, ohne Leer- und
+  Satzzeichen), erst Teiltreffer, NUR wenn der leer ausgeht der
+  Tippfehler-Ausgleich (`nearContainsDistance`, nur der beste Abstand),
+  und die Liste sagt dann „Meintest du …?". Gesucht wird über Namen und
+  Buddy-Namen, nie über Hinweistexte. „bis S2" lässt Trails OHNE
+  Einschätzung weg (im Zweifel die Warnung) und zählt sie. Filter und
+  Sortierung gelten für die Sitzung und NUR für die Liste — die Karte
+  filtert nicht (ein Filter an zwei Orten mit zwei Wirkungen wäre
+  schlimmer als zwei getrennte).
 - **Offizielle Trails in der App** (#13, `lib/features/official/`):
   Index und Regionen von `raw.githubusercontent.com` (Daten-Branch),
   erst ab Zoom 8 (`kOfficialMinZoom`) und nur für Regionen, deren Rahmen
