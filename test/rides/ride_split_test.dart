@@ -165,4 +165,29 @@ void main() {
     expect(split.points, hasLength(pts.length - 1));
     expect(split.totalM, inInclusiveRange(590, 610));
   });
+
+  test('selbst gewählt (#104): Griffe über die ganze Fahrt, vorgewählt ohne die Heimzone', () {
+    // Eben, ohne Wege: Die Suche findet nichts, selbst wählen geht trotzdem.
+    final split = splitRide(points: ride(2000, (_) => 500), trails: const [], roads: noRoads);
+    expect(split.candidates, isEmpty);
+    final m = manualSection(split)!;
+    expect(m.section.manual, isTrue);
+    expect((m.section.start, m.section.end), (0, split.points.length - 1),
+        reason: 'die Griffe reichen über die ganze Fahrt');
+    expect(m.section.offRoadShare, isNull, reason: 'kein Urteil über Wege');
+    // Punkte alle 20 m: die ersten und letzten 300 m fallen aus der Vorwahl.
+    expect(m.start, 16);
+    expect(m.end, split.points.length - 1 - 16);
+    final home = homeZoneOf(split, m.start, m.end);
+    expect(home.nearStart || home.nearEnd, isFalse);
+    expect(homeZoneOf(split, 0, m.end).nearStart, isTrue, reason: 'der Hinweis folgt den Griffen');
+  });
+
+  test('selbst gewählt: kurze Runde behält die ganze Fahrt, zu kurz gibt es nicht', () {
+    // 500 m: ohne 2 × 300 m bliebe nichts — die Griffe stehen an den Enden.
+    final short = manualSection(splitRide(points: ride(500, (_) => 500), trails: const [], roads: noRoads))!;
+    expect((short.start, short.end), (0, 25));
+    expect(manualSection(splitRide(points: ride(100, (_) => 500), trails: const [], roads: noRoads)), isNull,
+        reason: 'kürzer als ein Trail (150 m)');
+  });
 }

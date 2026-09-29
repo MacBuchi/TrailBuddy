@@ -250,6 +250,38 @@ void main() {
     expect(find.text('1 beisteuern'), findsOneWidget);
   });
 
+  testWidgets('Stück selbst wählen (#104): ohne gespeicherten Bereich, ohne Heimzone vorgewählt',
+      (tester) async {
+    await pumpApp(tester, backend, trails: trails, rideStore: store);
+    await openFromRides(tester);
+    expect(find.byKey(const ValueKey('split-candidate-0')), findsNothing,
+        reason: 'ohne Wege findet die Suche nichts');
+    await sheetScrollTo(tester, find.byKey(const ValueKey('split-pick-section')));
+    await tester.tap(find.byKey(const ValueKey('split-pick-section')));
+    await settle(tester);
+    await sheetScrollTo(tester, find.byKey(const ValueKey('split-candidate-0')));
+    expect(find.textContaining('selbst gewählt'), findsOneWidget);
+    expect(find.textContaining('abseits von Wegen'), findsNothing);
+    expect(find.byKey(const ValueKey('split-candidate-home-0')), findsNothing,
+        reason: 'vorgewählt ohne die ersten und letzten 300 m');
+    expect(linesOf(tester, AppColors.mapLines.candidate), hasLength(1));
+    expect(find.text('2 beisteuern'), findsOneWidget, reason: 'Roots und das Stück');
+
+    // Den vorderen Griff an den Anfang der Fahrt ziehen: Der Hinweis kommt.
+    final slider = find.byKey(const ValueKey('split-candidate-range-0'));
+    final box = tester.getRect(slider);
+    await tester.dragFrom(Offset(box.left + 24, box.center.dy), Offset(-box.width, 0));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('split-candidate-home-0')), findsOneWidget);
+    expect(find.text('Beginnt nahe deinem Start.'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('split-candidate-name-0')), 'Jump-Line');
+    await tester.tap(find.byKey(const ValueKey('split-submit')));
+    await settle(tester, frames: 30);
+    expect(trails.contributeCalls, 2);
+    expect(trails.details.where((d) => d.userId == annaId && d.name == 'Jump-Line'), hasLength(1));
+  });
+
   testWidgets('eine GPX-Fahrt geht aus dem Import in dasselbe Blatt', (tester) async {
     // 12 km nach Norden, kaum Gefälle: eine Fahrt (Konzept 5.2).
     final b = StringBuffer('<gpx version="1.1"><trk><name>Sonntagsrunde</name><trkseg>');

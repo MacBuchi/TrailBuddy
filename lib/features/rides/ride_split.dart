@@ -83,7 +83,8 @@ class KnownTrailSection extends RideSection {
   final Trail trail;
 }
 
-/// Ein Vorschlag für einen neuen Trail.
+/// Ein Vorschlag für einen neuen Trail — gefunden ([manual] false) oder
+/// vom Nutzer über die ganze Fahrt gewählt ([manualSection], #104).
 class CandidateSection extends RideSection {
   const CandidateSection({
     required super.start,
@@ -93,13 +94,19 @@ class CandidateSection extends RideSection {
     required this.offRoadShare,
     required this.nearStart,
     required this.nearEnd,
+    this.manual = false,
   });
 
-  /// Höhenverlust über das Stück, aus den geglätteten Höhen.
-  final double lossM;
+  /// Höhenverlust über das Stück, aus den geglätteten Höhen; beim
+  /// selbst gewählten Stück aus den rohen (null ohne Höhen).
+  final double? lossM;
 
-  /// Anteil der Abtastpunkte weiter als 15 m von jeder Straße.
-  final double offRoadShare;
+  /// Anteil der Abtastpunkte weiter als 15 m von jeder Straße; null beim
+  /// selbst gewählten Stück — dafür braucht es keine Wege.
+  final double? offRoadShare;
+
+  /// Selbst gewählt: Die Griffe reichen über die ganze Fahrt.
+  final bool manual;
 
   /// Beginnt oder endet nahe Start/Ziel der Fahrt (Heimzone).
   final bool nearStart;
@@ -144,6 +151,63 @@ class RideSplit {
   }
 
   List<TrackPoint> pointsOf(RideSection s) => points.sublist(s.start, s.end + 1);
+}
+
+/// Ein selbst gewähltes Stück (#104, `docs/konzept-rework.md` 5): Die
+/// Heuristik findet nur Abfahrten abseits der Wege — eine Jump-Line, ein
+/// flacher Flowtrail, ein Uphill oder ein Trail mit Forstweg-Stück wird
+/// kein Kandidat. Hier wählt der Nutzer selbst. Die GRENZEN sind die
+/// ganze Fahrt (dort greifen die Griffe), vorgewählt ist [initial]:
+/// die Fahrt ohne ihre ersten und letzten [kSplitHomeM] — eine Fahrt
+/// beginnt an der Haustür, und die soll nicht aus Versehen mitgehen.
+/// Null, wenn die Fahrt kürzer als ein Trail ist.
+({CandidateSection section, int start, int end})? manualSection(RideSplit split) {
+  final pts = split.points;
+  if (pts.length < 2 || split.totalM < kTrailMinLengthM) return null;
+  final last = pts.length - 1;
+  final first = pts.first, end = pts.last;
+  double from(TrackPoint a, TrackPoint b) => haversineM(a.lat, a.lon, b.lat, b.lon);
+  var s = 0;
+  while (s < last && from(pts[s], first) <= kSplitHomeM) {
+    s++;
+  }
+  var e = last;
+  while (e > s && from(pts[e], end) <= kSplitHomeM) {
+    e--;
+  }
+  // Bleibt ohne die Heimzone nichts, was ein Trail sein kann (eine kurze
+  // Runde um den Block), sind die Griffe am Anfang und Ende der Fahrt.
+  if (e <= s || trackLengthM(pts.sublist(s, e + 1)) < kTrailMinLengthM) {
+    s = 0;
+    e = last;
+  }
+  final a = pts.first.ele, b = pts.last.ele;
+  return (
+    section: CandidateSection(
+      start: 0,
+      end: last,
+      lengthM: split.totalM,
+      lossM: a == null || b == null ? null : a - b,
+      offRoadShare: null,
+      nearStart: true,
+      nearEnd: true,
+      manual: true,
+    ),
+    start: s,
+    end: e,
+  );
+}
+
+/// Beginnt oder endet das Stück [start]…[end] in der Heimzone der Fahrt
+/// (Konzept 5.1)? Gerechnet für die AKTUELLEN Griffe — ein Hinweis, der
+/// am ursprünglichen Stück klebte, stimmte nach dem Ziehen nicht mehr.
+({bool nearStart, bool nearEnd}) homeZoneOf(RideSplit split, int start, int end) {
+  final pts = split.points;
+  final first = pts.first, last = pts.last;
+  bool near(TrackPoint p) =>
+      haversineM(p.lat, p.lon, first.lat, first.lon) <= kSplitHomeM ||
+      haversineM(p.lat, p.lon, last.lat, last.lon) <= kSplitHomeM;
+  return (nearStart: near(pts[start]), nearEnd: near(pts[end]));
 }
 
 /// Zerlegt [points] (mit optionaler Streuung je Punkt, [accuracyM])

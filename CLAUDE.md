@@ -453,7 +453,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 - **Das Zerlege-Blatt** (#29, Konzept 5.1, `ride_split.dart` pur,
   `road_index.dart`, `ride_split_sheet.dart`, seit 0.20.0): nach der
   Aufzeichnung, aus „Meine Fahrten" (Schere) und aus dem GPX-Import für
-  Fahrten — EIN Blatt, EIN `SplitRequest`. Sechs Dinge, die man wissen
+  Fahrten — EIN Blatt, EIN `SplitRequest`. Sieben Dinge, die man wissen
   muss:
   - **Bekannt heißt: mit den Schwellen des Abgleichs gedeckt** (15 m,
     0,8, beidseitig, `kMatch*`), das Stück der Fahrt im Korridor wird
@@ -490,7 +490,13 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     eigenen Beitrag (`adoptDetails`, auch im Ausgangskorb:
     `ContributeJob.grade`/`.traits`; ein Auftrag von vor 0.35.0 hat
     keine `traits` und liest sich leer).
-    Heimzone (300 m) ist ein Hinweis am Kandidaten, kein Riegel.
+    Heimzone (300 m) ist ein Hinweis am Kandidaten, kein Riegel — und er
+    folgt den Griffen (`homeZoneOf`), nicht dem gefundenen Stück.
+  - **„Stück selbst wählen"** (#104, seit 0.47.0, `manualSection`): ein
+    Kandidat über die ganze Fahrt, ohne Wege und ohne Höhen, für alles,
+    was die Abfahrts-Suche nicht findet. Vorgewählt ohne die ersten und
+    letzten 300 m (Heimzone); ist die Fahrt dafür zu kurz, die ganze.
+    Kein Merkmal „neu" oder „selbst gebaut" (Konzept 7).
 - **Ausgangskorb** (#30, `lib/data/outbox*.dart` +
   `lib/features/trails/outbox_providers.dart`, seit 0.14.0; PilzBuddy
   #267 als Vorlage): Genau ZWEI Aufträge — Aufzeichnung beisteuern

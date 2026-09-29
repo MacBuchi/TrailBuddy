@@ -122,9 +122,9 @@ class _RideSplitSheet extends ConsumerStatefulWidget {
 /// Ein Kandidat, wie er im Blatt steht: mit den Griffen, dem Namen, dem
 /// Grad — und ob er noch dabei ist.
 class _CandidateDraft {
-  _CandidateDraft(this.section, String name)
-      : start = section.start,
-        end = section.end,
+  _CandidateDraft(this.section, String name, {int? start, int? end})
+      : start = start ?? section.start,
+        end = end ?? section.end,
         nameField = TextEditingController(text: name);
 
   final CandidateSection section;
@@ -146,6 +146,9 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
   final _drafts = <_CandidateDraft>[];
   bool _busy = false;
   int _done = 0;
+
+  /// „30. September" — der Tag der Fahrt, für die vorgeschlagenen Namen.
+  String _dateLabel = '';
 
   @override
   void initState() {
@@ -204,10 +207,26 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
       _loading = false;
       _knownSelected.addAll([for (var i = 0; i < split.known.length; i++) i]);
       final date = _date.format((points.first.time ?? DateTime.now()).toLocal());
+      _dateLabel = date;
       for (var i = 0; i < split.candidates.length; i++) {
         _drafts.add(_CandidateDraft(
             split.candidates[i], split.candidates.length == 1 ? 'Trail vom $date' : 'Trail ${i + 1} vom $date'));
       }
+    });
+    _pushPreview();
+  }
+
+  /// „Stück selbst wählen" (#104): ein Kandidat über die ganze Fahrt,
+  /// vorgewählt ohne die Heimzone ([manualSection]).
+  void _addManual() {
+    final split = _split;
+    final m = split == null ? null : manualSection(split);
+    if (m == null) return;
+    final open = _drafts.where((d) => !d.discarded).length;
+    setState(() {
+      _drafts.add(_CandidateDraft(
+          m.section, open == 0 ? 'Trail vom $_dateLabel' : 'Trail ${open + 1} vom $_dateLabel',
+          start: m.start, end: m.end));
     });
     _pushPreview();
   }
@@ -415,6 +434,27 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
               ),
             for (var i = 0; i < _drafts.length; i++)
               if (!_drafts[i].discarded) _candidateCard(i, theme),
+            // Was die Suche nicht findet — eine Jump-Line, ein flacher
+            // Flowtrail, ein Uphill —, wählt man selbst (#104). Ohne
+            // gespeicherten Bereich und ohne Höhen.
+            if (manualSection(split) != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    TextButton.icon(
+                      key: const ValueKey('split-pick-section'),
+                      onPressed: _busy ? null : _addManual,
+                      icon: const Icon(Icons.content_cut),
+                      label: const Text('Stück selbst wählen'),
+                    ),
+                    Expanded(
+                      child: Text('Für alles, was die Suche nicht findet.',
+                          style: theme.textTheme.bodySmall),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 12),
             Text(
               'Rest: ${formatLength(split.restM)} Anfahrt, Forstweg, Straße — wird nicht angeboten.'
@@ -475,6 +515,8 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     final lengthM = _lengthOf(d.start, d.end);
     final loss = _lossOf(d.start, d.end);
     final tooShort = lengthM < kTrailMinLengthM;
+    final home = homeZoneOf(_split!, d.start, d.end);
+    final share = s.offRoadShare;
     return Card(
       key: ValueKey('split-candidate-$i'),
       margin: const EdgeInsets.only(top: 8),
@@ -521,18 +563,20 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
               child: Text(
                 '${formatLength(lengthM)}'
                 '${loss != null ? ' · ↓ ${loss.round()} Hm' : ''}'
-                ' · ${(s.offRoadShare * 100).round()} % abseits von Wegen'
+                '${share != null ? ' · ${(share * 100).round()} % abseits von Wegen' : ''}'
+                '${s.manual ? ' · selbst gewählt' : ''}'
                 '${tooShort ? ' · zu kurz für einen Trail' : ''}',
                 style: theme.textTheme.bodySmall,
               ),
             ),
-            if (s.nearHome)
+            if (home.nearStart || home.nearEnd)
               Padding(
                 padding: const EdgeInsets.only(left: 12, top: 2),
                 child: Text(
-                  s.nearStart && s.nearEnd
+                  key: ValueKey('split-candidate-home-$i'),
+                  home.nearStart && home.nearEnd
                       ? 'Beginnt und endet nahe Start und Ziel deiner Fahrt.'
-                      : s.nearStart
+                      : home.nearStart
                           ? 'Beginnt nahe deinem Start.'
                           : 'Endet nahe deinem Ziel.',
                   style: theme.textTheme.bodySmall?.copyWith(color: AppPalette.of(context).warningText),

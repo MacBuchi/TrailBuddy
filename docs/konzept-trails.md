@@ -430,6 +430,15 @@ Gefälle-allein-Regel (Betreiber, 2026-09-28). (3) Der lokale Abgleich
 für „bekannt" rechnet die beidseitige Deckung, keinen Fréchet: Ob
 verschmolzen wird, entscheidet weiter allein der Server.
 
+**Seit 0.47.0 (#104): „Stück selbst wählen".** Die Heuristik findet nur
+Abfahrten; eine Jump-Line, ein flacher Flowtrail, ein Uphill oder ein
+Trail mit Forstweg-Stück wurde kein Kandidat. Ein Knopf unter den
+Kandidaten legt einen Kandidaten über die GANZE Fahrt an (dieselben
+Griffe, Name, S-Grad, Charakter), ohne gespeicherten Bereich und ohne
+Höhen. Vorgewählt ist die Fahrt ohne ihre ersten und letzten 300 m
+(Heimzone): Eine Fahrt beginnt an der Haustür. Der Heimzonen-Hinweis
+gilt seither für die aktuellen Griffe, nicht für das gefundene Stück.
+
 ### 5.2 GPX-Import (der Bestand)
 
 Der Grund, warum das Konzept vor dem Code stehen muss: Die ersten
