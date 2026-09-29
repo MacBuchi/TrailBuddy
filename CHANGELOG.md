@@ -4,7 +4,14 @@
 
 ## Trails finden
 
-*Versionen 0.32.0 bis 0.35.0, 2026-09-29*
+*Versionen 0.32.0 bis 0.36.0, 2026-09-29*
+
+- **Orte überall, wo die Karte ist** (0.36.0): Hütten, Brunnen, Einkehr
+  und die übrigen Orte gab es bisher nur in Deutschland, Österreich, der
+  Schweiz und Liechtenstein. Jetzt kommen sie für den ganzen
+  Kartenbereich — Südtirol und Norditalien, Slowenien, Elsass und
+  Savoyen, Tschechien und die übrigen Nachbarn am Kartenrand. Sie
+  erscheinen mit dem nächsten Monatsstand der Orte.
 
 - **Charakter auch beim Zerlegen einer Fahrt** (0.35.0): Für jeden neuen
   Trail, den das Zerlege-Blatt vorschlägt, wählst du neben Name und

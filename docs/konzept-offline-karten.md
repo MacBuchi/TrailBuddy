@@ -155,8 +155,11 @@ hätte Overpass zur Dauerquelle gemacht, mit Kopien je Gerät.
 
 **Weg 3, entschieden (Abschnitt 7): eine eigene Orte-Datei auf dem
 Kartenhost.** `poi-data.yml` liest monatlich die Geofabrik-Extrakte
-(DACH + Liechtenstein) mit `osmium`, `tool/poi_extract.py` behält die
-15 Arten aus `tool/pois/kinds.json` und schreibt je Rasterzelle (das
+aller Länder im Kartenrahmen mit `osmium` (bis #73 nur DACH +
+Liechtenstein, die Karte reichte aber bis Südtirol und ins Elsass),
+`tool/poi_extract.py` behält die 15 Arten aus `tool/pois/kinds.json`
+innerhalb desselben Rahmens wie Onlinekarte und Übersicht
+(5,5–17,5° O, 45,5–55,5° N) und schreibt je Rasterzelle (das
 Raster der App, 0,1° × 0,15°) und Gruppe eine kleine JSON-Datei nach
 `tiles.mcbuchi.de/trailbuddy/pois-<build>/`, dazu `pois.json` mit dem
 Bau und den Zellen, die Inhalt haben. Die App (seit 0.18.0) holt das

@@ -5,7 +5,10 @@ name: POI Data
 # decision 2026-09-28).
 #
 # Reads the Geofabrik extracts of the countries the map covers, keeps
-# the fifteen kinds the app shows (tool/pois/kinds.json), and writes one
+# the fifteen kinds the app shows (tool/pois/kinds.json) inside the map's
+# own area (POI_BBOX, the same box as the basemap and the bundled
+# overview — #73: Südtirol and the other neighbours were on the map but
+# had no places), and writes one
 # small JSON file per grid cell and group plus a manifest that lists the
 # cells with content. Uploads them next to the basemap on Cloudflare R2
 # and then reads the PUBLIC copy back over tiles.mcbuchi.de with an
@@ -54,11 +57,27 @@ permissions:
 
 env:
   MODE: ${{ inputs.mode || 'publish' }}
-  # Geofabrik extracts, one per line of the map's coverage. DACH is one
-  # file (Germany, Austria, Switzerland); Liechtenstein sits between AT
-  # and CH and is its own extract. Adding a neighbour is one entry — the
-  # tool deduplicates objects that two extracts both carry.
-  EXTRACTS: "europe/dach europe/liechtenstein"
+  # The map's area, west,south,east,north — the SAME box as DACH_BBOX in
+  # map-data.yml and the bundled overview (tool/generated_assets.json);
+  # test/release_workflow_test.dart holds the three together. Places
+  # outside are dropped by the tool: the extracts are whole countries.
+  POI_BBOX: "5.5,45.5,17.5,55.5"
+  # Geofabrik extracts: every country the box touches. DACH is one file
+  # (Germany, Austria, Switzerland), Liechtenstein its own; Italy and
+  # France by region, the rest whole (they are small, or their regions
+  # would cut through the box). Adding one is one entry — the tool
+  # deduplicates objects that two extracts both carry. Each extract is
+  # filtered to our candidates right after its download and then
+  # deleted, so the disk holds one country at a time.
+  EXTRACTS: >-
+    europe/dach europe/liechtenstein
+    europe/italy/nord-est europe/italy/nord-ovest
+    europe/france/alsace europe/france/lorraine europe/france/franche-comte
+    europe/france/rhone-alpes europe/france/champagne-ardenne europe/france/bourgogne
+    europe/slovenia europe/croatia europe/hungary europe/slovakia
+    europe/czech-republic europe/poland
+    europe/netherlands europe/belgium europe/luxembourg
+    europe/denmark europe/sweden
   # Public values, deliberately in the file: the app carries the same
   # host as a constant, and the privacy policy guard reads it from there.
   R2_BUCKET: buddy-tiles
@@ -69,9 +88,9 @@ jobs:
   pois:
     name: Build, upload and verify the places
     runs-on: ubuntu-latest
-    # ~6 GB of extracts to download and filter, then a few thousand small
-    # uploads.
-    timeout-minutes: 90
+    # ~20 GB of extracts to download and filter one by one, then several
+    # thousand small uploads.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
 
@@ -106,17 +125,29 @@ jobs:
           sudo apt-get install -y -qq osmium-tool > /dev/null
           osmium --version | head -1
 
-      - name: Download the extracts
+      - name: Download and pre-filter the extracts
         if: env.MODE == 'plan' || steps.r2.outputs.present == 'true'
+        # One country at a time: download, keep only our candidates (the
+        # same `osmium tags-filter` expression the tool uses, with the
+        # objects they reference, so areas can still be built), delete
+        # the original. The filtered files are a few MB each; the whole
+        # set at once would not fit on the runner. A misspelt extract is
+        # a 404 and fails the run here, not a silently missing country.
         run: |
           set -euo pipefail
           rm -rf build/pois-src && mkdir -p build/pois-src
           df -h . | tail -1
+          expression=$(python3 tool/poi_extract.py filter-expression)
           for extract in $EXTRACTS; do
-            name=$(basename "$extract")
+            name=$(echo "$extract" | sed 's|^europe/||; s|/|-|g')
             url="https://download.geofabrik.de/${extract}-latest.osm.pbf"
             echo "$url"
-            curl -sSL --fail --retry 3 --retry-delay 10 -o "build/pois-src/${name}.osm.pbf" "$url"
+            curl -sSL --fail --retry 3 --retry-delay 10 -o "build/pois-src/${name}.full.osm.pbf" "$url"
+            ls -l "build/pois-src/${name}.full.osm.pbf"
+            # shellcheck disable=SC2086 # the expression is a list of selectors
+            osmium tags-filter --overwrite -o "build/pois-src/${name}.osm.pbf" \
+              "build/pois-src/${name}.full.osm.pbf" $expression
+            rm "build/pois-src/${name}.full.osm.pbf"
             ls -l "build/pois-src/${name}.osm.pbf"
           done
 
@@ -128,7 +159,7 @@ jobs:
           echo "BUILD=$BUILD" >> "$GITHUB_ENV"
           rm -rf build/pois && mkdir -p build/pois
           python3 tool/poi_extract.py build --build "$BUILD" --out build/pois \
-            --summary build/pois/summary.md build/pois-src/*.osm.pbf
+            --bbox "$POI_BBOX" --summary build/pois/summary.md build/pois-src/*.osm.pbf
           rm -rf build/pois-src
           cat build/pois/summary.md >> "$GITHUB_STEP_SUMMARY"
           # Tiny outputs are a broken extract, not a quiet month: the run

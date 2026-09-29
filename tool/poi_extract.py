@@ -27,9 +27,17 @@ apt), the official reader; this file only classifies, places and
 writes. Standard library only, deterministic output (sorted, ids as
 keys), so two runs over the same extract give the same bytes.
 
+The area is the MAP's area (#73): `--bbox` takes the same
+west,south,east,north as the basemap archive and the bundled overview
+(map-data.yml `DACH_BBOX`), and every place whose position lies outside
+is dropped and counted. The extracts are whole countries (or Geofabrik
+regions) and reach further than the map — without the cut, Paris would
+be in the build because Alsace is on the map. A place just across the
+edge is not a loss: the map shows nothing there either.
+
 Usage:
   python3 tool/poi_extract.py build --build 20260928 --out build/pois \
-      [--summary summary.md] a.osm.pbf [b.osm.pbf ...]
+      [--bbox W,S,E,N] [--summary summary.md] a.osm.pbf [b.osm.pbf ...]
   python3 tool/poi_extract.py build --build 20260928 --out build/pois \
       --geojsonseq features.geojsonl        # skip osmium (fixtures, tests)
   python3 tool/poi_extract.py filter-expression   # what osmium is asked
@@ -135,6 +143,25 @@ def center_of(geometry):
     return ((min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2)
 
 
+def parse_bbox(text):
+    """`W,S,E,N` in degrees -> tuple, or SystemExit on anything else."""
+    try:
+        west, south, east, north = (float(v) for v in text.split(","))
+    except ValueError:
+        raise SystemExit(f"--bbox wants west,south,east,north, got {text!r}")
+    if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
+        raise SystemExit(f"--bbox {text!r} is not a west,south,east,north box")
+    return west, south, east, north
+
+
+def in_bbox(lat, lon, bbox):
+    """Edges included: a place exactly on the map's edge is on the map."""
+    if bbox is None:
+        return True
+    west, south, east, north = bbox
+    return west <= lon <= east and south <= lat <= north
+
+
 def cell_of(lat, lon):
     return f"{math.floor(lat / CELL_LAT)},{math.floor(lon / CELL_LON)}"
 
@@ -238,15 +265,16 @@ def dump(obj):
                       separators=(",", ":")) + "\n"
 
 
-def build(features, kinds, groups, build_id, out_dir, sources=()):
+def build(features, kinds, groups, build_id, out_dir, sources=(), bbox=None):
     """Places -> files under out_dir/pois-<build>/ plus out_dir/pois.json.
-    Returns the manifest."""
+    With [bbox], places outside it are dropped (`outside`). Returns the
+    manifest."""
     if not (build_id.isdigit() and len(build_id) == 8):
         raise SystemExit(f"--build must be YYYYMMDD, got {build_id!r}")
     prefix = f"pois-{build_id}"
     by_file = {}   # (cell, group) -> {id: record}
     counts = {k["kind"]: 0 for k in kinds}
-    dropped = {"no_kind": 0, "no_position": 0, "no_id": 0}
+    dropped = {"no_kind": 0, "no_position": 0, "no_id": 0, "outside": 0}
     samples = []   # the first raw features, shown when nothing survives
     for feature in features:
         placed = place_of(feature, kinds)
@@ -256,6 +284,9 @@ def build(features, kinds, groups, build_id, out_dir, sources=()):
                 samples.append(feature)
             continue
         group, record = placed
+        if not in_bbox(record["lat"], record["lng"], bbox):
+            dropped["outside"] += 1
+            continue
         cell = cell_of(record["lat"], record["lng"])
         bucket = by_file.setdefault((cell, group), {})
         if record["id"] in bucket:
@@ -288,6 +319,7 @@ def build(features, kinds, groups, build_id, out_dir, sources=()):
         "build": build_id,
         "prefix": prefix,
         "attribution": ATTRIBUTION,
+        "bbox": list(bbox) if bbox is not None else None,
         "sources": sorted(sources),
         "cells": cells,
         "counts": counts,
@@ -315,7 +347,9 @@ def summary_md(manifest, kinds):
         f"{sum(manifest['counts'].values())} places; dropped: "
         f"{manifest['dropped']['no_kind']} without a kind of ours, "
         f"{manifest['dropped']['no_position']} without a position, "
-        f"{manifest['dropped']['no_id']} without an id",
+        f"{manifest['dropped']['no_id']} without an id, "
+        f"{manifest['dropped'].get('outside', 0)} outside the map",
+        f"- area: {','.join(str(v) for v in manifest['bbox']) if manifest.get('bbox') else 'unbounded'}",
         f"- sources: {', '.join(manifest['sources']) or '-'}",
         "",
         "| group | cells | kind | places |",
@@ -463,7 +497,9 @@ def self_test():
                                      "bikeService": ["476,60"], "other": ["476,61"]}, manifest["cells"]
         assert manifest["counts"]["parking"] == 1 and manifest["counts"]["spring"] == 1
         assert manifest["counts"]["eBikeCharging"] == 1
-        assert manifest["dropped"] == {"no_kind": 3, "no_position": 0, "no_id": 1}, manifest["dropped"]
+        assert manifest["dropped"] == {"no_kind": 3, "no_position": 0, "no_id": 1,
+                                       "outside": 0}, manifest["dropped"]
+        assert manifest["bbox"] is None
         assert manifest["files"] == 5 and manifest["prefix"] == "pois-20260928"
         with open(os.path.join(tmp, "pois.json"), encoding="utf-8") as h:
             assert json.load(h) == manifest
@@ -474,6 +510,27 @@ def self_test():
         assert first == second
         md = summary_md(manifest, kinds)
         assert "| water | 2 | spring | 1 |" in md, md
+
+    # The map's area (#73): outside is dropped and counted, the edge
+    # itself is inside. A box that ends at 11.0 E keeps everything at
+    # 9.x E and loses the drinking water at 11.3 E.
+    assert parse_bbox("5.5,45.5,17.5,55.5") == (5.5, 45.5, 17.5, 55.5)
+    for bad in ("5.5,45.5,17.5", "17.5,45.5,5.5,55.5", "a,b,c,d"):
+        try:
+            parse_bbox(bad)
+        except SystemExit:
+            pass
+        else:
+            raise AssertionError(f"--bbox {bad!r} must be refused")
+    assert in_bbox(45.5, 5.5, (5.5, 45.5, 17.5, 55.5)), "the edge is on the map"
+    assert not in_bbox(45.49, 9.0, (5.5, 45.5, 17.5, 55.5))
+    with tempfile.TemporaryDirectory() as tmp:
+        clipped = build(list(read_geojsonseq(io.StringIO(_FIXTURE))), kinds, groups,
+                        "20260928", tmp, ["dach"], bbox=(5.5, 45.5, 11.0, 55.5))
+        assert clipped["dropped"]["outside"] == 1, clipped["dropped"]
+        assert clipped["cells"]["water"] == ["475,60"], clipped["cells"]
+        assert clipped["bbox"] == [5.5, 45.5, 11.0, 55.5]
+        assert "1 outside the map" in summary_md(clipped, kinds)
 
     # A bad build id never becomes a prefix (it turns into a path).
     try:
@@ -512,6 +569,7 @@ def main():
     b.add_argument("--build", required=True, help="YYYYMMDD, becomes the prefix")
     b.add_argument("--out", required=True)
     b.add_argument("--summary", help="write a Markdown summary here")
+    b.add_argument("--bbox", help="west,south,east,north — the map's area; places outside are dropped")
     b.add_argument("--geojsonseq", help="read features from this file instead of running osmium")
     b.add_argument("pbf", nargs="*", help="Geofabrik .osm.pbf extracts")
     sub.add_parser("filter-expression", help="print the osmium tags-filter selectors")
@@ -528,14 +586,16 @@ def main():
         parser.print_help()
         sys.exit(2)
     started = time.time()
+    bbox = parse_bbox(args.bbox) if args.bbox else None
     if args.geojsonseq:
         with open(args.geojsonseq, encoding="utf-8") as handle:
             manifest = build(read_geojsonseq(handle), kinds, groups, args.build,
-                             args.out, [os.path.basename(args.geojsonseq)])
+                             args.out, [os.path.basename(args.geojsonseq)], bbox=bbox)
     elif args.pbf:
         with tempfile.TemporaryDirectory() as workdir:
             manifest = build(osmium_features(args.pbf, kinds, workdir), kinds, groups,
-                             args.build, args.out, [os.path.basename(p) for p in args.pbf])
+                             args.build, args.out, [os.path.basename(p) for p in args.pbf],
+                             bbox=bbox)
     else:
         raise SystemExit("build needs extracts or --geojsonseq")
     md = summary_md(manifest, kinds)
