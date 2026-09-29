@@ -34,7 +34,7 @@ void main() {
 
     expect(backend.friendships.single.requesterId, me.id);
     expect(backend.friendships.single.status, 'pending');
-    expect(find.text('Gesendete Anfragen'), findsOneWidget);
+    expect(find.text('GESENDETE ANFRAGEN · 1'), findsOneWidget);
     await drainSnackbars(tester);
   });
 
@@ -77,21 +77,31 @@ void main() {
     await pumpApp(tester, backend, trails: trails);
     await openTab(tester, 'Buddys');
 
-    expect(find.text('Anfragen an dich'), findsOneWidget);
-    await tester.tap(find.byTooltip('Annehmen'));
+    expect(find.text('ANFRAGEN AN DICH · 1'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Annehmen'));
     await settle(tester, frames: 12);
 
     expect(backend.friendships.single.status, 'accepted');
-    expect(find.text('Anfragen an dich'), findsNothing);
+    expect(find.text('ANFRAGEN AN DICH · 1'), findsNothing);
     // Der neue Buddy steht in der Liste — mit Alias-Knopf, denn erst
     // jetzt darf er einen bekommen.
     expect(find.text('lilli92'), findsWidgets);
     expect(find.byTooltip('Alias vergeben'), findsOneWidget);
     // Die Zusammenfassung NACH dem Annehmen: der private Trail zählt
     // nicht als „neu für Lilli".
-    expect(find.text('Mit lilli92 verbunden: 1 Trail gemeinsam, 1 neu von lilli92, 1 neu für lilli92.'),
+    // Seit Design 1k eine Karte mit drei Zahlen statt einer Leiste; der
+    // Satz steht für den Bildschirmleser darüber.
+    expect(findLabel('Mit lilli92 verbunden: 1 Trail gemeinsam, 1 neu von lilli92, 1 neu für lilli92.'),
         findsOneWidget);
-    await drainSnackbars(tester);
+    expect(find.text('MIT LILLI92 VERBUNDEN'), findsOneWidget);
+    // Die Buddy-Zeile zählt dieselben gemeinsamen Trails.
+    expect(find.text('1 gemeinsam'), findsOneWidget);
+    // Die Karte bleibt, bis man sie schließt.
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.byKey(const ValueKey('connect-summary')), findsOneWidget);
+    await tester.tap(find.byTooltip('Schließen'));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('connect-summary')), findsNothing);
   });
 
   testWidgets('Annehmen ohne Trails auf beiden Seiten sagt das', (tester) async {
@@ -100,10 +110,9 @@ void main() {
     backend.addFriendship(lilli.id, me.id, status: 'pending');
     await pumpApp(tester, backend);
     await openTab(tester, 'Buddys');
-    await tester.tap(find.byTooltip('Annehmen'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Annehmen'));
     await settle(tester, frames: 12);
     expect(find.textContaining('noch keine Trails'), findsOneWidget);
-    await drainSnackbars(tester);
   });
 
   testWidgets('Ablehnen löscht die Anfrage', (tester) async {
@@ -128,12 +137,12 @@ void main() {
     await pumpApp(tester, backend);
     await openTab(tester, 'Buddys');
 
-    expect(find.text('Gesendete Anfragen'), findsOneWidget);
+    expect(find.text('GESENDETE ANFRAGEN · 1'), findsOneWidget);
     await tester.tap(find.byTooltip('Zurückziehen'));
     await settle(tester, frames: 12);
 
     expect(backend.friendships, isEmpty);
-    expect(find.text('Gesendete Anfragen'), findsNothing);
+    expect(find.text('GESENDETE ANFRAGEN · 1'), findsNothing);
   });
 
   testWidgets('Entfernen fragt nach und beendet die Freundschaft',

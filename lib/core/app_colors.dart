@@ -17,6 +17,16 @@ abstract final class AppColors {
   /// Schrift und Symbole auf [brand].
   static const onBrand = Color(0xFF0E1411);
 
+  /// Flächen der Buchstaben-Avatare anderer (Design 1k), in beiden Modi
+  /// dieselben, Buchstabe immer [onBrand] (≥ 7:1 auf jeder). Lime fehlt
+  /// mit Absicht: Lime heißt „mein".
+  static const avatarFills = [
+    Color(0xFF5AD0F0),
+    Color(0xFFFFD23F),
+    Color(0xFFFF6BA8),
+    Color(0xFFB58CFF),
+  ];
+
   /// Der Landton der Karte, wo (noch) keine Kachel liegt — derselbe Wert
   /// wie die `earth`-Fläche des erzeugten Kartenstils, damit die Fläche
   /// nach „Karte lädt" aussieht und nicht nach „kaputt". Beide Engines

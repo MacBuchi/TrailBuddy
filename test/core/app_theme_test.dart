@@ -69,6 +69,12 @@ void main() {
 
   test('Schrift auf dem Knopf ≥ 4,5:1', () {
     expect(contrast(AppColors.onBrand, AppColors.brand), greaterThanOrEqualTo(4.5));
+    // Die Buchstaben-Avatare anderer (Design 1k): dunkle Schrift auf jeder
+    // Fläche, und nie Lime — Lime heißt „mein".
+    for (final fill in AppColors.avatarFills) {
+      expect(contrast(AppColors.onBrand, fill), greaterThanOrEqualTo(4.5), reason: '$fill');
+      expect(fill, isNot(AppColors.brand));
+    }
   });
 
   test('die Karte ist hell: ihre Linien haben einen weißen Saum', () {
