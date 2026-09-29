@@ -12,13 +12,13 @@
 // diese Optionen dort nicht ein zweites Mal übergeben werden; siehe
 // `push_messaging.dart`.
 //
-// **Noch leer.** Das Firebase-Projekt für TrailBuddy legt der Betreiber
-// an (Konsole: Projekt, Android-App `de.mcbuchi.trailbuddy`, Web-App,
-// Web-Push-Zertifikat). Bis dahin: Im Web gibt es kein Token und der
-// Schalter sagt es; auf Android entscheidet `google-services.json`, das
-// der Gradle-Build nur einbindet, wenn die Datei da ist. Ein Test hält
-// fest, dass beide Web-Werte ZUSAMMEN gesetzt werden — sie kommen aus
-// derselben Konsole, und einer allein wäre still nutzlos.
+// **Android ist eingerichtet, das Web noch nicht** (seit 0.37.0,
+// Firebase-Projekt `trailbuddy-6207b`): `google-services.json` liegt im
+// Repo, hier fehlen noch die Web-App (Konsole: Projekteinstellungen →
+// Meine Apps → Web-App) und das Web-Push-Zertifikat. Bis dahin: Im Web
+// gibt es kein Token und der Schalter sagt es. Ein Test hält fest, dass
+// beide Web-Werte ZUSAMMEN gesetzt werden — sie kommen aus derselben
+// Konsole, und einer allein wäre still nutzlos.
 import 'package:firebase_core/firebase_core.dart';
 
 /// Die Web-App des Firebase-Projekts; `null`, solange es keines gibt.

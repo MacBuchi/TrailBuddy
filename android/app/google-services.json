@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "906361941288",
+    "project_id": "trailbuddy-6207b",
+    "storage_bucket": "trailbuddy-6207b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:906361941288:android:e5ccfb902fb2607145b41d",
+        "android_client_info": {
+          "package_name": "de.mcbuchi.trailbuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDr6w9ehTJ61ktasxS-wkW4omwu7BSA57Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

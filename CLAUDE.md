@@ -873,12 +873,21 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Functions ein. `tool/push_flush_check.sh` ruft den Versand im Dry
     Run WIRKLICH auf (zurückgerollt): PL/pgSQL prüft den Rumpf erst beim
     Aufruf, und live läuft er jede Minute.
-  - **Firebase gibt es noch nicht.** `lib/core/push_config.dart` ist
-    leer (Web), `android/app/google-services.json` fehlt und das
-    Gradle-Plugin wird nur mit der Datei angewendet — der Build läuft
-    ohne, `requestPushToken` meldet `unavailable`, der Schalter sagt
-    „noch nicht eingerichtet". Web-Optionen und VAPID-Schlüssel gehören
-    zusammen gesetzt (Test). Firebase ausschließlich für Cloud Messaging.
+  - **Firebase: Android ja, Web noch nicht** (seit 0.37.0, Projekt
+    `trailbuddy-6207b`, nur Cloud Messaging, ohne Analytics).
+    `android/app/google-services.json` liegt im Repo — ihr Inhalt ist
+    öffentlich (steckt in jeder APK), sie wird aus der Konsole GEHOLT,
+    nie editiert; der Manifest-Test prüft den Paketnamen darin. Das
+    Gradle-Plugin wird nur mit der Datei angewendet, ein Build ohne sie
+    läuft weiter. `lib/core/push_config.dart` ist für das Web noch leer
+    (Web-App und VAPID-Schlüssel gehören zusammen gesetzt, Test), der
+    Schalter sagt dort „noch nicht eingerichtet". Fehlende Konfiguration
+    ist kein Fehlerbericht (`isMissingFirebaseConfig`: `[core/…]` UND die
+    native `PlatformException` „Failed to load FirebaseOptions" — die
+    zweite kam bis 0.36.x in den Wochendigest). Der Versand braucht
+    zusätzlich die Vault- und Function-Geheimnisse oben und ein deploytes
+    `send-push`; ohne sie meldet der Testknopf einen Fehler, und der Job
+    räumt nur ab.
   - **Das Ziel ist eine Route, keine Seite**: `/trail/:id` setzt den
     Fokus-Wunsch (`mapFocusTrailProvider`) und landet auf der Karte; die
     Karte löst ihn beim Aufbau ODER sobald der Trail geladen ist
