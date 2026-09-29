@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Offline-Karten
+
+*Version 0.36.1, 2026-09-29*
+
+- **Gespeicherte Bereiche zeigen sich auch bei schwachem Empfang**
+  (0.36.1): Bisher sprang die App erst auf deine gespeicherten Bereiche
+  um, wenn das Telefon gar kein Netz mehr meldete. Im Wald ist das
+  selten so. Meist gibt es noch einen Balken, über den nichts mehr
+  durchkommt. Dann wartete die Karte auf die Online-Kacheln, und Wege
+  und Pfade fehlten, obwohl sie gespeichert waren. Jetzt liegen
+  gespeicherte Bereiche immer obenauf, mit und ohne Empfang. Wo du
+  nichts gespeichert hast, kommt die Karte wie bisher aus dem Netz.
+
 ## Trails finden
 
 *Versionen 0.32.0 bis 0.36.0, 2026-09-29*

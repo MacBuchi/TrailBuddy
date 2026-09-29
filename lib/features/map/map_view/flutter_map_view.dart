@@ -103,9 +103,9 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
     final showBaseMap = online == null || ref.watch(noConnectivityProvider);
     final baseStyle =
         showBaseMap ? ref.watch(baseMapStyleProvider).valueOrNull : null;
-    // Die gespeicherten Bereiche in demselben Fall, über der Übersicht
-    // (Konzept-Schritt 3) — dieselbe Regel wie in der MapLibre-Engine.
-    final areas = showBaseMap ? ref.watch(areaMapStyleProvider).valueOrNull : null;
+    // Die gespeicherten Bereiche IMMER, zuoberst (#82) — dieselbe Regel
+    // wie in der MapLibre-Engine, Begründung in area_providers.dart.
+    final areas = ref.watch(areaMapStyleProvider).valueOrNull;
 
     return FlutterMap(
       mapController: _mapController,
@@ -161,15 +161,6 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             layerMode: vmt.VectorTileLayerMode.raster,
             maximumTileSubstitutionDifference: 1,
           ),
-        if (areas != null)
-          vmt.VectorTileLayer(
-            key: ValueKey(areas.tileProviders),
-            tileProviders: areas.tileProviders,
-            theme: areas.theme,
-            layerMode: vmt.VectorTileLayerMode.vector,
-            maximumZoom: 19,
-            maximumTileSubstitutionDifference: 1,
-          ),
         if (online != null)
           vmt.VectorTileLayer(
             // Der Schlüssel hängt an der QUELLE (PilzBuddy #144): Ein
@@ -184,6 +175,18 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             layerMode: vmt.VectorTileLayerMode.vector,
             maximumZoom: 19,
             maximumTileSubstitutionDifference: 1,
+          ),
+        if (areas != null)
+          vmt.VectorTileLayer(
+            key: ValueKey(areas.tileProviders),
+            tileProviders: areas.tileProviders,
+            theme: areas.theme,
+            layerMode: vmt.VectorTileLayerMode.vector,
+            maximumZoom: 19,
+            // Keine Ersatzkachel: Eine Kachel außerhalb des Bereichs fehlt
+            // mit Absicht, und ihre gröbere Elternkachel aus dem Bereich
+            // läge sonst über der schärferen Online-Kachel darunter.
+            maximumTileSubstitutionDifference: 0,
           ),
         if (layers.polygons.isNotEmpty)
           PolygonLayer(polygons: [

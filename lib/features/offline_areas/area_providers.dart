@@ -3,13 +3,20 @@
 // über den KeepAlive-Koordinator), und die geöffneten Archive für die
 // Karte — für flutter_map als Kachelquellen, für MapLibre als Pfade.
 //
-// Wann die Bereiche die Karte SIND: sobald kein Empfang besteht oder es
-// kein Manifest gibt — dieselbe Regel wie für die Übersicht, in beiden
-// Engines. Bewusst nicht „erst lokal, dann Netz" (Konzept 3.2, dort so
-// gedacht): MapLibre hat keinen Kachel-Lieferanten, in den sich ein
-// lokaler Vorrang hängen ließe — zwei Quellen mit demselben Inhalt
-// zeichneten doppelt. Beide Engines eine Regel ist mehr wert als ein
-// Vorrang in nur einer (Entscheidung, Konzept Abschnitt 7).
+// Die Bereiche liegen IMMER auf der Karte, zuoberst (#82) — in beiden
+// Engines, mit und ohne Empfang. Bis 0.36.x waren sie nur die Karte,
+// wenn kein Empfang bestand oder es kein Manifest gab, und dann UNTER
+// der Online-Karte. Im Wald heißt das meist „schwacher Empfang": Das
+// Telefon meldet ein Netz, die Online-Kacheln kommen nie, und die
+// gespeicherten wurden gar nicht erst gefragt. Die Leiste „Ebenen" zeigte
+// sie trotzdem als gespeichert.
+//
+// Das ist der lokale Vorrang aus Konzept 3.2, ohne Kachel-Lieferanten:
+// Jede Kachel eines Bereichs trägt die deckende `earth`-Fläche des Stils
+// und verdeckt die Online-Karte darunter vollständig; wo der Bereich keine
+// Kachel hat, liefert sein Archiv nichts, und die Online-Karte scheint
+// durch. Doppelt gezeichnet wird also nichts Sichtbares, nur die Online-
+// Kachel unter dem Bereich umsonst geladen.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -18,7 +25,6 @@ import 'package:http/http.dart' as http;
 import 'package:pmtiles/pmtiles.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
-import '../../core/connectivity.dart';
 import '../../core/errors.dart';
 import '../keep_alive/keep_alive.dart';
 import '../map/base_map_providers.dart';
@@ -210,14 +216,6 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
 
 final areaDownloadProvider =
     NotifierProvider<AreaDownloadNotifier, AreaDownloadState>(AreaDownloadNotifier.new);
-
-/// Gilt die Regel „die Bereiche sind die Karte"? Kein Empfang oder kein
-/// Manifest — wie bei der Übersicht.
-final areasActiveProvider = Provider<bool>((ref) {
-  if (ref.watch(noConnectivityProvider)) return true;
-  final manifest = ref.watch(mapManifestProvider);
-  return manifest.hasValue && manifest.value == null;
-});
 
 /// Die Archive der Bereiche mit Pfad — für MapLibre (`file://`). Leer im
 /// Browser (dort gibt es keine Pfade, und keine MapLibre-Engine).

@@ -52,19 +52,6 @@ void main() {
     return c;
   }
 
-  test('die Bereiche sind die Karte ohne Empfang oder ohne Manifest', () async {
-    final offline = make(noConnectivity: true);
-    expect(offline.read(areasActiveProvider), isTrue);
-
-    final online = make(noConnectivity: false);
-    await online.read(mapManifestProvider.future);
-    expect(online.read(areasActiveProvider), isFalse);
-
-    final hostGone = make(noConnectivity: false, manifest: null);
-    await hostGone.read(mapManifestProvider.future);
-    expect(hostGone.read(areasActiveProvider), isTrue);
-  });
-
   test('zwei Bereiche werden EINE Kachelquelle: der erste, der die Kachel hat, liefert', () async {
     const west = AreaBounds(south: 47.9, west: 11.0, north: 48.0, east: 11.2);
     const east = AreaBounds(south: 47.9, west: 12.0, north: 48.0, east: 12.2);
