@@ -16,7 +16,9 @@ trägt. Im Gebrauch zeigen sich sieben Lücken:
 1. **Der Name hängt am Beitrag dessen, der ihn vergeben hat.** Wer einen
    Trail über einen Buddy kennt und ihn wieder fährt, bekommt einen
    Beitrag OHNE Namen. Löscht der Buddy, entfreundet er sich oder löscht
-   er sein Konto, steht dort „Trail ohne Namen“.
+   er sein Konto, steht dort „Trail ohne Namen“. Seit 0.46.0 ist
+   das Löschen ein Knopf im Blatt (`withdraw_contribution`, #99) — der
+   Fall wird damit häufiger, nicht seltener.
 2. **Ein geplanter Import sagt „offen“.** Jede Aufzeichnung setzt den
    eigenen Status auf „offen“, auch eine GPX-Datei von einer
    Vereinsseite ohne Zeiten. Und das Blatt zeigt Buddys nicht, dass eine
@@ -284,14 +286,14 @@ nächste freie.
 
 | # | Schritt | Issue | Typ | Schema | Hängt ab von |
 |---|---|---|---|---|---|
-| 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | fix | Patch 010 | — |
-| 2 | Spaß und Zustand: Schema, Anzeige, „Mein Beitrag“ (3) | #101 | feat | Patch 011 | E4, E6 |
+| 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | fix | Patch 011 | — |
+| 2 | Spaß und Zustand: Schema, Anzeige, „Mein Beitrag“ (3) | #101 | feat | Patch 012 | E4, E6 |
 | 3 | Übernehmen beim ersten Wiederfahren, Zustand je Fahrt (1, 3.2) | #102 | feat | — | #101, E1, E2 |
-| 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | feat | Patch 012 | — |
+| 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | feat | Patch 013 | — |
 | 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | feat | — | — |
 | 6 | Marken während der Aufnahme (5.2) | #105 | feat | — | #104 |
-| 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | feat | Patch 013 | Messung |
-| 8 | Zusammenführen im Netz (7) | #107 | feat | Patch 014 | #106, E5 |
+| 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | feat | Patch 014 | Messung |
+| 8 | Zusammenführen im Netz (7) | #107 | feat | Patch 015 | #106, E5 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | feat | — | — |
 
 ### Schritt 1 — Geplant
@@ -307,7 +309,7 @@ nächste freie.
 
 ### Schritt 2 — Spaß und Zustand
 
-- Patch 011: drei Spalten, Checks (1–5; `condition_at` genau dann,
+- Patch 012: drei Spalten, Checks (1–5; `condition_at` genau dann,
   wenn `condition`). Grants unverändert (Spalten erben).
 - `TrailDetails`: Felder, `fromJson`/`toRow`/Cache-Encoder (Rundlauf-
   Test), `copyWith`. `Trail`: `funAverage`, `funCount`,
@@ -337,7 +339,7 @@ nächste freie.
 
 ### Schritt 4 — Link
 
-- Patch 012: `trail_details.link text` mit Check (`^https://`, ≤ 500).
+- Patch 013: `trail_details.link text` mit Check (`^https://`, ≤ 500).
 - `gpx.dart`: `<link href>` aus `<trk>`, sonst `<metadata>`; Query und
   Fragment weg. Import schlägt ihn vor.
 - Blatt: Host mit ↗, öffnet extern; „Mein Beitrag“: Feld.
@@ -372,7 +374,7 @@ nächste freie.
 
 ### Schritt 8 — Zusammenführen
 
-- Patch 014: `merge_own_into`, `trail_aliases` (RLS: nur eigene Zeilen),
+- Patch 015: `merge_own_into`, `trail_aliases` (RLS: nur eigene Zeilen),
   RPC für Vorschläge (nur Paare, die der Aufrufer beide sieht).
 - `buildTrails` wendet die Zuordnungen an; Blatt „Sind das dieselben?“
   mit beiden Linien auf der Karte; „auf gemeinsamen Teil kürzen“ öffnet
