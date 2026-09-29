@@ -35,6 +35,7 @@ import 'map_buttons.dart';
 import 'map_view/map_view.dart';
 import 'poi.dart';
 import 'poi_layer.dart';
+import 'trail_badges.dart';
 import 'position_provider.dart';
 import 'poi_source.dart';
 
@@ -510,6 +511,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       markers: [
         if (camera != null && cells != null)
           ...poiMarkers(poiState, camera, cells, groups, hidden),
+        // Das Schild am Trailanfang (Design 4c) — über den Orten, weil
+        // es zum Netz gehört.
+        ...trailBadgeMarkers(shownTrails, camera),
         if (position != null)
           MapViewMarker(
             key: const ValueKey('my-position'),

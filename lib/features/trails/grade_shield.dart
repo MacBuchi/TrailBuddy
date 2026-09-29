@@ -14,6 +14,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_theme.dart';
 import '../../models/trail.dart';
 import 'singletrail_scale.dart';
+import 'trail_traits.dart';
 
 /// Die Farbe eines Trails — EINE Regel für Karte, Streifen und Schild:
 /// Uphill (unter den angezeigten zwei Merkmalen, wie die Filter) trägt
@@ -25,43 +26,68 @@ Color trailColorOf(Trail t, GradePalette p) => isUphill(t) ? p.uphill : p.of(t.g
 /// vielen färbt keinen Trail um.
 bool isUphill(Trail t) => t.topTraits.contains(TrailTrait.uphill);
 
-/// Das Schild zu einem Grad 0–5.
+/// Das Schild zu einem Grad 0–5 — auf der Karte am Trailanfang auch mit
+/// den Charakter-Symbolen (Design 4c) und ohne Grad, wenn es Merkmale
+/// gibt. Ohne Grad, Uphill und Merkmale: nichts.
 class GradeShield extends StatelessWidget {
-  const GradeShield(this.grade, {super.key, this.fontSize = 12, this.uphill = false});
+  const GradeShield(this.grade,
+      {super.key, this.fontSize = 12, this.uphill = false, this.traits = const [], this.palette});
 
-  final int grade;
+  final int? grade;
 
   /// Uphill-Trail: Uphill-Farbe und ein Pfeil statt der Form; der Grad
   /// bleibt dabei, er sagt, wie technisch die Auffahrt ist.
   final bool uphill;
+
+  /// Charakter-Symbole hinter dem Grad (nur auf der Karte, wo keine
+  /// Zeile daneben steht). Uphill fällt hier weg — das sagt der Pfeil.
+  final List<TrailTrait> traits;
+
+  /// Der Farbsatz; Vorgabe der des App-Modus. Die Karte gibt
+  /// [AppColors.mapGrades] mit — sie ist immer hell.
+  final GradePalette? palette;
 
   /// Schriftgröße von „S3"; die Form wächst mit.
   final double fontSize;
 
   @override
   Widget build(BuildContext context) {
-    final palette = AppPalette.of(context);
-    final ink = palette.grade.ink;
-    final g = singletrailGrade(grade);
+    final p = palette ?? AppPalette.of(context).grade;
+    final ink = p.ink;
+    final g = grade == null ? null : singletrailGrade(grade!);
+    final shownTraits = [for (final t in traits) if (!(uphill && t == TrailTrait.uphill)) t];
+    if (g == null && !uphill && shownTraits.isEmpty) return const SizedBox.shrink();
+    final label = [
+      if (uphill) 'Uphill',
+      if (g != null) 'Schwierigkeit ${g.label}: ${g.short}',
+      for (final t in shownTraits) t.label,
+    ].join(', ');
     return Semantics(
-      label: '${uphill ? 'Uphill, ' : ''}Schwierigkeit ${g.label}: ${g.short}',
+      label: label,
       excludeSemantics: true,
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: fontSize * 0.55, vertical: fontSize * 0.2),
         decoration: BoxDecoration(
-          color: uphill ? palette.grade.uphill : palette.grade.of(grade),
+          color: uphill ? p.uphill : p.of(grade),
           borderRadius: BorderRadius.circular(fontSize * 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            uphill
-                ? UphillArrow(size: fontSize * 0.8, color: ink)
-                : GradeShape(grade, size: fontSize * 0.75, color: ink),
-            SizedBox(width: fontSize * 0.35),
-            Text(gradeLabel(grade),
-                style: AppFonts.numbers(TextStyle(fontSize: fontSize, height: 1.2))
-                    .copyWith(color: ink)),
+            if (uphill)
+              UphillArrow(size: fontSize * 0.8, color: ink)
+            else if (grade != null)
+              GradeShape(grade!, size: fontSize * 0.75, color: ink),
+            if (grade != null) ...[
+              SizedBox(width: fontSize * 0.35),
+              Text(gradeLabel(grade!),
+                  style: AppFonts.numbers(TextStyle(fontSize: fontSize, height: 1.2))
+                      .copyWith(color: ink)),
+            ],
+            for (final t in shownTraits) ...[
+              SizedBox(width: fontSize * 0.35),
+              Icon(t.icon, size: fontSize * 1.15, color: ink),
+            ],
           ],
         ),
       ),
