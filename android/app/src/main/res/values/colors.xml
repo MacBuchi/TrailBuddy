@@ -5,4 +5,7 @@
     <!-- Tönung des Push-Symbols: die Marke auf Hell (MapPalette.light.mine).
          Lime selbst wäre auf der hellen Benachrichtigungsleiste unlesbar. -->
     <color name="notification_color">#4F8A10</color>
+    <!-- Grund der App (AppColors.light.ground / .dark.ground): das
+         Startfenster, bevor Flutter das erste Bild zeichnet. -->
+    <color name="ground">#F3F2EC</color>
 </resources>

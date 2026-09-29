@@ -144,11 +144,13 @@ ThemeData buildAppTheme(AppPalette p) {
       side: BorderSide(color: p.line),
       selectedColor: p.surface2,
     ),
+    // Die Leiste ist in beiden Modi dunkel (im Hellen: die Textfarbe als
+    // Fläche), die Aktion deshalb immer Lime — die Marke auf Dunkel.
     snackBarTheme: SnackBarThemeData(
       backgroundColor: dark ? p.surface2 : p.text,
       contentTextStyle: textTheme.bodyMedium?.copyWith(
           color: dark ? p.text : p.ground),
-      actionTextColor: dark ? AppColors.brand : const Color(0xFFD7F59C),
+      actionTextColor: AppColors.brand,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(color: p.accentText),
     textButtonTheme: TextButtonThemeData(
