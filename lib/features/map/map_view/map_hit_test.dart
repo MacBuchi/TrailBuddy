@@ -58,6 +58,48 @@ LatLng unprojectFromScreen(MapViewCamera camera, Offset at) {
   return LatLng(lat, lon);
 }
 
+/// Die Kamera, die alle [points] mit [padding] Rand in eine Fläche der
+/// Größe [size] bringt — Mitte in Web-Mercator (nicht das Mittel der
+/// Breiten), Zoom in 256er-Stufen wie die Fassade, auf [minZoom]…[maxZoom]
+/// begrenzt. Ein einzelner Punkt oder eine leere Fläche ergibt
+/// [maxZoom] um den Punkt.
+///
+/// Gerechnet statt der Engine überlassen (#68): MapLibres `fitBounds`
+/// läuft auf Android über `animateCamera`, und das wirft bei einer Dauer
+/// von 0 ms („Null duration passed into animateCamera"). Mit dieser
+/// Rechnung setzt die Engine die Kamera ohne Animation, in EINEM
+/// Schritt samt Obergrenze — und der Fake der Tests rechnet dasselbe.
+({LatLng center, double zoom}) cameraToFit(
+  List<LatLng> points,
+  Size size, {
+  required double padding,
+  required double maxZoom,
+  double minZoom = 0,
+}) {
+  var s = 90.0, n = -90.0, w = 180.0, e = -180.0;
+  for (final p in points) {
+    s = math.min(s, p.latitude);
+    n = math.max(n, p.latitude);
+    w = math.min(w, p.longitude);
+    e = math.max(e, p.longitude);
+  }
+  final yN = _mercY(n), yS = _mercY(s);
+  final yMid = (yN + yS) / 2;
+  final center = LatLng((2 * math.atan(math.exp(yMid)) - math.pi / 2) * 180 / math.pi, (w + e) / 2);
+  final usableW = size.width - 2 * padding, usableH = size.height - 2 * padding;
+  var zoom = maxZoom;
+  if (usableW > 0 && usableH > 0) {
+    final lonSpan = e - w, ySpan = yN - yS;
+    if (lonSpan > 0) {
+      zoom = math.min(zoom, math.log(usableW * 360 / (256 * lonSpan)) / math.ln2);
+    }
+    if (ySpan > 0) {
+      zoom = math.min(zoom, math.log(usableH * 2 * math.pi / (256 * ySpan)) / math.ln2);
+    }
+  }
+  return (center: center, zoom: zoom.clamp(minZoom, maxZoom).toDouble());
+}
+
 /// Abstand von [p] zur Strecke [a]–[b].
 double distanceToSegment(Offset p, Offset a, Offset b) {
   final ab = b - a;

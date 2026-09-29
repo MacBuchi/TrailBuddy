@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 
+import '../../../core/errors.dart';
 import 'flutter_map_view.dart';
 import 'map_hit_test.dart';
 import 'map_view.dart';
@@ -232,7 +233,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       _pendingFit = null;
       return;
     }
-    unawaited(controller.moveCamera(center: _geo(center), zoom: zoom));
+    _moveNow(controller, center, zoom, 'Karte bewegen');
   }
 
   @override
@@ -242,19 +243,26 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       _pendingFit = (points: points, padding: padding, maxZoom: maxZoom);
       return;
     }
-    // `fitBounds` kennt auf Android keine Zoom-Obergrenze; die Kamera
-    // wird deshalb nach dem Einpassen nachgezogen, wenn sie zu nah ist.
+    // Selbst gerechnet und OHNE Animation gesetzt (#68): `fitBounds`
+    // geht auf Android über `animateCamera`, und MapLibre wirft dort bei
+    // 0 ms („Null duration passed into animateCamera") — zehn Berichte
+    // in 0.17–0.20, jedes Einpassen. `moveCamera` kennt keine Dauer.
+    final size = _size.isEmpty ? MediaQuery.sizeOf(context) : _size;
+    final cam = cameraToFit(points, size,
+        padding: padding, maxZoom: maxZoom, minZoom: widget.config.minZoom);
+    _moveNow(controller, cam.center, cam.zoom, 'Karte einpassen');
+  }
+
+  /// Setzt die Kamera (256er-Zoom der Fassade) ohne Animation. Ein
+  /// Fehler der Engine ist kein unbehandelter Fehler: Die Kamera steht
+  /// dann eben woanders, gemeldet wird er mit Kontext.
+  void _moveNow(ml.MapController controller, LatLng center, double zoom, String context) {
     unawaited(() async {
-      await controller.fitBounds(
-        bounds: ml.LngLatBounds.fromPoints([for (final p in points) _geo(p)]),
-        padding: EdgeInsets.all(padding),
-        nativeDuration: Duration.zero,
-      );
-      final cam = controller.camera;
-      // MapLibre zählt in 512er-Kacheln: dieselbe Fläche ist dort eine
-      // Stufe kleiner als bei flutter_map (256er).
-      if (cam != null && cam.zoom > maxZoom - 1) {
-        await controller.moveCamera(center: cam.center, zoom: maxZoom - 1);
+      try {
+        // MapLibre zählt in 512er-Kacheln: eine Stufe weniger.
+        await controller.moveCamera(center: _geo(center), zoom: zoom - 1);
+      } catch (e, s) {
+        logError(context, e, s);
       }
     }());
   }

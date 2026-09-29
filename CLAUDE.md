@@ -449,6 +449,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     dasselbe Bild zeigen. Was ein Tipp trifft, entscheidet trotzdem die
     Prüfung, nicht die Zeichenreihenfolge (Abweichung von „Nadeln unter
     den Linien" aus #12).
+  - **Die Kamera setzt MapLibre nur über `moveCamera`** (#68, seit
+    0.26.1): `fitBounds` und `animateCamera` des Pakets laufen auf
+    Android über `MapLibreMap.animateCamera`, und das WIRFT bei einer
+    Dauer ≤ 0 ms („Null duration passed into animateCamera") — so kam
+    jedes Einpassen von 0.17 bis 0.26 als Fehlerbericht an. Eingepasst
+    wird mit `cameraToFit` (pur, `map_hit_test.dart`, Mitte in Mercator,
+    Obergrenze in EINEM Schritt), dieselbe Rechnung fährt der Fake.
+    `test/map/maplibre_camera_test.dart` hält am Quelltext fest, dass
+    die Engine weder `fitBounds` noch `animateCamera` noch
+    `Duration.zero` benutzt. Wer eine Animation will: Dauer > 0.
   - **Die Zoomstufe wird GERECHNET, nie gemeldet** (`MapViewCamera.zoom`
     aus Fenster und Pixelbreite, 256er-Web-Mercator). MapLibre zählt in
     512er-Kacheln, flutter_map in 256ern; dieselbe Zahl hieße zwei

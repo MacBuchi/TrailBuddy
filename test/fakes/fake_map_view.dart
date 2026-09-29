@@ -75,23 +75,12 @@ class FakeMapViewState extends State<FakeMapView>
 
   @override
   void fit(List<LatLng> points, {required double padding, required double maxZoom}) {
-    var s = 90.0, n = -90.0, w = 180.0, e = -180.0;
-    for (final p in points) {
-      s = math.min(s, p.latitude);
-      n = math.max(n, p.latitude);
-      w = math.min(w, p.longitude);
-      e = math.max(e, p.longitude);
-    }
-    _center = LatLng((s + n) / 2, (w + e) / 2);
-    // Die Stufe, bei der die Spanne in die Fläche minus Rand passt —
-    // Web-Mercator wie flutter_map, auf die Obergrenze gedeckelt.
-    final usable = Size(_size.width - 2 * padding, _size.height - 2 * padding);
-    final lonSpan = math.max(e - w, 1e-6);
-    final latSpan = math.max(_mercY(n) - _mercY(s), 1e-9);
-    final zoomLon = math.log(usable.width * 360 / (256 * lonSpan)) / math.ln2;
-    final zoomLat = math.log(usable.height * 2 * math.pi / (256 * latSpan)) / math.ln2;
-    _zoom = math.min(math.min(zoomLon, zoomLat), maxZoom)
-        .clamp(widget.config.minZoom, widget.config.maxZoom);
+    // DIESELBE Rechnung wie die MapLibre-Engine (#68) — der Fake prüft
+    // sie damit bei jedem Einpassen mit.
+    final cam = cameraToFit(points, _size,
+        padding: padding, maxZoom: maxZoom, minZoom: widget.config.minZoom);
+    _center = cam.center;
+    _zoom = cam.zoom.clamp(widget.config.minZoom, widget.config.maxZoom);
     _idleAfterFrame();
   }
 
