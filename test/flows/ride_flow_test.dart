@@ -71,7 +71,7 @@ void main() {
   /// Kennung — ein Tipp gilt weiter dem Trail).
   List<MapViewPolyline> rideLines(WidgetTester tester) => [
         for (final l in fakeMapLayers(tester).polylines)
-          if (l.hitValue == null && l.color.toARGB32() == AppColors.rideTrack.withValues(alpha: 0.75).toARGB32()) l,
+          if (l.hitValue == null && l.color.toARGB32() == AppColors.mapLines.ride.withValues(alpha: 0.75).toARGB32()) l,
       ];
 
   testWidgets('aufzeichnen, beenden, behalten — und die Fahrt steht im Profil',

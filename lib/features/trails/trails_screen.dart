@@ -115,7 +115,7 @@ class _TrailTile extends StatelessWidget {
     // Ende und das Wort dazu — Farbe allein wäre nicht für alle lesbar.
     final failure = trail.pendingFailure;
     return ListTile(
-      tileColor: fresh ? AppColors.noteYellow.withValues(alpha: 0.18) : null,
+      tileColor: fresh ? AppPalette.of(context).map.note.withValues(alpha: 0.18) : null,
       trailing: fresh
           ? const Icon(Icons.mark_chat_unread_outlined,
               semanticLabel: 'neuer Hinweis')
@@ -130,11 +130,13 @@ class _TrailTile extends StatelessWidget {
                 : Icons.route,
         color: trail.pending
             ? (failure == null
-                ? AppColors.trailGreen.withValues(alpha: 0.55)
+                ? AppPalette.of(context).map.mine.withValues(alpha: 0.55)
                 : Theme.of(context).colorScheme.error)
             : trail.status.warns
-                ? AppColors.warningAmber
-                : (trail.isOwn ? AppColors.trailGreen : AppColors.friendBlue),
+                ? AppPalette.of(context).map.warning
+                : (trail.isOwn
+                    ? AppPalette.of(context).map.mine
+                    : AppPalette.of(context).map.buddy),
       ),
       title: Text(trail.displayName),
       subtitle: Text([

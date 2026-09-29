@@ -230,22 +230,28 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     final lines = <MapViewPolyline>[
       MapViewPolyline(
         points: [for (final p in thinnedTrack(split.points)) LatLng(p.lat, p.lon)],
-        color: AppColors.rideTrack.withValues(alpha: 0.45),
+        color: AppColors.mapLines.ride.withValues(alpha: 0.45),
         width: 4,
+        borderColor: AppColors.mapLines.halo,
+        borderWidth: AppColors.mapLines.haloBorderWidth,
       ),
       for (var i = 0; i < split.known.length; i++)
         MapViewPolyline(
           points: _latLng(split.known[i].start, split.known[i].end),
-          color: AppColors.trailGreen.withValues(alpha: _knownSelected.contains(i) ? 1 : 0.5),
+          color: AppColors.mapLines.mine.withValues(alpha: _knownSelected.contains(i) ? 1 : 0.5),
           width: 6,
+          borderColor: AppColors.mapLines.halo,
+          borderWidth: AppColors.mapLines.haloBorderWidth,
           dash: _knownSelected.contains(i) ? null : const [10, 8],
         ),
       for (final d in _drafts)
         if (!d.discarded)
           MapViewPolyline(
             points: _latLng(d.start, d.end),
-            color: AppColors.candidate.withValues(alpha: d.selected ? 1 : 0.5),
+            color: AppColors.mapLines.candidate.withValues(alpha: d.selected ? 1 : 0.5),
             width: 6,
+            borderColor: AppColors.mapLines.halo,
+            borderWidth: AppColors.mapLines.haloBorderWidth,
             dash: d.selected ? null : const [10, 8],
           ),
     ];
@@ -526,7 +532,7 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                       : s.nearStart
                           ? 'Beginnt nahe deinem Start.'
                           : 'Endet nahe deinem Ziel.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: AppColors.warningAmber),
+                  style: theme.textTheme.bodySmall?.copyWith(color: AppPalette.of(context).warningText),
                 ),
               ),
             // Die zwei Griffe: Punkt für Punkt, die Karte zeigt es.

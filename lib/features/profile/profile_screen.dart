@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
+import '../../core/app_theme.dart';
 import '../../core/errors.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/form_notice.dart';
@@ -99,6 +100,8 @@ class ProfileScreen extends ConsumerWidget {
           const ChangeEmailTile(),
           const _ChangePasswordTile(),
           const SignOutOtherDevicesTile(),
+          const Divider(height: 40),
+          const _AppearanceSection(),
           const Divider(height: 40),
           const _PushSection(),
           const Divider(height: 40),
@@ -381,6 +384,52 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
 
 /// Dezente „Über"-Sektion am Ende des Profils: Version, Update-Status
 /// und die öffentlichen Links der App.
+/// „Erscheinungsbild": wie das System, hell oder dunkel. Gerätelokal —
+/// das Zweitgerät darf anders aussehen.
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(appearanceProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Erscheinungsbild',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ThemeMode>(
+            key: const ValueKey('appearance'),
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_outlined),
+                  label: Text('System')),
+              ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                  label: Text('Hell')),
+              ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                  label: Text('Dunkel')),
+            ],
+            selected: {mode},
+            onSelectionChanged: (s) =>
+                ref.read(appearanceProvider.notifier).set(s.single),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text('Gilt nur für dieses Gerät. Die Karte selbst bleibt hell.',
+            style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
 /// Benachrichtigungen (#34). Die Systemberechtigung wird ERST hier
 /// erfragt, nicht beim Start: Ein Dialog, bevor die Karte auch nur zu
 /// sehen war, ist die zuverlässigste Art, ein „Nein für immer" zu

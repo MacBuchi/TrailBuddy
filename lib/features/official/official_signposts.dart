@@ -79,8 +79,8 @@ class _OfficialSignpostsState extends ConsumerState<OfficialSignposts> {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(children: [
-                const Icon(Icons.verified_outlined,
-                    size: 18, color: AppColors.officialViolet),
+                Icon(Icons.verified_outlined,
+                    size: 18, color: AppPalette.of(context).map.official),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(

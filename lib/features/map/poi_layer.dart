@@ -269,9 +269,9 @@ class _PoiFilterSheet extends ConsumerWidget {
             ),
             SwitchListTile(
               key: const ValueKey('official-trails-switch'),
-              secondary: const CircleAvatar(
-                backgroundColor: AppColors.officialViolet,
-                child: Icon(Icons.verified_outlined, color: Colors.white, size: 20),
+              secondary: CircleAvatar(
+                backgroundColor: AppPalette.of(context).map.official,
+                child: const Icon(Icons.verified_outlined, color: Colors.white, size: 20),
               ),
               title: const Text('Offizielle Trails'),
               subtitle: const Text('Vom Land ausgewiesene Singletrails, '

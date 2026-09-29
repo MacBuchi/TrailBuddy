@@ -95,7 +95,7 @@ class _NoteTile extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
       decoration: BoxDecoration(
         color: fresh
-            ? AppColors.noteYellow.withValues(alpha: 0.2)
+            ? AppPalette.of(context).map.note.withValues(alpha: 0.2)
             : theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),

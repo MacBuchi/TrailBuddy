@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/app_colors.dart';
+import 'core/app_theme.dart';
 import 'core/router.dart';
 import 'core/widgets/preview_ribbon.dart';
 import 'core/widgets/push_listener.dart';
@@ -30,13 +31,9 @@ class TrailBuddyApp extends ConsumerWidget {
           child: UpdateGate(child: child ?? const SizedBox.shrink()),
         ),
       ),
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.trailGreen,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(AppColors.light),
+      darkTheme: buildAppTheme(AppColors.dark),
+      themeMode: ref.watch(appearanceProvider),
       locale: const Locale('de'),
       supportedLocales: const [Locale('de')],
       localizationsDelegates: const [

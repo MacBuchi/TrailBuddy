@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.27.0+32
+version: 0.28.0+33
 
 environment:
   sdk: ^3.11.0
@@ -98,6 +98,10 @@ flutter:
   uses-material-design: true
   assets:
     - CHANGELOG.md
+    # Die Lizenztexte der gebündelten Schriften (SIL OFL) — die App zeigt
+    # sie unter „Open-Source-Lizenzen" (`registerFontLicenses`).
+    - assets/fonts/Barlow-OFL.txt
+    - assets/fonts/JetBrainsMono-OFL.txt
     # Kartenstil für BEIDE Engines (erzeugt aus @protomaps/basemaps,
     # Flavor LIGHT, deutsche Labels, Wege hervorgehoben) — nicht von Hand
     # editieren, `tool/generated_assets.py --check` wacht darüber.
@@ -116,3 +120,25 @@ flutter:
     # Der OFL-Text zu genau diesen Glyphen. Eigene Zeile: Die
     # Verzeichnis-Einträge nehmen nur Dateien direkt darin mit.
     - assets/map_glyphs/OFL.txt
+
+  # Schriften als Assets, nicht über google_fonts zur Laufzeit: Die App
+  # muss offline genauso aussehen. Nur die Schnitte, die das Design nutzt.
+  fonts:
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/Barlow-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Barlow-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Barlow-SemiBold.ttf
+          weight: 600
+    - family: BarlowCondensed
+      fonts:
+        - asset: assets/fonts/BarlowCondensed-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/BarlowCondensed-ExtraBold.ttf
+          weight: 800
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500

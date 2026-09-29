@@ -66,6 +66,12 @@ abstract interface class Settings {
   String? get pushToken;
 
   Future<void> setPushToken(String? value);
+
+  /// „Erscheinungsbild": `system`, `light` oder `dark` (`ThemeMode.name`),
+  /// oder null, solange nie etwas gewählt wurde — dann wie das System.
+  String? get appearance;
+
+  Future<void> setAppearance(String value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -130,6 +136,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setOfficialTrailsEnabled(bool value) =>
       _prefs.setBool(_officialTrailsEnabledKey, value);
+
+  static const _appearanceKey = 'appearance';
+
+  @override
+  String? get appearance => _prefs.getString(_appearanceKey);
+
+  @override
+  Future<void> setAppearance(String value) =>
+      _prefs.setString(_appearanceKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

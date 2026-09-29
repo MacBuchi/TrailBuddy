@@ -42,9 +42,11 @@ List<MapViewPolyline> officialPolylines(OfficialTrailsState state) => [
         for (final s in t.sections)
           MapViewPolyline(
             points: s.points,
-            color: s.closed ? Colors.grey.shade600 : AppColors.officialViolet,
+            color: s.closed ? Colors.grey.shade600 : AppColors.mapLines.official,
             width: s.variant ? 2.5 : 3.5,
             dash: const [10, 6],
+            borderColor: AppColors.mapLines.halo,
+            borderWidth: AppColors.mapLines.haloBorderWidth,
             hitValue: t,
           ),
     ];
@@ -109,7 +111,7 @@ class _OfficialTrailSheet extends ConsumerWidget {
                       : Icons.block,
                   size: 18,
                   color: trail.status == OfficialStatus.open
-                      ? AppColors.officialViolet
+                      ? AppPalette.of(context).map.official
                       : Colors.grey.shade700,
                 ),
                 const SizedBox(width: 6),

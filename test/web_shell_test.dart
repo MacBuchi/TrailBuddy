@@ -47,6 +47,10 @@ void main() {
         .firstMatch(manifest)!
         .group(1);
     expect(metaColor, manifestColor);
+    // Der Grund des dunklen Modus — die Leisten der PWA und der Start-
+    // bildschirm sollen nicht in der alten Farbe aufblitzen.
+    expect(metaColor, '#0E1411');
+    expect(manifest, contains('"background_color": "#0E1411"'));
     expect(index, contains('<title>TrailBuddy</title>'));
     expect(manifest, contains('"name": "TrailBuddy"'));
     expect(index, contains('name="viewport"'));
