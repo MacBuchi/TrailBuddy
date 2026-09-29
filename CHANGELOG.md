@@ -4,7 +4,14 @@
 
 ## Trails finden
 
-*Versionen 0.32.0 bis 0.34.0, 2026-09-29*
+*Versionen 0.32.0 bis 0.35.0, 2026-09-29*
+
+- **Charakter auch beim Zerlegen einer Fahrt** (0.35.0): Für jeden neuen
+  Trail, den das Zerlege-Blatt vorschlägt, wählst du neben Name und
+  Schwierigkeit jetzt auch den Charakter — mit denselben Chips wie in
+  „Mein Beitrag". Das klappt auch ohne Empfang; der Charakter geht dann
+  mit, sobald wieder Netz da ist. Was du schon eingetragen hattest,
+  bleibt stehen, neue Merkmale kommen nur dazu.
 
 - **Der Charakter eines Trails** (0.34.0): Statt einer einzigen „Art"
   wählst du in „Mein Beitrag" jetzt alles, was passt — Flowig, Jump-Line,

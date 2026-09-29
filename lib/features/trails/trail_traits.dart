@@ -43,7 +43,8 @@ class TrailTraitChip extends StatelessWidget {
 
   final TrailTrait trait;
   final bool selected;
-  final ValueChanged<bool> onSelected;
+  /// null sperrt den Chip (etwa während gespeichert wird).
+  final ValueChanged<bool>? onSelected;
 
   /// Ein kürzeres Wort als [TrailTrait.label] („Jumps" in den Filtern).
   final String? label;

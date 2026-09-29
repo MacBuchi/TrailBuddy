@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Beide Teile erhöhen (z. B. 0.1.0+1 → 0.1.1+2). Ein Bump auf main taggt und
 # baut ein Prerelease (release.yml); ohne Bump kein Release (Version Guard).
-version: 0.34.0+39
+version: 0.35.0+40
 
 environment:
   sdk: ^3.11.0

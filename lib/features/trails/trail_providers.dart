@@ -108,9 +108,11 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   ///
   /// [source] steht fest, wenn die Spur aus der eigenen Aufzeichnung
   /// kommt (`app`, Zerlege-Blatt #29); sonst entscheidet die Datei
-  /// ([sourceOf]). [grade] geht mit dem Namen in den eigenen Beitrag.
+  /// ([sourceOf]). [grade] und [traits] gehen mit dem Namen in den
+  /// eigenen Beitrag.
   Future<ContributeResult> contribute(GpxTrack track,
-      {String? clientId, RecordingSource? source, int? grade}) async {
+      {String? clientId, RecordingSource? source, int? grade,
+      Set<TrailTrait> traits = const {}}) async {
     final repo = ref.read(trailRepositoryProvider);
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
@@ -130,6 +132,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       recordedAt: recordedAt,
       name: track.name,
       grade: grade,
+      traits: traits,
     );
     try {
       final trailId = await repo.contribute(
@@ -139,7 +142,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         recordedAt: job.recordedAt,
         clientId: job.id,
       );
-      await adoptDetails(trailId, track.name, grade: grade);
+      await adoptDetails(trailId, track.name, grade: grade, traits: traits);
       return (trailId: trailId, queued: false);
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
@@ -181,10 +184,15 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// zurück, ob geschrieben wurde.
   Future<bool> adoptName(String trailId, String fileName) => adoptDetails(trailId, fileName);
 
-  /// Wie [adoptName], dazu der S-Grad aus dem Zerlege-Blatt (#29): Der
-  /// wird immer gesetzt — wer ihn gewählt hat, hat ihn gerade gefahren.
-  /// EIN Schreibvorgang für beides.
-  Future<bool> adoptDetails(String trailId, String fileName, {int? grade}) async {
+  /// Wie [adoptName], dazu S-Grad und Charakter aus dem Zerlege-Blatt
+  /// (#29, #72). Der Grad wird immer gesetzt — wer ihn gewählt hat, hat
+  /// ihn gerade gefahren. Die Merkmale kommen DAZU, nichts wird
+  /// weggenommen: Das Blatt zeigt den bisherigen eigenen Charakter nicht,
+  /// und legt der Server die Spur auf einen Trail, den ich schon
+  /// beschrieben habe, soll eine Abfahrt nicht still meine Angabe
+  /// ersetzen. EIN Schreibvorgang für alles.
+  Future<bool> adoptDetails(String trailId, String fileName,
+      {int? grade, Set<TrailTrait> traits = const {}}) async {
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
     final name = clampTrailName(fileName);
@@ -194,10 +202,12 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         ?.myDetails;
     final keepName = existing != null && (existing.name ?? '').trim().isNotEmpty;
     final writesName = name.isNotEmpty && !keepName;
-    if (!writesName && grade == null) return false;
+    final addsTraits = !(existing?.traits ?? const {}).containsAll(traits);
+    if (!writesName && grade == null && !addsTraits) return false;
     var details = existing ?? TrailDetails(trailId: trailId, userId: myId);
     if (writesName) details = details.copyWith(name: name);
     if (grade != null) details = details.copyWith(grade: grade);
+    if (addsTraits) details = details.copyWith(traits: {...details.traits, ...traits});
     await ref.read(trailRepositoryProvider).saveDetails(details);
     return true;
   }
@@ -280,8 +290,9 @@ final trailsCachedAtProvider =
 final outboxRunnerProvider = Provider<OutboxRunner>((ref) => OutboxRunner(
       repository: ref.watch(trailRepositoryProvider),
       outbox: ref.watch(outboxProvider),
-      adoptDetails: (trailId, name, grade) =>
-          ref.read(trailsProvider.notifier).adoptDetails(trailId, name, grade: grade),
+      adoptDetails: (trailId, name, grade, traits) => ref
+          .read(trailsProvider.notifier)
+          .adoptDetails(trailId, name, grade: grade, traits: traits),
     ));
 
 final trailByIdProvider = Provider.family<Trail?, String>((ref, id) =>

@@ -399,7 +399,8 @@ Fahrt auf der Karte, zerlegt in Abschnitte:
   haben — die PMTiles-Straßenebene kennt `track`, `service`, `road`;
   ein Abschnitt, der zu > 70 % mehr als 15 m von all dem entfernt
   liegt, ist Singletrail oder Wiese. Heuristik, kein Urteil: Der Nutzer
-  schneidet mit zwei Griffen zu, benennt, wählt S-Grad, oder verwirft.
+  schneidet mit zwei Griffen zu, benennt, wählt S-Grad und Charakter
+  (seit 0.35.0), oder verwirft.
 - **Rest** (Anfahrt, Forstweg, Straße) wird nicht angeboten.
 
 Die Fahrt bleibt danach als Ganzes auf dem Gerät (Statistik, eigene

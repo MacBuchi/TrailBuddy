@@ -163,8 +163,8 @@ Verblockt (Steine, Wurzeln, Stufen), Steil (anhaltendes Gefälle), Uphill
 Naturtrail und Verbindung aus der früheren „Art" erweitert (Betreiber,
 2026-09-29: der Charakter ERSETZT die Art, sieben Merkmale): Auswahl als
 Chips im Beitrag, im Blatt „Flowig · 3", in der Liste als Symbole
-(`trail_traits.dart`, Symbole farblos). Offen: S-Grad als Form, die
-Pisten-Brille und der Charakter im Zerlege-Blatt.
+(`trail_traits.dart`, Symbole farblos), seit 0.35.0 auch je Kandidat im
+Zerlege-Blatt. Offen: S-Grad als Form und die Pisten-Brille.
 
 **Pisten-Brille** — Schalter unter Ebenen, „Farbe nach Schwierigkeit":
 S0 `#2E9E4F` · S1 `#1F6FD1` · S2 `#D6322F` · S3–S5 schwarz, S4+

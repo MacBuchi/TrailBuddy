@@ -211,9 +211,12 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Unbekannte Merkmale fallen beim Lesen weg**, statt zu werfen — ein
     neueres Merkmal darf eine ältere App nicht umwerfen. Der Check in der
     Datenbank lässt nur die sieben zu.
-  - **Das Zerlege-Blatt kennt den Charakter noch nicht** (Betreiber,
-    2026-09-29: eigener kleiner PR); `adoptDetails` schreibt nur Name und
-    Grad.
+  - **Im Zerlege-Blatt seit 0.35.0**, dieselben Chips je Kandidat
+    (`TrailTraitChip`). Die Merkmale KOMMEN DAZU (`adoptDetails`), nichts
+    wird weggenommen: Das Blatt zeigt den bisherigen eigenen Charakter
+    nicht, und verschmilzt der Server die Spur mit einem Trail, den ich
+    schon beschrieben habe, soll eine Abfahrt meine Angabe nicht still
+    ersetzen. Der Grad dagegen wird gesetzt (ein Wert, gerade gefahren).
 - **Orte auf der Karte** (#12, `lib/features/map/poi*.dart`): seit
   0.18.0 als fertige Dateien vom EIGENEN Kartenhost (Konzept
   `docs/konzept-offline-karten.md` 3.4, Weg 3 — Betreiber, 2026-09-28),
@@ -413,8 +416,10 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `dispose` (dort ist `ref` tot). Die Knöpfe stehen fest unter der
     faulen Liste — im Test muss man das Blatt hochziehen, bevor ein
     Kandidat gebaut ist (`sheetScrollTo`).
-  - **Name und S-Grad gehen in EINEM Schreibvorgang** in den eigenen
-    Beitrag (`adoptDetails`, auch im Ausgangskorb: `ContributeJob.grade`).
+  - **Name, S-Grad und Charakter gehen in EINEM Schreibvorgang** in den
+    eigenen Beitrag (`adoptDetails`, auch im Ausgangskorb:
+    `ContributeJob.grade`/`.traits`; ein Auftrag von vor 0.35.0 hat
+    keine `traits` und liest sich leer).
     Heimzone (300 m) ist ein Hinweis am Kandidaten, kein Riegel.
 - **Ausgangskorb** (#30, `lib/data/outbox*.dart` +
   `lib/features/trails/outbox_providers.dart`, seit 0.14.0; PilzBuddy
