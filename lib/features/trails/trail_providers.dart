@@ -17,6 +17,7 @@ import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'outbox_providers.dart';
 import 'trail_geometry.dart';
+import 'trail_list.dart';
 
 final trailRepositoryProvider = Provider<TrailRepository>(
     (ref) => SupabaseTrailRepository(ref.watch(supabaseClientProvider)));
@@ -313,6 +314,13 @@ final seenNotesProvider =
 
 /// Wunsch der Liste an die Karte: diesen Trail zeigen (Muster PilzBuddy
 /// #345, erst Reiter wechseln, dann Wunsch stellen).
+/// Sortierung der Liste (#66) — nur für die Liste, für die Sitzung.
+final trailSortProvider = StateProvider<TrailSort>((ref) => TrailSort.recent);
+
+/// Der Trail-Filter (#66) — für Liste UND Karte (seit 0.33.0), für die
+/// Sitzung: Wer die App neu öffnet, sieht wieder alles.
+final trailListFilterProvider = StateProvider<TrailListFilter>((ref) => const TrailListFilter());
+
 final mapFocusTrailProvider = StateProvider<String?>((ref) => null);
 
 /// UUID v4 aus `Random.secure()` — die Kennung des Auftrags, damit ein

@@ -6,14 +6,10 @@ import '../../core/app_colors.dart';
 import '../../core/errors.dart';
 import '../../models/trail.dart';
 import '../map/map_screen.dart' show formatCachedAt;
+import 'trail_filter_chips.dart';
 import 'trail_list.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
-
-/// Sortierung und Filter der Liste (#66) — für die Sitzung, nicht
-/// gemerkt: Wer die App neu öffnet, sieht wieder alles.
-final trailSortProvider = StateProvider<TrailSort>((ref) => TrailSort.recent);
-final trailListFilterProvider = StateProvider<TrailListFilter>((ref) => const TrailListFilter());
 
 /// Die Karte als Liste: erst die eigenen Trails, dann die, die nur Buddys
 /// belegt haben. Antippen öffnet das Blatt; von dort geht es auf die Karte.
@@ -145,7 +141,6 @@ class _Controls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    void setFilter(TrailListFilter f) => ref.read(trailListFilterProvider.notifier).state = f;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
@@ -197,42 +192,7 @@ class _Controls extends ConsumerWidget {
               ),
             ],
           ),
-          if (showOwner) ...[
-            const SizedBox(height: 8),
-            SegmentedButton<TrailOwnerFilter>(
-              key: const ValueKey('trail-owner'),
-              showSelectedIcon: false,
-              segments: [
-                for (final v in TrailOwnerFilter.values) ButtonSegment(value: v, label: Text(v.label)),
-              ],
-              selected: {filter.owner},
-              onSelectionChanged: (s) => setFilter(filter.copyWith(owner: s.first)),
-            ),
-          ],
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 8,
-            children: [
-              FilterChip(
-                key: const ValueKey('trail-filter-easy'),
-                label: Text('bis ${gradeLabel(kEasyMaxGrade)}'),
-                selected: filter.easyOnly,
-                onSelected: (v) => setFilter(filter.copyWith(easyOnly: v)),
-              ),
-              FilterChip(
-                key: const ValueKey('trail-filter-fresh'),
-                label: const Text('Neuer Hinweis'),
-                selected: filter.freshNotesOnly,
-                onSelected: (v) => setFilter(filter.copyWith(freshNotesOnly: v)),
-              ),
-              FilterChip(
-                key: const ValueKey('trail-filter-reported'),
-                label: const Text('Gemeldet'),
-                selected: filter.reportedOnly,
-                onSelected: (v) => setFilter(filter.copyWith(reportedOnly: v)),
-              ),
-            ],
-          ),
+          TrailFilterChips(showOwner: showOwner),
         ],
       ),
     );

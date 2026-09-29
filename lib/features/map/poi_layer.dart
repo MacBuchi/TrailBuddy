@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
+import '../../models/trail.dart';
 import '../official/official_trails_source.dart';
+import '../trails/trail_filter_chips.dart';
+import '../trails/trail_providers.dart';
 import 'map_view/map_view.dart';
 import 'poi.dart';
 import 'poi_source.dart';
@@ -256,6 +259,7 @@ class _PoiFilterSheet extends ConsumerWidget {
     final groups = ref.watch(poiGroupsProvider);
     final hidden = ref.watch(poiHiddenKindsProvider);
     final official = ref.watch(officialTrailsEnabledProvider);
+    final trails = ref.watch(trailsProvider).valueOrNull ?? const <Trail>[];
     final text = Theme.of(context).textTheme;
     return SafeArea(
       child: SingleChildScrollView(
@@ -263,6 +267,21 @@ class _PoiFilterSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Derselbe Filter wie in der Trail-Liste (#66): hier gesetzt,
+            // gilt er auch dort — und umgekehrt.
+            if (trails.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                child: Text('Trails', style: text.titleLarge),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: TrailFilterChips(
+                  keyPrefix: 'map-trail',
+                  showOwner: trails.any((t) => t.isOwn) && trails.any((t) => !t.isOwn),
+                ),
+              ),
+            ],
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Text('Ebenen', style: text.titleLarge),

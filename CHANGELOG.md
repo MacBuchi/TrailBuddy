@@ -4,7 +4,14 @@
 
 ## Trails finden
 
-*Version 0.32.0, 2026-09-29*
+*Versionen 0.32.0 bis 0.33.0, 2026-09-29*
+
+- **Der Filter gilt jetzt auch auf der Karte** (0.33.0): Was du in der
+  Liste filterst — Meine oder Von Buddys, „bis S2", neuer Hinweis,
+  gemeldet —, zeigt auch die Karte, und umgekehrt: Dieselben Chips
+  stehen auf der Karte im Blatt „Ebenen". Solange ein Filter gilt, sagt
+  die Karte es oben („Gefiltert: bis S2 · 3 von 5 Trails"), und das X
+  daneben hebt ihn auf. Suche und Sortierung bleiben in der Liste.
 
 - **Suche in der Trail-Liste**: Tippe einen Trailnamen oder den Namen
   eines Buddys. Umlaute, Bindestriche und Leerzeichen sind egal —
