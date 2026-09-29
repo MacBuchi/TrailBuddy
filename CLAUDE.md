@@ -887,7 +887,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     zweite kam bis 0.36.x in den Wochendigest). Der Versand braucht
     zusätzlich die Vault- und Function-Geheimnisse oben und ein deploytes
     `send-push`; ohne sie meldet der Testknopf einen Fehler, und der Job
-    räumt nur ab.
+    räumt nur ab. **Live eingerichtet seit 2026-09-29** (Testnachricht
+    auf Android und im Web angekommen): Function-Secrets und Vault über
+    die Management-API gesetzt, dasselbe Job-Geheimnis an beiden Stellen
+    (liegt beim Betreiber, nie im Repo). Das Repo-Secret
+    `SUPABASE_ACCESS_TOKEN` ist ein Token des Zweitkontos mit 7 Tagen
+    Laufzeit — danach überspringt `deploy-functions.yml` sichtbar; ein
+    neues Token braucht es erst, wenn sich `supabase/functions/` ändert.
+    Probe ohne Meldung: `send-push` ohne Ausweis ⇒ 401, mit
+    `x-push-secret` und `{"messages":[]}` ⇒ 200.
   - **Das Ziel ist eine Route, keine Seite**: `/trail/:id` setzt den
     Fokus-Wunsch (`mapFocusTrailProvider`) und landet auf der Karte; die
     Karte löst ihn beim Aufbau ODER sobald der Trail geladen ist
