@@ -2,6 +2,22 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Aussehen
+
+*Version 0.38.0, 2026-09-29*
+
+- **Die Trail-Liste im neuen Look** (0.38.0): Jeder Trail steht jetzt
+  auf einer eigenen Karte. Ein Farbstreifen links sagt, wem er gehört:
+  grün deiner, blau von Buddys, orange gemeldet. Darunter steht in
+  einem Wort, was los ist: „NEUER HINWEIS" (dann ist die Karte gelb
+  umrandet), „GESPERRT", „MEIN · 2 BUDDYS" oder die Namen deiner Buddys.
+  Länge, Abfahrt und Schwierigkeit stehen in einer Zahlenschrift, oben
+  steht, wie viele Trails es sind und wie lang zusammen.
+
+- **Kleinigkeiten** (0.38.0): Kilometer mit Komma („3,4 km") überall,
+  der Pfeil vor den Höhenmetern ist kein leeres Kästchen mehr, und die
+  Titel oben auf Unterseiten haben wieder ihre richtige Größe.
+
 ## Benachrichtigungen
 
 *Version 0.37.0, 2026-09-29*

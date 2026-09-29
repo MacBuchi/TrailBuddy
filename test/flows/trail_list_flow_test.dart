@@ -83,6 +83,11 @@ void main() {
   });
 
   testWidgets('sortieren nach Name', (tester) async {
+    // Telefonhöhe: Seit die Zeilen Karten sind (0.38.0), baut die faule
+    // Liste auf der 800×600-Vorgabe die dritte nicht mehr.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     await open(tester);
     await tester.tap(find.byKey(const ValueKey('trail-sort')));
     await settle(tester);

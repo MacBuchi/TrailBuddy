@@ -51,10 +51,12 @@ dunkel. **Die Farbe sagt, was ICH mit dem Trail zu tun habe** — daran
 | Knopf | `#B6F04A`, Schrift `#0E1411` | derselbe |
 | Marke als Zeichen (Logo) | `#B6F04A` | `#4F8A10` („Marke auf Hell") |
 | Marke als Text | `#B6F04A` | `#3D6E0B` ¹ |
+| Hinweis als Text | `#FFD23F` | `#7A5C00` ¹ |
 
 ¹ Abweichung vom Entwurf, der `#4F8A10` auch für Text zeigt: Als Text
 erreicht es auf Weiß nur 4,2:1, verlangt sind 4,5:1. Dasselbe für Warnung
-(`#A94510`) und Buddy (`#0A7299`) als Text.
+(`#A94510`) und Buddy (`#0A7299`) als Text, und für das Hinweis-Gelb
+(`#F2B600`, 1,9:1) als Wort in der Liste („NEUER HINWEIS", seit 0.38.0).
 `test/core/app_theme_test.dart` prüft jedes Paar.
 
 **Trail-Farben** (Linie, Symbol, Streifen):
@@ -206,7 +208,18 @@ Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
   Karte, unten „Hinweis schreiben" (Lime) + „Karte".
 - **Trail-Liste (1j):** Karten mit 14 px Radius, Farbstreifen links =
   Beziehung, rechts ein Wort in der Farbe (NEUER HINWEIS, MEIN, GESPERRT,
-  AUSGANGSKORB …), Zahlen in Mono.
+  AUSGANGSKORB …), Zahlen in Mono. **Gebaut seit 0.38.0**
+  (`trails_screen.dart`, Regel `trailRowTags` in `trail_list.dart`), mit
+  drei Abweichungen: Das Wort steht unter den Zahlen, nicht rechts —
+  rechts stehen seit 4e Schild und Charakter-Symbole, beides zusammen
+  liefe auf 360 dp über. Ein Zustand (wartet, gemeldet, neuer Hinweis)
+  schlägt die Beziehung; nur ohne Zustand steht „MEIN · 2 BUDDYS" bzw.
+  die Namen (höchstens zwei, Alias vor Name). Die Karten sind flach
+  (`elevation: 0`) mit Rand in der Linienfarbe; der gelbe Rahmen trägt
+  den neuen Hinweis, eine Tönung der Zeile gibt es nicht mehr. Die
+  Abschnitte „Meine Trails" / „Von Buddys" bleiben (der Entwurf hat
+  keine) — im Stil der Abschnitte aus 1k. Kopf: „TRAILS" groß, rechts
+  „Anzahl · Gesamtlänge" in Mono.
 - **Buddys (1k):** Nach dem Annehmen eine Karte „Mit Jan verbunden" mit
   drei Zahlen (gemeinsam / neu von / neu für) statt einer Leiste;
   Avatare als abgerundetes Quadrat (12 px).
@@ -239,6 +252,8 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 2 | Logo, App-Symbole, Statusleisten-Symbol, Login | 0.29.0 |
 | 3 | Hülle und Karte (Turn 3) | 0.30.0 |
 | 4 | Offline-Kacheln: eine Regel (Turn 2) | 0.31.0 |
-| 5 | Listen und Blätter (Turn 1g–1l, 4e/4f) | |
+| 5a | Trail-Liste (1j, 4e ohne Schild) | 0.38.0 |
+| 5b | Trail-Blatt (1i, 4f ohne Schild) | |
+| 5c | Buddys und Profil (1k, 1l) | |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
 | 7 | Animationen (Turn 1p–1t) | |

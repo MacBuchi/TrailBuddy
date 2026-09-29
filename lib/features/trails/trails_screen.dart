@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_theme.dart' show AppFonts;
 import '../../core/errors.dart';
 import '../../models/trail.dart';
+import '../friends/buddy_alias.dart' show buddyNamesViewProvider;
 import '../map/map_screen.dart' show formatCachedAt;
 import 'trail_filter_chips.dart';
 import 'trail_list.dart';
@@ -36,8 +38,22 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
     final trailsAsync = ref.watch(trailsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trails'),
+        // Der Reiter-Kopf aus dem Entwurf (1j): groß, in Versalien, rechts
+        // der Bestand in Mono.
+        toolbarHeight: 64,
+        title: Text('TRAILS',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
         actions: [
+          if (trailsAsync.valueOrNull case final all? when all.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Text(
+                '${all.length} · ${formatLength(all.fold(0.0, (sum, t) => sum + t.lengthM))}',
+                key: const ValueKey('trails-total'),
+                style: AppFonts.numbers(Theme.of(context).textTheme.bodySmall)
+                    .copyWith(color: AppPalette.of(context).muted),
+              ),
+            ),
           IconButton(
             tooltip: 'GPX importieren',
             icon: const Icon(Icons.file_upload_outlined),
@@ -243,12 +259,21 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-        child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+        padding: const EdgeInsets.fromLTRB(20, 16, 16, 6),
+        // Wie die Abschnitte im Entwurf (1k): klein, gesperrt, gedämpft.
+        child: Text(text,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: AppPalette.of(context).muted)),
       );
 }
 
-class _TrailTile extends StatelessWidget {
+/// Eine Zeile als Karte (Design 1j/4e): links der Farbstreifen der
+/// Beziehung, dann Name, Zahlen in Mono und das Wort in seiner Farbe;
+/// rechts der Charakter. Ein neuer Hinweis rahmt die Karte gelb — die
+/// Farbe des Leuchtrands auf der Karte.
+class _TrailTile extends ConsumerWidget {
   const _TrailTile(this.trail, {required this.fresh});
   final Trail trail;
 
@@ -256,62 +281,87 @@ class _TrailTile extends StatelessWidget {
   final bool fresh;
 
   @override
-  Widget build(BuildContext context) {
-    final parts = <String>[
+  Widget build(BuildContext context, WidgetRef ref) {
+    final palette = AppPalette.of(context);
+    final theme = Theme.of(context);
+    final names = ref.watch(buddyNamesViewProvider);
+    final numbers = <String>[
       formatLength(trail.lengthM),
       if (trail.elevation != null) '↓ ${trail.elevation!.lossM.round()} Hm',
       if (trail.grade != null) gradeLabel(trail.grade!),
-      if (trail.buddyIds.isNotEmpty)
-        '${trail.buddyIds.length} ${trail.buddyIds.length == 1 ? 'Buddy' : 'Buddys'}',
     ];
-    // Neuer Hinweis eines Buddys (#7): die Zeile getönt, ein Symbol am
-    // Ende und das Wort dazu — Farbe allein wäre nicht für alle lesbar.
-    final failure = trail.pendingFailure;
-    return ListTile(
-      tileColor: fresh ? AppPalette.of(context).map.note.withValues(alpha: 0.18) : null,
-      // Rechts der Charakter (#72, die zwei häufigsten) und ein neuer
-      // Hinweis.
-      trailing: fresh || trail.topTraits.isNotEmpty
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TrailTraitIcons(trail.topTraits,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
-                if (fresh)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 8),
-                    child: Icon(Icons.mark_chat_unread_outlined, semanticLabel: 'neuer Hinweis'),
-                  ),
-              ],
-            )
-          : null,
-      // Wartend (#30): Uhr statt Route, verblasst — derselbe Spot, nur
-      // noch nicht auf dem Server.
-      leading: Icon(
-        trail.pending
-            ? (failure == null ? Icons.schedule : Icons.error_outline)
-            : trail.status.warns
-                ? Icons.warning_amber
-                : Icons.route,
-        color: trail.pending
-            ? (failure == null
-                ? AppPalette.of(context).map.mine.withValues(alpha: 0.55)
-                : Theme.of(context).colorScheme.error)
-            : trail.status.warns
-                ? AppPalette.of(context).map.warning
-                : (trail.isOwn
-                    ? AppPalette.of(context).map.mine
-                    : AppPalette.of(context).map.buddy),
+    final tags = trailRowTags(trail,
+        freshNote: fresh, nameOf: (id, username) => names.of(id, username));
+    Color tagColor(TrailRowTagKind k) => switch (k) {
+          TrailRowTagKind.pending => palette.muted,
+          TrailRowTagKind.failure => theme.colorScheme.error,
+          TrailRowTagKind.warning => palette.warningText,
+          TrailRowTagKind.note => palette.noteText,
+          TrailRowTagKind.mine => palette.accentText,
+          TrailRowTagKind.buddy => palette.buddyText,
+        };
+    // Der Streifen sagt die Beziehung; gemeldet schlägt sie (Orange), ein
+    // wartender Trail ist blass — er ist noch nicht auf dem Server.
+    final stripe = trail.pending
+        ? palette.muted
+        : trail.status.warns
+            ? palette.map.warning
+            : (trail.isOwn ? palette.map.mine : palette.map.buddy);
+    final tagStyle = theme.textTheme.labelSmall?.copyWith(
+        fontWeight: FontWeight.w700, letterSpacing: 0.8, fontSize: 11);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      // Flach mit Rand wie im Entwurf; der Schatten der Vorgabe (1) zog im
+      // Hellen eine dunkle Kante um jede Karte.
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: fresh
+            ? BorderSide(color: palette.map.note, width: 1.5)
+            : BorderSide(color: palette.line),
       ),
-      title: Text(trail.displayName),
-      subtitle: Text([
-        parts.join(' · '),
-        if (trail.pending) failure ?? 'wartet auf Übertragung',
-        if (trail.pendingDetails) 'Beitrag wartet auf Übertragung',
-        if (trail.status.warns) trail.status.label,
-        if (fresh) 'neuer Hinweis',
-      ].join(' — ')),
-      onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
+      child: ListTile(
+        // Die Rundung auch am Tipp-Schein, sonst stünde er eckig in der Karte.
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        contentPadding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+        horizontalTitleGap: 12,
+        minLeadingWidth: 4,
+        leading: Container(
+          key: const ValueKey('trail-stripe'),
+          width: 4,
+          height: 40,
+          decoration: BoxDecoration(color: stripe, borderRadius: BorderRadius.circular(2)),
+        ),
+        title: Text(trail.displayName,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Die Zahlen in Mono — auch der Pfeil, den Barlow nicht hat.
+            Text(numbers.join(' · '),
+                style: AppFonts.numbers(theme.textTheme.bodySmall)
+                    .copyWith(color: palette.muted)),
+            if (tags.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text.rich(
+                  TextSpan(children: [
+                    for (final (i, t) in tags.indexed) ...[
+                      if (i > 0) TextSpan(text: ' · ', style: TextStyle(color: palette.muted)),
+                      TextSpan(text: t.text, style: TextStyle(color: tagColor(t.kind))),
+                    ],
+                  ]),
+                  style: tagStyle,
+                ),
+              ),
+          ],
+        ),
+        trailing: trail.topTraits.isEmpty
+            ? null
+            : TrailTraitIcons(trail.topTraits, color: palette.muted),
+        onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
+      ),
     );
   }
 }

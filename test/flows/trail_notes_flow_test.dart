@@ -5,6 +5,7 @@
 // und beim Ändern des Status lässt sich einer gleich mitgeben.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:trailbuddy/core/app_colors.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 import '../fakes/fake_backend.dart';
@@ -60,9 +61,16 @@ void main() {
     await openTab(tester, 'Trails');
     await settle(tester, frames: 20);
 
-    expect(find.textContaining('neuer Hinweis'), findsOneWidget,
+    // Seit 0.38.0 (Design 1j) das Wort in Versalien und ein gelber
+    // Rahmen um die Karte statt Symbol und getönter Zeile.
+    expect(find.textContaining('NEUER HINWEIS'), findsOneWidget,
         reason: 'nur Bobs Flow — der Hinweis zu Roots ist älter als 7 Tage');
-    expect(find.byIcon(Icons.mark_chat_unread_outlined), findsOneWidget);
+    Card card(String name) =>
+        tester.widget<Card>(find.ancestor(of: find.text(name), matching: find.byType(Card)));
+    expect((card('Bobs Flow').shape! as RoundedRectangleBorder).side.color,
+        AppColors.light.map.note);
+    expect((card('Roots').shape! as RoundedRectangleBorder).side.color,
+        isNot(AppColors.light.map.note));
 
     await tester.tap(find.text('Bobs Flow'));
     await settle(tester);
@@ -73,7 +81,7 @@ void main() {
 
     await tester.tapAt(const Offset(5, 5));
     await settle(tester);
-    expect(find.textContaining('neuer Hinweis'), findsNothing,
+    expect(find.textContaining('NEUER HINWEIS'), findsNothing,
         reason: 'im Blatt gesehen — nicht mehr hervorgehoben');
     expect(settings.seenNoteIds, hasLength(1));
 
@@ -82,7 +90,7 @@ void main() {
     await openTab(tester, 'Trails');
     await settle(tester, frames: 20);
     expect(find.text('Bobs Flow'), findsOneWidget);
-    expect(find.textContaining('neuer Hinweis'), findsNothing);
+    expect(find.textContaining('NEUER HINWEIS'), findsNothing);
   });
 
   testWidgets('wer den Trail nur über einen Buddy sieht, darf schreiben und erledigen',

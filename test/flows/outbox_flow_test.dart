@@ -86,7 +86,7 @@ void main() {
     await settle(tester, frames: 20);
     expect(find.text('Wartet auf Übertragung (1)'), findsOneWidget);
     expect(find.text('Wurzeltrail'), findsOneWidget);
-    expect(find.textContaining('wartet auf Übertragung'), findsOneWidget);
+    expect(find.textContaining('WARTET AUF ÜBERTRAGUNG'), findsOneWidget);
 
     // Das Blatt sagt es — und bietet keinen Beitrag an.
     await tester.tap(find.text('Wurzeltrail'));
@@ -175,7 +175,7 @@ void main() {
     await drainSnackbars(tester);
     await tester.tapAt(const Offset(10, 10));
     await settle(tester);
-    expect(find.textContaining('Beitrag wartet auf Übertragung'), findsOneWidget);
+    expect(find.textContaining('BEITRAG WARTET AUF ÜBERTRAGUNG'), findsOneWidget);
 
     await openTab(tester, 'Karte');
     await settle(tester, frames: 8);

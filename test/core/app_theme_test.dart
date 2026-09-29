@@ -32,6 +32,7 @@ void main() {
         'Marke als Text': p.accentText,
         'Warnung als Text': p.warningText,
         'Buddy als Text': p.buddyText,
+        'Hinweis als Text': p.noteText,
       };
       for (final g in grounds.entries) {
         for (final t in texts.entries) {
@@ -57,6 +58,11 @@ void main() {
         expect(style.foregroundColor!.resolve({}), AppColors.onBrand);
         expect(theme.textTheme.titleLarge!.fontFamily, AppFonts.display);
         expect(theme.textTheme.bodyMedium!.fontFamily, AppFonts.body);
+        // Der Titel der Leiste trägt seine Größe selbst — `textTheme`
+        // bekommt sie erst in `Theme.of`, dieser Stil nie (bis 0.37.0:
+        // 14 px).
+        expect(theme.appBarTheme.titleTextStyle!.fontSize, 22);
+        expect(theme.appBarTheme.titleTextStyle!.fontFamily, AppFonts.display);
       });
     });
   }

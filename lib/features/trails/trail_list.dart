@@ -271,3 +271,59 @@ List<Trail> sortTrails(List<Trail> trails, TrailSort sort) {
       return c != 0 ? c : byName(a, b);
     });
 }
+
+/// Welche Art Wort eine Zeile trägt — die Farbe wählt die Oberfläche.
+enum TrailRowTagKind { pending, failure, warning, note, mine, buddy }
+
+/// Die Wörter einer Zeile der Liste (Design 1j): rechts vom Farbstreifen
+/// sagt ein Wort in der Farbe, was los ist. **Ein Zustand schlägt die
+/// Beziehung** — ein wartender, gemeldeter oder neu kommentierter Trail
+/// nennt das; nur wenn nichts los ist, steht dort, wem er gehört („MEIN ·
+/// 2 BUDDYS", „JAN, MIRA"). Die Beziehung sagt ohnehin schon der Streifen,
+/// das Wort gibt sie Bildschirmlesern und allen, die Farben schlecht
+/// trennen.
+///
+/// [nameOf] löst einen Buddy auf (Alias vor Name, `BuddyNames.of`).
+List<({String text, TrailRowTagKind kind})> trailRowTags(
+  Trail t, {
+  required bool freshNote,
+  required String Function(String userId, String? username) nameOf,
+}) {
+  if (t.pending) {
+    final failure = t.pendingFailure;
+    return [
+      failure == null
+          ? (text: 'WARTET AUF ÜBERTRAGUNG', kind: TrailRowTagKind.pending)
+          // Eine Ablehnung ist ein Satz, kein Etikett — nicht in Versalien.
+          : (text: failure, kind: TrailRowTagKind.failure),
+    ];
+  }
+  final tags = <({String text, TrailRowTagKind kind})>[
+    if (t.pendingDetails) (text: 'BEITRAG WARTET AUF ÜBERTRAGUNG', kind: TrailRowTagKind.pending),
+    if (t.status.warns) (text: t.status.label.toUpperCase(), kind: TrailRowTagKind.warning),
+    if (freshNote) (text: 'NEUER HINWEIS', kind: TrailRowTagKind.note),
+  ];
+  if (tags.isNotEmpty) return tags;
+
+  final buddies = [
+    for (final id in t.buddyIds)
+      nameOf(id, t.details.where((d) => d.userId == id && d.username != null).firstOrNull?.username),
+  ];
+  if (t.isOwn) {
+    final n = buddies.length;
+    return [
+      (
+        text: n == 0 ? 'MEIN' : 'MEIN · $n ${n == 1 ? 'BUDDY' : 'BUDDYS'}',
+        kind: TrailRowTagKind.mine,
+      ),
+    ];
+  }
+  if (buddies.isEmpty) return const [];
+  final shown = buddies.take(2).join(', ').toUpperCase();
+  return [
+    (
+      text: buddies.length > 2 ? '$shown +${buddies.length - 2}' : shown,
+      kind: TrailRowTagKind.buddy,
+    ),
+  ];
+}
