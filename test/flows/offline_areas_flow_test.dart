@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pmtiles/pmtiles.dart';
+import 'package:trailbuddy/core/app_colors.dart';
 import 'package:trailbuddy/features/map/map_screen.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
@@ -25,6 +26,7 @@ import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_keep_alive.dart';
 import '../fakes/fake_map_view.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
 
@@ -71,13 +73,14 @@ void main() {
       '{"id":"n1","kind":"spring","lat":48.0,"lng":9.0},'
       '{"id":"n2","kind":"spring","lat":48.001,"lng":9.001}]}';
 
-  Future<void> start(WidgetTester tester, {bool host = true, bool pois = false}) async {
+  Future<void> start(WidgetTester tester, {bool host = true, bool pois = false, String? appearance}) async {
     final source = _sourceBytes();
     final cells = poiCellsCovering(47.5, 8.5, 48.5, 9.5);
     await pumpApp(tester, backend,
         trails: trails,
         areaStore: store,
         keepAlive: keepAlive,
+        settings: FakeSettings(appearance: appearance),
         extraOverrides: [
           mapManifestLoaderProvider.overrideWithValue(() async => host ? _manifest : null),
           areaSourceOpenerProvider.overrideWithValue((_) => PmTilesArchive.fromBytes(source)),
@@ -114,24 +117,31 @@ void main() {
     await settle(tester);
   }
 
-  /// Was dazukommt, laut Leiste (grün, „+N").
+  /// Was dazukommt, laut Leiste („+N").
   int draftTiles(WidgetTester tester) {
     final text = (tester.widget(find.byKey(const ValueKey('area-draw-count'))) as Text).data!;
     return text.startsWith('+') ? int.parse(text.substring(1)) : 0;
   }
 
-  /// Was wegfällt, laut Leiste (rot, „−N").
+  /// Was wegfällt, laut Leiste („−N").
   int removedTiles(WidgetTester tester) {
     final f = find.byKey(const ValueKey('area-draw-remove-count'));
     if (f.evaluate().isEmpty) return 0;
     return int.parse((tester.widget(f) as Text).data!.substring(1));
   }
 
-  Iterable<MapViewPolygon> draftRects(WidgetTester tester) =>
-      fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaAddFill);
+  /// Die Schraffur einer Seite (Design Turn 2): durchgezogen, dünn.
+  Iterable<MapViewPolyline> hatch(WidgetTester tester, Color color) => fakeMapLayers(tester)
+      .polylines
+      .where((l) => l.color == color && l.dash == null && l.width == kAreaHatchWidth);
 
-  Iterable<MapViewPolyline> hatch(WidgetTester tester, Color color) =>
-      fakeMapLayers(tester).polylines.where((l) => l.color == color);
+  /// Der gestrichelte Rand einer Seite.
+  Iterable<MapViewPolyline> changeBorder(WidgetTester tester, Color color) =>
+      fakeMapLayers(tester).polylines.where((l) => l.color == color && l.dash != null);
+
+  /// Der durchgehende Rand um den Bestand.
+  Iterable<MapViewPolyline> stockOutline(WidgetTester tester) =>
+      fakeMapLayers(tester).polylines.where((l) => l.width == kOfflineOutlineWidth && l.dash == null);
 
   StoredArea oldArea({String build = '20260928'}) => StoredArea(
         id: 'old',
@@ -182,6 +192,10 @@ void main() {
     final mask = fakeMapLayers(tester).polygons.single;
     expect(mask.fillColor, kOfflineDimColor);
     expect(mask.holes, isNotEmpty, reason: 'der Bereich liegt im Ausschnitt');
+    // Um den Bestand ein durchgehender Rand in der Textfarbe des Modus
+    // (die Test-App ist hell).
+    expect(stockOutline(tester), isNotEmpty);
+    expect(stockOutline(tester).map((l) => l.color).toSet(), {AppColors.light.text});
     // Die Löcher sind die Kacheln des Bereichs bei SEINEM Zoom (10).
     Set<TileXYZ> covered(List<List<LatLng>> holes) => {
           for (final h in holes)
@@ -207,6 +221,16 @@ void main() {
     expect(find.text('Entwurf verwerfen?'), findsNothing);
     expect(find.byKey(const ValueKey('offline-tool-rail')), findsNothing);
     expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'zu heißt: keine Maske mehr');
+    expect(stockOutline(tester), isEmpty, reason: '… und kein Rand');
+  });
+
+  testWidgets('dunkler Modus: der Rand um den Bestand ist hell (Design Turn 2)', (tester) async {
+    await store.putArchive('old', _sourceBytes());
+    await store.saveIndex([oldArea()]);
+    await start(tester, appearance: 'dark');
+    await openTools(tester);
+    expect(stockOutline(tester), isNotEmpty);
+    expect(stockOutline(tester).map((l) => l.color).toSet(), {AppColors.dark.text});
   });
 
   testWidgets('ohne Bereich ist alles abgedunkelt', (tester) async {
@@ -227,9 +251,10 @@ void main() {
     await openTools(tester);
     await tapRail(tester, 'rail-snapshot');
     expect(draftTiles(tester), greaterThan(0));
-    expect(draftRects(tester), isNotEmpty, reason: 'was dazukommt, ist grün getönt');
-    expect(hatch(tester, kAreaAddHatch), isNotEmpty, reason: '… und grün schraffiert');
-    expect(hatch(tester, kAreaRemoveHatch), isEmpty);
+    expect(hatch(tester, kAreaInkLight), isNotEmpty, reason: 'was dazukommt: hell schraffiert auf dunkel');
+    expect(changeBorder(tester, kAreaInkLight), isNotEmpty, reason: '… mit gestricheltem Rand');
+    expect(hatch(tester, kAreaInkDark), isEmpty);
+    expect(changeBorder(tester, kAreaInkDark), isEmpty);
 
     await tapRail(tester, 'area-draw-save');
     await settle(tester, frames: 20);
@@ -259,7 +284,7 @@ void main() {
     // Der Entwurf ist erledigt, die Leiste bleibt offen, die neuen
     // Kacheln sind hell.
     expect(draftTiles(tester), 0);
-    expect(draftRects(tester), isEmpty);
+    expect(changeBorder(tester, kAreaInkLight), isEmpty);
     expect(fakeMapLayers(tester).polygons.single.holes, isNotEmpty);
 
     // Verwalten: Karte mit Zahnrad → „Meine Bereiche".
@@ -309,7 +334,7 @@ void main() {
         reason: 'nach dem Strich ist die Karte wieder frei');
     final added = draftTiles(tester);
     expect(added, greaterThan(5));
-    expect(draftRects(tester), isNotEmpty);
+    expect(changeBorder(tester, kAreaInkLight), isNotEmpty);
 
     const erase = [Offset(240, 100), Offset(400, 100), Offset(400, 250), Offset(240, 250), Offset(240, 105)];
     await tapRail(tester, 'area-draw-remove');
@@ -333,7 +358,7 @@ void main() {
     expect(draftTiles(tester), 0);
   });
 
-  testWidgets('Gespeichertes wegnehmen: rot gespiegelt schraffiert, offline gespeichert, der Bereich ist weg',
+  testWidgets('Gespeichertes wegnehmen: dunkel gespiegelt schraffiert, offline gespeichert, der Bereich ist weg',
       (tester) async {
     await store.putArchive('old', _sourceBytes());
     await store.saveIndex([oldArea()]);
@@ -353,8 +378,9 @@ void main() {
     await stroke(tester, loop);
     expect(draftTiles(tester), 0, reason: 'die offene Zugabe ist zurückgenommen');
     expect(removedTiles(tester), greaterThan(0), reason: 'das Gespeicherte fällt weg');
-    expect(hatch(tester, kAreaRemoveHatch), isNotEmpty, reason: 'rot schraffiert');
-    expect(hatch(tester, kAreaAddHatch), isEmpty);
+    expect(hatch(tester, kAreaInkDark), isNotEmpty, reason: 'dunkel schraffiert auf hell');
+    expect(changeBorder(tester, kAreaInkDark), isNotEmpty);
+    expect(hatch(tester, kAreaInkLight), isEmpty);
 
     await tapRail(tester, 'area-draw-save');
     await settle(tester, frames: 20);

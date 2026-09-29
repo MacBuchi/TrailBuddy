@@ -416,11 +416,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final overlayOn = ref.watch(offlineOverlayProvider);
     final overlayAreas =
         overlayOn ? ref.watch(storedAreasProvider).valueOrNull ?? const <StoredArea>[] : null;
-    final mask = overlayAreas != null && camera != null
-        ? offlineCoverageMask(overlayAreas, camera.bounds)
+    // Um den Bestand ein durchgehender Rand in der Textfarbe des Modus
+    // (Design Turn 2: dunkel hell, hell #131A16).
+    final coverage = overlayAreas != null && camera != null
+        ? offlineCoverage(overlayAreas, camera.bounds, outlineColor: AppPalette.of(context).text)
         : null;
-    // Offene Änderungen über der Abdunkelung — „kommt dazu" grün
-    // schraffiert, „fällt weg" rot und gespiegelt; nur mit Werkzeugleiste.
+    final mask = coverage?.mask;
+    // Offene Änderungen über der Abdunkelung — Schraffur in der
+    // Gegenhelligkeit ihres Grunds und ein gestrichelter Rand: „kommt
+    // dazu" hell auf dunkel, „fällt weg" dunkel auf hell und gespiegelt;
+    // nur mit Werkzeugleiste.
     final toolsOpen = overlayOn;
     final draft = overlayOn ? ref.watch(areaDraftProvider) : null;
     final drawTool = draft?.tool;
@@ -442,9 +447,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
       ],
       polylines: [
-        // Ganz unten die Schraffur offener Änderungen (ohne Kennung, ein
-        // Tipp geht hindurch); dann die offiziellen Trails, darüber die
-        // Fahrt, oben das Netz — ein Tipp trifft zuerst das Netz.
+        // Ganz unten der Rand des Bestands und die Schraffur offener
+        // Änderungen (ohne Kennung, ein Tipp geht hindurch); dann die
+        // offiziellen Trails, darüber die Fahrt, oben das Netz — ein Tipp
+        // trifft zuerst das Netz.
+        ...?coverage?.outline,
         ...?pending?.lines,
         if (officialOn && camera != null && camera.zoom >= kOfficialMinZoom)
           ...officialPolylines(official),

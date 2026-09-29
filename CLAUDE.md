@@ -559,7 +559,12 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
         Polygon unter allem (`MapViewPolygon`, Löcher auf beiden
         Engines): Ausschnitt plus eine Fensterbreite Rand abgedunkelt,
         die gespeicherten Kacheln als Löcher, aus den FORMEN im Index.
-        Ohne Bereiche ist alles dunkel — das IST die Aussage.
+        Ohne Bereiche ist alles dunkel — das IST die Aussage. Um den
+        ganzen Bestand läuft seit 0.31.0 ein durchgehender Rand in der
+        Textfarbe des App-Modus (`offlineCoverage`, `tileOutline`: der
+        Umriss der Kachelmenge, Läufe je Gitterlinie, keine Nähte
+        zwischen den Rechtecken; kein Rand am Bildrand, wo der Nachbar
+        nicht gefragt wurde).
       - **Immer die Kacheln des Bereichs, nie abhängig vom Kamera-Zoom**
         (`offlineOverlayZoomOf` = min(Zoom des Bereichs, 13)). Bis 0.26.x
         waren es zwei Stufen über der Kamera, und die Hervorhebung sprang
@@ -602,17 +607,22 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       `AreaShape.keysAt`). Stift/Ausschnitt/Trails fügen hinzu und nehmen
       ein Wegfallen zurück, der Radierer umgekehrt. Sechs Dinge, die man
       wissen muss:
-      - **Die Darstellung hat eine Regel** (Betreiber, 2026-09-29):
-        Helligkeit = gespeichert, Schraffur = offene Änderung — grün
-        `/` für „kommt dazu" (auf dunklem Grund), rot gespiegelt `\` für
-        „fällt weg" (auf hellem), beides halbtransparent über einer
-        leichten Tönung (`draftLayers`). Die Schraffur sind LINIEN
-        (`hatchLines`), kein Füllmuster: Ein Muster bräuchte in MapLibre
-        ein Bild im Stil. Sie hängen am Weltraster der Kamera-Zoomstufe
-        (x ± y = k · 10 px), bleiben beim Verschieben stehen und werden
-        bei Stillstand neu gerechnet; über `kAreaHatchMaxLines` bleibt
-        nur eine kräftigere Tönung. Die Linien tragen keine Kennung und
-        liegen unter allen Trails — ein Tipp geht hindurch.
+      - **Die Darstellung hat EINE Regel** (Design Turn 2, seit 0.31.0;
+        davor grün dazu, rot weg): Helligkeit = gespeichert, Schraffur +
+        gestrichelter Rand = offene Änderung, und die Schraffur hat
+        immer die Gegenhelligkeit ihres Grunds — „kommt dazu" hell `/`
+        auf dunkel (`kAreaInkLight`), „fällt weg" dunkel gespiegelt `\`
+        auf hell (`kAreaInkDark`); den Grund liefert die Maske, eine
+        Tönung gibt es nicht (`draftLayers`). Keine neue Farbe: Grün
+        heißt „mein Trail". Die Schraffur sind LINIEN (`hatchLines`),
+        kein Füllmuster: Ein Muster bräuchte in MapLibre ein Bild im
+        Stil. Sie hängen am Weltraster der Kamera-Zoomstufe
+        (x ± y = k · 7 px), bleiben beim Verschieben stehen und werden
+        bei Stillstand neu gerechnet; über `kAreaHatchMaxLines` gilt der
+        Rückfall 2e — halbe Tönung, nur der Rand unterscheidet. Der
+        Strich beim Zeichnen folgt derselben Regel (hell dazu, dunkel
+        weg, mit Saum in der Gegenhelligkeit). Die Linien tragen keine
+        Kennung und liegen unter allen Trails — ein Tipp geht hindurch.
       - **Entfernen braucht kein Netz** (`AreaTrimmer`): Das eigene
         Archiv wird ohne die Kacheln neu geschrieben (derselbe
         Schreiber, gegengelesen, bevor es das alte ersetzt), eine
@@ -640,10 +650,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       - **Der Entwurf lebt mit der Leiste**: Schließen verwirft ihn (mit
         Rückfrage), damit auch ein armiertes Werkzeug — sonst stünde die
         Karte fest. Gezeigt wird er nur mit Leiste.
-      - **Tönung als Rechtecke** (`mergeTileRects`), IMMER bei Zoom 13
-        wie die Maske, ohne Rand je Rechteck (innere Kanten sähen aus wie
-        ein Gitter). MapLibre gruppiert Flächen und Linien nach Stil in
-        je EINE Ebene (`polygonLayers`, `polylineLayers`).
+      - **Schraffur je Rechteck, Rand je Umriss** (`mergeTileRects`,
+        `tileOutline`), IMMER bei Zoom 13 wie die Maske — ein Rand je
+        Rechteck sähe aus wie ein Gitter. MapLibre gruppiert Flächen und
+        Linien nach Stil in je EINE Ebene (`polygonLayers`,
+        `polylineLayers`).
       - **Gespeichert wird über den Dialog**: „Lädt … · Kacheln · Orte"
         (Netz) und „Gibt … frei · Kacheln" (lokal gemessen); ein Name nur,
         wenn etwas dazukommt. Danach leert der Karten-Screen den Entwurf
