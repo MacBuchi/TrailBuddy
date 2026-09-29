@@ -77,6 +77,9 @@ sealed class OutboxJob {
             recordedAt: DateTime.tryParse(json['recorded_at'] as String? ?? '')?.toUtc(),
             name: json['name'] as String?,
             grade: json['grade'] as int?,
+            traits: {
+              for (final t in json['traits'] as List? ?? const []) ?TrailTrait.fromDb(t as String?),
+            },
             attempts: attempts,
             failure: failure,
           );
@@ -111,6 +114,7 @@ class ContributeJob extends OutboxJob {
     this.recordedAt,
     this.name,
     this.grade,
+    this.traits = const {},
     super.attempts,
     super.failure,
   });
@@ -126,6 +130,10 @@ class ContributeJob extends OutboxJob {
   /// eigenen Beitrag geht — null, wenn keiner gewählt war.
   final int? grade;
 
+  /// Der Charakter aus dem Zerlege-Blatt (#72) — leer, wenn keiner gewählt
+  /// war. Fehlt der Schlüssel (Auftrag von vor 0.35.0), ist er leer.
+  final Set<TrailTrait> traits;
+
   @override
   Map<String, dynamic> toJson() => {
         'kind': 'contribute',
@@ -139,6 +147,7 @@ class ContributeJob extends OutboxJob {
         'recorded_at': recordedAt?.toUtc().toIso8601String(),
         'name': name,
         'grade': grade,
+        'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
       };
 
   @override
@@ -152,6 +161,7 @@ class ContributeJob extends OutboxJob {
         recordedAt: recordedAt,
         name: name,
         grade: grade,
+        traits: traits,
         attempts: attempts ?? this.attempts,
         failure: clearFailure ? null : (failure ?? this.failure),
       );

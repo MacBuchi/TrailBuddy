@@ -21,16 +21,19 @@ void main() {
   final at = DateTime.utc(2026, 9, 28, 12);
   late FakeTrailRepository repo;
   late FakeOutbox box;
-  late List<(String, String)> adopted;
+  late List<(String, String, int?, Set<TrailTrait>)> adopted;
   late OutboxRunner runner;
 
-  ContributeJob job(String id, {List<double>? coords, String? name}) => ContributeJob(
+  ContributeJob job(String id,
+          {List<double>? coords, String? name, Set<TrailTrait> traits = const {}}) =>
+      ContributeJob(
       id: id,
       createdAt: at,
       coords: coords ?? line(5),
       source: RecordingSource.import,
       recordedAt: at,
-      name: name ?? 'Trail $id');
+      name: name ?? 'Trail $id',
+      traits: traits);
 
   setUp(() {
     repo = FakeTrailRepository(myId: () => 'me');
@@ -39,7 +42,8 @@ void main() {
     runner = OutboxRunner(
         repository: repo,
         outbox: box,
-        adoptDetails: (trailId, name, grade) async => adopted.add((trailId, name)));
+        adoptDetails: (trailId, name, grade, traits) async =>
+            adopted.add((trailId, name, grade, traits)));
   });
 
   test('sendet der Reihe nach, übernimmt den Namen, räumt den Korb', () async {
@@ -48,10 +52,16 @@ void main() {
     final r = await runner.run(uid: 'me');
     expect(r, (sent: 2, remaining: 0, failed: 0));
     expect(repo.recordings.map((x) => x.id), ['rec-a', 'rec-b']);
-    expect(adopted, [(repo.recordings.first.trailId, 'Trail a')],
+    expect(adopted, [(repo.recordings.first.trailId, 'Trail a', null, const <TrailTrait>{})],
         reason: 'ein leerer Name wird nicht übernommen');
     expect(box.jobs, isEmpty);
     expect(box.replaces, 1, reason: 'EIN Schreibvorgang am Ende');
+  });
+
+  test('ohne Namen, aber mit Charakter: der Charakter wird trotzdem übernommen', () async {
+    await box.append(job('c', name: '', traits: {TrailTrait.jumps}), uid: 'me');
+    await runner.run(uid: 'me');
+    expect(adopted.single.$4, {TrailTrait.jumps});
   });
 
   test('Beitrag samt Hinweis', () async {

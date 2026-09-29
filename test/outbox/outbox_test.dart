@@ -18,6 +18,8 @@ void main() {
     source: RecordingSource.import,
     recordedAt: at.subtract(const Duration(days: 3)),
     name: 'Wurzeltrail',
+    grade: 2,
+    traits: const {TrailTrait.steep, TrailTrait.flowy},
   );
   final details = DetailsJob(
     id: 'job-2',
@@ -43,6 +45,9 @@ void main() {
     expect(c.source, RecordingSource.import);
     expect(c.recordedAt, contribute.recordedAt);
     expect(c.name, 'Wurzeltrail');
+    expect(c.grade, 2);
+    expect(c.traits, {TrailTrait.flowy, TrailTrait.steep});
+    expect(c.copyWith(attempts: 1).traits, c.traits, reason: 'copyWith verliert den Charakter nicht');
     final d = back[1] as DetailsJob;
     expect(d.details.trailId, 'trail-9');
     expect(d.details.grade, 3);
@@ -50,6 +55,14 @@ void main() {
     expect(d.details.status, TrailStatus.closed);
     expect(d.details.statusAt!.toUtc(), at);
     expect(d.note, 'Baum liegt quer');
+  });
+
+  test('ein Auftrag von vor 0.35.0 (ohne traits) liest sich mit leerem Charakter', () {
+    final raw = encodeOutbox([contribute], uid: 'me').replaceAll(RegExp(r',"traits":\[[^\]]*\]'), '');
+    expect(raw, isNot(contains('traits')));
+    final back = decodeOutbox(raw, uid: 'me').single as ContributeJob;
+    expect(back.traits, isEmpty);
+    expect(back.grade, 2);
   });
 
   test('Zähler und Ablehnung reisen mit; retry löscht die Ablehnung', () {

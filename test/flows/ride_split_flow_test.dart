@@ -154,7 +154,7 @@ void main() {
     await settle(tester, frames: 30);
   }
 
-  testWidgets('bekannter Trail vorangehakt, Kandidat mit Name und Grad — beides beigesteuert',
+  testWidgets('bekannter Trail vorangehakt, Kandidat mit Name, Grad und Charakter — beides beigesteuert',
       (tester) async {
     final areas = await areaWithRoads();
     await pumpApp(tester, backend, trails: trails, rideStore: store, areaStore: areas);
@@ -187,6 +187,13 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('S2 · ${singletrailGrade(2).short}').last);
     await settle(tester);
+    // Der Charakter (#72): dieselben Chips wie in „Mein Beitrag".
+    for (final t in [TrailTrait.flowy, TrailTrait.jumps]) {
+      final chip = find.byKey(ValueKey('split-candidate-trait-0-${t.db}'));
+      await sheetScrollTo(tester, chip);
+      await tester.tap(chip);
+      await settle(tester);
+    }
 
     await tester.tap(find.byKey(const ValueKey('split-submit')));
     await settle(tester, frames: 30);
@@ -202,7 +209,11 @@ void main() {
     final named = trails.details.where((d) => d.userId == annaId && d.name == 'Neue Linie').toList();
     expect(named, hasLength(1));
     expect(named.single.grade, 2);
-    expect(trails.details.where((d) => d.userId == annaId && d.name == null).every((d) => d.grade == null),
+    expect(named.single.traits, {TrailTrait.flowy, TrailTrait.jumps});
+    expect(
+        trails.details
+            .where((d) => d.userId == annaId && d.name == null)
+            .every((d) => d.grade == null && d.traits.isEmpty),
         isTrue);
     expect(find.textContaining('2 Abschnitte beigesteuert'), findsOneWidget);
     expect(find.text('Fahrt zerlegen'), findsNothing, reason: 'das Blatt ist zu');

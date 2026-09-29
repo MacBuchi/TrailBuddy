@@ -9,6 +9,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../core/errors.dart';
+import '../models/trail.dart' show TrailTrait;
 import 'outbox.dart';
 import 'trail_repository.dart';
 
@@ -22,7 +23,8 @@ class OutboxRunner {
 
   /// Nach dem Beisteuern: den Namen aus der Datei als eigenen übernehmen,
   /// wenn noch keiner steht — und den S-Grad aus dem Zerlege-Blatt.
-  final Future<void> Function(String trailId, String name, int? grade) adoptDetails;
+  final Future<void> Function(String trailId, String name, int? grade, Set<TrailTrait> traits)
+      adoptDetails;
 
   /// Nach so vielen erfolglosen Anläufen gilt ein Auftrag als abgelehnt.
   /// Netzfehler und das Tageslimit zählen NICHT — die brechen den Lauf ab,
@@ -65,8 +67,8 @@ class OutboxRunner {
               clientId: job.id,
             );
             final name = job.name?.trim() ?? '';
-            if (name.isNotEmpty || job.grade != null) {
-              await adoptDetails(trailId, name, job.grade);
+            if (name.isNotEmpty || job.grade != null || job.traits.isNotEmpty) {
+              await adoptDetails(trailId, name, job.grade, job.traits);
             }
           case DetailsJob():
             await repository.saveDetails(job.details);

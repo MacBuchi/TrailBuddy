@@ -28,6 +28,7 @@ import '../trails/singletrail_scale.dart';
 import '../trails/trail_geometry.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart' show formatLength;
+import '../trails/trail_traits.dart';
 import 'ride_split.dart';
 import 'ride_track.dart';
 import 'road_index.dart';
@@ -131,6 +132,7 @@ class _CandidateDraft {
   int end;
   final TextEditingController nameField;
   int? grade;
+  final traits = <TrailTrait>{};
   bool selected = true;
   bool discarded = false;
 }
@@ -283,19 +285,20 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     final notifier = ref.read(trailsProvider.notifier);
     var ok = 0, queued = 0, failed = 0;
     var limitHit = false;
-    final jobs = <({GpxTrack track, int? grade})>[
+    final jobs = <({GpxTrack track, int? grade, Set<TrailTrait> traits})>[
       // Ohne Namen: Der Trail hat schon einen, und der eigene Beitrag
       // bleibt, wie er ist — „wieder gefahren" ist ein Beleg, kein Name.
       for (var i = 0; i < split.known.length; i++)
         if (_knownSelected.contains(i))
-          (track: _trackOf(split.known[i].start, split.known[i].end, ''), grade: null),
+          (track: _trackOf(split.known[i].start, split.known[i].end, ''), grade: null, traits: const {}),
       for (final d in _drafts)
         if (d.selected && !d.discarded && _longEnough(d))
-          (track: _trackOf(d.start, d.end, d.nameField.text), grade: d.grade),
+          (track: _trackOf(d.start, d.end, d.nameField.text), grade: d.grade, traits: {...d.traits}),
     ];
     for (final job in jobs) {
       try {
-        final r = await notifier.contribute(job.track, source: widget.request.source, grade: job.grade);
+        final r = await notifier.contribute(job.track,
+            source: widget.request.source, grade: job.grade, traits: job.traits);
         if (r.queued) {
           queued++;
         } else {
@@ -572,6 +575,25 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                 ),
                 SingletrailScaleButton(highlight: d.grade),
               ],
+            ),
+            // Der Charakter (#72): dieselben Chips wie in „Mein Beitrag".
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final t in TrailTrait.values)
+                    TrailTraitChip(
+                      t,
+                      key: ValueKey('split-candidate-trait-$i-${t.db}'),
+                      selected: d.traits.contains(t),
+                      onSelected: _busy
+                          ? null
+                          : (v) => setState(() => v ? d.traits.add(t) : d.traits.remove(t)),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
