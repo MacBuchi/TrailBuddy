@@ -163,7 +163,7 @@ void main() {
     await settle(tester, frames: 20);
     expect(find.textContaining('Kein Netz — liegt im Ausgangskorb'), findsOneWidget);
     expect(find.byKey(const ValueKey('pending-details')), findsOneWidget);
-    expect(find.text('S3 · 1 Einschätzung'), findsOneWidget, reason: 'die wartende Fassung zählt');
+    expect(findLabel('S3 · 1 Einschätzung'), findsOneWidget, reason: 'die wartende Fassung zählt');
     expect(outbox.jobs.single, isA<DetailsJob>());
 
     // Noch einmal ändern: EIN Auftrag je Trail.

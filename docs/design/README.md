@@ -205,7 +205,19 @@ Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
   Buddys.", linksbündig.
 - **Trail-Blatt (1i):** Titel in Großbuchstaben, drei Kennzahl-Kacheln,
   Höhenprofil in Trail-Richtung, Hinweis eines Buddys als gelb umrandete
-  Karte, unten „Hinweis schreiben" (Lime) + „Karte".
+  Karte, unten „Hinweis schreiben" (Lime) + „Karte". **Gebaut seit
+  0.39.0** (`trail_sheet.dart`: `_MetricTiles`, `_Panel`;
+  `trail_notes.dart`). Unter dem Titel die Beziehung („Du und 2 Buddys
+  (Jan, Mira).", 4f). Kacheln LÄNGE / HÖHE (↓ Hm) / S-GRAD (Median in der
+  Marke, darunter Spanne und Anzahl „S1–S3 · 4×"); der ganze Satz
+  („↓ 420 Hm · ↑ 35 Hm", „S2 · S1–S3 · 4 Einschätzungen") steht als
+  Beschriftung für Bildschirmleser an der Kachel, die S-Grad-Kachel
+  öffnet wie der frühere Chip die Einschätzungen. Das Ø-Gefälle steht
+  im Profil-Untertitel. Charakter und Meldung bleiben Chips über den
+  Kacheln. „Mein Beitrag" steht als Textknopf unter „Deine
+  Einschätzung" (4f bearbeitet den Beitrag direkt im Blatt; der Dialog
+  kann mehr — Name, Status, Sichtbarkeit). Das S-Grad-Schild neben dem
+  Titel (4f) kommt mit Schritt 6.
 - **Trail-Liste (1j):** Karten mit 14 px Radius, Farbstreifen links =
   Beziehung, rechts ein Wort in der Farbe (NEUER HINWEIS, MEIN, GESPERRT,
   AUSGANGSKORB …), Zahlen in Mono. **Gebaut seit 0.38.0**
@@ -253,7 +265,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 3 | Hülle und Karte (Turn 3) | 0.30.0 |
 | 4 | Offline-Kacheln: eine Regel (Turn 2) | 0.31.0 |
 | 5a | Trail-Liste (1j, 4e ohne Schild) | 0.38.0 |
-| 5b | Trail-Blatt (1i, 4f ohne Schild) | |
+| 5b | Trail-Blatt (1i, 4f ohne Schild) | 0.39.0 |
 | 5c | Buddys und Profil (1k, 1l) | |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
 | 7 | Animationen (Turn 1p–1t) | |

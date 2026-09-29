@@ -41,7 +41,7 @@ void main() {
   testWidgets('eigene Einschätzung mit einem Tipp, zweiter Tipp nimmt sie zurück',
       (tester) async {
     await openTrail(tester, 'Roots');
-    expect(find.text('S2 · 1 Einschätzung'), findsOneWidget);
+    expect(findLabel('S2 · 1 Einschätzung'), findsOneWidget);
     expect(find.text('Deine Einschätzung'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const ValueKey('own-grade-4')));
@@ -49,12 +49,12 @@ void main() {
     await settle(tester, frames: 20);
     expect(trails.details.singleWhere((d) => d.userId == annaId).grade, 4);
     // Median von [2, 4]: der schwerere; dazu die Spanne.
-    expect(find.text('S4 · S2–S4 · 2 Einschätzungen'), findsOneWidget);
+    expect(findLabel('S4 · S2–S4 · 2 Einschätzungen'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('own-grade-4')));
     await settle(tester, frames: 20);
     expect(trails.details.singleWhere((d) => d.userId == annaId).grade, isNull);
-    expect(find.text('S2 · 1 Einschätzung'), findsOneWidget);
+    expect(findLabel('S2 · 1 Einschätzung'), findsOneWidget);
   });
 
   testWidgets('wer hat was gesagt, und was S0 bis S5 heißt', (tester) async {
@@ -96,7 +96,7 @@ void main() {
   testWidgets('fremder Trail, den ich nicht gefahren bin: keine eigene Einschätzung',
       (tester) async {
     await openTrail(tester, 'Bobs Flow');
-    expect(find.text('S1 · 1 Einschätzung'), findsOneWidget);
+    expect(findLabel('S1 · 1 Einschätzung'), findsOneWidget);
     expect(find.text('Deine Einschätzung'), findsNothing);
     expect(find.byKey(const ValueKey('own-grade-1')), findsNothing);
   });
