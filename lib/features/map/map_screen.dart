@@ -204,8 +204,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Color _colorOf(Trail t) {
-    if (t.status.warns) return AppColors.warningAmber;
-    return t.isOwn ? AppColors.trailGreen : AppColors.friendBlue;
+    const c = AppColors.mapLines;
+    if (t.status.warns) return c.warning;
+    return t.isOwn ? c.mine : c.buddy;
   }
 
   void _onCameraIdle(MapViewCamera camera) {
@@ -434,8 +435,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           MapViewCircle(
             center: LatLng(position.latitude, position.longitude),
             radiusM: position.accuracy,
-            fillColor: AppColors.positionDot.withValues(alpha: 0.12),
-            borderColor: AppColors.positionDot.withValues(alpha: 0.35),
+            fillColor: AppColors.mapLines.ride.withValues(alpha: 0.12),
+            borderColor: AppColors.mapLines.ride.withValues(alpha: 0.35),
             borderWidth: 1,
           ),
       ],
@@ -461,10 +462,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             // Wartet im Ausgangskorb (#30): gestrichelt, wie eine
             // Zusage, die noch nicht eingelöst ist.
             dash: t.pending ? const [12, 8] : null,
-            // Neuer Hinweis eines Buddys (#7): ein gelber Leuchtrand, die
-            // Linie behält ihre Farbe.
-            borderColor: t.hasFreshNote(seen: seenNotes) ? AppColors.noteYellow : null,
-            borderWidth: t.hasFreshNote(seen: seenNotes) ? 4 : 0,
+            // Neuer Hinweis eines Buddys (#7): ein gelber Leuchtrand statt
+            // des weißen Saums, die Linie behält ihre Farbe.
+            borderColor: t.hasFreshNote(seen: seenNotes)
+                ? AppColors.mapLines.note
+                : AppColors.mapLines.halo,
+            borderWidth: t.hasFreshNote(seen: seenNotes)
+                ? 4
+                : AppColors.mapLines.haloBorderWidth,
             hitValue: t,
           ),
       ],
@@ -607,7 +612,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         key: const ValueKey('ride-button'),
                         heroTag: 'ride',
                         tooltip: ride == null ? 'Fahrt aufzeichnen' : 'Fahrt beenden',
-                        backgroundColor: ride == null ? null : AppColors.warningAmber,
+                        backgroundColor: ride == null ? null : AppColors.mapLines.warning,
                         foregroundColor: ride == null ? null : Colors.white,
                         onPressed: _toggleRide,
                         child: Icon(ride == null ? Icons.fiber_manual_record : Icons.stop),
@@ -704,8 +709,10 @@ String formatCachedAt(DateTime at) {
 /// Die Fahrt: Kulisse ohne Kennung — ein Tipp gilt weiter dem Trail.
 MapViewPolyline _ridePolyline(List<RidePoint> points) => MapViewPolyline(
       points: [for (final p in thinnedRide(points)) LatLng(p.lat, p.lng)],
-      color: AppColors.rideTrack.withValues(alpha: 0.75),
+      color: AppColors.mapLines.ride.withValues(alpha: 0.75),
       width: 4,
+      borderColor: AppColors.mapLines.halo,
+      borderWidth: AppColors.mapLines.haloBorderWidth,
     );
 
 /// „Fahrt läuft · 1,2 km · 12 min" — die Rückmeldung, dass aufgezeichnet
@@ -726,7 +733,7 @@ class _RideStatusCard extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.fiber_manual_record, size: 14, color: AppColors.warningAmber),
+            Icon(Icons.fiber_manual_record, size: 14, color: AppColors.mapLines.warning),
             const SizedBox(width: 8),
             Text('Fahrt läuft · ${formatMeters(length)} · ${rideDurationLabel(duration)}'),
           ],
@@ -771,7 +778,7 @@ class _PositionDot extends StatelessWidget {
         label: 'Deine Position',
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.positionDot,
+            color: AppColors.mapLines.ride,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 3),
             boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.black38)],

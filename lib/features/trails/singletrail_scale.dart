@@ -90,11 +90,11 @@ class SingletrailScaleSheet extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: g.value == highlight
-                      ? AppColors.trailGreen.withValues(alpha: 0.12)
+                      ? AppPalette.of(context).map.mine.withValues(alpha: 0.12)
                       : null,
                   border: Border.all(
                       color: g.value == highlight
-                          ? AppColors.trailGreen
+                          ? AppPalette.of(context).map.mine
                           : theme.colorScheme.outlineVariant),
                   borderRadius: BorderRadius.circular(8),
                 ),

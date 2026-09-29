@@ -81,7 +81,7 @@ class _ChangelogLineView extends StatelessWidget {
           child: Text(
             line.text,
             style: theme.textTheme.titleMedium
-                ?.copyWith(color: AppColors.trailGreen),
+                ?.copyWith(color: AppPalette.of(context).accentText),
           ),
         );
       case ChangelogLineKind.meta:

@@ -52,8 +52,8 @@ class ElevationProfileChart extends StatelessWidget {
                     key: const ValueKey('elevation-profile'),
                     painter: ElevationProfilePainter(
                       profile,
-                      line: AppColors.trailGreen,
-                      fill: AppColors.trailGreen.withValues(alpha: 0.18),
+                      line: AppPalette.of(context).map.mine,
+                      fill: AppPalette.of(context).map.mine.withValues(alpha: 0.18),
                       grid: theme.colorScheme.outlineVariant,
                     ),
                   ),

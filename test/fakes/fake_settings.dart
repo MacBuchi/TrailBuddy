@@ -10,7 +10,8 @@ class FakeSettings implements Settings {
       this.poiHiddenKinds,
       this.seenNoteIds,
       this.officialTrailsEnabled = true,
-      this.pushToken});
+      this.pushToken,
+      this.appearance});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -29,6 +30,14 @@ class FakeSettings implements Settings {
 
   @override
   String? pushToken;
+
+  @override
+  String? appearance;
+
+  @override
+  Future<void> setAppearance(String value) async {
+    appearance = value;
+  }
 
   @override
   Future<void> setPushToken(String? value) async {

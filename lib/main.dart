@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/app_theme.dart';
 import 'core/errors.dart';
 import 'core/settings.dart';
 import 'core/supabase_config.dart';
@@ -74,6 +75,8 @@ Future<void> main() async {
   // stumm — PilzBuddy #465. `test/rides/ride_live_bridge_test.dart`
   // prüft, dass sie hier steht.
   initRideCommunication();
+
+  registerFontLicenses();
 
   runApp(ProviderScope(
     overrides: [settingsProvider.overrideWithValue(settings)],

@@ -159,7 +159,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                 if (trail.status.warns)
                   Chip(
                     avatar: const Icon(Icons.warning_amber, size: 18),
-                    backgroundColor: AppColors.warningAmber.withValues(alpha: 0.25),
+                    backgroundColor: AppPalette.of(context).map.warning.withValues(alpha: 0.25),
                     label: Text('${trail.status.label} · ${statusAge(status?.statusAt)}'),
                   ),
               ],

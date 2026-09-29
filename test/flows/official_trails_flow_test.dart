@@ -60,8 +60,8 @@ void main() {
     final l = lines(tester);
     expect(l, hasLength(2), reason: 'ein Trail, Hauptroute und Variante');
     expect(l.every((p) => p.dash != null), isTrue);
-    expect(l[0].color, AppColors.officialViolet);
-    expect(l[1].color, isNot(AppColors.officialViolet), reason: 'gesperrte Variante');
+    expect(l[0].color, AppColors.mapLines.official);
+    expect(l[1].color, isNot(AppColors.mapLines.official), reason: 'gesperrte Variante');
     expect(l[1].width, lessThan(l[0].width));
 
     await tapMapAt(tester, const LatLng(48.003, 9.003));

@@ -171,16 +171,16 @@ void main() {
     expect(find.text('2 beisteuern'), findsOneWidget);
     // Die Karte zeichnet mit: das bekannte Stück grün, der Kandidat in
     // seiner Farbe, darunter die blasse Fahrt.
-    expect(linesOf(tester, AppColors.trailGreen), hasLength(1));
-    expect(linesOf(tester, AppColors.candidate), hasLength(1));
-    final candidatePoints = linesOf(tester, AppColors.candidate).single.points.length;
+    expect(linesOf(tester, AppColors.mapLines.mine), hasLength(1));
+    expect(linesOf(tester, AppColors.mapLines.candidate), hasLength(1));
+    final candidatePoints = linesOf(tester, AppColors.mapLines.candidate).single.points.length;
 
     // Die Griffe: den Kandidaten hinten kürzen — die Linie folgt.
     final slider = find.byKey(const ValueKey('split-candidate-range-0'));
     final box = tester.getRect(slider);
     await tester.dragFrom(Offset(box.right - 24, box.center.dy), const Offset(-60, 0));
     await settle(tester);
-    expect(linesOf(tester, AppColors.candidate).single.points.length, lessThan(candidatePoints));
+    expect(linesOf(tester, AppColors.mapLines.candidate).single.points.length, lessThan(candidatePoints));
 
     await tester.enterText(find.byKey(const ValueKey('split-candidate-name-0')), 'Neue Linie');
     await tester.tap(find.widgetWithText(DropdownButtonFormField<int?>, 'Keine Angabe'));
@@ -206,7 +206,7 @@ void main() {
         isTrue);
     expect(find.textContaining('2 Abschnitte beigesteuert'), findsOneWidget);
     expect(find.text('Fahrt zerlegen'), findsNothing, reason: 'das Blatt ist zu');
-    expect(linesOf(tester, AppColors.candidate), isEmpty, reason: 'die Vorschau ist weg');
+    expect(linesOf(tester, AppColors.mapLines.candidate), isEmpty, reason: 'die Vorschau ist weg');
     expect(store.rides, hasLength(1), reason: 'die Fahrt bleibt auf dem Gerät');
   });
 
@@ -218,7 +218,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('split-candidate-discard-0')));
     await settle(tester);
     expect(find.byKey(const ValueKey('split-candidate-0')), findsNothing);
-    expect(linesOf(tester, AppColors.candidate), isEmpty);
+    expect(linesOf(tester, AppColors.mapLines.candidate), isEmpty);
     await tester.tap(find.byKey(const ValueKey('split-known-0')));
     await settle(tester);
     expect(find.text('Schließen'), findsOneWidget);

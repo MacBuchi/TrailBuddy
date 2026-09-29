@@ -214,8 +214,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                     children: [
                       IconButton(
                         onPressed: () => _accept(f),
-                        icon: const Icon(Icons.check_circle,
-                            color: AppColors.trailGreen),
+                        icon: Icon(Icons.check_circle,
+                            color: AppPalette.of(context).map.mine),
                         tooltip: 'Annehmen',
                       ),
                       IconButton(

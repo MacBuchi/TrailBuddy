@@ -277,7 +277,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `positionFixProvider` — kein Systemdialog beim Start (Play: Prominent
   Disclosure). Nur Vordergrund (`ACCESS_FINE/COARSE_LOCATION`, kein
   Background); die Position verlässt das Gerät nicht. Punkt in
-  `AppColors.positionDot` (nicht Blau — Blau heißt Buddy), Punkt und
+  `MapPalette.ride` (nicht Blau — Blau heißt Buddy), Punkt und
   Kreis fangen keine Tipps ab. Die Karte dreht sich nicht
   (`InteractiveFlag.rotate` aus). Der Harness hängt `fakePosition` /
   `FakePositionFix` ein.
@@ -356,7 +356,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Unscharfe Fixe (> 30 m) fallen vor allem weg** und werden gezählt;
     ein 15-m-Korridor gegen einen ±40-m-Fix ist Rauschen.
   - **Die Karte zeichnet die Vorschau** (`rideSplitPreviewProvider`,
-    Fahrt blass, bekannt grün, Kandidat `AppColors.candidate`, abgewählt
+    Fahrt blass, bekannt grün, Kandidat `MapPalette.candidate`, abgewählt
     gestrichelt); die Griffe sind ein `RangeSlider` je Kandidat, die
     Linie folgt. Aufgeräumt wird NACH dem `await` des Blatts, nicht im
     `dispose` (dort ist `ref` tot). Die Knöpfe stehen fest unter der
@@ -825,7 +825,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 Wie PilzBuddy: Business-Logik in Repositories, Mutationen per
 `reloadAfterWrite`, `mounted` nach jedem `await`, `requireUid` statt
 `currentUser!.id`, `catch (_) {}` nur mit Grund. Farben aus
-`lib/core/app_colors.dart` (`trailGreen` ist der Markenton).
+`lib/core/app_colors.dart` (Marke Lime `AppColors.brand`, hell und dunkel
+als `AppPalette`, gelesen mit `AppPalette.of(context)`; Text in Marke,
+Warnung, Buddy über `accentText`/`warningText`/`buddyText` — die
+Linienfarben reichen im Hellen als Text nicht). **Die Karte ist immer
+hell**: Linien nehmen `AppColors.mapLines` (heller Satz, weißer Saum),
+nicht den Modus der App. Schriften als Assets (`AppFonts`: Barlow,
+Barlow Condensed für Titel, JetBrains Mono für Zahlen), kein
+`google_fonts`. Theme in `lib/core/app_theme.dart`, Modus aus
+`Settings.appearance` (Profil, „Erscheinungsbild").
 
 ## Tests
 

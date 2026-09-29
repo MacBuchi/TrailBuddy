@@ -2,6 +2,21 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Aussehen
+
+*Version 0.28.0, 2026-09-29*
+
+- **Neue Farben und Schriften**: TrailBuddy trägt jetzt Lime als
+  Markenfarbe, eine schmale Titelschrift und für Kilometer, Höhenmeter
+  und Schwierigkeit eine Schrift, in der Zahlen sauber untereinander
+  stehen. Die Schriften sind in der App eingebaut und sehen auch ohne
+  Empfang gleich aus.
+- **Hell oder dunkel**: Im Profil unter „Erscheinungsbild" wählst du
+  System, Hell oder Dunkel. Die Karte selbst bleibt hell.
+- **Trails heben sich besser von der Karte ab**: Jede Linie hat einen
+  schmalen weißen Rand. Die Farben sagen weiter dasselbe — Grün ist
+  deins, Blau kommt von einem Buddy, Orange ist gemeldet.
+
 ## Karte
 
 *Versionen 0.24.0 bis 0.27.0, 2026-09-28 bis 2026-09-29*
