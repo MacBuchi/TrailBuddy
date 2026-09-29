@@ -304,6 +304,20 @@ void main() {
     expect(mapData, contains('max-age=300'));
   });
 
+  test('Orte, Onlinekarte und Übersicht decken DENSELBEN Bereich (#73)', () {
+    // Vorher Orte nur für DACH + Liechtenstein, die Karte reichte bis
+    // Südtirol, Elsass und Tschechien — dort gab es Karte ohne Orte.
+    String bboxOf(String text, String key) =>
+        RegExp('$key: "([^"]+)"').firstMatch(text)!.group(1)!;
+    final poi = bboxOf(File('.github/workflows/poi-data.yml').readAsStringSync(), 'POI_BBOX');
+    final map = bboxOf(File('.github/workflows/map-data.yml').readAsStringSync(), 'DACH_BBOX');
+    final overview = RegExp(r'overview_dach\.pmtiles --bbox=([0-9.,]+)')
+        .firstMatch(File('tool/generated_assets.json').readAsStringSync())!
+        .group(1)!;
+    expect(poi, map);
+    expect(overview, map);
+  });
+
   test('die Orte kommen vom selben Host, je Zelle und Gruppe, und CI liest sie zurück', () {
     // poi-data.yml (Konzept 3.4, Weg 3): Manifest `pois.json` und
     // Dateien `pois-<build>/<zeile>_<spalte>.<gruppe>.json` neben dem
@@ -326,6 +340,7 @@ void main() {
     expect(poiData, contains('tool/poi_extract.py build'));
     // Die Arten kommen aus EINER Liste; das Werkzeug liest sie von dort.
     final tool = File('tool/poi_extract.py').readAsStringSync();
+    expect(poiData, contains(r'--bbox "$POI_BBOX"'));
     expect(tool, contains('"pois", "kinds.json"'));
     expect(tool, contains('CELL_LAT = 0.1'));
     expect(tool, contains('CELL_LON = 0.15'));

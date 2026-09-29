@@ -221,9 +221,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   0.18.0 als fertige Dateien vom EIGENEN Kartenhost (Konzept
   `docs/konzept-offline-karten.md` 3.4, Weg 3 — Betreiber, 2026-09-28),
   vorher live von `overpass-api.de`. `poi-data.yml` (monatlich am 2.,
-  von Hand mit `plan`/`publish`) liest die Geofabrik-Extrakte (DACH +
-  Liechtenstein) mit `osmium`, `tool/poi_extract.py` behält die 15
-  Arten und schreibt je Rasterzelle und Gruppe EINE Datei
+  von Hand mit `plan`/`publish`) liest die Geofabrik-Extrakte aller
+  Länder im Kartenrahmen (seit #73: DACH, Liechtenstein, Norditalien,
+  Ostfrankreich, Benelux, Dänemark, Südschweden, Tschechien, Polen,
+  Slowakei, Ungarn, Slowenien, Kroatien) mit `osmium`, filtert jedes
+  gleich nach dem Download vor (eins nach dem anderen, sonst reicht die
+  Platte nicht), `tool/poi_extract.py` behält die 15 Arten IM RAHMEN
+  (`--bbox`, `POI_BBOX` = `DACH_BBOX` der Karte = Rahmen der Übersicht,
+  ein Test hält alle drei zusammen) und schreibt je Rasterzelle und Gruppe EINE Datei
   (`pois-<build>/<zeile>_<spalte>.<gruppe>.json`) plus das Manifest
   `pois.json`, das den Bau und die Zellen mit Inhalt nennt; Upload nach
   R2 neben das Archiv, dann Rücklesen der öffentlichen Kopie mit
