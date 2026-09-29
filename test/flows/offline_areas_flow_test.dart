@@ -256,6 +256,8 @@ void main() {
     await settle(tester);
     expect(find.text('Bereich zeichnen'), findsOneWidget);
     expect(draftTiles(tester), along);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
+        reason: 'wiedergeöffnet steht die Karte nicht fest — das Werkzeug ging mit dem Blatt');
 
     await tester.tap(find.byKey(const ValueKey('area-draw-discard')));
     await settle(tester);
