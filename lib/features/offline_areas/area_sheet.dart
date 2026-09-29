@@ -2,7 +2,8 @@
 // Kacheln entlang der eigenen Trails (seit 0.24.0 kein Rechteck mehr um
 // alles — bei verstreuten Trails war das vor allem Land dazwischen); die
 // Größe steht VOR dem Speichern da, exakt aus dem Verzeichnis des
-// Archivs; dann Fortschritt und Abbruch. Ohne Empfang gibt es keinen
+// Archivs; dann Fortschritt und Abbruch. Seit 0.26.0 dazu die
+// gezeichnete Fläche (Stufe C), wenn das Blatt aus dem Entwurf kommt. Ohne Empfang gibt es keinen
 // Bereich — das Blatt sagt es.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,25 +15,30 @@ import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_providers.dart';
 
-enum _Choice { viewport, trails }
+enum _Choice { viewport, trails, drawn }
 
 Future<void> showSaveAreaSheet(
   BuildContext context, {
   required AreaBounds? viewport,
   required AreaShape? aroundTrails,
+  AreaShape? drawn,
 }) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (_) => _SaveAreaSheet(viewport: viewport, aroundTrails: aroundTrails),
+      builder: (_) => _SaveAreaSheet(viewport: viewport, aroundTrails: aroundTrails, drawn: drawn),
     );
 
 class _SaveAreaSheet extends ConsumerStatefulWidget {
-  const _SaveAreaSheet({required this.viewport, required this.aroundTrails});
+  const _SaveAreaSheet({required this.viewport, required this.aroundTrails, this.drawn});
 
   final AreaBounds? viewport;
   final AreaShape? aroundTrails;
+
+  /// Die gezeichnete Fläche — nur, wenn das Blatt aus dem Entwurf kommt;
+  /// dann ist sie vorgewählt.
+  final AreaShape? drawn;
 
   @override
   ConsumerState<_SaveAreaSheet> createState() => _SaveAreaSheetState();
@@ -50,6 +56,7 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
   AreaShape? get _shape => switch (_choice) {
         _Choice.viewport => widget.viewport == null ? null : RectShape(widget.viewport!),
         _Choice.trails => widget.aroundTrails,
+        _Choice.drawn => widget.drawn,
       };
 
   @override
@@ -57,6 +64,7 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
     super.initState();
     _name = TextEditingController(text: 'Bereich vom ${_date.format(DateTime.now())}');
     if (widget.viewport == null && widget.aroundTrails != null) _choice = _Choice.trails;
+    if (widget.drawn != null) _choice = _Choice.drawn;
     // Der Zustand eines früheren Downloads (fertig, gescheitert) gehört
     // nicht auf ein frisches Blatt.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -166,6 +174,13 @@ class _SaveAreaSheetState extends ConsumerState<_SaveAreaSheet> {
                   _measure();
                 },
                 child: Column(children: [
+                  if (widget.drawn != null)
+                    const RadioListTile<_Choice>(
+                      key: ValueKey('area-choice-drawn'),
+                      value: _Choice.drawn,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Gezeichnete Fläche'),
+                    ),
                   RadioListTile<_Choice>(
                     key: const ValueKey('area-choice-viewport'),
                     value: _Choice.viewport,

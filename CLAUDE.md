@@ -547,11 +547,47 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       Archiven; über `kOfflineOverlayMaxHoles` eine Stufe gröber. Ohne
       Bereiche ist alles dunkel — das IST die Aussage. Der Einstieg im
       Blatt „Ebenen und Orte" heißt seither „Offline-Karten", „Bereich
-      speichern" wohnt darin. Stufe C (Formen zeichnen,
-      additiv/subtraktiv) ist offen. Geholt wird in Blöcken über
+      speichern" wohnt darin. Geholt wird in Blöcken über
       `PmTilesArchive.tiles()` — das Paket liest je Aufruf ALLE
       zusammenhängenden Bereiche parallel, ein ganzer Bereich auf einmal
       wäre ein Sturm aus Range-Anfragen.
+    - **Bereiche zeichnen** (Stufe C, #67, seit 0.26.0,
+      `area_draw.dart` pur + Notifier, `area_draw_overlay.dart`): Im
+      Blatt „Offline-Karten" schaltet „Bereich zeichnen" auf einen
+      ENTWURF (`areaDraftProvider`, Kacheln bei `kAreaShapeZoom`, am
+      Ende eine `TileSetShape` wie „Entlang meiner Trails"). Fünf Dinge,
+      die man wissen muss:
+      - **Ein Strich ist eine Fläche**: geschlossen (Ende zum Anfang),
+        dazu jede Kachel, die der Rand berührt oder die innen liegt
+        (`tilesTouchedByRing`: Rand in Zehntelkachel-Schritten
+        abgetastet, Inneres je Zeile gerade-ungerade). Ein offener
+        Zickzack ist damit eine dünne Fläche; der Radierer nimmt genau
+        weg, worüber er läuft. Rahmen über `kAreaDrawMaxSpanTiles` ⇒
+        null und ein Satz, keine hängende Rechnung.
+      - **Die Zeichenfläche ist ein Flutter-Widget ÜBER der Karte, keine
+        Geste der Engine**: Sie liegt nur, solange ein Werkzeug auf
+        seinen EINEN Strich wartet, fängt dann jede Berührung ab (die
+        Karte steht still, die Kamera vom letzten Stillstand stimmt
+        also) und rechnet mit `unprojectFromScreen` — der Umkehrung der
+        Trefferprüfung, auf beiden Engines dieselbe Antwort. Nach dem
+        Strich ist das Werkzeug weg und die Karte frei; die Fassade
+        brauchte dafür keine Gesten-Schnittstelle.
+      - **Der Entwurf überlebt das Blatt, das Werkzeug nicht**
+        (`closed` ⇒ `disarm`): ohne Blatt kein Knopf, der es zurücknimmt,
+        und die Karte stünde fest. Gezeigt wird er nur mit Blatt.
+      - **Angezeigt als Zeilen-Rechtecke** (`draftPolygons`): Kacheln
+        einer Zeile zu EINEM Rechteck, beim Zoom der Maske, über
+        `kAreaDraftMaxRects` eine Stufe gröber. MapLibre gruppiert
+        Flächen seither nach Stil in EINE Ebene (`polygonLayers`) wie
+        die Linien.
+      - **Gespeichert wird über das bekannte Blatt** (`drawn`, vorgewählt)
+        — Größe gemessen, Obergrenze, Orte, Fortschritt wie immer. Ein
+        fertiger Download mit genau diesen Kacheln verwirft den Entwurf
+        (`discardIfSaved`, gehört im Karten-Screen an
+        `areaDownloadProvider`, weil der Download das Blatt überlebt).
+      Bestehende Bereiche bearbeiten gibt es nicht: Ein neuer Bereich
+      aus Entwurf ist der Weg, das alte Archiv löscht man in „Meine
+      Bereiche".
     - **Die Orte kommen mit**: die Zellendateien aller Gruppen, die das
       Orte-Manifest für den Rahmen nennt; `HostPoiSource` liest sie
       ZUERST (`readLocal`), was lokal liegt, braucht weder Manifest noch
@@ -732,7 +768,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
-  liegen", Konzept 3.2), Bereiche zeichnen (Stufe C), Ausgangskorb und
+  liegen", Konzept 3.2), bestehende Bereiche bearbeiten, Ausgangskorb und
   Zwischenspeicher im Browser, Nachrichten zwischen Buddys (#34, Rest),
   Meldung zu einem einzelnen Trail, Launcher-Icon (noch
   Flutter-Vorgabe), `docs/play-console.md`.

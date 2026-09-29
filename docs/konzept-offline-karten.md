@@ -62,7 +62,15 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
   hell bleibt, was gespeichert ist (die Kacheln aus den Formen im Index,
   zwei Stufen über dem Kamera-Zoom, bis zum Zoom des Bereichs). Die
   Karte bleibt dabei bedienbar (persistentes Blatt am Scaffold der
-  Karte). Stufe C, Formen zeichnen (additiv/subtraktiv), ist offen.
+  Karte).
+- **Zeichnen** (seit 0.26.0, Stufe C, #67): Im selben Blatt entsteht
+  ein Bereich aus Fingerstrichen. Jeder Strich ist eine geschlossene
+  Fläche; jede Kachel, die sie berührt oder umschließt, kommt dazu
+  (Stift) oder fällt weg (Radierer). Die Kacheln entlang der eigenen
+  Trails lassen sich als Ausgangspunkt übernehmen. Der Entwurf steht
+  live grün auf der Karte, mit Kachelzahl; gespeichert wird er wie jede
+  andere Form, mit gemessener Größe. Offen: einen gespeicherten Bereich
+  nachträglich bearbeiten.
 - **Größe vorher, exakt**: Das PMTiles-Verzeichnis nennt die Bytezahl
   jeder Kachel. „Diesen Bereich speichern — 12,4 MB" ist eine Messung,
   keine Schätzung. Faustzahl aus den PilzBuddy-Werten: 5,54 GB auf

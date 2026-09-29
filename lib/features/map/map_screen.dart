@@ -17,6 +17,8 @@ import '../rides/ride_track.dart';
 import '../official/official_trails.dart';
 import '../official/official_trails_layer.dart';
 import '../official/official_trails_source.dart';
+import '../offline_areas/area_draw.dart';
+import '../offline_areas/area_draw_overlay.dart';
 import '../offline_areas/area_overlay.dart';
 import '../offline_areas/area_plan.dart';
 import '../offline_areas/area_providers.dart';
@@ -109,8 +111,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!_focusOn(id)) _pendingFocus = id;
   }
 
-  /// „Bereich speichern" mit dem AKTUELLEN Ausschnitt und den Trails.
-  void _openSaveArea(BuildContext context) {
+  /// „Bereich speichern" mit dem AKTUELLEN Ausschnitt und den Trails —
+  /// und, aus dem Entwurf (Stufe C), der gezeichneten Fläche vorgewählt.
+  void _openSaveArea(BuildContext context, {AreaShape? drawn}) {
     final camera = _camera;
     final trails = ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
     showSaveAreaSheet(
@@ -124,7 +127,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               east: camera.bounds.east),
       // Die Kacheln entlang der Trails, nicht ein Rechteck um alle (0.24.0).
       aroundTrails: AreaShape.alongLines([for (final t in trails) t.points]),
+      drawn: drawn,
     );
+  }
+
+  /// Ein fertiger Strich (Stufe C): seine Kacheln in den Entwurf — oder,
+  /// wenn er zu groß war, ein Satz statt einer Rechnung, die hängt.
+  void _onStroke(Set<int>? keys) {
+    final draft = ref.read(areaDraftProvider.notifier);
+    if (keys == null) {
+      draft.disarm();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Zu groß gezeichnet — erst näher heranzoomen.')));
+      return;
+    }
+    draft.applyStroke(keys);
   }
 
   /// Auf den Trail zoomen, wenn er da ist. `false`, wenn nicht.
@@ -355,6 +372,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ref.read(mapFocusAreaProvider.notifier).state = null;
     });
 
+    // Ein gespeicherter Entwurf ist erledigt (Stufe C) — der Download
+    // läuft im Notifier weiter, auch wenn das Blatt schon zu ist.
+    ref.listen(areaDownloadProvider, (previous, next) {
+      final saved = next.result;
+      if (next.phase == AreaDownloadPhase.done && saved != null &&
+          previous?.phase != AreaDownloadPhase.done) {
+        ref.read(areaDraftProvider.notifier).discardIfSaved(saved.shape);
+      }
+    });
+
     // Was der Ausschnitt braucht — und was davon fehlt, wird nachgeladen.
     final camera = _camera;
     final cells = poiCellsFor(camera, groups);
@@ -371,9 +398,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final mask = overlayAreas != null && camera != null
         ? offlineCoverageMask(overlayAreas, camera.bounds, cameraZoom: camera.zoom)
         : null;
+    // Der Entwurf (Stufe C) grün über der Abdunkelung — nur mit Blatt.
+    final draft = overlayOn ? ref.watch(areaDraftProvider) : null;
+    final drawTool = draft?.tool;
 
     final layers = MapViewLayers(
-      polygons: [?mask],
+      polygons: [
+        ?mask,
+        if (draft != null && camera != null)
+          ...draftPolygons(draft, camera.bounds, cameraZoom: camera.zoom),
+      ],
       circles: [
         if (position != null && position.accuracy > 0)
           MapViewCircle(
@@ -450,6 +484,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             controller: _controller,
             layers: layers,
           ),
+          // Solange ein Werkzeug auf seinen Strich wartet, liegt die
+          // Zeichenfläche über der Karte und hält sie fest.
+          if (drawTool != null && camera != null)
+            Positioned.fill(
+              child: AreaDrawOverlay(camera: camera, tool: drawTool, onStroke: _onStroke),
+            ),
           if (trailsAsync.isLoading && trails.isEmpty)
             const Center(child: CircularProgressIndicator()),
           if (trailsAsync.hasValue && trails.isEmpty)
@@ -545,6 +585,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           // Speicherns, nicht vom Öffnen des Blatts — man
                           // schiebt die Karte ja, während es offen ist.
                           onSaveArea: () => _openSaveArea(context),
+                          onSaveDrawn: (drawn) => _openSaveArea(context, drawn: drawn),
                         ),
                       ),
                       child: const Icon(Icons.layers_outlined),

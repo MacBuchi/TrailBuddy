@@ -43,6 +43,21 @@ Offset projectToScreen(MapViewCamera camera, LatLng p) {
   return Offset(x, y);
 }
 
+/// Umkehrung von [projectToScreen]: die Stelle unter dem Punkt [at] der
+/// Kartenfläche. Gebraucht beim Zeichnen eines Bereichs (Offline-Karten,
+/// Stufe C) — der Strich entsteht in Bildpunkten über der Karte, die
+/// Kacheln verlangen Grad. Dieselbe Rechnung wie die Trefferprüfung,
+/// also auf beiden Engines dieselbe Antwort.
+LatLng unprojectFromScreen(MapViewCamera camera, Offset at) {
+  final b = camera.bounds;
+  final w = camera.size.width, h = camera.size.height;
+  final lon = w == 0 ? b.west : b.west + at.dx / w * (b.east - b.west);
+  final yTop = _mercY(b.north);
+  final y = h == 0 ? yTop : yTop - at.dy / h * (yTop - _mercY(b.south));
+  final lat = (2 * math.atan(math.exp(y)) - math.pi / 2) * 180 / math.pi;
+  return LatLng(lat, lon);
+}
+
 /// Abstand von [p] zur Strecke [a]–[b].
 double distanceToSegment(Offset p, Offset a, Offset b) {
   final ab = b - a;
