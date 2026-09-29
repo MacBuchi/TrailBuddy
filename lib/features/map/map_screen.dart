@@ -25,6 +25,7 @@ import '../offline_areas/area_plan.dart';
 import '../offline_areas/area_providers.dart';
 import '../offline_areas/area_store.dart';
 import '../offline_areas/offline_tool_rail.dart';
+import '../trails/grade_shield.dart' show trailColorOf;
 import '../trails/outbox_providers.dart';
 import '../trails/trail_list.dart';
 import '../trails/trail_providers.dart';
@@ -216,7 +217,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   /// Die Linie trägt die Schwierigkeit (seit 0.42.0), nicht mehr die
   /// Beziehung; eine Meldung liegt als Leuchtrand darum ([_borderOf]).
-  Color _colorOf(Trail t) => AppColors.mapGrades.of(t.grade);
+  Color _colorOf(Trail t) => trailColorOf(t, AppColors.mapGrades);
 
   /// Der Rand um die Linie sagt den Zustand: gemeldet orange (die
   /// Warnung schlägt den Hinweis — meist kommt beides zusammen, und die

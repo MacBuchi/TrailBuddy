@@ -31,6 +31,8 @@ void main() {
     trails.seedTrail(bob.id, name: 'Schwarz', lat: 48.2, grade: 4);
     trails.seedTrail(bob.id, name: 'Gesperrt', lat: 48.3, grade: 0, status: TrailStatus.closed);
     trails.seedTrail(anna.id, name: 'Ohne', lat: 48.4);
+    // Uphill: eigene Farbe statt der Stufe, das Schild trägt einen Pfeil.
+    trails.seedTrail(bob.id, name: 'Auffahrt', lat: 48.5, grade: 2, traits: {TrailTrait.uphill});
   });
 
   MapViewPolyline lineOf(WidgetTester tester, String name) =>
@@ -51,6 +53,7 @@ void main() {
     expect(closed.color, g.s0, reason: 'die Meldung übermalt die Schwierigkeit nicht');
     expect(closed.borderColor, AppColors.mapLines.warning);
     expect(lineOf(tester, 'Mein Blauer').borderColor, AppColors.mapLines.halo);
+    expect(lineOf(tester, 'Auffahrt').color, g.uphill, reason: 'Uphill schlägt die Stufe (S2 wäre rot)');
   });
 
   testWidgets('Liste: Streifen in der Stufenfarbe des Modus, gleich für meinen und Bobs', (tester) async {
@@ -73,5 +76,7 @@ void main() {
     expect(await stripeOf('Bobs Blauer'), p.grade.s1);
     expect(await stripeOf('Gesperrt'), p.grade.s0);
     expect(await stripeOf('Ohne'), p.grade.ungraded);
+    expect(await stripeOf('Auffahrt'), p.grade.uphill);
+    expect(findLabel('Uphill, Schwierigkeit S2: größere Wurzeln, flache Stufen'), findsOneWidget);
   });
 }

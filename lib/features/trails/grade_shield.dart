@@ -15,11 +15,25 @@ import '../../core/app_theme.dart';
 import '../../models/trail.dart';
 import 'singletrail_scale.dart';
 
+/// Die Farbe eines Trails — EINE Regel für Karte, Streifen und Schild:
+/// Uphill (unter den angezeigten zwei Merkmalen, wie die Filter) trägt
+/// die Uphill-Farbe, sonst die Stufe des Medians.
+Color trailColorOf(Trail t, GradePalette p) => isUphill(t) ? p.uphill : p.of(t.grade);
+
+/// Uphill heißt: unter den ANGEZEIGTEN Merkmalen (`topTraits`) — dieselbe
+/// Lesart wie die Filter „Flowig"/„Jumps"; eine einzelne Nennung unter
+/// vielen färbt keinen Trail um.
+bool isUphill(Trail t) => t.topTraits.contains(TrailTrait.uphill);
+
 /// Das Schild zu einem Grad 0–5.
 class GradeShield extends StatelessWidget {
-  const GradeShield(this.grade, {super.key, this.fontSize = 12});
+  const GradeShield(this.grade, {super.key, this.fontSize = 12, this.uphill = false});
 
   final int grade;
+
+  /// Uphill-Trail: Uphill-Farbe und ein Pfeil statt der Form; der Grad
+  /// bleibt dabei, er sagt, wie technisch die Auffahrt ist.
+  final bool uphill;
 
   /// Schriftgröße von „S3"; die Form wächst mit.
   final double fontSize;
@@ -30,18 +44,20 @@ class GradeShield extends StatelessWidget {
     final ink = palette.grade.ink;
     final g = singletrailGrade(grade);
     return Semantics(
-      label: 'Schwierigkeit ${g.label}: ${g.short}',
+      label: '${uphill ? 'Uphill, ' : ''}Schwierigkeit ${g.label}: ${g.short}',
       excludeSemantics: true,
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: fontSize * 0.55, vertical: fontSize * 0.2),
         decoration: BoxDecoration(
-          color: palette.grade.of(grade),
+          color: uphill ? palette.grade.uphill : palette.grade.of(grade),
           borderRadius: BorderRadius.circular(fontSize * 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            GradeShape(grade, size: fontSize * 0.75, color: ink),
+            uphill
+                ? UphillArrow(size: fontSize * 0.8, color: ink)
+                : GradeShape(grade, size: fontSize * 0.75, color: ink),
             SizedBox(width: fontSize * 0.35),
             Text(gradeLabel(grade),
                 style: AppFonts.numbers(TextStyle(fontSize: fontSize, height: 1.2))
@@ -125,4 +141,48 @@ class _GradeShapePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GradeShapePainter old) => old.grade != grade || old.color != color;
+}
+
+/// Der Pfeil bergauf (↗) — gezeichnet wie die Formen, Barlow hat ihn
+/// nicht.
+class UphillArrow extends StatelessWidget {
+  const UphillArrow({super.key, required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        size: Size.square(size),
+        painter: _UphillArrowPainter(color),
+      );
+}
+
+class _UphillArrowPainter extends CustomPainter {
+  _UphillArrowPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final u = size.width;
+    final w = u * 0.2;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final inset = w / 2;
+    canvas.drawLine(Offset(inset, u - inset), Offset(u - inset, inset), paint);
+    canvas.drawPath(
+        Path()
+          ..moveTo(u * 0.42, inset)
+          ..lineTo(u - inset, inset)
+          ..lineTo(u - inset, u * 0.58),
+        paint);
+  }
+
+  @override
+  bool shouldRepaint(_UphillArrowPainter old) => old.color != color;
 }

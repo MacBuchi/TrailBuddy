@@ -50,6 +50,11 @@ void main() {
           expect(contrast(p.grade.ink, c), greaterThanOrEqualTo(4.5), reason: 'S$g');
         }
         expect(contrast(p.grade.ungraded, p.surface), greaterThanOrEqualTo(3));
+        expect(contrast(p.grade.uphill, p.surface), greaterThanOrEqualTo(3));
+        expect(contrast(p.grade.uphill, p.ground), greaterThanOrEqualTo(3));
+        expect(contrast(p.grade.ink, p.grade.uphill), greaterThanOrEqualTo(4.5));
+        // Uphill hat eine eigene Farbe, keine der Stufen.
+        expect([for (var g = 0; g <= 5; g++) p.grade.of(g)], isNot(contains(p.grade.uphill)));
         // Vier verschiedene Stufenfarben, sonst sagt die Farbe nichts.
         expect({for (var g = 0; g <= 3; g++) p.grade.of(g)}, hasLength(4));
       });
@@ -97,6 +102,7 @@ void main() {
     for (var g = 0; g <= 5; g++) {
       expect(contrast(AppColors.mapGrades.of(g), AppColors.mapBackground), greaterThanOrEqualTo(3), reason: 'S$g');
     }
+    expect(contrast(AppColors.mapGrades.uphill, AppColors.mapBackground), greaterThanOrEqualTo(3));
     expect(AppColors.mapLines.haloBorderWidth * 2, 4, reason: 'Breite + 4');
     expect(MapPalette.dark.haloBorderWidth, 0);
   });

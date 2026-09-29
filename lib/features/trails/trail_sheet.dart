@@ -138,7 +138,8 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                 if (trail.grade != null)
                   Padding(
                     padding: const EdgeInsets.only(left: 12, top: 4),
-                    child: GradeShield(trail.grade!, key: const ValueKey('grade-shield'), fontSize: 14),
+                    child: GradeShield(trail.grade!,
+                        key: const ValueKey('grade-shield'), fontSize: 14, uphill: isUphill(trail)),
                   ),
               ],
             ),

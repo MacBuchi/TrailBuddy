@@ -8,7 +8,9 @@
 
 - **Die Farbe zeigt jetzt die Schwierigkeit** (0.42.0): Trails sind
   eingefärbt wie Skipisten — grün S0, blau S1, rot S2, schwarz ab S3,
-  noch nicht eingeschätzt grau. Das gilt für die Linie auf der Karte
+  noch nicht eingeschätzt grau. Uphill-Trails haben ihre eigene Farbe,
+  Petrol, und im Schild einen Pfeil nach oben — eine Pistenfarbe
+  beschreibt eine Abfahrt. Das gilt für die Linie auf der Karte
   (ab S4 gestrichelt), den Streifen in der Liste und das neue Schild.
   Ob ein Trail deiner ist oder von Buddys kommt, steht nicht mehr in der
   Farbe, sondern im Wort darunter („MEIN", die Namen). Gesperrte Trails

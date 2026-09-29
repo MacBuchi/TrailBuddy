@@ -304,7 +304,7 @@ class _TrailTile extends ConsumerWidget {
     // (seit 0.42.0); wem der Trail gehört und ob er gemeldet ist, sagt
     // das Wort darunter. Ein wartender Trail ist blass — er ist noch
     // nicht auf dem Server.
-    final stripe = trail.pending ? palette.muted : palette.grade.of(trail.grade);
+    final stripe = trail.pending ? palette.muted : trailColorOf(trail, palette.grade);
     final tagStyle = theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700, letterSpacing: 0.8, fontSize: 11);
     return Card(
@@ -363,7 +363,7 @@ class _TrailTile extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (trail.grade != null) GradeShield(trail.grade!, key: const ValueKey('grade-shield')),
+                  if (trail.grade != null) GradeShield(trail.grade!, key: const ValueKey('grade-shield'), uphill: isUphill(trail)),
                   if (trail.grade != null && trail.topTraits.isNotEmpty) const SizedBox(height: 4),
                   if (trail.topTraits.isNotEmpty) TrailTraitIcons(trail.topTraits, color: palette.muted),
                 ],

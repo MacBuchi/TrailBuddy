@@ -266,7 +266,10 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   auf der Karte, Streifen in der Liste und S-Grad-Schild tragen die
   Pistenfarbe des Medians (`GradePalette`: S0 grün, S1 blau, S2 rot, ab
   S3 schwarz — im Dunklen hell —, ohne Einschätzung grau; ab S4
-  gestrichelt auf der Karte). Wem ein Trail gehört, zeigt KEINE Farbe
+  gestrichelt auf der Karte). **Uphill schlägt die Stufe**: Steht Uphill
+  unter den angezeigten zwei Merkmalen, trägt der Trail Petrol und das
+  Schild einen Pfeil statt der Form (`trailColorOf`/`isUphill` in
+  `grade_shield.dart`, eine Regel für Karte, Streifen, Schild). Wem ein Trail gehört, zeigt KEINE Farbe
   mehr, nur das Wort. Gemeldet und neuer Hinweis liegen als Leuchtrand
   um die Linie (gemeldet schlägt Hinweis), die Linie behält ihre Stufe.
   Die Karte nimmt immer `AppColors.mapGrades` (hell), die App

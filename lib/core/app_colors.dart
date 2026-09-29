@@ -260,6 +260,7 @@ class GradePalette {
     required this.s2,
     required this.s3,
     required this.ungraded,
+    required this.uphill,
     required this.ink,
   });
 
@@ -272,6 +273,14 @@ class GradePalette {
 
   /// Noch niemand hat den Trail eingeschätzt.
   final Color ungraded;
+
+  /// Uphill (Betreiber, 2026-09-29: „hier macht Symbol und Farbe Sinn"):
+  /// Die Pistenfarben beschreiben eine Abfahrt — bergauf gefahren sagt
+  /// „rot" wenig. Ein Trail, dessen angezeigter Charakter Uphill ist,
+  /// trägt deshalb Petrol statt seiner Stufe, das Schild einen Pfeil
+  /// statt der Form. Petrol, weil jede andere Farbe schon etwas heißt
+  /// (Stufen, Meldung, Hinweis, offiziell, Kandidat, Marke).
+  final Color uphill;
 
   /// Schrift und Form auf einer Stufenfarbe.
   final Color ink;
@@ -290,6 +299,7 @@ class GradePalette {
     s2: Color(0xFFC62828),
     s3: Color(0xFF131A16),
     ungraded: Color(0xFF6B756F),
+    uphill: Color(0xFF00796B),
     ink: Color(0xFFFFFFFF),
   );
 
@@ -299,6 +309,7 @@ class GradePalette {
     s2: Color(0xFFF0605C),
     s3: Color(0xFFF2F4EF),
     ungraded: Color(0xFF9AA69D),
+    uphill: Color(0xFF4DB6AC),
     ink: Color(0xFF0E1411),
   );
 }

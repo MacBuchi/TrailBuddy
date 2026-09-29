@@ -77,6 +77,15 @@ erreicht es auf Weiß nur 4,2:1, verlangt sind 4,5:1. Dasselbe für Warnung
 | S3 | `#F2F4EF` | `#131A16` | durchgezogen |
 | S4, S5 | `#F2F4EF` | `#131A16` | gestrichelt |
 | ohne Einschätzung | `#9AA69D` | `#6B756F` | durchgezogen |
+| **Uphill** (schlägt die Stufe) | `#4DB6AC` | `#00796B` | durchgezogen; im Schild ein Pfeil ↗ statt der Form |
+
+**Uphill** (Betreiber, 2026-09-29: „hier macht Symbol und Farbe Sinn"):
+Die Pistenfarben beschreiben eine Abfahrt; ein Trail, unter dessen
+angezeigten zwei Merkmalen Uphill ist (dieselbe Lesart wie die Filter),
+trägt Petrol statt seiner Stufe — auf der Karte, im Streifen und im
+Schild. Das Schild behält den Grad („↗ S2"): Er sagt, wie technisch die
+Auffahrt ist. EINE Regel für alle drei Stellen: `trailColorOf` in
+`grade_shield.dart`. Petrol, weil jede andere Farbe schon etwas heißt.
 
 Die Töne des Entwurfs (S0 `#2E9E4F`, S2 `#D6322F`) sind nachgedunkelt:
 Auf ihnen steht im Schild weiße Schrift, verlangt sind 4,5:1. Im Dunklen
