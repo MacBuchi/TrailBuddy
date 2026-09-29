@@ -143,8 +143,15 @@ class FakeTrailRepository implements TrailRepository {
       lengthM: length,
       ele: eles,
     ));
-    if (!details.any((d) => d.trailId == trailId && d.userId == me)) {
+    // Wie Schritt 7 der RPC: Beitrag anlegen, sonst den Status auf
+    // „offen" — außer bei `planned` (Patch 011, #100).
+    final own = details.indexWhere((d) => d.trailId == trailId && d.userId == me);
+    if (own < 0) {
       details.add(TrailDetails(trailId: trailId, userId: me));
+    } else if (source != RecordingSource.planned &&
+        details[own].status != TrailStatus.open) {
+      details[own] =
+          details[own].copyWith(status: TrailStatus.open, statusAt: DateTime.now());
     }
     return trailId;
   }
@@ -312,13 +319,14 @@ class FakeTrailRepository implements TrailRepository {
       TrailStatus status = TrailStatus.open, DateTime? statusAt,
       TrailVisibility visibility = TrailVisibility.buddies, String? trailId,
       List<double>? ele, bool reversed = false, int? grade,
-      Set<TrailTrait> traits = const {}}) {
+      Set<TrailTrait> traits = const {},
+      RecordingSource source = RecordingSource.import}) {
     final id = trailId ?? 'trail-${newClientId()}';
     recordings.add(TrailRecording(
       id: 'rec-${newClientId()}',
       trailId: id,
       userId: userId,
-      source: RecordingSource.import,
+      source: source,
       recordedAt: null,
       reversed: reversed,
       quality: quality,

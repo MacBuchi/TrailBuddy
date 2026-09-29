@@ -198,6 +198,9 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   neue Aufzeichnung setzt den Status des Aufzeichnenden auf „offen"**
   — wer den Trail fährt, hat ihn befahrbar vorgefunden. Bei
   Widerspruch zwischen Buddys gewinnt der jüngste, ohne Abstimmung.
+  **Ausnahme seit 0.46.1 (#100, Patch 011):** eine geplante Aufzeichnung
+  (`planned`, Datei ohne Fahrzeiten) — sie belegt nicht, dass jemand
+  den Trail befahrbar vorgefunden hat.
 - **Hinweise** (#7, entschieden am 2026-09-28) = freier Text zum
   Trail, der das Warum trägt, das der Status nicht sagen kann („Baum
   liegt quer nach der zweiten Kehre"). Eine eigene Liste, neueste
@@ -366,7 +369,10 @@ Prüfung der Angriffe:
   Anzeige so da; ein Import mit Zeiten als „importiert". Beides gilt
   als Beitrag — der Nutzer hat die Linie, mehr beweist auch eine
   App-Aufzeichnung nicht. Die Linie eines Buddys mit echter
-  Aufzeichnung gewinnt in der Anzeige immer.
+  Aufzeichnung gewinnt in der Anzeige immer. Das Blatt nennt seit
+  0.46.1 (#100), wer einen Trail nur geplant hat, und sagt es für den
+  ganzen Trail, wenn jeder sichtbare Beleg geplant ist; einen Status
+  setzt ein geplanter Import nicht zurück (3).
 
 Was DESHALB nie an den Client geht: Zähler über alle Beiträge, das
 Alter der Kennung, die Overlap-Tabelle, irgendeine Aggregation über
@@ -657,7 +663,7 @@ damit die nächste Diskussion nicht bei null beginnt.
    an mit. Das Werkzeug liest direkt aus dem Zip.
 6. **Statusmeldungen in v1**, alle vier Werte, mit Datum; der jüngste
    gewinnt, alle bleiben sichtbar, eine neue Aufzeichnung setzt den
-   eigenen Status auf „offen" (3). Verworfen: nur gesperrt/offen, oder
+   eigenen Status auf „offen" (3) — eine geplante nicht (seit 0.46.1). Verworfen: nur gesperrt/offen, oder
    später.
 7. **Rechtliche Prüfung vor dem Play-Store-Eintrag.** Bis dahin nur
    persönlich bekannte Nutzer über die GitHub-APK. Nutzungsbedingungen
