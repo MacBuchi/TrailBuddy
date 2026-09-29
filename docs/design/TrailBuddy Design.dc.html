@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#E9E7E0;font-family:Barlow,system-ui,sans-serif;color:#131A16}a{color:#3F6E10}a:hover{color:#2B4D0A}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;margin-bottom:36px}.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}.dv-h{font:700 22px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;text-transform:uppercase;margin:0 0 14px;color:#131A16}
+@keyframes tbDraw{0%{stroke-dashoffset:300;opacity:0}10%{opacity:1}60%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}@keyframes tbDot{0%,55%{transform:scale(0);opacity:0}70%{transform:scale(1.3);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes tbWord{0%,50%{opacity:0;transform:translateY(8px)}80%,100%{opacity:1;transform:translateY(0)}}@keyframes tbLoader{0%{stroke-dashoffset:300}100%{stroke-dashoffset:-300}}@keyframes tbPulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(3.2);opacity:0}}@keyframes tbGrow{0%{stroke-dashoffset:260}100%{stroke-dashoffset:0}}@keyframes tbMerge{0%,15%{transform:translateX(0)}55%,100%{transform:translateX(var(--tx))}}@keyframes tbMergeDot{0%,55%{transform:scale(0)}75%{transform:scale(1.25)}100%{transform:scale(1)}}@keyframes tbGlow{0%,100%{filter:drop-shadow(0 0 2px #FFD23F) drop-shadow(0 0 0px #FFD23F)}50%{filter:drop-shadow(0 0 6px #FFD23F) drop-shadow(0 0 14px #FFD23F)}}</style></helmet>
+
+<section class="dv-turn" id="t4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Light Mode + Schwierigkeit und Charakter auf einen Blick</span></div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;max-width:1240px;margin-bottom:28px;font-size:13px;line-height:1.5;color:#2D3A32">
+  <div><div class="dv-h">Light Mode</div>Brauchen wir: Die Karte (Protomaps light) ist hell, und in praller Sonne liest sich dunkel schlechter. Lime ist auf Weiß zu schwach — für Linien wird es zu <b>Moosgrün #4F8A10</b>, der Lime-Knopf mit dunkler Schrift bleibt. Buddy-Cyan wird Petrol, alles bekommt einen weißen Saum.</div>
+  <div><div class="dv-h">Schwierigkeit ohne Kunterbunt</div>Die Farbe bleibt bei „was habe ICH damit zu tun“. Der Grad steckt in der <b>Form</b> — wie bei Pisten in Nordamerika: ○ ● ■ ◆ ◆◆ ◆◆▮ für S0–S5. Formen sind farblos, funktionieren in weißer Schrift auf Schwarz und für Farbenblinde.</div>
+  <div><div class="dv-h">Pisten-Brille als Schalter</div>Wer wirklich nach Farbe planen will, schaltet unter Ebenen auf „Farbe nach Schwierigkeit“: grün · blau · rot · schwarz wie auf der Pistenkarte. Dann sagt die Linienbreite, ob es meiner (breit) oder nur von Buddys (schmal) ist.</div>
+</div>
+
+<div class="dv-opts">
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Palette hell</div>
+<div class="dv-card" style="width:360px;background:#F3F2EC;color:#131A16;padding:20px;display:flex;flex-direction:column;gap:12px">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+    <div style="background:#F3F2EC;border:1px solid #D9D8CF;border-radius:10px;height:58px;padding:8px;display:flex;flex-direction:column;justify-content:flex-end;font:500 10px 'JetBrains Mono'">#F3F2EC<span style="font:11px Barlow;color:#5E6B62">Grund</span></div>
+    <div style="background:#FFFFFF;border:1px solid #E4E3DB;border-radius:10px;height:58px;padding:8px;display:flex;flex-direction:column;justify-content:flex-end;font:500 10px 'JetBrains Mono'">#FFFFFF<span style="font:11px Barlow;color:#5E6B62">Fläche</span></div>
+    <div style="background:#131A16;color:#F2F4EF;border-radius:10px;height:58px;padding:8px;display:flex;flex-direction:column;justify-content:flex-end;font:500 10px 'JetBrains Mono'">#131A16<span style="font:11px Barlow;color:#9AA69D">Text</span></div>
+    <div style="background:#B6F04A;border-radius:10px;height:58px;padding:8px;display:flex;flex-direction:column;justify-content:flex-end;font:500 10px 'JetBrains Mono'">#B6F04A<span style="font:11px Barlow">Knopf</span></div>
+  </div>
+  <div style="background:#EDEBE4;border-radius:12px;padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:11px;line-height:1.3">
+    <div><div style="height:6px;border-radius:3px;background:#4F8A10;box-shadow:0 0 0 2px #fff;margin-bottom:6px"></div><b>Mein Trail</b><br><span style="font-family:'JetBrains Mono';color:#5E6B62">#4F8A10</span></div>
+    <div><div style="height:6px;border-radius:3px;background:#0B84B0;box-shadow:0 0 0 2px #fff;margin-bottom:6px"></div><b>Von Buddy</b><br><span style="font-family:'JetBrains Mono';color:#5E6B62">#0B84B0</span></div>
+    <div><div style="height:6px;border-radius:3px;background:#D9591A;box-shadow:0 0 0 2px #fff;margin-bottom:6px"></div><b>Warnung</b><br><span style="font-family:'JetBrains Mono';color:#5E6B62">#D9591A</span></div>
+    <div><div style="height:6px;border-radius:3px;background:#0B84B0;box-shadow:0 0 0 3px #F2B600;margin-bottom:6px"></div><b>Neuer Hinweis</b><br><span style="font-family:'JetBrains Mono';color:#5E6B62">#F2B600</span></div>
+    <div><div style="height:6px;border-radius:3px;background:repeating-linear-gradient(90deg,#7B4FD6 0 10px,transparent 10px 16px);margin-bottom:6px"></div><b>Offiziell</b><br><span style="font-family:'JetBrains Mono';color:#5E6B62">#7B4FD6</span></div>
+    <div><div style="height:6px;border-radius:3px;background:#D1336F;box-shadow:0 0 0 2px #fff;margin-bottom:6px"></div><b>Kandidat</b><br><span style="font-family:'JetBrains Mono';color:#5E6B62">#D1336F</span></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="4b"><div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Grad-Formen + Charakter-Symbole</div>
+<div class="dv-card" style="width:380px;background:#FFFFFF;color:#131A16;padding:20px;display:flex;flex-direction:column;gap:10px">
+  <div style="font:800 20px/1 'Barlow Condensed';text-transform:uppercase">Singletrail-Skala</div>
+  <sc-for list="{{ gradeScale }}" as="g" hint-placeholder-count="6">
+    <div style="display:flex;align-items:center;gap:12px"><span style="display:inline-flex;align-items:center;gap:4px;background:#131A16;color:#fff;border-radius:7px;padding:4px 7px;font:500 12px 'JetBrains Mono';min-width:52px;box-sizing:border-box"><sc-for list="{{ g.shapes }}" as="s" hint-placeholder-count="1"><span style="{{ s }}"></span></sc-for>{{ g.grade }}</span><span style="flex:1;font-size:13px;color:#3B473F">{{ g.desc }}</span><span style="width:22px;height:6px;border-radius:3px;background:{{ g.piste }}" title="Pisten-Brille"></span></div>
+  </sc-for>
+  <div style="font:800 20px/1 'Barlow Condensed';text-transform:uppercase;margin-top:10px">Charakter</div>
+  <sc-for list="{{ characters }}" as="c" hint-placeholder-count="5">
+    <div style="display:flex;align-items:center;gap:12px"><span style="width:28px;height:28px;border-radius:8px;background:#EDEBE4;display:grid;place-items:center;font-family:'Material Symbols Rounded';font-size:18px">{{ c.icon }}</span><span style="font:600 14px Barlow;width:80px">{{ c.name }}</span><span style="font-size:12px;color:#5E6B62">{{ c.desc }}</span></div>
+  </sc-for>
+  <div style="font:11px/1.5 'JetBrains Mono';color:#5E6B62;border-top:1px solid #E4E3DB;padding-top:8px">Rechter Streifen = Farbe in der Pisten-Brille. Charakter: höchstens 2 Symbole je Trail, von Buddys vergeben wie der S-Grad.</div>
+</div></div>
+
+<div class="dv-opt" id="4c"><div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>Karte hell — Farbe = Beziehung, Form = Grad</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;position:relative;overflow:hidden;background:#EDEBE4;background-image:repeating-radial-gradient(ellipse at 25% 40%,transparent 0 30px,rgba(60,70,60,.09) 30px 31px),repeating-radial-gradient(ellipse at 80% 75%,transparent 0 24px,rgba(60,70,60,.07) 24px 25px);color:#131A16">
+  {{ mapRel }}
+  <sc-for list="{{ markRel }}" as="m" hint-placeholder-count="0"><div style="{{ m.style }}"><sc-for list="{{ m.shapes }}" as="s" hint-placeholder-count="1"><span style="{{ s }}"></span></sc-for>{{ m.grade }}<sc-for list="{{ m.ch }}" as="i" hint-placeholder-count="0"><span style="font-family:'Material Symbols Rounded';font-size:13px;opacity:.85">{{ i }}</span></sc-for></div></sc-for>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #E4E3DB;background:#FFFFFF;color:#131A16;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08)"><span style="font-family:'Material Symbols Rounded';font-size:22px">lightbulb</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #E4E3DB;background:#FFFFFF;color:#131A16;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08)"><span style="font-family:'Material Symbols Rounded';font-size:22px">layers</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #E4E3DB;background:#FFFFFF;color:#131A16;display:grid;place-items:center;box-shadow:0 2px 8px rgba(0,0,0,.08)"><span style="font-family:'Material Symbols Rounded';font-size:22px">my_location</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#B6F04A;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.18)"><span style="width:18px;height:18px;border-radius:50%;background:#131A16"></span></button>
+  </div>
+  <div style="position:absolute;left:14px;bottom:86px;font:500 10px 'JetBrains Mono';color:#3B473F"><div style="display:flex;align-items:center;gap:6px"><span style="width:48px;height:5px;border:1.5px solid #3B473F;border-top:0"></span>500 m</div><div style="opacity:.7">© OSM · Protomaps</div></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#FFFFFF;border-top:1px solid #E4E3DB;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;text-align:center;font:600 11px Barlow;color:#5E6B62"><div style="color:#131A16;display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1;background:#B6F04A;border-radius:12px;padding:0 14px">map</span>Karte</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">route</span>Trails</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">group</span>Buddys</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">person</span>Profil</div></div>
+</div></div>
+
+<div class="dv-opt" id="4d"><div class="dv-olabel"><a class="dv-oid" href="#4d">4d</a>Karte hell — Pisten-Brille an</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;position:relative;overflow:hidden;background:#EDEBE4;background-image:repeating-radial-gradient(ellipse at 25% 40%,transparent 0 30px,rgba(60,70,60,.09) 30px 31px),repeating-radial-gradient(ellipse at 80% 75%,transparent 0 24px,rgba(60,70,60,.07) 24px 25px);color:#131A16">
+  {{ mapPiste }}
+  <sc-for list="{{ markPiste }}" as="m" hint-placeholder-count="0"><div style="{{ m.style }}"><sc-for list="{{ m.shapes }}" as="s" hint-placeholder-count="1"><span style="{{ s }}"></span></sc-for>{{ m.grade }}</div></sc-for>
+  <div style="position:absolute;top:48px;left:16px;right:16px;background:#FFFFFF;border:1px solid #E4E3DB;border-radius:14px;padding:8px 12px;display:flex;align-items:center;gap:10px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)"><span style="font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.04em">Farbe nach Schwierigkeit</span><span style="display:flex;gap:4px;margin-left:auto"><span style="width:16px;height:6px;border-radius:3px;background:#2E9E4F"></span><span style="width:16px;height:6px;border-radius:3px;background:#1F6FD1"></span><span style="width:16px;height:6px;border-radius:3px;background:#D6322F"></span><span style="width:16px;height:6px;border-radius:3px;background:#131A16"></span></span><span style="font-family:'Material Symbols Rounded';font-size:18px;color:#5E6B62">close</span></div>
+  <div style="position:absolute;left:14px;bottom:86px;background:#FFFFFF;border:1px solid #E4E3DB;border-radius:10px;padding:6px 8px;font:11px/1.4 Barlow;color:#3B473F;width:150px">Breit = meiner · schmal = nur Buddys · gestrichelt = S4+</div>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:2px solid #4F8A10;background:#FFFFFF;color:#4F8A10;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">layers</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#B6F04A;display:grid;place-items:center"><span style="width:18px;height:18px;border-radius:50%;background:#131A16"></span></button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#FFFFFF;border-top:1px solid #E4E3DB"></div>
+</div></div>
+
+<div class="dv-opt" id="4e"><div class="dv-olabel"><a class="dv-oid" href="#4e">4e</a>Trail-Liste hell</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#F3F2EC;color:#131A16;padding:56px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:800 32px/1 'Barlow Condensed';text-transform:uppercase">Trails</span><span style="font:500 12px 'JetBrains Mono';color:#5E6B62">23 · 48 km</span></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="background:#131A16;color:#fff;border-radius:999px;padding:6px 12px;font:600 12px Barlow">Alle</span><span style="border:1px solid #D9D8CF;border-radius:999px;padding:6px 12px;font:600 12px Barlow;background:#fff">bis S2</span><span style="border:1px solid #D9D8CF;border-radius:999px;padding:6px 10px;font:600 12px Barlow;background:#fff;display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:15px">waves</span>Flowig</span><span style="border:1px solid #D9D8CF;border-radius:999px;padding:6px 10px;font:600 12px Barlow;background:#fff;display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:15px">flight_takeoff</span>Jumps</span></div>
+  <sc-for list="{{ trailsLight }}" as="t" hint-placeholder-count="6">
+    <div style="display:flex;gap:12px;align-items:center;background:#FFFFFF;border:1px solid #E4E3DB;border-radius:14px;padding:12px">
+      <span style="width:6px;height:40px;border-radius:3px;background:{{ t.color }}"></span>
+      <div style="flex:1;min-width:0"><div style="font:600 15px Barlow">{{ t.name }}</div><div style="font:500 12px 'JetBrains Mono';color:#5E6B62;margin-top:2px;display:flex;gap:6px;align-items:center">{{ t.meta }}<span style="font:600 10px Barlow;color:{{ t.tagColor }};letter-spacing:.04em">{{ t.tag }}</span></div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span style="display:inline-flex;align-items:center;gap:4px;background:#131A16;color:#fff;border-radius:7px;padding:3px 6px;font:500 11px 'JetBrains Mono'"><sc-for list="{{ t.shapes }}" as="s" hint-placeholder-count="1"><span style="{{ s }}"></span></sc-for>{{ t.grade }}</span><span style="display:flex;gap:2px;color:#3B473F"><sc-for list="{{ t.ch }}" as="i" hint-placeholder-count="1"><span style="font-family:'Material Symbols Rounded';font-size:16px">{{ i }}</span></sc-for></span></div>
+    </div>
+  </sc-for>
+</div></div>
+
+<div class="dv-opt" id="4f"><div class="dv-olabel"><a class="dv-oid" href="#4f">4f</a>Trail-Blatt hell — Grad + Charakter von Buddys</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#EDEBE4;position:relative;color:#131A16;overflow:hidden">
+  <div style="position:absolute;inset:0 0 auto 0;height:260px;background-image:repeating-radial-gradient(ellipse at 30% 30%,transparent 0 26px,rgba(60,70,60,.09) 26px 27px)"><svg viewBox="0 0 360 260" width="360" height="260" fill="none" stroke-linecap="round"><path d="M40 60 C120 90 160 160 200 180 S290 210 330 230" stroke="#fff" stroke-width="9"></path><path d="M40 60 C120 90 160 160 200 180 S290 210 330 230" stroke="#4F8A10" stroke-width="5"></path></svg></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;top:200px;background:#FFFFFF;border-radius:28px 28px 0 0;padding:14px 20px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
+    <div style="width:40px;height:4px;border-radius:2px;background:#D9D8CF;margin:0 auto"></div>
+    <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><div style="font:800 30px/1 'Barlow Condensed';text-transform:uppercase">Rosskopf Süd</div><div style="font-size:13px;color:#5E6B62;margin-top:4px">Du und 2 Buddys (Jan, Mira)</div></div><span style="display:inline-flex;align-items:center;gap:5px;background:#131A16;color:#fff;border-radius:9px;padding:6px 9px;font:500 15px 'JetBrains Mono'"><sc-for list="{{ sheetShapes }}" as="s" hint-placeholder-count="1"><span style="{{ s }}"></span></sc-for>S3</span></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:5px;background:#131A16;color:#fff;border-radius:999px;padding:6px 10px;font:600 12px Barlow"><span style="font-family:'Material Symbols Rounded';font-size:16px">landslide</span>Verblockt · 3</span>
+      <span style="display:flex;align-items:center;gap:5px;background:#131A16;color:#fff;border-radius:999px;padding:6px 10px;font:600 12px Barlow"><span style="font-family:'Material Symbols Rounded';font-size:16px">south_east</span>Steil · 2</span>
+      <span style="display:flex;align-items:center;gap:5px;border:1px solid #D9D8CF;border-radius:999px;padding:6px 10px;font:600 12px Barlow;color:#5E6B62"><span style="font-family:'Material Symbols Rounded';font-size:16px">waves</span>Flowig · 1</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <div style="background:#F3F2EC;border-radius:12px;padding:10px"><div style="font:600 10px Barlow;color:#5E6B62;letter-spacing:.08em">LÄNGE</div><div style="font:500 18px 'JetBrains Mono'">3,4 km</div></div>
+      <div style="background:#F3F2EC;border-radius:12px;padding:10px"><div style="font:600 10px Barlow;color:#5E6B62;letter-spacing:.08em">HÖHE</div><div style="font:500 18px 'JetBrains Mono'">↓420</div></div>
+      <div style="background:#F3F2EC;border-radius:12px;padding:10px"><div style="font:600 10px Barlow;color:#5E6B62;letter-spacing:.08em">SPANNE</div><div style="font:500 18px 'JetBrains Mono'">S2–S4</div></div>
+    </div>
+    <div><div style="font:700 14px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Deine Einschätzung</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><span style="border:1px solid #D9D8CF;border-radius:8px;padding:6px 9px;font:500 12px 'JetBrains Mono'">S2</span><span style="background:#B6F04A;border-radius:8px;padding:6px 9px;font:500 12px 'JetBrains Mono'">S3</span><span style="border:1px solid #D9D8CF;border-radius:8px;padding:6px 9px;font:500 12px 'JetBrains Mono'">S4</span><span style="width:1px;background:#E4E3DB;margin:0 4px"></span><span style="background:#B6F04A;border-radius:8px;padding:4px 7px;font-family:'Material Symbols Rounded';font-size:18px">landslide</span><span style="border:1px solid #D9D8CF;border-radius:8px;padding:4px 7px;font-family:'Material Symbols Rounded';font-size:18px">south_east</span><span style="border:1px solid #D9D8CF;border-radius:8px;padding:4px 7px;font-family:'Material Symbols Rounded';font-size:18px">waves</span><span style="border:1px solid #D9D8CF;border-radius:8px;padding:4px 7px;font-family:'Material Symbols Rounded';font-size:18px">flight_takeoff</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:auto"><button style="flex:1;background:#B6F04A;color:#131A16;border:0;border-radius:12px;padding:14px;font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">Hinweis schreiben</button><button style="background:#FFFFFF;color:#131A16;border:1px solid #D9D8CF;border-radius:12px;padding:14px 16px;font:700 15px 'Barlow Condensed';text-transform:uppercase">Karte</button></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="4g"><div class="dv-olabel"><a class="dv-oid" href="#4g">4g</a>Offline-Leiste hell (wie <a class="dv-oid" href="#3b">3b</a>)</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;position:relative;overflow:hidden;background:#EDEBE4;background-image:repeating-radial-gradient(ellipse at 30% 35%,transparent 0 30px,rgba(60,70,60,.1) 30px 31px);color:#131A16">
+  <sc-for list="{{ gridLight }}" as="c" hint-placeholder-count="0"><div style="{{ c.style }}"></div></sc-for>
+  <div style="position:absolute;top:48px;left:76px;right:70px;background:#FFFFFF;border:1px solid #E4E3DB;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.35">Umfahren, was dazukommen soll.</div>
+  <div style="position:absolute;left:10px;top:118px;width:52px;background:#FFFFFF;border:1px solid #E4E3DB;border-radius:16px;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 8px 24px rgba(0,0,0,.15)">
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">tune</span></button>
+    <div style="height:8px"></div>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">crop_free</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:#131A16;color:#FFFFFF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">add_circle</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">do_not_disturb_on</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">route</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">undo</span></button>
+    <div style="height:8px"></div>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">folder_managed</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:#B6F04A;color:#131A16;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">save</span></button>
+    <div style="font:500 11px/1.3 'JetBrains Mono';text-align:center;padding:2px 0 4px"><div>+312</div><div style="color:#5E6B62">−48</div></div>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#5E6B62;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">close</span></button>
+  </div>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:2px solid #4F8A10;background:#FFFFFF;color:#4F8A10;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">layers</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#B6F04A;display:grid;place-items:center"><span style="width:18px;height:18px;border-radius:50%;background:#131A16"></span></button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#FFFFFF;border-top:1px solid #E4E3DB"></div>
+</div></div>
+</div>
+
+<p class="dv-next">Weiter mit: „Charakter-Symbole als eigene Icons statt Material“ · „Grad-Marker erst ab Zoom 13, weiter draußen nur Linie“ · „Theme-Umschalter im Profil zeigen“</p>
+</section>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Karte mit zwei Leisten: rechts Hauptknöpfe, links Detailwerkzeuge (Stand 0.27.0, im Look von <a class="dv-oid" href="#1h">1h</a>, Regel aus <a class="dv-oid" href="#2b">2b</a>)</span></div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;max-width:1240px;margin-bottom:28px;font-size:13px;line-height:1.5;color:#2D3A32">
+  <div><div class="dv-h">Neu im Code</div><code>offline_tool_rail.dart</code>: Leiste links mittig mit Filter · Ausschnitt · Fläche + · Fläche − · Entlang Trails · Rückgängig · Meine Bereiche · Speichern (+/− Zähler) · Schließen. <code>map_screen.dart</code>: Knopfspalte jetzt <code>bottomRight</code>, Maßstab/Quelle unten links. Issue <b>#39</b>: Launcher-Icon für Play Store 1.0.0 — das Logo aus Turn 1 wird gebraucht.</div>
+  <div><div class="dv-h">System</div><b>Rechts = immer da</b> (Fahrt, Position, Ebenen, Idee). <b>Links = Kontext</b> des gerade offenen Menüs, erscheint nur mit ihm. Der auslösende Knopf rechts bleibt markiert — so sieht man, welches Menü die linke Leiste gehört. Oben: ein Satz, was der nächste Strich tut.</div>
+  <div><div class="dv-h">Abweichung zum Code</div>Knöpfe 44 px statt 36 dp (Handschuh, Mindest-Trefferfläche); dafür Gruppen mit Luft statt Trennlinien. Grün/Rot-Schraffur aus 0.27.0 ersetzt durch die Helligkeits-Regel aus <a class="dv-oid" href="#2a">2a</a> — Lime bleibt „mein Trail“.</div>
+</div>
+
+<div class="dv-opts">
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Karte in Ruhe — Hauptknöpfe rechts</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#1B241F;position:relative;overflow:hidden;color:#F2F4EF;background-image:repeating-radial-gradient(ellipse at 25% 40%,transparent 0 30px,rgba(255,255,255,.06) 30px 31px),repeating-radial-gradient(ellipse at 80% 75%,transparent 0 24px,rgba(255,255,255,.05) 24px 25px)">
+  <svg viewBox="0 0 360 760" width="360" height="760" style="position:absolute;inset:0" fill="none" stroke-linecap="round"><path d="M40 560 C120 500 90 420 170 370 S260 270 300 190" stroke="#B58CFF" stroke-width="3" stroke-dasharray="10 8" opacity=".8"></path><path d="M30 260 C80 280 120 340 160 360 S250 420 320 430" stroke="#5AD0F0" stroke-width="5"></path><path d="M180 90 C240 120 280 190 260 270 S200 390 240 490" stroke="#B6F04A" stroke-width="5"></path></svg>
+  <div style="position:absolute;left:14px;bottom:86px;display:flex;flex-direction:column;gap:2px;font:500 10px 'JetBrains Mono';color:#C9D1CA"><div style="display:flex;align-items:center;gap:6px"><span style="width:48px;height:5px;border:1.5px solid #C9D1CA;border-top:0"></span>500 m</div><div style="opacity:.7">© OSM · Protomaps</div></div>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">lightbulb</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">layers</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">my_location</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#B6F04A;color:#0E1411;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35)"><span style="width:18px;height:18px;border-radius:50%;background:#0E1411"></span></button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#0E1411;border-top:1px solid #2A3630;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;text-align:center;font:600 11px Barlow;letter-spacing:.04em;color:#9AA69D"><div style="color:#B6F04A;display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">map</span>Karte</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">route</span>Trails</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">group</span>Buddys</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">person</span>Profil</div></div>
+</div></div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Ebenen offen — Offline-Leiste links, Stift aktiv</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;position:relative;overflow:hidden;background:#56665B;background-image:repeating-radial-gradient(ellipse at 30% 35%,transparent 0 30px,rgba(255,255,255,.12) 30px 31px),repeating-radial-gradient(ellipse at 80% 70%,transparent 0 24px,rgba(255,255,255,.1) 24px 25px);color:#F2F4EF">
+  <svg viewBox="0 0 360 520" width="360" height="520" style="position:absolute;left:0;top:0" fill="none" stroke-linecap="round"><path d="M70 130 C110 170 120 220 160 250 S230 280 250 350" stroke="#B6F04A" stroke-width="5"></path></svg>
+  <sc-for list="{{ gridFull }}" as="c" hint-placeholder-count="0"><div style="{{ c.style }}"></div></sc-for>
+  <div style="position:absolute;top:48px;left:76px;right:70px;background:rgba(14,20,17,.92);border:1px solid #2A3630;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.35">Umfahren, was dazukommen soll. Danach ist die Karte wieder frei.</div>
+  <div style="position:absolute;left:10px;top:118px;width:52px;background:#0E1411;border:1px solid #2A3630;border-radius:16px;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 8px 24px rgba(0,0,0,.35)">
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">tune</span></button>
+    <div style="height:8px"></div>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">crop_free</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:#F2F4EF;color:#0E1411;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">add_circle</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">do_not_disturb_on</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">route</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">undo</span></button>
+    <div style="height:8px"></div>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">folder_managed</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:#B6F04A;color:#0E1411;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">save</span></button>
+    <div style="font:500 11px/1.3 'JetBrains Mono';text-align:center;padding:2px 0 4px"><div>+312</div><div style="color:#C9D1CA">−48</div></div>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#9AA69D;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">close</span></button>
+  </div>
+  <div style="position:absolute;left:76px;bottom:86px;font:500 10px 'JetBrains Mono';color:#F2F4EF"><div style="display:flex;align-items:center;gap:6px"><span style="width:48px;height:5px;border:1.5px solid #F2F4EF;border-top:0"></span>500 m</div></div>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">lightbulb</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:2px solid #B6F04A;background:#0E1411;color:#B6F04A;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">layers</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">my_location</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#B6F04A;color:#0E1411;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35)"><span style="width:18px;height:18px;border-radius:50%;background:#0E1411"></span></button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#0E1411;border-top:1px solid #2A3630;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;text-align:center;font:600 11px Barlow;letter-spacing:.04em;color:#9AA69D"><div style="color:#B6F04A;display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">map</span>Karte</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">route</span>Trails</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">group</span>Buddys</div><div style="display:flex;flex-direction:column;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">person</span>Profil</div></div>
+</div></div>
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Filter aus der Leiste — klappt nach rechts auf, Karte bleibt sichtbar</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#1B241F;position:relative;overflow:hidden;color:#F2F4EF;background-image:repeating-radial-gradient(ellipse at 25% 40%,transparent 0 30px,rgba(255,255,255,.06) 30px 31px)">
+  <svg viewBox="0 0 360 760" width="360" height="760" style="position:absolute;inset:0" fill="none" stroke-linecap="round"><path d="M180 90 C240 120 280 190 260 270 S200 390 240 490" stroke="#B6F04A" stroke-width="5"></path><path d="M40 560 C120 500 90 420 170 370 S260 270 300 190" stroke="#B58CFF" stroke-width="3" stroke-dasharray="10 8"></path></svg>
+  <div style="position:absolute;left:10px;top:118px;width:52px;background:#0E1411;border:1px solid #2A3630;border-radius:16px;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px">
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:#F2F4EF;color:#0E1411;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">tune</span></button>
+    <div style="height:8px"></div>
+    <sc-for list="{{ railRest }}" as="r" hint-placeholder-count="6"><button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#5E6B62;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">{{ r }}</span></button></sc-for>
+  </div>
+  <div style="position:absolute;left:70px;top:118px;width:220px;background:#0E1411;border:1px solid #2A3630;border-radius:16px;padding:14px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+    <div style="font:700 14px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em;color:#9AA69D">Auf der Karte</div>
+    <sc-for list="{{ layers }}" as="l" hint-placeholder-count="5">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:{{ l.color }}">{{ l.icon }}</span><span style="flex:1;font:500 14px Barlow">{{ l.name }}</span><span style="width:36px;height:20px;border-radius:10px;background:{{ l.track }};position:relative"><span style="position:absolute;top:2px;left:{{ l.knob }};width:16px;height:16px;border-radius:50%;background:#F2F4EF"></span></span></div>
+    </sc-for>
+    <div style="font:11px/1.4 Barlow;color:#9AA69D;border-top:1px solid #2A3630;padding-top:8px">Orte ab Zoom 12 · Offizielle Trails ab mittlerem Zoom</div>
+  </div>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">lightbulb</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:2px solid #B6F04A;background:#0E1411;color:#B6F04A;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">layers</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">my_location</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#B6F04A;color:#0E1411;display:grid;place-items:center"><span style="width:18px;height:18px;border-radius:50%;background:#0E1411"></span></button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#0E1411;border-top:1px solid #2A3630"></div>
+</div></div>
+
+<div class="dv-opt" id="3d"><div class="dv-olabel"><a class="dv-oid" href="#3d">3d</a>Dasselbe Muster für die Fahrt — links erscheinen Fahrt-Werkzeuge</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#1B241F;position:relative;overflow:hidden;color:#F2F4EF;background-image:repeating-radial-gradient(ellipse at 25% 40%,transparent 0 30px,rgba(255,255,255,.06) 30px 31px)">
+  <svg viewBox="0 0 360 760" width="360" height="760" style="position:absolute;inset:0" fill="none" stroke-linecap="round"><path d="M180 90 C240 120 280 190 260 270 S200 390 240 490" stroke="#B6F04A" stroke-width="5"></path><path d="M110 640 C140 600 160 540 180 500 S220 440 240 430" stroke="#E8ECE6" stroke-width="4" opacity=".85"></path></svg>
+  {{ ridePulse3 }}
+  <div style="position:absolute;top:48px;left:16px;right:16px;display:flex;gap:8px;align-items:center;background:rgba(14,20,17,.9);border:1px solid #2A3630;border-radius:14px;padding:10px 12px"><span style="width:10px;height:10px;border-radius:50%;background:#FF8A3D"></span><span style="font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.04em">Fahrt läuft</span><span style="margin-left:auto;font:500 13px 'JetBrains Mono'">4,7 km · 38 min</span></div>
+  <div style="position:absolute;left:10px;top:250px;width:52px;background:#0E1411;border:1px solid #2A3630;border-radius:16px;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px">
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">center_focus_strong</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">edit_note</span></button>
+    <button style="width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">photo_camera</span></button>
+  </div>
+  <div style="position:absolute;left:70px;top:262px;background:#0E1411;border:1px solid #2A3630;border-radius:10px;padding:6px 8px;font:11px/1.35 Barlow;color:#C9D1CA;width:120px">Folgen · Hinweis hier · Foto (#37, später)</div>
+  <div style="position:absolute;right:14px;bottom:88px;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">lightbulb</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">layers</span></button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#0E1411;color:#F2F4EF;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">my_location</span></button>
+    <button style="width:60px;height:60px;border-radius:20px;border:0;background:#FF8A3D;color:#0E1411;display:grid;place-items:center"><span style="width:18px;height:18px;border-radius:4px;background:#0E1411"></span></button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#0E1411;border-top:1px solid #2A3630"></div>
+</div></div>
+
+<div class="dv-opt" id="3e"><div class="dv-olabel"><a class="dv-oid" href="#3e">3e</a>Aufbau der Leisten — Spezifikation</div>
+<div class="dv-card" style="width:320px;background:#0E1411;color:#F2F4EF;padding:20px;display:flex;flex-direction:column;gap:12px;font-size:13px;line-height:1.45">
+  <div style="font:800 22px/1 'Barlow Condensed';text-transform:uppercase">Zwei Leisten</div>
+  <div><b style="color:#B6F04A">Rechts, unten</b> — immer: Aufnahme 60 px (Lime, laufend Orange mit Stop), darüber 44 px: Position, Ebenen, Idee. Ein offenes Menü markiert seinen Knopf mit Lime-Rand.</div>
+  <div><b style="color:#F2F4EF">Links, mittig</b> — nur mit Menü: 52 px breit, 44 px Knöpfe, Gruppen durch 8 px Luft. Aktives Werkzeug = helle Fläche. Hauptaktion (Speichern) = Lime, Zähler direkt darunter.</div>
+  <div><b style="color:#F2F4EF">Oben</b> — ein Satz, was der nächste Tipp tut. Verschwindet, sobald kein Werkzeug scharf ist.</div>
+  <div><b style="color:#F2F4EF">Unten links</b> — Maßstab + Quelle, rückt neben die linke Leiste.</div>
+  <div style="font:11px/1.5 'JetBrains Mono';color:#9AA69D;border-top:1px solid #2A3630;padding-top:10px">Schließen: X · Ebenen-Knopf · Zurück — mit Rückfrage bei offenem Entwurf (confirmDiscardDraft).</div>
+</div></div>
+</div>
+
+<p class="dv-next">Weiter mit: „<a class="dv-oid" href="#3b">3b</a> hell (Protomaps light)“ · „Speichern-Dialog aus 0.27.0 (Name, Orte, Fortschritt) im neuen Look“ · „Launcher-Icon für #39 in allen Größen aus <a class="dv-oid" href="#1b">1b</a>“</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Offline-Kacheln bearbeiten — eine Regel statt neuer Farbe (im Look von <a class="dv-oid" href="#1h">1h</a>)</span></div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;max-width:1240px;margin-bottom:28px;font-size:13px;line-height:1.5;color:#2D3A32">
+  <div><div class="dv-h">Heute (0.27.0)</div>Aus <code>area_overlay.dart</code> / <code>area_draw.dart</code>: Abdunkelung <code>0x66000000</code> mit gespeicherten Kacheln als Löchern; Entwurf grün <code>0x5530A46C</code> darüber, auch auf hellen Kacheln; Radierer wirkt nur auf <code>draft.keys</code>. Die Zahl zählt <code>draft.shape.countTiles</code> — also auch schon Gespeichertes.</div>
+  <div><div class="dv-h">Regel</div><b>Helligkeit</b> = was auf dem Gerät liegt. <b>Schraffur + gestrichelter Rand</b> = offene Änderung. Die Schraffur hat immer die Gegenhelligkeit ihres Grunds, darum reicht eine Regel für beide Richtungen. Kein Grün mehr — Lime bleibt „mein Trail“.</div>
+  <div><div class="dv-h">Meine Einschätzung</div><b>A</b> ist richtig: Wer offline nachbessert, denkt in „mein Bestand“, nicht in Bereichen. Aber: Bereichsnamen werden dann unscharf (ein Bereich schrumpft still). Deshalb nennt der Speichern-Dialog die betroffenen Bereiche beim Namen.</div>
+</div>
+
+<div class="dv-opts">
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Legende — vier Zustände</div>
+<div class="dv-card" style="width:300px;background:#0E1411;color:#F2F4EF;padding:20px;display:flex;flex-direction:column;gap:14px">
+  <sc-for list="{{ legend }}" as="l" hint-placeholder-count="4">
+    <div style="display:flex;gap:14px;align-items:center"><div style="width:56px;height:56px;flex:none;position:relative;background:#56665B;background-image:repeating-radial-gradient(ellipse at 30% 30%,transparent 0 10px,rgba(255,255,255,.12) 10px 11px);border-radius:4px;overflow:hidden"><div style="{{ l.style }}"></div></div><div><div style="font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.04em">{{ l.name }}</div><div style="font-size:12px;color:#9AA69D;line-height:1.4">{{ l.desc }}</div></div></div>
+  </sc-for>
+  <div style="font:11px/1.5 'JetBrains Mono';color:#5E6B62;border-top:1px solid #2A3630;padding-top:10px">Gestrichelt = noch nicht gespeichert.<br>Heller Vollrand = Grenze des Bestands.</div>
+</div></div>
+
+<div class="dv-opt" id="2b"><div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>A — die Leiste bearbeitet den ganzen Bestand (Empfehlung)</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;position:relative;overflow:hidden;background:#56665B;background-image:repeating-radial-gradient(ellipse at 30% 35%,transparent 0 30px,rgba(255,255,255,.12) 30px 31px),repeating-radial-gradient(ellipse at 80% 70%,transparent 0 24px,rgba(255,255,255,.1) 24px 25px);color:#F2F4EF">
+  <svg viewBox="0 0 360 500" width="360" height="500" style="position:absolute;left:0;top:0" fill="none" stroke-linecap="round"><path d="M70 110 C110 150 120 200 160 230 S230 260 250 330" stroke="#B6F04A" stroke-width="5"></path><path d="M40 300 C90 280 140 320 180 300" stroke="#5AD0F0" stroke-width="5"></path></svg>
+  <sc-for list="{{ gridA }}" as="c" hint-placeholder-count="0"><div style="{{ c.style }}"></div></sc-for>
+  <div style="position:absolute;top:48px;left:16px;right:16px;background:rgba(14,20,17,.9);border:1px solid #2A3630;border-radius:14px;padding:10px 12px;font-size:13px;display:flex;gap:8px;align-items:center"><span style="font:700 12px 'Barlow Condensed';background:#F2F4EF;color:#0E1411;border-radius:6px;padding:2px 6px;letter-spacing:.05em">DAZU</span>Umfahren, was dazukommen soll</div>
+  <div style="position:absolute;left:236px;top:208px;width:112px;background:#0E1411;border:1px solid #2A3630;border-radius:10px;padding:6px 8px;font:11px/1.35 Barlow;color:#C9D1CA">Strich lief über Gespeichertes: bleibt hell, zählt nicht, lädt nicht neu.</div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:260px;background:#0E1411;border-radius:28px 28px 0 0;padding:12px 20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+    <div style="width:40px;height:4px;border-radius:2px;background:#2A3630;margin:0 auto"></div>
+    <div style="display:flex;align-items:center"><span style="font:800 24px/1 'Barlow Condensed';text-transform:uppercase;flex:1">Offline-Karten</span><span style="color:#9AA69D;font-size:18px">✕</span></div>
+    <div style="font-size:12px;color:#9AA69D;line-height:1.45">Hell liegt auf dem Gerät. Hell schraffiert kommt dazu, dunkel schraffiert fällt weg.</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <button style="background:#F2F4EF;color:#0E1411;border:0;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">+ Dazu</button>
+      <button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">− Weg</button>
+      <button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">Trails</button>
+      <button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">Zurück</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:auto">
+      <div style="flex:1"><div style="font:500 20px 'JetBrains Mono'"><span>+312</span> <span style="color:#5E6B62">/</span> <span style="color:#C9D1CA">−48</span></div><div style="font-size:11px;color:#9AA69D">Kacheln · Zoom 5–13</div></div>
+      <button style="background:#B6F04A;color:#0E1411;border:0;border-radius:14px;padding:14px 18px;font:700 16px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.06em">Speichern …</button>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="2c"><div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>A — Speichern-Dialog nennt beides</div>
+<div class="dv-card" style="width:340px;background:#161E19;color:#F2F4EF;border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:14px;border-color:#2A3630">
+  <div style="font:800 24px/1 'Barlow Condensed';text-transform:uppercase">Änderung speichern</div>
+  <div style="display:flex;gap:12px"><div style="width:36px;height:36px;flex:none;border-radius:8px;border:1.5px dashed #F2F4EF;background:#1a211d;background-image:repeating-linear-gradient(45deg,rgba(242,244,239,.6) 0 2px,transparent 2px 7px)"></div><div><div style="font:600 14px Barlow">Wird geladen</div><div style="font:500 13px 'JetBrains Mono';color:#C9D1CA">312 Kacheln · 21,4 MB</div><div style="font-size:12px;color:#9AA69D">als neuer Bereich „Gezeichnet 29.9.“ · braucht Netz</div></div></div>
+  <div style="display:flex;gap:12px"><div style="width:36px;height:36px;flex:none;border-radius:8px;border:1.5px dashed #0E1411;background:#56665B;background-image:repeating-linear-gradient(45deg,rgba(14,20,17,.7) 0 2px,transparent 2px 7px)"></div><div><div style="font:600 14px Barlow">Wird entfernt</div><div style="font:500 13px 'JetBrains Mono';color:#C9D1CA">48 Kacheln · gibt 3,4 MB frei</div><div style="font-size:12px;color:#9AA69D">aus „Rosskopf“ und „Hinterberg“ · ohne Netz</div></div></div>
+  <div style="background:#0E1411;border-radius:12px;padding:10px 12px;font:500 12px 'JetBrains Mono';display:flex;justify-content:space-between"><span style="color:#9AA69D">Danach auf dem Gerät</span><span>184,0 MB</span></div>
+  <div style="display:flex;justify-content:flex-end;gap:8px"><button style="background:transparent;color:#C9D1CA;border:0;padding:12px 14px;font:600 14px Barlow">Abbrechen</button><button style="background:#B6F04A;color:#0E1411;border:0;border-radius:12px;padding:12px 18px;font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">Laden &amp; entfernen</button></div>
+</div></div>
+
+<div class="dv-opt" id="2d"><div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>B — nur neue Bereiche, Radierer auf Hell gesperrt</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;position:relative;overflow:hidden;background:#56665B;background-image:repeating-radial-gradient(ellipse at 30% 35%,transparent 0 30px,rgba(255,255,255,.12) 30px 31px),repeating-radial-gradient(ellipse at 80% 70%,transparent 0 24px,rgba(255,255,255,.1) 24px 25px);color:#F2F4EF">
+  <sc-for list="{{ gridB }}" as="c" hint-placeholder-count="0"><div style="{{ c.style }}"></div></sc-for>
+  <div style="position:absolute;top:48px;left:16px;right:16px;background:rgba(14,20,17,.9);border:1px solid #FF8A3D;border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.4">Gespeichertes entfernst du unter <b>Meine Bereiche</b> — nur ganze Bereiche.</div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:260px;background:#0E1411;border-radius:28px 28px 0 0;padding:12px 20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+    <div style="width:40px;height:4px;border-radius:2px;background:#2A3630;margin:0 auto"></div>
+    <div style="display:flex;align-items:center"><span style="font:800 24px/1 'Barlow Condensed';text-transform:uppercase;flex:1">Bereich zeichnen</span><span style="color:#9AA69D;font-size:18px">✕</span></div>
+    <div style="font-size:12px;color:#9AA69D;line-height:1.45">Hell liegt schon auf dem Gerät. Der Radierer nimmt nur Schraffiertes weg.</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase">+ Dazu</button>
+      <button style="background:#F2F4EF;color:#0E1411;border:0;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase">− Radierer</button>
+      <button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase">Trails</button>
+      <button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:10px 0;font:700 13px 'Barlow Condensed';text-transform:uppercase">Zurück</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:auto">
+      <div style="flex:1"><div style="font:500 20px 'JetBrains Mono'">+312</div><div style="font-size:11px;color:#9AA69D">neue Kacheln · 21,4 MB</div></div>
+      <button style="background:#B6F04A;color:#0E1411;border:0;border-radius:14px;padding:14px 18px;font:700 16px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.06em">Speichern …</button>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="2e"><div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>Rückfall ohne Schraffur — halbe Abdunkelung + Randfarbe</div>
+<div class="dv-card" style="width:360px;height:520px;border-radius:24px;position:relative;overflow:hidden;background:#56665B;background-image:repeating-radial-gradient(ellipse at 30% 35%,transparent 0 30px,rgba(255,255,255,.12) 30px 31px),repeating-radial-gradient(ellipse at 80% 70%,transparent 0 24px,rgba(255,255,255,.1) 24px 25px);color:#F2F4EF">
+  <sc-for list="{{ gridC }}" as="c" hint-placeholder-count="0"><div style="{{ c.style }}"></div></sc-for>
+  <div style="position:absolute;left:12px;right:12px;bottom:12px;background:rgba(14,20,17,.92);border:1px solid #2A3630;border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.45;color:#C9D1CA">Beide Änderungen liegen auf halber Helligkeit — getrennt nur noch durch die Randfarbe (hell = dazu, dunkel = weg). Lesbar, aber schwächer als <a class="dv-oid" href="#2b">2b</a>.</div>
+</div></div>
+</div>
+
+<div style="max-width:1240px;font-size:13px;line-height:1.55;color:#2D3A32;margin-bottom:8px"><div class="dv-h">Zur Schraffur auf MapLibre</div>Beide Wege sind machbar; ich würde <b>gerechnete Linien</b> nehmen: Die Kacheln sind achsenparallele Rechtecke im Mercator-Raster, die Diagonalen je Zeilen-Lauf (wie <code>_rowRuns</code>) sind billig zu erzeugen und laufen durch dieselbe <code>MapViewPolyline</code>-Fassade auf beiden Engines — kein Stil-Bild nötig. Abstand in Bildschirm-Pixeln festlegen (z. B. 7 px bei aktuellem Zoom), sonst wird die Schraffur beim Zoomen zu Streifen. Gestrichelter Rand: <code>dash</code> gibt es an der Polyline schon (Ausgangskorb).</div>
+
+<p class="dv-next">Weiter mit: „<a class="dv-oid" href="#2b">2b</a> auch hell (Protomaps light)“ · „Laufender Strich des Radierers auf Gespeichertem zeigen“ · „<a class="dv-oid" href="#2c">2c</a> mit Fehlerfall: kein Netz fürs Laden“</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">TrailBuddy — Farbkonzept, Logo, Screens, Animation</span></div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;max-width:1240px;margin-bottom:36px;font-size:13px;line-height:1.5;color:#2D3A32">
+  <div><div class="dv-h">Ausgangslage</div>Flutter / Material 3, Seed <code>#1F6F5F</code>, Standard-Flutter-Icon als App-Logo, Login mit <code>Icons.pedal_bike</code>. Karten-Semantik heute: Grün mein Trail · Blau Buddy · Orange Warnung · Gelb neuer Hinweis · Violett offiziell · Magenta Kandidat · Graphit Fahrt.</div>
+  <div><div class="dv-h">Richtung</div>Sportlich + kartografisch: dunkle „Nacht-Karte“ als Grundton, ein Signal-Lime als Marke, Höhenlinien als Textur, Mono-Ziffern für Länge/Hm/S-Grad. <b>Barlow Condensed</b> (Titel), <b>Barlow</b> (Text), <b>JetBrains Mono</b> (Daten). Hell und dunkel.</div>
+  <div><div class="dv-h">Annahmen</div>Neue Karten-Semantik behält die Trennung „Farbe sagt, was ICH damit zu tun habe“, aber auf einem dunklen Grund mit höherem Kontrast. Aus den Issues: Nachrichten (#34), Fahrt-Zusammenfassung / Airtime (#36), Routing (#35) als Zukunfts-Screens. Logo muss als weiße Silhouette in 24 px lesbar sein.</div>
+</div>
+
+<div class="dv-h">Farbkonzept</div>
+<div class="dv-opts">
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Palette dunkel / hell + Karten-Semantik</div>
+<div class="dv-card" style="width:1180px;display:grid;grid-template-columns:1fr 1fr">
+  <div style="background:#0E1411;color:#F2F4EF;padding:28px">
+    <div style="font:700 13px 'JetBrains Mono',monospace;color:#9AA69D;letter-spacing:.08em;margin-bottom:14px">DUNKEL · STANDARD</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      <div style="background:#0E1411;border:1px solid #2A3630;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#0E1411</span><span style="font-size:11px;color:#9AA69D">Grund</span></div>
+      <div style="background:#161E19;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#161E19</span><span style="font-size:11px;color:#9AA69D">Fläche</span></div>
+      <div style="background:#1F2923;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#1F2923</span><span style="font-size:11px;color:#9AA69D">Fläche 2</span></div>
+      <div style="background:#B6F04A;color:#0E1411;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#B6F04A</span><span style="font-size:11px">Marke · Lime</span></div>
+    </div>
+    <div style="font:600 12px Barlow;color:#9AA69D;margin:22px 0 8px;letter-spacing:.06em">TEXT</div>
+    <div style="display:flex;gap:16px;align-items:baseline"><span style="font:800 28px 'Barlow Condensed';text-transform:uppercase">Rosskopf Süd</span><span style="font:400 14px Barlow;color:#C9D1CA">Belegt von Jan, Mira</span><span style="font:500 13px 'JetBrains Mono';color:#B6F04A">3,4 km · ↓420 Hm · S2</span></div>
+  </div>
+  <div style="background:#F3F2EC;color:#131A16;padding:28px">
+    <div style="font:700 13px 'JetBrains Mono',monospace;color:#5E6B62;letter-spacing:.08em;margin-bottom:14px">HELL</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      <div style="background:#F3F2EC;border:1px solid #D9D8CF;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#F3F2EC</span><span style="font-size:11px;color:#5E6B62">Grund</span></div>
+      <div style="background:#FFFFFF;border:1px solid #E4E3DB;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#FFFFFF</span><span style="font-size:11px;color:#5E6B62">Fläche</span></div>
+      <div style="background:#131A16;color:#F2F4EF;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#131A16</span><span style="font-size:11px;color:#9AA69D">Text / Nacht</span></div>
+      <div style="background:#4F8A10;color:#F2F4EF;border-radius:10px;height:78px;padding:10px;display:flex;flex-direction:column;justify-content:flex-end"><span style="font:500 11px 'JetBrains Mono',monospace">#4F8A10</span><span style="font-size:11px">Marke auf Hell</span></div>
+    </div>
+    <div style="font:600 12px Barlow;color:#5E6B62;margin:22px 0 8px;letter-spacing:.06em">TEXT</div>
+    <div style="display:flex;gap:16px;align-items:baseline"><span style="font:800 28px 'Barlow Condensed';text-transform:uppercase">Rosskopf Süd</span><span style="font:400 14px Barlow;color:#3B473F">Belegt von Jan, Mira</span><span style="font:500 13px 'JetBrains Mono';color:#4F8A10">3,4 km · ↓420 Hm · S2</span></div>
+  </div>
+  <div style="grid-column:1/-1;background:#1B241F;padding:22px 28px;display:grid;grid-template-columns:repeat(7,1fr);gap:14px;background-image:repeating-radial-gradient(ellipse at 20% 120%,transparent 0 22px,rgba(255,255,255,.05) 22px 23px),repeating-radial-gradient(ellipse at 85% -20%,transparent 0 26px,rgba(255,255,255,.05) 26px 27px)">
+    <div style="grid-column:1/-1;font:700 13px 'JetBrains Mono',monospace;color:#9AA69D;letter-spacing:.08em">KARTEN-SEMANTIK — DIE FARBE SAGT, WAS ICH MIT DEM TRAIL ZU TUN HABE</div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:#B6F04A;margin-bottom:8px"></div><b>Mein Trail</b><br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#B6F04A</span></div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:#5AD0F0;margin-bottom:8px"></div><b>Von Buddy</b><br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#5AD0F0</span></div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:#FF8A3D;margin-bottom:8px"></div><b>Gesperrt / Warnung</b><br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#FF8A3D</span></div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:#5AD0F0;box-shadow:0 0 0 3px #FFD23F;margin-bottom:8px"></div><b>Neuer Hinweis</b> (Leuchtrand)<br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#FFD23F</span></div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:repeating-linear-gradient(90deg,#B58CFF 0 10px,transparent 10px 16px);margin-bottom:8px"></div><b>Offiziell</b> (gestrichelt)<br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#B58CFF</span></div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:#FF6BA8;margin-bottom:8px"></div><b>Kandidat</b> (Frage)<br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#FF6BA8</span></div>
+    <div style="color:#F2F4EF;font-size:12px"><div style="height:6px;border-radius:3px;background:#E8ECE6;opacity:.8;margin-bottom:8px"></div><b>Meine Fahrt</b> / Position<br><span style="font:11px 'JetBrains Mono';color:#9AA69D">#E8ECE6</span></div>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-h">Logo — vier Richtungen (jeweils Marke · dunkel · weißes Benachrichtigungs-Icon)</div>
+<div class="dv-opts">
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Serpentine — zwei Kehren, ein Ziel</div>
+<div class="dv-card" style="width:280px;display:grid;grid-template-columns:1fr 1fr 1fr;background:#E9E7E0;gap:1px">
+  <div style="background:#B6F04A;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="none" stroke="#0E1411" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72"></path><circle cx="82" cy="72" r="7" fill="#0E1411" stroke="none"></circle></svg></div>
+  <div style="background:#0E1411;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="none" stroke="#B6F04A" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72"></path><circle cx="82" cy="72" r="7" fill="#FFFFFF" stroke="none"></circle></svg></div>
+  <div style="background:#5E6B62;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="40" height="40" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72"></path><circle cx="82" cy="72" r="7" fill="#fff" stroke="none"></circle></svg></div>
+  <div style="grid-column:1/-1;background:#fff;padding:12px 14px;font-size:12px;color:#2D3A32;line-height:1.45">Zwei Kehren + Endpunkt: „hier geht’s hin“. Sehr ruhig, quadratisch, in 24 px klar. <b>Empfehlung</b> fürs Notification-Icon.</div>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Zwei Spuren werden eine — Buddys</div>
+<div class="dv-card" style="width:280px;display:grid;grid-template-columns:1fr 1fr 1fr;background:#E9E7E0;gap:1px">
+  <div style="background:#B6F04A;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="none" stroke="#0E1411" stroke-width="14" stroke-linecap="round"><path d="M22 18v18c0 20 28 22 28 44v4"></path><path d="M78 18v18c0 20-28 22-28 44"></path></svg></div>
+  <div style="background:#0E1411;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="none" stroke-width="14" stroke-linecap="round"><path d="M22 18v18c0 20 28 22 28 44v4" stroke="#B6F04A"></path><path d="M78 18v18c0 20-28 22-28 44" stroke="#5AD0F0"></path></svg></div>
+  <div style="background:#5E6B62;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="40" height="40" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"><path d="M22 18v18c0 20 28 22 28 44v4"></path><path d="M78 18v18c0 20-28 22-28 44"></path></svg></div>
+  <div style="grid-column:1/-1;background:#fff;padding:12px 14px;font-size:12px;color:#2D3A32;line-height:1.45">Zweifarbig erzählt es Lime + Cyan = ich + Buddy. Als Weiß-Silhouette ein „Y“ — lesbar, aber generischer.</div>
+</div></div>
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Monogramm TB — der Stamm ist der Trail</div>
+<div class="dv-card" style="width:280px;display:grid;grid-template-columns:1fr 1fr 1fr;background:#E9E7E0;gap:1px">
+  <div style="background:#B6F04A;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="none" stroke="#0E1411" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22h36"></path><path d="M32 22v44a12 12 0 0 0 12 12h14"></path><path d="M58 30v48"></path><path d="M58 30h10a11 11 0 0 1 0 22h-10"></path><path d="M58 52h13a13 13 0 0 1 0 26H58"></path></svg></div>
+  <div style="background:#0E1411;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="none" stroke="#B6F04A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22h36"></path><path d="M32 22v44a12 12 0 0 0 12 12h14"></path><path d="M58 30v48" stroke="#F2F4EF"></path><path d="M58 30h10a11 11 0 0 1 0 22h-10" stroke="#F2F4EF"></path><path d="M58 52h13a13 13 0 0 1 0 26H58" stroke="#F2F4EF"></path></svg></div>
+  <div style="background:#5E6B62;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="40" height="40" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"><path d="M14 22h36"></path><path d="M32 22v44a12 12 0 0 0 12 12h14"></path><path d="M58 30v48"></path><path d="M58 30h10a11 11 0 0 1 0 22h-10"></path><path d="M58 52h13a13 13 0 0 1 0 26H58"></path></svg></div>
+  <div style="grid-column:1/-1;background:#fff;padding:12px 14px;font-size:12px;color:#2D3A32;line-height:1.45">Eindeutig „TrailBuddy“, gut als Wortmarke-Ersatz. In 24 px wird das B eng — eher App-Icon als Statusleiste.</div>
+</div></div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Stollen — Reifenprofil mit Trail-Lücke</div>
+<div class="dv-card" style="width:280px;display:grid;grid-template-columns:1fr 1fr 1fr;background:#E9E7E0;gap:1px">
+  <div style="background:#B6F04A;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="#0E1411"><rect x="14" y="14" width="18" height="18" rx="5"></rect><rect x="41" y="14" width="18" height="18" rx="5"></rect><rect x="68" y="14" width="18" height="18" rx="5"></rect><rect x="14" y="41" width="18" height="18" rx="5"></rect><rect x="68" y="41" width="18" height="18" rx="5"></rect><rect x="14" y="68" width="18" height="18" rx="5"></rect><rect x="41" y="68" width="18" height="18" rx="5"></rect><path d="M50 36v28" stroke="#0E1411" stroke-width="8" stroke-linecap="round"></path><rect x="68" y="68" width="18" height="18" rx="9"></rect></svg></div>
+  <div style="background:#0E1411;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="64" height="64" fill="#B6F04A"><rect x="14" y="14" width="18" height="18" rx="5"></rect><rect x="41" y="14" width="18" height="18" rx="5"></rect><rect x="68" y="14" width="18" height="18" rx="5"></rect><rect x="14" y="41" width="18" height="18" rx="5"></rect><rect x="68" y="41" width="18" height="18" rx="5"></rect><rect x="14" y="68" width="18" height="18" rx="5"></rect><rect x="41" y="68" width="18" height="18" rx="5"></rect><path d="M50 36v28" stroke="#F2F4EF" stroke-width="8" stroke-linecap="round"></path><rect x="68" y="68" width="18" height="18" rx="9" fill="#F2F4EF"></rect></svg></div>
+  <div style="background:#5E6B62;aspect-ratio:1;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="40" height="40" fill="#fff"><rect x="14" y="14" width="18" height="18" rx="5"></rect><rect x="41" y="14" width="18" height="18" rx="5"></rect><rect x="68" y="14" width="18" height="18" rx="5"></rect><rect x="14" y="41" width="18" height="18" rx="5"></rect><rect x="68" y="41" width="18" height="18" rx="5"></rect><rect x="14" y="68" width="18" height="18" rx="5"></rect><rect x="41" y="68" width="18" height="18" rx="5"></rect><path d="M50 36v28" stroke="#fff" stroke-width="8" stroke-linecap="round"></path><rect x="68" y="68" width="18" height="18" rx="9"></rect></svg></div>
+  <div style="grid-column:1/-1;background:#fff;padding:12px 14px;font-size:12px;color:#2D3A32;line-height:1.45">Am „bikigsten“, gutes Muster für Hintergründe und Splash. Als Icon eher Textur als Zeichen — Ergänzung, nicht Hauptlogo.</div>
+</div></div>
+
+<div class="dv-opt" id="1f"><div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>Benachrichtigungs-Icon (Android, weiß + Alpha) — Vorschau in Statusleiste</div>
+<div class="dv-card" style="width:300px;background:#1F2923;padding:16px;display:flex;flex-direction:column;gap:14px">
+  <div style="display:flex;align-items:center;gap:10px;color:#F2F4EF;font:500 12px 'JetBrains Mono'"><span>21:18</span><img src="notification_icon_512.png" width="18" height="18" alt="TrailBuddy" style="opacity:.95"><span style="margin-left:auto;opacity:.7">▲ ▮▮▮ 78%</span></div>
+  <div style="background:#2A3630;border-radius:14px;padding:12px;display:flex;gap:12px;align-items:flex-start;color:#F2F4EF"><span style="width:28px;height:28px;border-radius:8px;background:#B6F04A;display:grid;place-items:center;flex:none"><img src="notification_icon_512.png" width="18" height="18" alt="" style="filter:brightness(0)"></span><div style="font-size:13px;line-height:1.4"><b>TrailBuddy</b> · gerade eben<br><span style="color:#C9D1CA">Ein Buddy hat einen Trail gemeldet, den du siehst.</span></div></div>
+  <div style="font:11px 'JetBrains Mono';color:#9AA69D">notification_icon_512.png · 512×512 · weiß · Alpha · 12 % Rand</div>
+</div></div>
+</div>
+
+<div class="dv-h">Screens im neuen Look (dunkel)</div>
+<div class="dv-opts">
+<div class="dv-opt" id="1g"><div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>Login</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#0E1411;color:#F2F4EF;display:flex;flex-direction:column;padding:56px 28px 32px;box-sizing:border-box;background-image:repeating-radial-gradient(ellipse at 110% 10%,transparent 0 34px,rgba(182,240,74,.07) 34px 35px)">
+  <svg viewBox="0 0 100 100" width="72" height="72" fill="none" stroke="#B6F04A" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72"></path><circle cx="82" cy="72" r="7" fill="#fff" stroke="none"></circle></svg>
+  <div style="font:800 44px/1 'Barlow Condensed';text-transform:uppercase;margin-top:18px;letter-spacing:.01em">Trail<span style="color:#B6F04A">Buddy</span></div>
+  <div style="font-size:14px;color:#9AA69D;margin-top:8px">Trails teilen — nur mit deinen Buddys.</div>
+  <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+    <label style="display:flex;flex-direction:column;gap:6px;font:600 11px Barlow;letter-spacing:.08em;color:#9AA69D">E-MAIL<input value="mira@web.de" style="background:#161E19;border:1px solid #2A3630;border-radius:12px;padding:14px;color:#F2F4EF;font:15px Barlow;outline:none"></label>
+    <label style="display:flex;flex-direction:column;gap:6px;font:600 11px Barlow;letter-spacing:.08em;color:#9AA69D">PASSWORT<input type="password" value="••••••••••" style="background:#161E19;border:1px solid #2A3630;border-radius:12px;padding:14px;color:#F2F4EF;font:15px Barlow;outline:none"></label>
+    <button style="margin-top:8px;background:#B6F04A;color:#0E1411;border:0;border-radius:14px;padding:16px;font:700 17px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.06em">Anmelden</button>
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:#C9D1CA;padding:4px 2px"><span>Passwort vergessen?</span><span style="color:#B6F04A">Registrieren</span></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1h"><div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Karte — Fahrt läuft, Hinweis leuchtet</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#1B241F;position:relative;color:#F2F4EF;background-image:repeating-radial-gradient(ellipse at 25% 40%,transparent 0 30px,rgba(255,255,255,.06) 30px 31px),repeating-radial-gradient(ellipse at 80% 75%,transparent 0 24px,rgba(255,255,255,.05) 24px 25px)">
+  <svg viewBox="0 0 360 760" width="360" height="760" style="position:absolute;inset:0" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M40 620 C120 560 90 480 170 430 S260 330 300 250" stroke="#B58CFF" stroke-width="3" stroke-dasharray="10 8" opacity=".8"></path>
+    <path d="M30 300 C80 320 120 380 160 400 S250 460 320 470" stroke="#5AD0F0" stroke-width="5"></path>
+    <path d="M60 180 C110 200 150 260 180 300 S240 380 250 440" stroke="#5AD0F0" stroke-width="5" style="animation:tbGlow 1.8s ease-in-out infinite"></path>
+    <path d="M200 120 C260 150 300 220 280 300 S220 420 260 520" stroke="#B6F04A" stroke-width="5"></path>
+    <path d="M120 700 C150 660 170 600 190 560 S230 500 250 490" stroke="#E8ECE6" stroke-width="4" opacity=".85"></path>
+  </svg>
+  {{ ridePulse }}
+  <div style="position:absolute;top:52px;left:16px;right:16px;display:flex;gap:8px;align-items:center;background:rgba(14,20,17,.85);backdrop-filter:blur(8px);border:1px solid #2A3630;border-radius:14px;padding:10px 12px"><span style="width:10px;height:10px;border-radius:50%;background:#FF8A3D"></span><span style="font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.04em">Fahrt läuft</span><span style="margin-left:auto;font:500 13px 'JetBrains Mono'">4,7 km · 38 min</span></div>
+  <div style="position:absolute;left:16px;bottom:96px;display:flex;flex-direction:column;gap:8px">
+    <button style="width:56px;height:56px;border-radius:18px;border:0;background:#FF8A3D;color:#0E1411;font:800 12px Barlow;letter-spacing:.04em">STOP</button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#161E19;color:#F2F4EF;font-size:16px">◎</button>
+    <button style="width:44px;height:44px;border-radius:14px;border:1px solid #2A3630;background:#161E19;color:#F2F4EF;font-size:16px">≡</button>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:72px;background:#0E1411;border-top:1px solid #2A3630;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;text-align:center;font:600 11px Barlow;letter-spacing:.04em;color:#9AA69D"><div style="color:#B6F04A">▣<br>Karte</div><div>⌇<br>Trails</div><div>⚇<br>Buddys</div><div>◯<br>Profil</div></div>
+</div></div>
+
+<div class="dv-opt" id="1i"><div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Trail-Blatt</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#1B241F;position:relative;color:#F2F4EF;overflow:hidden">
+  <div style="position:absolute;inset:0 0 auto 0;height:260px;background-image:repeating-radial-gradient(ellipse at 30% 30%,transparent 0 26px,rgba(255,255,255,.06) 26px 27px)"><svg viewBox="0 0 360 260" width="360" height="260" fill="none" stroke="#5AD0F0" stroke-width="5" stroke-linecap="round"><path d="M40 60 C120 90 160 160 200 180 S290 210 330 230" style="animation:tbGlow 1.8s ease-in-out infinite"></path></svg></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;top:220px;background:#0E1411;border-radius:28px 28px 0 0;padding:14px 20px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
+    <div style="width:40px;height:4px;border-radius:2px;background:#2A3630;margin:0 auto"></div>
+    <div><div style="font:800 30px/1 'Barlow Condensed';text-transform:uppercase">Rosskopf Süd</div><div style="font-size:13px;color:#9AA69D;margin-top:4px">auch: Kehrenweg · Belegt von Jan, Mira — du bist ihn noch nicht gefahren.</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <div style="background:#161E19;border-radius:12px;padding:10px"><div style="font:600 10px Barlow;color:#9AA69D;letter-spacing:.08em">LÄNGE</div><div style="font:500 18px 'JetBrains Mono'">3,4 km</div></div>
+      <div style="background:#161E19;border-radius:12px;padding:10px"><div style="font:600 10px Barlow;color:#9AA69D;letter-spacing:.08em">HÖHE</div><div style="font:500 18px 'JetBrains Mono'">↓420 <span style="font-size:12px;color:#9AA69D">Hm</span></div></div>
+      <div style="background:#161E19;border-radius:12px;padding:10px"><div style="font:600 10px Barlow;color:#9AA69D;letter-spacing:.08em">S-GRAD</div><div style="font:500 18px 'JetBrains Mono';color:#B6F04A">S2 <span style="font-size:12px;color:#9AA69D">S1–S3 · 4</span></div></div>
+    </div>
+    <div style="background:#161E19;border-radius:12px;padding:10px 12px"><div style="font:600 10px Barlow;color:#9AA69D;letter-spacing:.08em;margin-bottom:6px">HÖHENPROFIL · IN TRAIL-RICHTUNG</div><svg viewBox="0 0 300 60" width="100%" height="60" preserveAspectRatio="none"><path d="M0 8 L40 12 L80 22 L120 26 L160 38 L200 44 L240 52 L300 58 V60 H0Z" fill="rgba(182,240,74,.18)"></path><path d="M0 8 L40 12 L80 22 L120 26 L160 38 L200 44 L240 52 L300 58" fill="none" stroke="#B6F04A" stroke-width="2"></path></svg><div style="font:11px 'JetBrains Mono';color:#9AA69D;margin-top:4px">Ø 14 % · steilstes Stück 31 % auf 100 m</div></div>
+    <div style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.5);border-radius:12px;padding:10px 12px;font-size:13px"><span style="color:#FFD23F;font-weight:600">Hinweis von Jan · gestern</span><br>Baum liegt quer nach der zweiten Kehre.</div>
+    <div style="display:flex;gap:8px;margin-top:auto"><button style="flex:1;background:#B6F04A;color:#0E1411;border:0;border-radius:12px;padding:14px;font:700 15px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">Hinweis schreiben</button><button style="background:#161E19;color:#F2F4EF;border:1px solid #2A3630;border-radius:12px;padding:14px 16px;font:700 15px 'Barlow Condensed';text-transform:uppercase">Karte</button></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1j"><div class="dv-olabel"><a class="dv-oid" href="#1j">1j</a>Trail-Liste</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#0E1411;color:#F2F4EF;padding:56px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font:800 32px/1 'Barlow Condensed';text-transform:uppercase">Trails</span><span style="font:500 12px 'JetBrains Mono';color:#9AA69D">23 · 48 km</span></div>
+  <div style="display:flex;gap:6px;margin:6px 0 4px"><span style="background:#B6F04A;color:#0E1411;border-radius:999px;padding:6px 12px;font:600 12px Barlow">Alle</span><span style="border:1px solid #2A3630;border-radius:999px;padding:6px 12px;font:600 12px Barlow;color:#C9D1CA">Meine</span><span style="border:1px solid #2A3630;border-radius:999px;padding:6px 12px;font:600 12px Barlow;color:#C9D1CA">Von Buddys</span><span style="border:1px solid #2A3630;border-radius:999px;padding:6px 12px;font:600 12px Barlow;color:#C9D1CA">Neu</span></div>
+  <sc-for list="{{ trails }}" as="t" hint-placeholder-count="6">
+    <div style="display:flex;gap:12px;align-items:center;background:#161E19;border-radius:14px;padding:12px;border:1px solid {{ t.border }}">
+      <span style="width:6px;height:40px;border-radius:3px;background:{{ t.color }}"></span>
+      <div style="flex:1;min-width:0"><div style="font:600 15px Barlow;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</div><div style="font:500 12px 'JetBrains Mono';color:#9AA69D;margin-top:2px">{{ t.meta }}</div></div>
+      <span style="font:600 11px Barlow;color:{{ t.tagColor }};letter-spacing:.04em">{{ t.tag }}</span>
+    </div>
+  </sc-for>
+</div></div>
+
+<div class="dv-opt" id="1k"><div class="dv-olabel"><a class="dv-oid" href="#1k">1k</a>Buddys — mit Verbindungs-Zusammenfassung</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#0E1411;color:#F2F4EF;padding:56px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <span style="font:800 32px/1 'Barlow Condensed';text-transform:uppercase">Buddys</span>
+  <div style="display:flex;gap:8px"><input value="Benutzername oder E-Mail" style="flex:1;background:#161E19;border:1px solid #2A3630;border-radius:12px;padding:12px 14px;color:#9AA69D;font:14px Barlow"><button style="background:#161E19;border:1px solid #2A3630;border-radius:12px;color:#F2F4EF;width:46px">⌕</button></div>
+  <div style="background:#161E19;border:1px solid #B6F04A;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px"><div style="font:700 14px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.04em;color:#B6F04A">Mit Jan verbunden</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center"><div><div style="font:500 22px 'JetBrains Mono'">14</div><div style="font-size:11px;color:#9AA69D">gemeinsam</div></div><div><div style="font:500 22px 'JetBrains Mono';color:#5AD0F0">8</div><div style="font-size:11px;color:#9AA69D">neu von Jan</div></div><div><div style="font:500 22px 'JetBrains Mono';color:#B6F04A">5</div><div style="font-size:11px;color:#9AA69D">neu für Jan</div></div></div></div>
+  <div style="font:600 11px Barlow;color:#9AA69D;letter-spacing:.08em;margin-top:6px">ANFRAGEN AN DICH · 1</div>
+  <div style="display:flex;gap:12px;align-items:center;background:#161E19;border-radius:14px;padding:12px"><span style="width:40px;height:40px;border-radius:12px;background:#5AD0F0;color:#0E1411;display:grid;place-items:center;font:700 18px 'Barlow Condensed'">K</span><div style="flex:1"><div style="font:600 15px Barlow">klabuster2</div><div style="font-size:12px;color:#9AA69D">vor 2 Stunden</div></div><button style="background:#B6F04A;border:0;border-radius:10px;padding:8px 12px;font:700 13px 'Barlow Condensed';text-transform:uppercase">Annehmen</button><button style="background:transparent;border:1px solid #2A3630;border-radius:10px;padding:8px 10px;color:#C9D1CA">✕</button></div>
+  <div style="font:600 11px Barlow;color:#9AA69D;letter-spacing:.08em;margin-top:6px">MEINE BUDDYS · 4</div>
+  <sc-for list="{{ buddies }}" as="b" hint-placeholder-count="4">
+    <div style="display:flex;gap:12px;align-items:center;padding:8px 4px"><span style="width:40px;height:40px;border-radius:12px;background:{{ b.color }};color:#0E1411;display:grid;place-items:center;font:700 18px 'Barlow Condensed'">{{ b.letter }}</span><div style="flex:1"><div style="font:600 15px Barlow">{{ b.name }}</div><div style="font:500 12px 'JetBrains Mono';color:#9AA69D">{{ b.meta }}</div></div><span style="color:#9AA69D">›</span></div>
+  </sc-for>
+</div></div>
+
+<div class="dv-opt" id="1l"><div class="dv-olabel"><a class="dv-oid" href="#1l">1l</a>Profil</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#0E1411;color:#F2F4EF;padding:56px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:14px;align-items:center"><span style="width:64px;height:64px;border-radius:20px;background:#B6F04A;color:#0E1411;display:grid;place-items:center;font:800 30px 'Barlow Condensed'">M</span><div><div style="font:800 28px/1 'Barlow Condensed';text-transform:uppercase">mira_rides</div><div style="font:500 12px 'JetBrains Mono';color:#9AA69D;margin-top:4px">11 Trails · 4 Buddys · 2 Fahrten</div></div></div>
+  <div style="height:1px;background:#2A3630;margin:8px 0"></div>
+  <sc-for list="{{ profileItems }}" as="p" hint-placeholder-count="6">
+    <div style="display:flex;gap:12px;align-items:center;background:#161E19;border-radius:14px;padding:12px 14px"><span style="width:32px;height:32px;border-radius:10px;background:#1F2923;display:grid;place-items:center;color:#B6F04A;font-size:15px">{{ p.icon }}</span><div style="flex:1"><div style="font:600 15px Barlow">{{ p.title }}</div><div style="font-size:12px;color:#9AA69D">{{ p.sub }}</div></div><span style="color:#9AA69D">›</span></div>
+  </sc-for>
+  <div style="margin-top:auto;padding:12px 4px 20px;font:11px 'JetBrains Mono';color:#5E6B62">v0.23.0 · Kartendaten © OpenStreetMap · Protomaps</div>
+</div></div>
+</div>
+
+<div class="dv-h">Zukünftige Screens (Issues #34, #36, #35)</div>
+<div class="dv-opts">
+<div class="dv-opt" id="1m"><div class="dv-olabel"><a class="dv-oid" href="#1m">1m</a>Nachrichten — knapp, 30 Tage, Trail als Anhang</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#0E1411;color:#F2F4EF;padding:56px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;gap:12px;align-items:center"><span style="width:40px;height:40px;border-radius:12px;background:#5AD0F0;color:#0E1411;display:grid;place-items:center;font:700 18px 'Barlow Condensed'">J</span><div><div style="font:800 24px/1 'Barlow Condensed';text-transform:uppercase">Jan</div><div style="font-size:12px;color:#9AA69D">Nachrichten verschwinden nach 30 Tagen</div></div></div>
+  <div style="flex:1;display:flex;flex-direction:column;gap:8px;justify-content:flex-end;padding-bottom:12px">
+    <div style="align-self:flex-start;max-width:78%;background:#161E19;border-radius:16px 16px 16px 4px;padding:10px 12px;font-size:14px">Samstag Rosskopf? Baum ist weg.</div>
+    <div style="align-self:flex-start;max-width:78%;background:#161E19;border-radius:16px;padding:10px;display:flex;gap:10px;align-items:center"><span style="width:6px;height:36px;border-radius:3px;background:#5AD0F0"></span><div><div style="font:600 14px Barlow">Rosskopf Süd</div><div style="font:500 11px 'JetBrains Mono';color:#9AA69D">3,4 km · ↓420 Hm · S2</div></div></div>
+    <div style="align-self:flex-end;max-width:78%;background:#B6F04A;color:#0E1411;border-radius:16px 16px 4px 16px;padding:10px 12px;font-size:14px">Bin dabei. 10 Uhr Parkplatz Hinterberg?</div>
+    <div style="align-self:flex-end;font:11px 'JetBrains Mono';color:#5E6B62">21:04 · gelesen</div>
+  </div>
+  <div style="display:flex;gap:8px;padding-bottom:20px"><input value="Nachricht" style="flex:1;background:#161E19;border:1px solid #2A3630;border-radius:14px;padding:12px 14px;color:#9AA69D;font:14px Barlow"><button style="width:46px;border-radius:14px;border:0;background:#B6F04A;color:#0E1411;font-size:18px">↑</button></div>
+</div></div>
+
+<div class="dv-opt" id="1n"><div class="dv-olabel"><a class="dv-oid" href="#1n">1n</a>Fahrt-Zusammenfassung mit Airtime — „ein Spiel, kein Rekord“</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#0E1411;color:#F2F4EF;padding:56px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:12px">
+  <div style="font:600 11px Barlow;color:#9AA69D;letter-spacing:.08em">FAHRT · SA 26.09. · 10:12–13:40</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><div><div style="font:500 30px/1 'JetBrains Mono'">24,8</div><div style="font-size:11px;color:#9AA69D">km</div></div><div><div style="font:500 30px/1 'JetBrains Mono'">↑940</div><div style="font-size:11px;color:#9AA69D">Hm</div></div><div><div style="font:500 30px/1 'JetBrains Mono'">3:28</div><div style="font-size:11px;color:#9AA69D">h</div></div></div>
+  <div style="background:#161E19;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px"><div style="font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em;color:#B6F04A">Wieder gefahren · 2</div><div style="display:flex;justify-content:space-between;font-size:14px"><span>Rosskopf Süd</span><span style="font:500 12px 'JetBrains Mono';color:#9AA69D">3,4 km</span></div><div style="display:flex;justify-content:space-between;font-size:14px"><span>Kehrenweg Nord</span><span style="font:500 12px 'JetBrains Mono';color:#9AA69D">1,9 km</span></div></div>
+  <div style="background:#161E19;border:1px solid #FF6BA8;border-radius:14px;padding:12px;display:flex;justify-content:space-between;align-items:center"><div><div style="font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em;color:#FF6BA8">Kandidat · 1</div><div style="font-size:13px;color:#C9D1CA">1,2 km Gefälle abseits der Forststraße</div></div><button style="background:#FF6BA8;color:#0E1411;border:0;border-radius:10px;padding:8px 12px;font:700 13px 'Barlow Condensed';text-transform:uppercase">Zuschneiden</button></div>
+  <div style="background:#1F2923;border-radius:14px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:700 13px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.05em">Airtime unter Buddys</span><span style="font:11px 'JetBrains Mono';color:#9AA69D">Spiel, kein Rekord</span></div>
+    <sc-for list="{{ airtime }}" as="a" hint-placeholder-count="3">
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px"><span style="font:500 12px 'JetBrains Mono';color:#9AA69D;width:14px">{{ a.rank }}</span><span style="font:600 14px Barlow;width:56px">{{ a.name }}</span><span style="flex:1;height:8px;border-radius:4px;background:#0E1411;overflow:hidden"><span style="display:block;height:100%;width:{{ a.pct }};background:{{ a.color }}"></span></span><span style="font:500 12px 'JetBrains Mono'">{{ a.val }}</span></div>
+    </sc-for>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1o"><div class="dv-olabel"><a class="dv-oid" href="#1o">1o</a>Routing — zum Trailkopf, offline</div>
+<div class="dv-card" style="width:360px;height:760px;border-radius:36px;background:#1B241F;position:relative;color:#F2F4EF;background-image:repeating-radial-gradient(ellipse at 70% 30%,transparent 0 28px,rgba(255,255,255,.06) 28px 29px)">
+  <svg viewBox="0 0 360 760" width="360" height="760" style="position:absolute;inset:0" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M60 640 C90 560 160 540 190 470 S200 380 250 330" stroke="#E8ECE6" stroke-width="4" stroke-dasharray="2 10"></path><path d="M250 330 C270 290 300 260 320 210" stroke="#B6F04A" stroke-width="5"></path><circle cx="60" cy="640" r="8" fill="#E8ECE6" stroke="#0E1411" stroke-width="3"></circle><circle cx="250" cy="330" r="9" fill="#B6F04A" stroke="#0E1411" stroke-width="3"></circle></svg>
+  <div style="position:absolute;top:52px;left:16px;right:16px;background:rgba(14,20,17,.88);border:1px solid #2A3630;border-radius:14px;padding:12px 14px"><div style="font:600 10px Barlow;color:#9AA69D;letter-spacing:.08em">ROUTE ZUM TRAILKOPF</div><div style="font:800 22px/1.1 'Barlow Condensed';text-transform:uppercase;margin-top:2px">Rosskopf Süd</div></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;background:#0E1411;border-radius:28px 28px 0 0;padding:16px 20px 28px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><div><div style="font:500 26px/1 'JetBrains Mono'">6,1</div><div style="font-size:11px;color:#9AA69D">km Anfahrt</div></div><div><div style="font:500 26px/1 'JetBrains Mono'">↑520</div><div style="font-size:11px;color:#9AA69D">Hm</div></div><div><div style="font:500 26px/1 'JetBrains Mono'">~1:05</div><div style="font-size:11px;color:#9AA69D">h · grob</div></div></div>
+    <div style="font-size:12px;color:#9AA69D;display:flex;gap:8px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#B6F04A"></span>Aus gespeichertem Bereich gerechnet — ohne Netz.</div>
+    <button style="background:#B6F04A;color:#0E1411;border:0;border-radius:14px;padding:16px;font:700 17px 'Barlow Condensed';text-transform:uppercase;letter-spacing:.06em">Los</button>
+  </div>
+</div></div>
+</div>
+
+<div class="dv-h">Animationen</div>
+<div class="dv-opts">
+<div class="dv-opt" id="1p"><div class="dv-olabel"><a class="dv-oid" href="#1p">1p</a>Splash — Logo zeichnet sich, Wortmarke folgt</div>
+<div class="dv-card" style="width:300px;height:300px;background:#0E1411;display:grid;place-items:center">{{ splash }}</div></div>
+<div class="dv-opt" id="1q"><div class="dv-olabel"><a class="dv-oid" href="#1q">1q</a>Loader — Serpentine läuft</div>
+<div class="dv-card" style="width:220px;height:300px;background:#161E19;display:grid;place-items:center">{{ loader }}</div></div>
+<div class="dv-opt" id="1r"><div class="dv-olabel"><a class="dv-oid" href="#1r">1r</a>Fahrt läuft — Puls + wachsende Spur</div>
+<div class="dv-card" style="width:300px;height:300px;background:#1B241F;position:relative;background-image:repeating-radial-gradient(ellipse at 30% 30%,transparent 0 26px,rgba(255,255,255,.06) 26px 27px)">{{ rideAnim }}</div></div>
+<div class="dv-opt" id="1s"><div class="dv-olabel"><a class="dv-oid" href="#1s">1s</a>Buddy verbunden — zwei Spuren werden eine</div>
+<div class="dv-card" style="width:300px;height:300px;background:#0E1411;display:grid;place-items:center">{{ connectAnim }}</div></div>
+<div class="dv-opt" id="1t"><div class="dv-olabel"><a class="dv-oid" href="#1t">1t</a>Neuer Hinweis — Leuchtrand atmet</div>
+<div class="dv-card" style="width:300px;height:300px;background:#1B241F;display:grid;place-items:center;background-image:repeating-radial-gradient(ellipse at 70% 70%,transparent 0 26px,rgba(255,255,255,.06) 26px 27px)"><svg viewBox="0 0 300 300" width="300" height="300" fill="none" stroke="#5AD0F0" stroke-width="6" stroke-linecap="round"><path d="M40 60 C110 90 140 170 180 190 S250 230 270 250" style="animation:tbGlow 1.8s ease-in-out infinite"></path></svg></div></div>
+</div>
+
+<p class="dv-next">Weiter mit: „<a class="dv-oid" href="#1b">1b</a> als Hauptlogo, App-Icon in allen Größen“ · „<a class="dv-oid" href="#1h">1h</a> auch hell zeigen“ · „Trail-Liste <a class="dv-oid" href="#1j">1j</a> mit Karte-Vorschau je Zeile“</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const h = React.createElement;
+    const L = '#B6F04A', C = '#5AD0F0', O = '#FF8A3D', Y = '#FFD23F', M = '#FF6BA8';
+    const P = 'M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72';
+    const splash = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 } },
+      h('svg', { viewBox: '0 0 100 100', width: 96, height: 96, fill: 'none' },
+        h('path', { d: P, stroke: L, strokeWidth: 14, strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: 300, style: { animation: 'tbDraw 3.2s cubic-bezier(.6,0,.2,1) infinite' } }),
+        h('circle', { cx: 82, cy: 72, r: 7, fill: '#fff', style: { transformOrigin: '82px 72px', animation: 'tbDot 3.2s ease-out infinite' } })),
+      h('div', { style: { font: "800 30px/1 'Barlow Condensed'", textTransform: 'uppercase', color: '#F2F4EF', animation: 'tbWord 3.2s ease-out infinite' } }, 'Trail', h('span', { style: { color: L } }, 'Buddy')));
+    const loader = h('svg', { viewBox: '0 0 100 100', width: 56, height: 56, fill: 'none' },
+      h('path', { d: P, stroke: '#2A3630', strokeWidth: 12, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+      h('path', { d: P, stroke: L, strokeWidth: 12, strokeLinecap: 'round', strokeLinejoin: 'round', strokeDasharray: '60 240', style: { animation: 'tbLoader 1.6s linear infinite' } }));
+    const ridePath = 'M40 260 C80 220 110 200 130 160 S170 100 240 60';
+    const rideAnim = h('svg', { viewBox: '0 0 300 300', width: 300, height: 300, fill: 'none', style: { position: 'absolute', inset: 0 } },
+      h('path', { d: ridePath, stroke: '#E8ECE6', strokeWidth: 5, strokeLinecap: 'round', strokeDasharray: 260, style: { animation: 'tbGrow 4s ease-in-out infinite' } }),
+      h('circle', { cx: 240, cy: 60, r: 10, fill: 'rgba(232,236,230,.6)', style: { transformOrigin: '240px 60px', animation: 'tbPulse 1.6s ease-out infinite' } }),
+      h('circle', { cx: 240, cy: 60, r: 7, fill: '#E8ECE6', stroke: '#0E1411', strokeWidth: 3 }));
+    const ridePulse = h('div', { style: { position: 'absolute', left: 243, top: 483 } },
+      h('span', { style: { position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: 'rgba(232,236,230,.5)', animation: 'tbPulse 1.6s ease-out infinite' } }),
+      h('span', { style: { position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: '#E8ECE6', boxShadow: '0 0 0 3px #0E1411' } }));
+    const connectAnim = h('svg', { viewBox: '0 0 100 100', width: 140, height: 140, fill: 'none', strokeWidth: 12, strokeLinecap: 'round' },
+      h('path', { d: 'M50 18v18c0 20 0 22 0 44v4', stroke: L, style: { '--tx': '-28px', animation: 'tbMerge 3s cubic-bezier(.6,0,.2,1) infinite alternate', transformOrigin: 'center' } }),
+      h('path', { d: 'M50 18v18c0 20 0 22 0 44', stroke: C, style: { '--tx': '28px', animation: 'tbMerge 3s cubic-bezier(.6,0,.2,1) infinite alternate' } }),
+      h('circle', { cx: 50, cy: 84, r: 8, fill: '#F2F4EF', style: { transformOrigin: '50px 84px', animation: 'tbMergeDot 3s ease-out infinite alternate' } }));
+    const DIM = 'rgba(8,12,10,.62)', HALF = 'rgba(8,12,10,.32)', LT = '#F2F4EF', DK = '#0E1411';
+    const HL = 'repeating-linear-gradient(45deg,rgba(242,244,239,.6) 0 2px,transparent 2px 8px)';
+    const HD = 'repeating-linear-gradient(45deg,rgba(14,20,17,.7) 0 2px,transparent 2px 8px)';
+    const grid = (rows, mode, top, dimC, edge) => {
+      const DIM = dimC || 'rgba(8,12,10,.62)';
+      const LT = edge ? edge.outline : '#F2F4EF', ADD = edge ? edge.add : '#F2F4EF', DK = edge ? edge.remove : '#0E1411';
+      const S = 40, out = [], at = (r, c) => (rows[r] && rows[r][c]) || '.';
+      const stored = ch => ch === 'o' || ch === '-';
+      rows.forEach((row, r) => [...row].forEach((ch, c) => {
+        const s = { position: 'absolute', left: c * S, top: top + r * S, width: S, height: S, boxSizing: 'border-box' };
+        const nb = [['Top', r - 1, c], ['Bottom', r + 1, c], ['Left', r, c - 1], ['Right', r, c + 1]];
+        if (ch === '.') s.background = DIM;
+        if (ch === '+') { s.backgroundColor = mode === 'half' ? HALF : DIM; if (mode !== 'half') s.backgroundImage = HL; }
+        if (ch === '-') { if (mode === 'half') s.backgroundColor = HALF; else s.backgroundImage = HD; }
+        nb.forEach(([side, rr, cc]) => {
+          const n = at(rr, cc);
+          if (stored(ch) && !stored(n)) s['border' + side] = '2px solid ' + LT;
+          else if (ch === '-' && n !== '-') s['border' + side] = '2px dashed ' + DK;
+          else if (ch === '+' && n !== '+') s['border' + side] = '2px dashed ' + ADD;
+        });
+        out.push({ style: s });
+      }));
+      return out;
+    };
+    const rowsA = ['.........', '.........', '.........', '..ooo....', '.ooooo...', '.oo--oo+.', '.ooo-oo++', '..oooo+++', '...oo.+++', '....+++..', '....++...', '.........', '.........', '.........'];
+    const rowsB = rowsA.map(r => r.replace(/-/g, 'o'));
+    const cell = extra => Object.assign({ position: 'absolute', left: 8, top: 8, width: 40, height: 40, boxSizing: 'border-box' }, extra);
+    const legend = [
+      { name: 'Nicht offline', desc: 'abgedunkelt', style: cell({ background: DIM }) },
+      { name: 'Offline', desc: 'hell, heller Rand um den ganzen Bestand', style: cell({ border: '2px solid ' + LT }) },
+      { name: 'Kommt dazu', desc: 'dunkel, helle Schraffur, gestrichelt', style: cell({ backgroundColor: DIM, backgroundImage: HL, border: '2px dashed ' + LT }) },
+      { name: 'Fällt weg', desc: 'hell, dunkle Schraffur, gestrichelt', style: cell({ backgroundImage: HD, border: '2px dashed ' + DK }) },
+    ];
+    const ridePulse3 = h('div', { style: { position: 'absolute', left: 233, top: 423 } },
+      h('span', { style: { position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: 'rgba(232,236,230,.5)', animation: 'tbPulse 1.6s ease-out infinite' } }),
+      h('span', { style: { position: 'absolute', width: 14, height: 14, borderRadius: '50%', background: '#E8ECE6', boxShadow: '0 0 0 3px #0E1411' } }));
+    const on = { track: '#B6F04A', knob: '18px' }, off = { track: '#2A3630', knob: '2px' };
+    const INK = '#131A16';
+    const shapes = (g, fg) => {
+      const b = { display: 'inline-block', width: 8, height: 8, flex: 'none' };
+      const dia = Object.assign({}, b, { width: 7, height: 7, background: fg, transform: 'rotate(45deg)' });
+      return [
+        [Object.assign({}, b, { borderRadius: '50%', border: '1.5px solid ' + fg, boxSizing: 'border-box' })],
+        [Object.assign({}, b, { borderRadius: '50%', background: fg })],
+        [Object.assign({}, b, { background: fg })],
+        [dia],
+        [dia, dia],
+        [dia, dia, Object.assign({}, b, { width: 3, height: 9, background: fg, borderRadius: 1 })],
+      ][g];
+    };
+    const REL = { mine: '#4F8A10', buddy: '#0B84B0', warn: '#D9591A' };
+    const PISTE = ['#2E9E4F', '#1F6FD1', '#D6322F', INK, INK, INK];
+    const T = [
+      { d: 'M60 130 C110 170 120 230 160 260 S230 300 250 370', rel: 'mine', g: 3, x: 60, y: 130, ch: ['landslide', 'south_east'] },
+      { d: 'M300 140 C270 190 230 220 240 280 S300 340 290 430', rel: 'buddy', g: 1, x: 290, y: 140, ch: ['waves'] },
+      { d: 'M40 340 C90 330 140 370 180 360 S250 410 320 480', rel: 'mine', g: 2, x: 40, y: 340, ch: ['waves', 'flight_takeoff'] },
+      { d: 'M120 480 C150 530 160 570 200 610', rel: 'warn', g: 4, x: 120, y: 480, ch: ['landslide'] },
+      { d: 'M230 530 C260 550 290 590 320 650', rel: 'buddy', g: 0, x: 230, y: 530, ch: ['trending_up'] },
+    ];
+    const mapSvg = lens => h('svg', { viewBox: '0 0 360 760', width: 360, height: 760, fill: 'none', strokeLinecap: 'round', style: { position: 'absolute', inset: 0 } },
+      h('path', { d: 'M20 600 C120 520 110 420 190 380 S280 260 330 200', stroke: '#7B4FD6', strokeWidth: 3, strokeDasharray: '10 8', opacity: .7 }),
+      ...T.flatMap((t, i) => {
+        const c = lens === 'piste' ? PISTE[t.g] : REL[t.rel];
+        const w = lens === 'piste' ? (t.rel === 'buddy' ? 3.5 : 5) : 5;
+        return [
+          h('path', { key: 'c' + i, d: t.d, stroke: '#FFFFFF', strokeWidth: w + 4 }),
+          h('path', { key: 'l' + i, d: t.d, stroke: c, strokeWidth: w, strokeDasharray: lens === 'piste' && t.g >= 4 ? '14 4' : null }),
+        ];
+      }));
+    const markers = lens => T.map(t => {
+      const piste = lens === 'piste';
+      const bg = piste ? PISTE[t.g] : INK;
+      return { style: { position: 'absolute', left: t.x - 6, top: t.y - 28, display: 'flex', alignItems: 'center', gap: 4, background: bg, color: '#FFFFFF', borderRadius: 7, padding: '3px 6px', font: "500 11px 'JetBrains Mono'", boxShadow: '0 0 0 2px #FFFFFF' }, shapes: shapes(t.g, '#FFFFFF'), grade: 'S' + t.g, ch: piste ? [] : t.ch };
+    });
+    const tr = (name, meta, rel, g, ch, tag) => ({ name, meta, color: REL[rel], shapes: shapes(g, '#FFFFFF'), grade: 'S' + g, ch, tag: tag || '', tagColor: rel === 'warn' ? REL.warn : '#5E6B62' });
+    return {
+      mapRel: mapSvg('rel'), mapPiste: mapSvg('piste'), markRel: markers('rel'), markPiste: markers('piste'),
+      gridLight: grid([...rowsA, '.........', '.........', '.........', '.........', '.........'], 'hatch', 0, 'rgba(30,36,32,.5)', { outline: '#131A16', add: '#FFFFFF', remove: '#131A16' }),
+      gradeScale: [0, 1, 2, 3, 4, 5].map(g => ({ grade: 'S' + g, shapes: shapes(g, '#FFFFFF'), piste: PISTE[g], desc: ['fester, ebener Weg', 'kleine Wurzeln, Steine', 'Stufen, lose, enge Kurven', 'Blockfelder, Spitzkehren', 'steil, verblockt, Umsetzen', 'extrem, Sprünge Pflicht'][g] })),
+      characters: [
+        { icon: 'waves', name: 'Flowig', desc: 'Wellen, Anlieger, Rhythmus' },
+        { icon: 'flight_takeoff', name: 'Jump-Line', desc: 'Kicker, Drops, Tables' },
+        { icon: 'landslide', name: 'Verblockt', desc: 'Steine, Wurzeln, Stufen' },
+        { icon: 'south_east', name: 'Steil', desc: 'anhaltendes Gefälle' },
+        { icon: 'trending_up', name: 'Uphill', desc: 'Auffahrt, auch bergauf fahrbar' },
+      ],
+      trailsLight: [
+        tr('Rosskopf Süd', '3,4 km · ↓420 Hm', 'mine', 3, ['landslide', 'south_east']),
+        tr('Kehrenweg Nord', '1,9 km · ↓210 Hm', 'buddy', 1, ['waves']),
+        tr('Hinterberg Flow', '2,6 km · ↓310 Hm', 'mine', 2, ['waves', 'flight_takeoff']),
+        tr('Wurzeltrail', '2,2 km · ↓300 Hm', 'warn', 4, ['landslide'], 'GESPERRT'),
+        tr('Almauffahrt', '4,1 km · ↑380 Hm', 'buddy', 0, ['trending_up']),
+        tr('Drop Zone', '0,8 km · ↓160 Hm', 'mine', 5, ['flight_takeoff', 'south_east']),
+      ],
+      sheetShapes: shapes(3, '#FFFFFF'),
+      ridePulse3,
+      railRest: ['crop_free', 'add_circle', 'do_not_disturb_on', 'route', 'undo', 'save'],
+      layers: [
+        Object.assign({ icon: 'water_drop', name: 'Wasser', color: '#5AD0F0' }, on),
+        Object.assign({ icon: 'restaurant', name: 'Einkehr', color: '#FFD23F' }, off),
+        Object.assign({ icon: 'build', name: 'Rad-Service', color: '#F2F4EF' }, on),
+        Object.assign({ icon: 'more_horiz', name: 'Sonstiges', color: '#9AA69D' }, off),
+        Object.assign({ icon: 'signpost', name: 'Offizielle Trails', color: '#B58CFF' }, on),
+      ],
+      gridFull: grid([...rowsA, '.........', '.........', '.........', '.........', '.........'], 'hatch', 0),
+      legend, gridA: grid(rowsA, 'hatch', 0), gridB: grid(rowsB, 'hatch', 0), gridC: grid(rowsA, 'half', 0),
+      splash, loader, rideAnim, ridePulse, connectAnim,
+      trails: [
+        { name: 'Rosskopf Süd', meta: '3,4 km · ↓420 Hm · S2', color: C, border: Y, tag: 'NEUER HINWEIS', tagColor: Y },
+        { name: 'Kehrenweg Nord', meta: '1,9 km · ↓210 Hm · S1', color: L, border: '#2A3630', tag: 'MEIN', tagColor: L },
+        { name: 'Hinterberg Drop', meta: '0,8 km · ↓160 Hm · S3', color: L, border: '#2A3630', tag: 'MEIN · 2 BUDDYS', tagColor: L },
+        { name: 'Wurzeltrail', meta: '2,2 km · ↓300 Hm', color: O, border: '#2A3630', tag: 'GESPERRT', tagColor: O },
+        { name: 'Almabfahrt', meta: '4,6 km · ↓540 Hm · S2', color: C, border: '#2A3630', tag: 'JAN, MIRA', tagColor: C },
+        { name: 'Neuer Import', meta: '1,1 km · wartet auf Netz', color: 'rgba(182,240,74,.5)', border: '#2A3630', tag: 'AUSGANGSKORB', tagColor: '#9AA69D' },
+      ],
+      buddies: [
+        { letter: 'J', name: 'Jan', meta: '14 gemeinsam', color: C },
+        { letter: 'M', name: 'Mira', meta: '9 gemeinsam', color: Y },
+        { letter: 'T', name: 'tomtrail', meta: '3 gemeinsam', color: M },
+        { letter: 'S', name: 'Sara K.', meta: '1 gemeinsam · Alias', color: '#B58CFF' },
+      ],
+      profileItems: [
+        { icon: '↥', title: 'Trails importieren', sub: 'GPX aus anderen Apps in dein Netz holen' },
+        { icon: '◉', title: 'Meine Fahrten', sub: 'Liegen nur auf diesem Gerät' },
+        { icon: '▣', title: 'Meine Bereiche', sub: 'Karten für unterwegs · 2 gespeichert' },
+        { icon: '◔', title: 'Benachrichtigungen', sub: 'Ein · ohne Inhalt in der Meldung' },
+        { icon: '◐', title: 'Erscheinungsbild', sub: 'Dunkel · folgt dem System' },
+        { icon: '◯', title: 'Konto', sub: 'Name, E-Mail, Passwort, Geräte' },
+      ],
+      airtime: [
+        { rank: 1, name: 'Jan', pct: '92%', val: '4,1 s', color: C },
+        { rank: 2, name: 'Du', pct: '70%', val: '3,1 s', color: L },
+        { rank: 3, name: 'Mira', pct: '38%', val: '1,7 s', color: Y },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
