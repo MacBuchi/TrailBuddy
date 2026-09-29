@@ -8,6 +8,7 @@ import '../../core/app_theme.dart';
 import '../../core/app_info.dart';
 import '../../core/errors.dart';
 import '../../core/widgets/letter_avatar.dart';
+import '../../core/widgets/motion.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
@@ -285,7 +286,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             if (friendshipsAsync.isLoading && friendships.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
+                child: CenteredTrailLoader(),
               )
             else if (accepted.isEmpty) ...[
               const Padding(
@@ -371,6 +372,8 @@ class _ConnectedCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              const ConnectMergeMark(),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text('MIT ${name.toUpperCase()} VERBUNDEN',
                     style: theme.textTheme.titleMedium?.copyWith(
@@ -408,6 +411,105 @@ class _ConnectedCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Stand der Verbunden-Animation bei [t] (0…1 über 3 s, Design 1s): wie
+/// weit die beiden Spuren noch auseinander liegen (1 → 0 zwischen 15 und
+/// 55 %) und wie groß der Punkt ist (0, ab 55 % auf 1,25, dann 1). Pur,
+/// damit der Test ohne Pixel prüfen kann.
+({double apart, double dot}) connectMergeAt(double t) {
+  const merge = Cubic(0.6, 0, 0.2, 1);
+  final m = ((t - 0.15) / 0.4).clamp(0.0, 1.0);
+  final apart = 1 - merge.transform(m);
+  final double dot;
+  if (t <= 0.55) {
+    dot = 0;
+  } else if (t <= 0.75) {
+    dot = 1.25 * Curves.easeOut.transform(((t - 0.55) / 0.2).clamp(0.0, 1.0));
+  } else {
+    // Geklemmt wie im Splash: Gleitkomma landet sonst knapp über 1.
+    dot = 1.25 - 0.25 * Curves.easeOut.transform(((t - 0.75) / 0.25).clamp(0.0, 1.0));
+  }
+  return (apart: apart, dot: dot);
+}
+
+/// Zwei Spuren werden eine, dann der Punkt (Design 1s) — einmal, wenn die
+/// Karte „Mit … verbunden" erscheint. Bei reduzierter Bewegung steht das
+/// Endbild. Reine Zier: Die Aussage trägt der Satz daneben.
+class ConnectMergeMark extends StatefulWidget {
+  const ConnectMergeMark({super.key, this.size = 36});
+
+  final double size;
+
+  static const duration = Duration(seconds: 3);
+
+  @override
+  State<ConnectMergeMark> createState() => _ConnectMergeMarkState();
+}
+
+class _ConnectMergeMarkState extends State<ConnectMergeMark> with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(vsync: this, duration: ConnectMergeMark.duration);
+  var _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (reduceMotion(context)) {
+      _controller.value = 1;
+    } else if (!_started) {
+      _started = true;
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    return ExcludeSemantics(
+      child: SizedBox.square(
+        key: const ValueKey('connect-merge'),
+        dimension: widget.size,
+        child: CustomPaint(
+          painter: _MergePainter(_controller, mine: p.brandMark, buddy: p.buddyText, dot: p.text),
+        ),
+      ),
+    );
+  }
+}
+
+class _MergePainter extends CustomPainter {
+  _MergePainter(this.animation, {required this.mine, required this.buddy, required this.dot})
+      : super(repaint: animation);
+
+  final Animation<double> animation;
+  final Color mine;
+  final Color buddy;
+  final Color dot;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.scale(size.width / 100, size.height / 100);
+    final s = connectMergeAt(animation.value);
+    Paint line(Color c) => Paint()
+      ..color = c
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+    // Die Spur des Buddys zuerst: Zusammen ist es EINE Spur, und die
+    // trägt die Marke — wie der Punkt am Ende des Logos.
+    final dx = 28 * s.apart;
+    canvas.drawLine(Offset(50 + dx, 18), Offset(50 + dx, 80), line(buddy));
+    canvas.drawLine(Offset(50 - dx, 18), Offset(50 - dx, 84), line(mine));
+    if (s.dot > 0) canvas.drawCircle(const Offset(50, 84), 8 * s.dot, Paint()..color = dot);
+  }
+
+  @override
+  bool shouldRepaint(_MergePainter old) => old.mine != mine || old.buddy != buddy || old.dot != dot;
 }
 
 /// Eine Anfrage als Karte: Avatar, Name, rechts die Knöpfe.

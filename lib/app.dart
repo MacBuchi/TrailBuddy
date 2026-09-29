@@ -7,6 +7,7 @@ import 'core/app_theme.dart';
 import 'core/router.dart';
 import 'core/widgets/preview_ribbon.dart';
 import 'core/widgets/push_listener.dart';
+import 'core/widgets/start_splash.dart';
 import 'core/widgets/update_gate.dart';
 
 class TrailBuddyApp extends ConsumerWidget {
@@ -26,9 +27,13 @@ class TrailBuddyApp extends ConsumerWidget {
       // Entwicklungsstand ist, gilt auch über der Update-Sperre — gerade
       // dort, wo sonst nichts von der App zu sehen ist. Im normalen Build
       // reicht er nur durch.
-      builder: (context, child) => PreviewRibbon(
-        child: PushListener(
-          child: UpdateGate(child: child ?? const SizedBox.shrink()),
+      // StartSplash über allem (1p): Er liegt nur beim Start einmal
+      // darüber, die App lädt darunter schon.
+      builder: (context, child) => StartSplash(
+        child: PreviewRibbon(
+          child: PushListener(
+            child: UpdateGate(child: child ?? const SizedBox.shrink()),
+          ),
         ),
       ),
       theme: buildAppTheme(AppColors.light),

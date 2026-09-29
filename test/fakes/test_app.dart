@@ -18,6 +18,7 @@ import 'package:trailbuddy/core/connectivity.dart';
 import 'package:trailbuddy/core/push_messaging.dart';
 import 'package:trailbuddy/core/settings.dart';
 import 'package:trailbuddy/core/update_check.dart';
+import 'package:trailbuddy/core/widgets/start_splash.dart';
 import 'package:trailbuddy/data/providers.dart';
 import 'package:trailbuddy/features/map/base_map_providers.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
@@ -110,6 +111,9 @@ List<Override> overridesFor(FakeBackend backend,
       // Die Übersichtskarte kommt aus einem Asset, das der Test-Runner
       // nicht liefert — und ohne Empfang würde die echte Karte sie öffnen.
       overviewOpenerProvider.overrideWithValue(() async => null),
+      // Der Start-Splash (1p) läge sonst über jedem Flow-Test und
+      // schluckte die ersten Tipps; er hat seinen eigenen Test.
+      startSplashEnabledProvider.overrideWithValue(false),
       settingsProvider.overrideWithValue(settings ?? FakeSettings()),
       authRepositoryProvider.overrideWithValue(FakeAuthRepository(backend)),
       profileRepositoryProvider

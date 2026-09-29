@@ -55,7 +55,8 @@ class TrailBuddyLogo extends StatelessWidget {
 }
 
 class LogoPainter extends CustomPainter {
-  const LogoPainter({required this.color, required this.dotColor, this.progress = 1});
+  const LogoPainter(
+      {required this.color, required this.dotColor, this.progress = 1, this.dotScale, this.opacity = 1});
 
   final Color color;
   final Color dotColor;
@@ -64,11 +65,19 @@ class LogoPainter extends CustomPainter {
   /// (Turn 1p). Der Punkt erscheint erst am Ende.
   final double progress;
 
+  /// Größe des Punkts (1 = normal); gesetzt vom Splash, der ihn springen
+  /// lässt, während die Linie noch läuft. Ohne Wert: voller Punkt, sobald
+  /// die Linie fertig ist.
+  final double? dotScale;
+
+  /// Deckkraft der Linie — der Splash blendet sie am Anfang ein.
+  final double opacity;
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.scale(size.width / 100, size.height / 100);
     final stroke = Paint()
-      ..color = color
+      ..color = color.withValues(alpha: color.a * opacity.clamp(0, 1))
       ..style = PaintingStyle.stroke
       ..strokeWidth = kLogoStroke
       ..strokeCap = StrokeCap.round
@@ -78,16 +87,21 @@ class LogoPainter extends CustomPainter {
       final metric = path.computeMetrics().first;
       path = metric.extractPath(0, metric.length * progress.clamp(0, 1));
     }
-    canvas.drawPath(path, stroke);
-    if (progress >= 1) {
+    if (progress > 0) canvas.drawPath(path, stroke);
+    final dot = dotScale ?? (progress >= 1 ? 1.0 : 0.0);
+    if (dot > 0) {
       canvas.drawCircle(
-          const Offset(82, 72), kLogoDot.r, Paint()..color = dotColor);
+          Offset(kLogoDot.x, kLogoDot.y), kLogoDot.r * dot, Paint()..color = dotColor);
     }
   }
 
   @override
   bool shouldRepaint(LogoPainter old) =>
-      old.color != color || old.dotColor != dotColor || old.progress != progress;
+      old.color != color ||
+      old.dotColor != dotColor ||
+      old.progress != progress ||
+      old.dotScale != dotScale ||
+      old.opacity != opacity;
 }
 
 /// Die Wortmarke „TRAIL" + „BUDDY", die zweite Hälfte in der Marke.

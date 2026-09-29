@@ -71,6 +71,10 @@ void main() {
         AppColors.light.map.note);
     expect((card('Roots').shape! as RoundedRectangleBorder).side.color,
         isNot(AppColors.light.map.note));
+    // Und der Rand atmet (Design 1t) — nur um die Karte mit dem Hinweis.
+    final glow = find.byKey(const ValueKey('breathing-glow'));
+    expect(glow, findsOneWidget);
+    expect(find.descendant(of: glow, matching: find.text('Bobs Flow')), findsOneWidget);
 
     await tester.tap(find.text('Bobs Flow'));
     await settle(tester);
@@ -83,6 +87,7 @@ void main() {
     await settle(tester);
     expect(find.textContaining('NEUER HINWEIS'), findsNothing,
         reason: 'im Blatt gesehen — nicht mehr hervorgehoben');
+    expect(glow, findsNothing, reason: 'nur solange ungesehen');
     expect(settings.seenNoteIds, hasLength(1));
 
     // Und nach einem Neustart auch nicht.

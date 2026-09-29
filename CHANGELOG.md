@@ -4,7 +4,16 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.44.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.45.0, 2026-09-29*
+
+- **Ein bisschen Bewegung** (0.45.0): Beim Start zeichnet sich das Logo,
+  während die App darunter schon lädt — ein Tipp überspringt es. Wo
+  etwas lädt, läuft die Serpentine des Logos statt des Kreisels. Während
+  einer Fahrt pulst ein Ring um deinen Punkt auf der Karte. Nach dem
+  Verbinden mit einem Buddy laufen zwei Spuren zu einer zusammen, und
+  ein Trail mit neuem Hinweis atmet in der Liste mit seinem gelben Rand.
+  Hast du auf dem Telefon „Animationen entfernen" eingeschaltet, bleibt
+  alles still — der Start zeigt dann gleich die App.
 
 - **Rundere Trails mit Namen** (0.44.0): Die Linien auf der Karte
   laufen jetzt in weichen Kurven statt in Ecken, und ab einem

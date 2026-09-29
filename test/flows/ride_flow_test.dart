@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:trailbuddy/core/app_colors.dart';
+import 'package:trailbuddy/features/map/map_screen.dart' show kRidePulseExtent;
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -131,6 +132,37 @@ void main() {
     await tester.tap(find.byTooltip('Fahrt ausblenden'));
     await settle(tester);
     expect(rideLines(tester), isEmpty);
+  });
+
+  testWidgets('während der Fahrt pulst ein Ring um den Positionspunkt (Design 1r)',
+      (tester) async {
+    FlutterForegroundTask.initCommunicationPort();
+    fix.next = pt(0);
+    await pumpApp(tester, backend,
+        position: fakePosition(47.2, 11.4),
+        rideStore: store, rideFix: fix, rideBridge: bridge, rideService: service);
+    await settle(tester);
+    final pulse = find.byKey(const ValueKey('ride-pulse'));
+    Size marker() {
+      final m = fakeMapLayers(tester).markers.singleWhere((m) => m.key == const ValueKey('my-position'));
+      return Size(m.width, m.height);
+    }
+    expect(pulse, findsNothing);
+    expect(marker(), const Size(22, 22));
+
+    await tester.tap(button);
+    await settle(tester);
+    expect(pulse, findsOneWidget);
+    expect(find.bySemanticsLabel('Deine Position, Fahrt läuft'), findsOneWidget);
+    // Die Markerfläche wächst mit dem Ring, sonst würde er beschnitten.
+    expect(marker(), const Size(kRidePulseExtent, kRidePulseExtent));
+
+    // Beendet (ein einzelner Punkt wird nicht gespeichert): kein Ring mehr.
+    await drainSnackbars(tester);
+    await tester.tap(button);
+    await settle(tester);
+    expect(pulse, findsNothing);
+    expect(marker(), const Size(22, 22));
   });
 
   testWidgets('verwerfen löscht die Fahrt vom Gerät', (tester) async {

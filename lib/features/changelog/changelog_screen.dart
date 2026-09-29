@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../../core/app_colors.dart';
+import '../../core/widgets/motion.dart';
 import 'changelog_parser.dart';
 
 /// Pfad der mitgelieferten Änderungsliste (Asset-Eintrag in `pubspec.yaml`).
@@ -33,7 +34,7 @@ class ChangelogScreen extends StatelessWidget {
           }
           final markdown = snapshot.data;
           if (markdown == null) {
-            return const Center(child: CircularProgressIndicator());
+            return const CenteredTrailLoader();
           }
           return _ChangelogBody(lines: parseChangelog(markdown));
         },

@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/geo.dart';
 import '../../core/router_branches.dart';
+import '../../core/widgets/motion.dart';
 import 'ride_providers.dart';
 import 'ride_split_sheet.dart';
 import 'ride_track.dart';
@@ -22,7 +23,7 @@ class RidesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Fahrten')),
       body: ridesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CenteredTrailLoader(),
         error: (e, _) => const Padding(
           padding: EdgeInsets.all(24),
           child: Text('Die Fahrten ließen sich nicht lesen.'),

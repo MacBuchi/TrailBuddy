@@ -13,6 +13,7 @@ import '../../core/errors.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/letter_avatar.dart';
+import '../../core/widgets/motion.dart';
 import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../feedback/feedback_dialog.dart';
@@ -69,7 +70,7 @@ class ProfileScreen extends ConsumerWidget {
           ] else if (profileAsync.isLoading)
             const Padding(
               padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
+              child: CenteredTrailLoader(),
             ),
           _ProfileRow(
             id: 'import',
