@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../map/map_view/map_hit_test.dart' show kMercatorMaxLat;
 import '../map/map_view/map_view.dart';
 import 'area_overlay.dart' show offlineOverlayBox, offlineOverlayZoom;
 import 'area_plan.dart';
@@ -46,7 +47,7 @@ const kAreaEraseStroke = Color(0xCCC62828);
 double _tileX(double lon, int n) => (lon + 180) / 360 * n;
 
 double _tileY(double lat, int n) {
-  final r = lat.clamp(-85.05112878, 85.05112878) * math.pi / 180;
+  final r = lat.clamp(-kMercatorMaxLat, kMercatorMaxLat) * math.pi / 180;
   return (1 - math.log(math.tan(r) + 1 / math.cos(r)) / math.pi) / 2 * n;
 }
 
