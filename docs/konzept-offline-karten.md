@@ -277,7 +277,12 @@ läuft und jedes Archiv sofort zurückgelesen wird. (2) Die Bereiche sind
 die Karte, sobald kein Empfang besteht oder es kein Manifest gibt —
 nicht „erst lokal, dann Netz": MapLibre hat keinen Kachel-Lieferanten
 für einen lokalen Vorrang, zwei Quellen mit demselben Inhalt zeichneten
-doppelt; beide Engines eine Regel. (3) Ein neuerer Kartenstand wird in
+doppelt; beide Engines eine Regel. **Korrigiert in 0.36.1 (#82):** Im
+Wald heißt „kein Empfang" meist „ein Balken, über den nichts kommt" —
+die Regel griff dort nicht, und gespeicherte Bereiche blieben leer.
+Seither liegen sie immer zuoberst, und das IST der lokale Vorrang: Jede
+Bereichskachel deckt mit ihrer `earth`-Fläche die Online-Karte darunter
+zu, wo keine liegt, scheint diese durch. Sichtbar doppelt wird nichts. (3) Ein neuerer Kartenstand wird in
 „Meine Bereiche" angeboten, unabhängig davon, ob das Netz frei ist —
 wer tippt, entscheidet; `isActiveNetworkMetered` bräuchte einen
 eigenen Plattform-Kanal. Noch nicht gebaut: „Gesehenes bleibt liegen"

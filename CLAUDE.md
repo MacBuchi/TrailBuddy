@@ -717,14 +717,23 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       Orte-Manifest für den Rahmen nennt; `HostPoiSource` liest sie
       ZUERST (`readLocal`), was lokal liegt, braucht weder Manifest noch
       Netz.
-    - **Wann die Bereiche die Karte sind: kein Empfang oder kein
-      Manifest** — dieselbe Regel wie die Übersicht, in beiden Engines
-      (MapLibre: eine `file://`-Quelle je Bereich über der Übersicht;
-      flutter_map: `MultiAreaTileProvider`, der erste Bereich mit der
-      Kachel liefert). Bewusst NICHT „erst lokal, dann Netz" wie im
-      Konzept 3.2 gedacht: MapLibre hat keinen Kachel-Lieferanten für
-      einen lokalen Vorrang, zwei Quellen mit demselben Inhalt zeichneten
-      doppelt; eine Regel für beide Engines ist mehr wert.
+    - **Die Bereiche liegen IMMER auf der Karte, zuoberst** (#82, seit
+      0.36.1), mit und ohne Empfang, in beiden Engines (MapLibre: eine
+      `file://`-Quelle je Bereich NACH der Online-Quelle; flutter_map:
+      `MultiAreaTileProvider` als letzte Kachelschicht, ohne
+      Ersatzkachel). Bis 0.36.0 waren sie nur die Karte ohne Empfang oder
+      ohne Manifest — im Wald heißt das meist „ein Balken, über den nichts
+      kommt": Das Telefon meldete Netz, die Online-Kacheln kamen nie, die
+      gespeicherten wurden nicht gefragt, und die Leiste zeigte sie
+      trotzdem als gespeichert. Das ist der lokale Vorrang aus Konzept
+      3.2, ohne Kachel-Lieferanten: Jede Bereichskachel trägt die
+      deckende `earth`-Fläche (Test: `area_layer_order_test.dart`) und
+      verdeckt die Online-Karte darunter; wo der Bereich keine Kachel
+      hat, liefert sein Archiv nichts. Doppelt gezeichnet wird nichts
+      Sichtbares, nur die Online-Kachel darunter umsonst geladen. Das
+      Archiv-Format war NICHT die Ursache: MapLibre 13.0 entpackt
+      Verzeichnis und Kacheln nur bei gzip und liest „none" roh
+      (nachgesehen im nativen Code).
     - **Der Download läuft im Main-Isolate**, auf Android unter dem
       KeepAlive-Koordinator (`dataSync`); Abbruch zwischen den Blöcken,
       geschrieben wird erst am Ende — ein Abbruch hinterlässt nichts.

@@ -1,7 +1,8 @@
 // Der Style-Provider ist die I/O-Schicht über dem puren Composer: Welche
 // Quellen er wann zusammensetzt, ist die Regel „Online-Karte vom Host,
 // sobald das Manifest da ist; die Übersicht darunter ohne Empfang oder
-// ohne Manifest" — dieselbe wie in der flutter_map-Engine.
+// ohne Manifest; die gespeicherten Bereiche immer zuoberst (#82)" —
+// dieselbe wie in der flutter_map-Engine.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -185,9 +186,21 @@ void main() {
       expect((style['layers'] as List).any((l) => (l as Map)['id'] == 'area-a1/earth'), isTrue);
     });
 
-    test('online mit Manifest zeichnet die Karte des Hosts, nicht den Bereich', () async {
+    test('mit Empfang liegen sie ÜBER der Online-Karte (#82)', () async {
+      // Bis 0.36.x nur ['online']: Bei schwachem Empfang meldet das
+      // Telefon ein Netz, die Online-Kacheln kommen nie — und die
+      // gespeicherten wurden gar nicht gefragt.
       final (c, _) = make(noConnectivity: false, areaStore: await storeWithArea());
-      expect(sourceIds(await styleOf(c)), ['online']);
+      final style = await styleOf(c);
+      expect(sourceIds(style), ['online', 'area-a1'], reason: 'Reihenfolge = Schichtung');
+      final ids = (style['layers'] as List).map((l) => (l as Map)['id']).toList();
+      expect(ids.indexOf('area-a1/earth'), greaterThan(ids.indexOf('online/earth')),
+          reason: 'die deckende Fläche des Bereichs liegt über der Online-Karte');
+    });
+
+    test('ohne Manifest (Host weg): Übersicht, dann der Bereich', () async {
+      final (c, _) = make(noConnectivity: false, manifest: null, areaStore: await storeWithArea());
+      expect(sourceIds(await styleOf(c)), ['overview', 'area-a1']);
     });
 
     test('ohne Pfad (Browser) keine Quelle — der Canvas-Renderer liest die Bytes', () async {
