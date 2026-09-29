@@ -290,3 +290,10 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await settle(tester);
 }
+
+/// Ein Widget mit dieser Beschriftung für Bildschirmleser. Die Kennzahl-
+/// Kacheln des Trail-Blatts (seit 0.39.0) zeigen „S2" und „S1–S3 · 4×",
+/// ihre Aussage „S2 · S1–S3 · 4 Einschätzungen" steht als Beschriftung
+/// an der Kachel — geprüft wird derselbe Satz wie vorher im Chip.
+Finder findLabel(String label) =>
+    find.byWidgetPredicate((w) => w is Semantics && w.properties.label == label);

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_theme.dart' show AppFonts;
 import '../official/official_signposts.dart';
 import '../../core/errors.dart';
 import '../../core/geo.dart' show formatMeters;
@@ -102,6 +103,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
     }
     _markSeen(trail);
     final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
     final status = trail.latestStatus;
     final mine = trail.myDetails;
     final buddies = trail.buddyIds.length;
@@ -120,10 +122,24 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(trail.displayName, style: theme.textTheme.titleLarge),
+            // Der Kopf (Design 1i/4f): Name in Versalien, darunter, wer ihn
+            // kennt — die Beziehung, die in der Liste der Streifen sagt.
+            Text(trail.displayName.toUpperCase(),
+                key: const ValueKey('trail-sheet-title'),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
             if (trail.otherNames.isNotEmpty)
               Text('auch: ${trail.otherNames.join(', ')}',
-                  style: theme.textTheme.bodyMedium),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted)),
+            Text(
+              trail.isOwn
+                  ? (buddies == 0
+                      ? 'Nur du hast diesen Trail belegt.'
+                      : 'Du und $buddies ${buddies == 1 ? 'Buddy' : 'Buddys'} '
+                          '(${contributors.join(', ')}).')
+                  : 'Belegt von ${contributors.isEmpty ? '$buddies Buddys' : contributors.join(', ')} '
+                      '— du bist ihn noch nicht gefahren.',
+              style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted),
+            ),
             // Wartet im Ausgangskorb (#30): Der Trail ist noch nicht auf
             // dem Server — kein Beitrag, kein Hinweis, keine Einschätzung,
             // dafür fehlt die Kennung. Das Blatt sagt es, statt Knöpfe zu
@@ -140,49 +156,51 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             // Offizielle Trails, die dieser deckt (#13) — auf dem Gerät
             // gerechnet, aus der Linie, die die Karte zeichnet.
             OfficialSignposts(line: trail.points),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                Chip(label: Text(formatLength(trail.lengthM))),
-                if (elevation != null) ...[
-                  Chip(
-                      label: Text(formatElevation(
-                          (gain: elevation.gainM, loss: elevation.lossM)))),
-                  Chip(label: Text(formatMeanGrade(elevation.meanDescentPct))),
-                ],
-                if (trail.grade != null)
-                  ActionChip(
-                    key: const ValueKey('grade-chip'),
-                    label: Text(gradeSummary(trail)!),
-                    onPressed: () => showGradeVotesSheet(context, trail),
-                  ),
-                // Der Charakter (#72): die höchstens zwei häufigsten, mit
-                // der Zahl der Beiträge, die ihn nennen.
-                for (final t in trail.topTraits)
-                  Tooltip(
-                    message: t.description,
-                    child: Chip(
-                      key: ValueKey('trait-chip-${t.db}'),
-                      avatar: Icon(t.icon, size: 18),
-                      label: Text('${t.label} · ${trail.traitCounts[t]}'),
+            // Charakter (#72) und Meldung als Chips — die Kennzahlen stehen
+            // darunter in Kacheln.
+            if (trail.topTraits.isNotEmpty || trail.status.warns) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  if (trail.status.warns)
+                    Chip(
+                      avatar: const Icon(Icons.warning_amber, size: 18),
+                      backgroundColor: palette.map.warning.withValues(alpha: 0.25),
+                      label: Text('${trail.status.label} · ${statusAge(status?.statusAt)}'),
                     ),
-                  ),
-                if (trail.status.warns)
-                  Chip(
-                    avatar: const Icon(Icons.warning_amber, size: 18),
-                    backgroundColor: AppPalette.of(context).map.warning.withValues(alpha: 0.25),
-                    label: Text('${trail.status.label} · ${statusAge(status?.statusAt)}'),
-                  ),
-              ],
-            ),
+                  // Die höchstens zwei häufigsten, mit der Zahl der Beiträge,
+                  // die sie nennen.
+                  for (final t in trail.topTraits)
+                    Tooltip(
+                      message: t.description,
+                      child: Chip(
+                        key: ValueKey('trait-chip-${t.db}'),
+                        avatar: Icon(t.icon, size: 18),
+                        label: Text('${t.label} · ${trail.traitCounts[t]}'),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            _MetricTiles(trail: trail),
             const SizedBox(height: 8),
-            if (elevation != null) ...[
-              ElevationProfileChart(elevation),
-              const SizedBox(height: 4),
-              Text(_profileCaption(elevation), style: theme.textTheme.bodySmall),
-            ] else
+            if (elevation != null)
+              _Panel(
+                label: 'HÖHENPROFIL',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ElevationProfileChart(elevation),
+                    const SizedBox(height: 4),
+                    Text(_profileCaption(elevation),
+                        style: theme.textTheme.bodySmall?.copyWith(color: palette.muted)),
+                  ],
+                ),
+              )
+            else
               Text(
                   trail.isOwn
                       ? 'Keine Höhenangaben. Hat deine GPX-Datei welche, '
@@ -190,17 +208,6 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                       : 'Keine Höhenangaben.',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 8),
-            Text(
-              trail.isOwn
-                  ? (buddies == 0
-                      ? 'Nur du hast diesen Trail belegt.'
-                      : 'Du und $buddies ${buddies == 1 ? 'Buddy' : 'Buddys'} '
-                          '(${contributors.join(', ')}).')
-                  : 'Belegt von ${contributors.isEmpty ? '$buddies Buddys' : contributors.join(', ')} '
-                      '— du bist ihn noch nicht gefahren.',
-              style: theme.textTheme.bodyMedium,
-            ),
             if (mine?.description != null && mine!.description!.trim().isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -208,24 +215,42 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               ),
             if (!trail.pending) ...[
               const SizedBox(height: 12),
-              TrailNotesSection(trail: trail, seenBefore: _seenBefore),
+              TrailNotesSection(trail: trail, seenBefore: _seenBefore, showAdd: false),
             ],
             if (trail.isOwn && !trail.pending) ...[
               const SizedBox(height: 12),
               OwnGradePicker(trail: trail),
+              // Der ganze Beitrag (Name, Charakter, Status, Sichtbarkeit) —
+              // gleich unter der Einschätzung, die ein Teil davon ist.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => showTrailDetailsDialog(context, ref, trail),
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Mein Beitrag'),
+                ),
+              ),
             ],
             const SizedBox(height: 12),
+            // Unten die beiden Wege aus dem Blatt (Design 1i): schreiben
+            // (Lime, die Hauptaktion) und zur Karte.
             Row(
               children: [
-                if (trail.isOwn && !trail.pending)
-                  FilledButton.tonalIcon(
-                    onPressed: () => showTrailDetailsDialog(context, ref, trail),
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Mein Beitrag'),
+                if (!trail.pending)
+                  Expanded(
+                    child: FilledButton.icon(
+                      key: const ValueKey('add-note'),
+                      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: () => addTrailNote(context, ref, trail),
+                      icon: const Icon(Icons.add_comment_outlined),
+                      label: const Text('Hinweis schreiben'),
+                    ),
                   ),
-                const Spacer(),
+                if (!trail.pending && widget.showOnMapButton) const SizedBox(width: 8),
                 if (widget.showOnMapButton)
-                  TextButton.icon(
+                  OutlinedButton.icon(
+                    key: const ValueKey('trail-show-on-map'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
                     onPressed: () {
                       // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
                       Navigator.of(context).pop();
@@ -234,7 +259,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                       ref.read(mapFocusTrailProvider.notifier).state = trail.id;
                     },
                     icon: const Icon(Icons.map),
-                    label: const Text('Auf der Karte'),
+                    label: const Text('Karte'),
                   ),
               ],
             ),
@@ -299,7 +324,7 @@ class _PendingNotice extends ConsumerWidget {
 
 String _profileCaption(ElevationProfile p) {
   final steepest = p.steepestDescentPct;
-  final parts = <String>['In Trail-Richtung'];
+  final parts = <String>['In Trail-Richtung', formatMeanGrade(p.meanDescentPct)];
   if (steepest != null && steepest > 0) {
     parts.add('steilstes Stück ${steepest.round()} % auf ${kSteepestWindowM.round()} m');
   }
@@ -436,6 +461,123 @@ class _OwnGradePickerState extends ConsumerState<OwnGradePicker> {
           ],
         ),
       ],
+    );
+  }
+}
+
+
+/// Eine Kachel mit kleiner Überschrift in Versalien (Design 1i): die
+/// Fläche eine Stufe über dem Blatt, Rundung 12.
+class _Panel extends StatelessWidget {
+  const _Panel({required this.label, required this.child, this.onTap, this.panelKey});
+  final String label;
+  final Widget child;
+  final VoidCallback? onTap;
+  final Key? panelKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final content = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: palette.muted, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+          const SizedBox(height: 4),
+          child,
+        ],
+      ),
+    );
+    return Material(
+      key: panelKey,
+      color: palette.surface2,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.hardEdge,
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
+    );
+  }
+}
+
+/// Die drei Kennzahlen (Design 1i/4f): Länge, Abfahrt, S-Grad — die Zahl
+/// groß in Mono, die Einheit und das Kleingedruckte daneben. Der ganze
+/// Satz steht für Bildschirmleser an der Kachel („↓ 420 Hm · ↑ 35 Hm",
+/// „S2 · S1–S3 · 4 Einschätzungen"); die S-Grad-Kachel öffnet, wer was
+/// gesagt hat.
+class _MetricTiles extends StatelessWidget {
+  const _MetricTiles({required this.trail});
+  final Trail trail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    final big = AppFonts.numbers(theme.textTheme.titleLarge).copyWith(fontSize: 20);
+    final small = AppFonts.numbers(theme.textTheme.bodySmall).copyWith(color: palette.muted);
+    final elevation = trail.elevation;
+    final grade = trail.grade;
+    final range = trail.gradeRange;
+
+    Widget tile(String label, String semantics, List<InlineSpan> value, {Key? key, VoidCallback? onTap}) =>
+        Expanded(
+          child: Semantics(
+            label: semantics,
+            button: onTap != null,
+            excludeSemantics: true,
+            child: _Panel(
+              panelKey: key,
+              label: label,
+              onTap: onTap,
+              child: Text.rich(TextSpan(children: value), style: big, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+          ),
+        );
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          tile('LÄNGE', formatLength(trail.lengthM), [TextSpan(text: formatLength(trail.lengthM))],
+              key: const ValueKey('metric-length')),
+          const SizedBox(width: 8),
+          tile(
+            'HÖHE',
+            elevation == null
+                ? 'Keine Höhenangaben'
+                : formatElevation((gain: elevation.gainM, loss: elevation.lossM)),
+            elevation == null
+                ? [TextSpan(text: '—', style: TextStyle(color: palette.muted))]
+                : [
+                    TextSpan(text: '↓${elevation.lossM.round()}'),
+                    TextSpan(text: ' Hm', style: small),
+                  ],
+            key: const ValueKey('metric-elevation'),
+          ),
+          const SizedBox(width: 8),
+          tile(
+            'S-GRAD',
+            gradeSummary(trail) ?? 'Noch keine Einschätzung',
+            grade == null || range == null
+                ? [TextSpan(text: '—', style: TextStyle(color: palette.muted))]
+                : [
+                    TextSpan(text: gradeLabel(grade), style: TextStyle(color: palette.accentText)),
+                    // Spanne und Anzahl eine Zeile tiefer — neben dem Grad
+                    // bräche „S2–S3 · 4" in einer Drittel-Kachel um.
+                    TextSpan(
+                        text: '\n${[
+                          if (range.min != range.max) '${gradeLabel(range.min)}–${gradeLabel(range.max)}',
+                          '${trail.gradeVotes.length}×',
+                        ].join(' · ')}',
+                        style: small),
+                  ],
+            // Der Schlüssel des früheren Chips bleibt: Die Kachel tut dasselbe.
+            key: const ValueKey('grade-chip'),
+            onTap: grade == null ? null : () => showGradeVotesSheet(context, trail),
+          ),
+        ],
+      ),
     );
   }
 }

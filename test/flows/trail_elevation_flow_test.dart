@@ -66,8 +66,8 @@ void main() {
     await tester.tap(find.text('Wurzeltrail'));
     await settle(tester);
 
-    expect(find.text('↓ 100 Hm · ↑ 0 Hm'), findsOneWidget);
-    expect(find.text('Ø 8 % Gefälle'), findsOneWidget);
+    expect(findLabel('↓ 100 Hm · ↑ 0 Hm'), findsOneWidget);
+    expect(find.textContaining('Ø 8 % Gefälle'), findsOneWidget);
     expect(find.byKey(const ValueKey('elevation-profile')), findsOneWidget);
     expect(find.text('600 m'), findsOneWidget);
     expect(find.text('500 m'), findsOneWidget);

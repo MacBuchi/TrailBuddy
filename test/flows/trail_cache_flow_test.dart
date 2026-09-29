@@ -64,7 +64,7 @@ void main() {
     // Das Blatt funktioniert auf der Kopie.
     await tester.tap(find.text('Roots'));
     await settle(tester);
-    expect(find.text('S2 · 1 Einschätzung'), findsOneWidget);
+    expect(findLabel('S2 · 1 Einschätzung'), findsOneWidget);
   });
 
   testWidgets('ein Serverfehler bleibt ein Fehler — nichts aus der Kopie', (tester) async {

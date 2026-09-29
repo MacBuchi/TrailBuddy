@@ -4,7 +4,14 @@
 
 ## Aussehen
 
-*Version 0.38.0, 2026-09-29*
+*Versionen 0.38.0 und 0.39.0, 2026-09-29*
+
+- **Das Trail-Blatt im neuen Look** (0.39.0): Der Name steht groß
+  oben, darunter, wer den Trail kennt. Länge, Abfahrt und
+  Schwierigkeit stehen in drei Kacheln nebeneinander, ein Tipp auf die
+  Schwierigkeit zeigt wie bisher, wer was gesagt hat. Das Höhenprofil
+  hat eine eigene Fläche, ein neuer Hinweis eines Buddys ist gelb
+  umrandet. Unten stehen „Hinweis schreiben" und „Karte".
 
 - **Die Trail-Liste im neuen Look** (0.38.0): Jeder Trail steht jetzt
   auf einer eigenen Karte. Ein Farbstreifen links sagt, wem er gehört:

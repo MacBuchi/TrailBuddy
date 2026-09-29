@@ -24,9 +24,13 @@ const kNoteMaxLength = 500;
 /// wenn es beim Öffnen als gesehen gemerkt wird.
 class TrailNotesSection extends ConsumerWidget {
   const TrailNotesSection(
-      {super.key, required this.trail, this.seenBefore = const {}});
+      {super.key, required this.trail, this.seenBefore = const {}, this.showAdd = true});
   final Trail trail;
   final Set<String> seenBefore;
+
+  /// Der Knopf „Hinweis schreiben" in der Überschrift — das Trail-Blatt
+  /// stellt ihn seit 0.39.0 (Design 1i) unten als Hauptaktion hin.
+  final bool showAdd;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,12 +43,13 @@ class TrailNotesSection extends ConsumerWidget {
           children: [
             Text('Hinweise', style: theme.textTheme.titleSmall),
             const Spacer(),
-            TextButton.icon(
-              key: const ValueKey('add-note'),
-              onPressed: () => _add(context, ref),
-              icon: const Icon(Icons.add_comment_outlined),
-              label: const Text('Hinweis schreiben'),
-            ),
+            if (showAdd)
+              TextButton.icon(
+                key: const ValueKey('add-note'),
+                onPressed: () => addTrailNote(context, ref, trail),
+                icon: const Icon(Icons.add_comment_outlined),
+                label: const Text('Hinweis schreiben'),
+              ),
           ],
         ),
         if (notes.isEmpty)
@@ -61,21 +66,23 @@ class TrailNotesSection extends ConsumerWidget {
     );
   }
 
-  Future<void> _add(BuildContext context, WidgetRef ref) async {
-    // Privat zählt nur, wenn ich selbst einen Beitrag habe — sonst gibt
-    // es nichts, was ich verbergen könnte.
-    final private = trail.myDetails?.visibility == TrailVisibility.private;
-    final body = await showNoteDialog(context, private: private);
-    if (body == null || !context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final fresh = await ref.read(trailsProvider.notifier).addNote(trail.id, body);
-      messenger.showSnackBar(SnackBar(
-          content: Text('Hinweis gespeichert${fresh ? '' : staleAfterWriteHint}')));
-    } catch (e, st) {
-      logError('Hinweis speichern', e, st);
-      messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
-    }
+}
+
+/// Einen Hinweis schreiben: Dialog, speichern, Rückmeldung.
+Future<void> addTrailNote(BuildContext context, WidgetRef ref, Trail trail) async {
+  // Privat zählt nur, wenn ich selbst einen Beitrag habe — sonst gibt
+  // es nichts, was ich verbergen könnte.
+  final private = trail.myDetails?.visibility == TrailVisibility.private;
+  final body = await showNoteDialog(context, private: private);
+  if (body == null || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final fresh = await ref.read(trailsProvider.notifier).addNote(trail.id, body);
+    messenger.showSnackBar(SnackBar(
+        content: Text('Hinweis gespeichert${fresh ? '' : staleAfterWriteHint}')));
+  } catch (e, st) {
+    logError('Hinweis speichern', e, st);
+    messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
   }
 }
 
@@ -93,11 +100,14 @@ class _NoteTile extends ConsumerWidget {
       key: ValueKey('note-${note.id}'),
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      // Ein neuer Hinweis gelb umrandet (Design 1i) — der Rand, der auf
+      // der Karte um die Linie leuchtet.
       decoration: BoxDecoration(
         color: fresh
-            ? AppPalette.of(context).map.note.withValues(alpha: 0.2)
+            ? AppPalette.of(context).map.note.withValues(alpha: 0.12)
             : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        border: fresh ? Border.all(color: AppPalette.of(context).map.note, width: 1.5) : null,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,8 +119,11 @@ class _NoteTile extends ConsumerWidget {
                 Text(note.body),
                 const SizedBox(height: 2),
                 Text('$who · ${statusAge(note.createdAt)}',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                    style: fresh
+                        ? theme.textTheme.bodySmall?.copyWith(
+                            color: AppPalette.of(context).noteText, fontWeight: FontWeight.w600)
+                        : theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
