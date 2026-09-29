@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1F6F5F</color>
-    <!-- Tönung des Push-Symbols (AppColors.trailGreen). -->
-    <color name="notification_color">#1F6F5F</color>
+    <!-- Hintergrund des adaptiven App-Symbols: die Marke, Lime (AppColors.brand). -->
+    <color name="ic_launcher_background">#B6F04A</color>
+    <!-- Tönung des Push-Symbols: die Marke auf Hell (MapPalette.light.mine).
+         Lime selbst wäre auf der hellen Benachrichtigungsleiste unlesbar. -->
+    <color name="notification_color">#4F8A10</color>
 </resources>

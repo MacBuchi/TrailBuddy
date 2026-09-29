@@ -8,6 +8,7 @@ import '../../core/errors.dart';
 import '../../core/widgets/form_notice.dart';
 import '../../core/widgets/password_field.dart';
 import '../../core/widgets/resend_button.dart';
+import '../../core/widgets/trailbuddy_logo.dart';
 import '../../data/providers.dart';
 
 /// Drei Zustände statt zwei: „Passwort vergessen" ist ein eigener Modus, der
@@ -244,13 +245,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.pedal_bike,
-                    size: 96, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 12),
-                Text('TrailBuddy',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 32),
+                // Logo, Wortmarke und ein Satz, linksbündig (Design 1g).
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: TrailBuddyLogo(size: 64),
+                ),
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: TrailBuddyWordmark(),
+                ),
+                const SizedBox(height: 8),
+                Text('Trails teilen — nur mit deinen Buddys.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 40),
                 // Ohne AutofillGroup registrieren sich die Felder nicht beim
                 // Autofill-Dienst — Passwortmanager sehen das Formular sonst
                 // gar nicht. Abbruch beim Verlassen, gespeichert wird erst

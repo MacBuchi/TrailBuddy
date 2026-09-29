@@ -23,6 +23,13 @@ auf den Branch `official-trails-data` — nie als Release (die
 Update-Prüfung nähme es im Vorab-Kanal für eine App-Version). Dort
 liegen nur öffentliche Daten Dritter, keine Nutzerdaten.
 
+**Das Aussehen steht in `docs/design/README.md`** (Farben hell/dunkel,
+Schriften, Logo, Offline-Kachel-Regel, Kartenleisten, S-Grad als Form,
+Bewegung, Reihenfolge der Umsetzung). Wie beim Konzept: Wer im Code davon
+abweicht, ändert die Datei im selben PR. Alle App-Symbole erzeugt
+`tool/brand_icons.py` aus EINEM Pfad (Logo „Serpentine"); nie ein Symbol
+von Hand tauschen.
+
 **Nichts Privates in dieses Repo — es ist öffentlich.** Keine absoluten
 Pfade des Betreiber-Rechners, keine privaten Mailadressen, keine GPX- oder
 Zip-Dateien (eine Fahrt beginnt an der Haustür), keine Koordinaten in
@@ -817,8 +824,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und
   Zwischenspeicher im Browser, Nachrichten zwischen Buddys (#34, Rest),
-  Meldung zu einem einzelnen Trail, Launcher-Icon (noch
-  Flutter-Vorgabe), `docs/play-console.md`.
+  Meldung zu einem einzelnen Trail, `docs/play-console.md`.
 
 ## Code-Konventionen
 
