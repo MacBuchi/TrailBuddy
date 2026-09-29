@@ -195,18 +195,31 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       ];
       final width = math.max(1, style.width.round());
       if (style.borderColor != null && style.borderWidth > 0) {
-        out.add(ml.PolylineLayer(
+        out.add(RoundPolylineLayer(
           polylines: features,
           color: style.borderColor!,
           width: width + (2 * style.borderWidth).round(),
         ));
       }
-      out.add(ml.PolylineLayer(
+      out.add(RoundPolylineLayer(
         polylines: features,
         color: style.color,
         width: width,
         dashArray: style.dash == null ? null : dashArrayFor(style.dash!, style.width),
       ));
+    }
+    // Die Namen zuletzt: über allen Linien.
+    final labelled = [for (final l in lines) if (l.label != null && l.points.length >= 2) l];
+    if (labelled.isNotEmpty) {
+      out.add(LineLabelLayer(features: [
+        for (final l in labelled)
+          ml.Feature(
+            geometry: ml.LineString.build([
+              for (final p in l.points) ...[p.longitude, p.latitude],
+            ]),
+            properties: {'label': l.label!},
+          ),
+      ]));
     }
     return out;
   }
@@ -395,4 +408,72 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       ],
     );
   }
+}
+
+
+/// Die Linien-Ebenen, wie die Engine sie baut — für Tests erreichbar
+/// (die Platform-View selbst ist im Widget-Test nicht renderbar).
+@visibleForTesting
+List<ml.Layer> mapLibrePolylineLayers(List<MapViewPolyline> lines) =>
+    _MapLibreMapViewState.polylineLayers(lines);
+
+/// Eine Linie mit runden Ecken und Enden. Das Paket setzt kein Layout, und
+/// MapLibre zeichnet ohne `line-join` spitz auf Gehrung — jede Kehre sah
+/// aus wie ein Knick (Betreiber, 2026-09-29: „smoother").
+class RoundPolylineLayer extends ml.PolylineLayer {
+  const RoundPolylineLayer({
+    required super.polylines,
+    super.color,
+    super.width,
+    super.dashArray,
+  });
+
+  @override
+  Map<String, Object> getLayout() => const {'line-join': 'round', 'line-cap': 'round'};
+}
+
+/// Namen ENTLANG der Linie (`symbol-placement: line`) wie Straßennamen:
+/// MapLibre dreht jeden Buchstaben mit der Kurve, wiederholt den Namen auf
+/// langen Trails und lässt ihn weg, wo er mit anderem kollidiert. Dunkle
+/// Schrift mit weißem Saum, leicht neben der Linie — die Karte ist immer
+/// hell. Die Schrift ist die des Kartenstils (Noto Sans aus
+/// `assets/map_glyphs/`), kein Zeichen braucht Nachladen.
+class LineLabelLayer extends ml.Layer<ml.Feature<ml.LineString>> {
+  const LineLabelLayer({required List<ml.Feature<ml.LineString>> features})
+      // MapLibre zählt Zoom in 512er-Kacheln, die Fassade in 256ern.
+      : super(list: features, minZoom: kLineLabelMinZoom - 1);
+
+  @override
+  Map<String, Object> getPaint() => {
+        'text-color': '#131A16',
+        'text-halo-color': '#FFFFFF',
+        'text-halo-width': 1.5,
+      };
+
+  @override
+  Map<String, Object> getLayout() => {
+        'symbol-placement': 'line',
+        // Token-Schreibweise: Ausdrücke gehen in 0.3.5 durch toJObject().
+        'text-field': '{label}',
+        // Der Stack-Name, wie er als Ordner in `assets/map_glyphs/` liegt —
+        // der Stil wird darauf umgeschrieben (`_rewriteFonts`), diese Ebene
+        // nicht; „Noto Sans Medium" fände MapLibre nicht und ließe den
+        // Namen still weg.
+        'text-font': const ['noto-sans-medium'],
+        'text-size': 12,
+        'text-offset': const [0, -0.9],
+        'text-max-angle': 35,
+        'symbol-spacing': 300,
+        'text-keep-upright': true,
+      };
+
+  @override
+  ml.StyleLayer createStyleLayer(int index) => ml.SymbolStyleLayer(
+        id: getLayerId(index),
+        sourceId: getSourceId(index),
+        paint: getPaint(),
+        layout: getLayout(),
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+      );
 }

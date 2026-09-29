@@ -356,4 +356,5 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72) |
 | 6a | S-Grad-Schild, Farbe = Schwierigkeit (Karte, Liste, Schild) | 0.42.0 |
 | 6b | Schild mit Charakter am Trailanfang auf der Karte | 0.43.0 |
+| 6c | Glatte Linien, Name entlang der Linie (Betreiber-Wunsch) | 0.44.0 |
 | 7 | Animationen (Turn 1p–1t) | |

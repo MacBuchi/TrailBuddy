@@ -274,6 +274,21 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   um die Linie (gemeldet schlägt Hinweis), die Linie behält ihre Stufe.
   Die Karte nimmt immer `AppColors.mapGrades` (hell), die App
   `palette.grade`. `docs/design/README.md` Abschnitt 1–2 und 7.
+- **Glatte Linien und Namen am Trail** (seit 0.44.0, Betreiber
+  2026-09-29): Die Trail-Linien werden fürs BILD mit Chaikin geglättet
+  (`line_smoothing.dart`, drei Durchgänge, Anfang und Ende fest, einmal je
+  Trail im Karten-Screen gemerkt); Abgleich, Länge, Höhen, Deckung und
+  Zerlegung rechnen weiter mit den Originalpunkten, die Trefferprüfung
+  mit der geglätteten Linie. MapLibre zeichnet Linien mit runden Ecken
+  (`RoundPolylineLayer` — das Paket setzt kein `line-join`, spitz auf
+  Gehrung sah jede Kehre wie ein Knick aus). Der Name steht ab Zoom 14
+  (`kLineLabelMinZoom`, 256er) an der Linie: MapLibre als Symbol-Ebene
+  `symbol-placement: line` über allen Linien (`LineLabelLayer`, Kollision
+  und Wiederholung macht MapLibre), **Schrift `noto-sans-medium`** — der
+  Glyphen-Ordner, nicht „Noto Sans Medium" (der Stil wird umgeschrieben,
+  diese Ebene nicht; der falsche Name lässt den Text still weg, ein Test
+  prüft den Ordner). flutter_map kann keinen Text auf einem Pfad: einmal
+  in der Mitte, gedreht, nie kopfüber (`lineLabelAnchor`).
 - **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
   freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
   den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie

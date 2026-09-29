@@ -4,7 +4,12 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.43.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.44.0, 2026-09-29*
+
+- **Rundere Trails mit Namen** (0.44.0): Die Linien auf der Karte
+  laufen jetzt in weichen Kurven statt in Ecken, und ab einem
+  bestimmten Zoom steht der Name des Trails direkt an der Linie — auf
+  dem Telefon folgt er ihrem Verlauf wie ein Straßenname.
 
 - **Das Schild auch auf der Karte** (0.43.0): Wenn du nah genug
   heranzoomst, steht am Anfang jedes Trails sein Schild — Schwierigkeit,

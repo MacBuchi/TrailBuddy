@@ -202,6 +202,10 @@ class MapViewMarker {
 /// nicht an einer Ebene — flutter_map kann das je Linie, MapLibre trägt
 /// es am Layer und bekommt deshalb eine Ebene je Stil (gruppiert, nicht
 /// je Linie: ein Netz kann hunderte Trails haben).
+/// Ab dieser (gerechneten, 256er) Zoomstufe stehen Linienbeschriftungen —
+/// darunter sind die Trails zu kurz für ihren Namen.
+const kLineLabelMinZoom = 14.0;
+
 class MapViewPolyline {
   const MapViewPolyline({
     required this.points,
@@ -211,11 +215,18 @@ class MapViewPolyline {
     this.borderColor,
     this.borderWidth = 0,
     this.hitValue,
+    this.label,
   });
 
   final List<LatLng> points;
   final Color color;
   final double width;
+
+  /// Ein Name, der ENTLANG der Linie steht (der Trailname) — ab
+  /// [kLineLabelMinZoom]. MapLibre setzt ihn wie einen Straßennamen und
+  /// lässt ihn bei Platzmangel weg; flutter_map stellt ihn einmal in die
+  /// Mitte, gedreht nach der Linie (`lineLabelAnchor`).
+  final String? label;
 
   /// Strichmuster in Bildpunkten (Strich, Lücke, …); null = durchgezogen.
   final List<double>? dash;

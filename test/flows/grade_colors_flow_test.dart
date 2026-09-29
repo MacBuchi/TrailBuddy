@@ -53,6 +53,14 @@ void main() {
     expect(closed.color, g.s0, reason: 'die Meldung übermalt die Schwierigkeit nicht');
     expect(closed.borderColor, AppColors.mapLines.warning);
     expect(lineOf(tester, 'Mein Blauer').borderColor, AppColors.mapLines.halo);
+    // Der Name fließt entlang der Linie; die Linie ist fürs Bild geglättet,
+    // Anfang und Ende bleiben die gespeicherten.
+    final blue = lineOf(tester, 'Mein Blauer');
+    expect(blue.label, 'Mein Blauer');
+    final t = blue.hitValue! as Trail;
+    expect(blue.points.length, greaterThan(t.points.length));
+    expect(blue.points.first, t.points.first);
+    expect(blue.points.last, t.points.last);
     expect(lineOf(tester, 'Auffahrt').color, g.uphill, reason: 'Uphill schlägt die Stufe (S2 wäre rot)');
   });
 
