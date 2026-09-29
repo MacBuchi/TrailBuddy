@@ -300,6 +300,21 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   (0,2 ms). Die Glättung nur an Ecken hält die Punkte beim 2,5-Fachen
   statt beim 7,7-Fachen. Wer die Punktlisten je Aufbau neu anlegt, hebt
   den Cache aus — der Test in `trail_line_look_test.dart` hält es fest.
+- **Bewegung** (Design 1p–1t, seit 0.45.0, `lib/core/widgets/motion.dart`,
+  `start_splash.dart`): Splash, Loader, Ring um den Punkt während der
+  Fahrt, „zwei Spuren werden eine" beim Verbinden, atmender Rand bei
+  neuem Hinweis (nur in der Liste — auf der Karte hieße Atmen, die
+  Linien je Bild neu an MapLibre zu übertragen). Jede Animation liest
+  `reduceMotion(context)` und zeigt dann das Endbild ohne Takt; die
+  Keyframes stehen als pure Funktionen daneben und sind ohne Pixel
+  geprüft. **Kurveneingänge klemmen**: `(1 − 0,7) / 0,3` ist in
+  Gleitkomma 1,0000000000000002, und `Curve.transform` wirft darauf
+  (im Test gefunden). Der Splash liegt ÜBER der App, immer im selben
+  `Stack` — fiele der nach dem Splash weg, hinge die App um; der Test
+  prüft das an einem Kind OHNE GlobalKey (mit einem wäre die Gegenprobe
+  grün geblieben). Der Harness schaltet ihn ab
+  (`startSplashEnabledProvider`), sonst schluckte er die ersten Tipps
+  jedes Flow-Tests.
 - **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
   freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
   den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie

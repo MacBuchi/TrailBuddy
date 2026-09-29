@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router_branches.dart';
+import '../../core/widgets/motion.dart';
 import '../map/online_map.dart';
 import 'area_downloader.dart';
 import 'area_plan.dart';
@@ -23,7 +24,7 @@ class AreasScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Bereiche')),
       body: areasAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CenteredTrailLoader(),
         error: (e, _) => const Padding(
           padding: EdgeInsets.all(24),
           child: Text('Die Bereiche ließen sich nicht lesen.'),

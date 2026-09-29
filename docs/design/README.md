@@ -336,6 +336,32 @@ Jede Animation ist aus, wenn das System es will
 | 1s Buddy verbunden | zwei Spuren laufen zu einer zusammen, dann der Punkt | 3 s |
 | 1t Neuer Hinweis | der gelbe Leuchtrand atmet (2 → 6/14 px Schein) | 1,8 s, nur solange ungesehen |
 
+Gebaut in 0.45.0 (`lib/core/widgets/motion.dart`, `start_splash.dart`;
+die Keyframes stehen je als pure Funktion daneben — `splashAt`,
+`loaderSegments`, `ridePulseAt`, `connectMergeAt`, `glowAt` — und sind
+ohne Pixel geprüft, `test/core/motion_test.dart`). Bei reduzierter
+Bewegung steht überall das Endbild, kein Takt läuft. Fünf Abweichungen:
+
+- **1p liegt ÜBER der App, nicht vor ihr**: Anmeldung, Karte und Trails
+  laden darunter schon, der Splash kostet also keine eigene Wartezeit
+  (1,2 s, dann 0,25 s Ausblenden, einmal je Start). Ein Tipp überspringt
+  ihn; bei reduzierter Bewegung gibt es ihn gar nicht — ein stehendes
+  Logo vor der App wäre nur eine Pause. Grund ist der des Modus, nicht
+  immer das Dunkel des Entwurfs. Der Test-Harness schaltet ihn ab
+  (`startSplashEnabledProvider`).
+- **1q ersetzt nur die ganzseitigen Kreisel.** In Knöpfen und Zeilen
+  bleibt der kleine Kreisel: Eine Serpentine in 16 px liest niemand.
+- **1r**: Der Ring hat die Farbe des Positionspunkts; die Markerfläche
+  wächst während der Fahrt auf das 3,2-Fache, sonst würde er
+  beschnitten. „Die Spur wächst" tat sie schon — mit jedem Punkt.
+- **1s läuft einmal**, 3 s, wenn die Karte „Mit … verbunden" erscheint:
+  erst auseinander, dann eine Spur, dann der Punkt. Die Vorschau im
+  Entwurf läuft hin und her, das wäre auf einer Karte, die man liest,
+  Unruhe. Zusammen trägt die Spur die Marke (Lime heißt „mein").
+- **1t atmet nur in der Liste**, auf der Karte steht der Rand still:
+  Eine atmende Linie hieße in MapLibre, die Linien in jedem Bild neu zu
+  übertragen — genau die Last, die 0.44.0 abgeschafft hat.
+
 ## 10. Nicht bauen
 
 Nachrichten (1m, #34 Rest), Fahrt-Zusammenfassung mit Airtime (1n, #36)
@@ -357,4 +383,4 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 6a | S-Grad-Schild, Farbe = Schwierigkeit (Karte, Liste, Schild) | 0.42.0 |
 | 6b | Schild mit Charakter am Trailanfang auf der Karte | 0.43.0 |
 | 6c | Glatte Linien, Name entlang der Linie (Betreiber-Wunsch) | 0.44.0 |
-| 7 | Animationen (Turn 1p–1t) | |
+| 7 | Animationen (Turn 1p–1t) | 0.45.0 |

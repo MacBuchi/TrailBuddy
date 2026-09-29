@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/app_colors.dart';
 import '../../core/connectivity.dart';
 import '../../core/geo.dart';
+import '../../core/widgets/motion.dart';
 import '../../models/trail.dart';
 import '../feedback/feedback_dialog.dart';
 import '../rides/ride_providers.dart';
@@ -528,9 +529,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           MapViewMarker(
             key: const ValueKey('my-position'),
             point: LatLng(position.latitude, position.longitude),
-            width: 22,
-            height: 22,
-            child: const _PositionDot(),
+            // Während einer Fahrt pulst ein Ring um den Punkt (1r); die
+            // Fläche wächst mit, damit er nicht beschnitten wird.
+            width: ride != null ? kRidePulseExtent : 22,
+            height: ride != null ? kRidePulseExtent : 22,
+            child: _PositionDot(pulsing: ride != null),
           ),
       ],
     );
@@ -574,7 +577,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               child: AreaDrawOverlay(camera: camera, tool: drawTool, onStroke: _onStroke),
             ),
           if (trailsAsync.isLoading && trails.isEmpty)
-            const Center(child: CircularProgressIndicator()),
+            const CenteredTrailLoader(),
           // Solange ein Werkzeug scharf ist, gehört der Platz oben der
           // Zeile, was der nächste Strich tut.
           if (trailsAsync.hasValue && trails.isEmpty && drawTool == null)
@@ -861,21 +864,104 @@ class _FocusRideCard extends ConsumerWidget {
       );
 }
 
+/// Größe der Markerfläche, solange der Ring pulst: Punkt 22 px, Ring bis
+/// zum 3,2-Fachen (Design 1r).
+const kRidePulseExtent = 22.0 * kRidePulseScale;
+const kRidePulseScale = 3.2;
+
 class _PositionDot extends StatelessWidget {
-  const _PositionDot();
+  const _PositionDot({this.pulsing = false});
+
+  /// Eine Fahrt läuft: der Ring um den Punkt pulst (Design 1r).
+  final bool pulsing;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-        label: 'Deine Position',
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.mapLines.ride,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.black38)],
-          ),
+  Widget build(BuildContext context) {
+    final dot = SizedBox.square(
+      dimension: 22,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.mapLines.ride,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [BoxShadow(blurRadius: 3, color: Colors.black38)],
+        ),
+      ),
+    );
+    return Semantics(
+      label: pulsing ? 'Deine Position, Fahrt läuft' : 'Deine Position',
+      child: pulsing
+          ? Stack(alignment: Alignment.center, children: [const RidePulse(), dot])
+          : dot,
+    );
+  }
+}
+
+/// Der Ring um den Positionspunkt, solange eine Fahrt läuft (Design 1r):
+/// wächst in 1,6 s vom Punkt auf das 3,2-Fache und blendet von 0,7 aus.
+/// Bei reduzierter Bewegung steht nur ein ruhiger Ring da — die Aussage
+/// „es wird aufgezeichnet" bleibt.
+class RidePulse extends StatefulWidget {
+  const RidePulse({super.key});
+
+  static const period = Duration(milliseconds: 1600);
+
+  @override
+  State<RidePulse> createState() => _RidePulseState();
+}
+
+class _RidePulseState extends State<RidePulse> with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(vsync: this, duration: RidePulse.period);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (reduceMotion(context)) {
+      _controller
+        ..stop()
+        ..value = 0.35;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+        child: SizedBox.square(
+          key: const ValueKey('ride-pulse'),
+          dimension: kRidePulseExtent,
+          child: CustomPaint(painter: _PulsePainter(_controller)),
         ),
       );
+}
+
+/// Radius und Deckkraft des Rings bei [t] (0…1), `ease-out` wie im
+/// Entwurf. Pur, damit der Test ohne Pixel prüfen kann.
+({double scale, double opacity}) ridePulseAt(double t) {
+  final e = Curves.easeOut.transform(t.clamp(0, 1));
+  return (scale: 1 + (kRidePulseScale - 1) * e, opacity: 0.7 * (1 - e));
+}
+
+class _PulsePainter extends CustomPainter {
+  _PulsePainter(this.animation) : super(repaint: animation);
+
+  final Animation<double> animation;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = ridePulseAt(animation.value);
+    canvas.drawCircle(size.center(Offset.zero), 11 * r.scale,
+        Paint()..color = AppColors.mapLines.ride.withValues(alpha: r.opacity));
+  }
+
+  @override
+  bool shouldRepaint(_PulsePainter old) => false;
 }
 
 class _EmptyHint extends StatelessWidget {

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_theme.dart' show AppFonts;
 import '../../core/errors.dart';
+import '../../core/widgets/motion.dart';
 import '../../models/trail.dart';
 import '../friends/buddy_alias.dart' show buddyNamesViewProvider;
 import '../map/map_screen.dart' show formatCachedAt;
@@ -65,7 +66,7 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(trailsProvider.future),
         child: trailsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const CenteredTrailLoader(),
           error: (e, _) => ListView(children: [
             Padding(
               padding: const EdgeInsets.all(24),
@@ -307,8 +308,8 @@ class _TrailTile extends ConsumerWidget {
     final stripe = trail.pending ? palette.muted : trailColorOf(trail, palette.grade);
     final tagStyle = theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700, letterSpacing: 0.8, fontSize: 11);
-    return Card(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+    final card = Card(
+      margin: EdgeInsets.zero,
       // Flach mit Rand wie im Entwurf; der Schatten der Vorgabe (1) zog im
       // Hellen eine dunkle Kante um jede Karte.
       elevation: 0,
@@ -370,6 +371,11 @@ class _TrailTile extends ConsumerWidget {
               ),
         onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
       ),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      // Der gelbe Rand atmet, solange der Hinweis ungesehen ist (1t).
+      child: fresh ? BreathingGlow(color: palette.map.note, radius: 14, child: card) : card,
     );
   }
 }
