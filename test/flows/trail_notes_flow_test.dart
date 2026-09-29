@@ -145,7 +145,8 @@ void main() {
     await tester.ensureVisible(find.byTooltip('Hinweis löschen'));
     await tester.tap(find.byTooltip('Hinweis löschen'));
     await settle(tester);
-    await tester.tap(find.text('Löschen'));
+    // Im Dialog — „Löschen" steht seit 0.46.0 auch im Blatt (Beitrag).
+    await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Löschen')));
     await settle(tester, frames: 20);
     expect(trails.notes, isEmpty);
     expect(find.text('Neuer Drop am Ende'), findsNothing);

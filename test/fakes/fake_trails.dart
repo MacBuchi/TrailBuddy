@@ -274,6 +274,26 @@ class FakeTrailRepository implements TrailRepository {
     notes.removeWhere((n) => n.id == id && _noteVisible(n));
   }
 
+  Object? failNextWithdraw;
+
+  /// Spiegelt `withdraw_contribution` (Patch 010): nur die eigenen Zeilen,
+  /// alle drei in einem Schritt; den leeren Trail holt der Aufräumjob —
+  /// hier genügt, dass ihn keine Aufzeichnung mehr trägt.
+  @override
+  Future<int> withdraw(String trailId) async {
+    if (failNextWithdraw != null) {
+      final e = failNextWithdraw!;
+      failNextWithdraw = null;
+      throw e;
+    }
+    final me = myId();
+    final n = recordings.where((r) => r.trailId == trailId && r.userId == me).length;
+    recordings.removeWhere((r) => r.trailId == trailId && r.userId == me);
+    notes.removeWhere((x) => x.trailId == trailId && x.userId == me);
+    details.removeWhere((d) => d.trailId == trailId && d.userId == me);
+    return n;
+  }
+
   /// Ein Hinweis von [userId], ohne Prüfung — für Ausgangslagen in Tests.
   void seedNote(String userId, String trailId, String body, {DateTime? at}) {
     notes.add(TrailNote(

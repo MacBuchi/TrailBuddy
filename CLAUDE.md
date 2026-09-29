@@ -315,6 +315,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   grün geblieben). Der Harness schaltet ihn ab
   (`startSplashEnabledProvider`), sonst schluckte er die ersten Tipps
   jedes Flow-Tests.
+- **Beitrag löschen** (seit 0.46.0, Patch 010, `withdrawContribution`
+  im Trail-Blatt): `withdraw_contribution(trail_id)` löscht eigene
+  Aufzeichnungen, eigene Hinweise und den eigenen Beitrag in EINER
+  Transaktion, Security INVOKER (die RLS erlaubt jede der drei Löschungen
+  ohnehin). Einzeln aus der App ginge es nicht: Fällt der Beitrag zuerst,
+  sagt `contributor_shares` ohne Zeile „teilt", und ein privater Beitrag
+  läge kurz offen. Den leeren Trail holt `sweep_orphan_trails`
+  (nächtlich). Kein Ausgangskorb — ohne Netz scheitert es sichtbar; und
+  kein Knopf, solange ein eigener Beitrag im Korb wartet (der legte die
+  Zeile beim Nachholen wieder an). `matcher_check.sql` Block 21.
 - **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
   freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
   den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie

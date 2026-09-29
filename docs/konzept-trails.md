@@ -228,7 +228,11 @@ PilzBuddy „Fläche, Legende und Blatt müssen dasselbe sagen".
 **Löschen und DSGVO.** Ein Nutzer löscht seine Aufzeichnungen und
 seinen Beitrag; der Trail bleibt, solange ein anderer Beitrag existiert,
 und verschwindet mit dem letzten (Aufräumjob, kein Cascade vom Beitrag
-zur Kennung). Kontolöschung kaskadiert wie in PilzBuddy. Eine
+zur Kennung). Gebaut seit 0.46.0: „Löschen" im Trail-Blatt ruft
+`withdraw_contribution` (Patch 010), das eigene Aufzeichnungen, eigene
+Hinweise und den eigenen Beitrag in EINER Transaktion löscht — einzeln
+nacheinander stünde „privat" kurz nicht mehr da, und die eigenen Zeilen
+wären für Buddys sichtbar. Kontolöschung kaskadiert wie in PilzBuddy. Eine
 Aufzeichnung ist ein Bewegungsprofil-Ausschnitt und damit
 personenbezogen; sie steht in der Datenschutzerklärung als eigene
 Kategorie. Fahrten sind gar nicht erst auf dem Server.

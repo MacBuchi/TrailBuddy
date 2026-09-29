@@ -238,13 +238,24 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               OwnGradePicker(trail: trail),
               // Der ganze Beitrag (Name, Charakter, Status, Sichtbarkeit) —
               // gleich unter der Einschätzung, die ein Teil davon ist.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => showTrailDetailsDialog(context, ref, trail),
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Mein Beitrag'),
-                ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => showTrailDetailsDialog(context, ref, trail),
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Mein Beitrag'),
+                  ),
+                  // Nicht, solange ein Beitrag im Ausgangskorb wartet: Der
+                  // legte die gelöschte Zeile beim Nachholen wieder an.
+                  if (!trail.pendingDetails)
+                    TextButton.icon(
+                      key: const ValueKey('trail-withdraw'),
+                      onPressed: () => withdrawContribution(context, ref, trail),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Löschen'),
+                    ),
+                ],
               ),
             ],
             const SizedBox(height: 12),
@@ -283,6 +294,51 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
         ),
       ),
     );
+  }
+}
+
+/// Was nach dem Löschen bleibt, in einem Satz. „Bleibt" nur, wenn ich
+/// eine fremde Aufzeichnung SEHE; was ein Fremder privat belegt, kenne ich
+/// nicht — für mich verschwindet der Trail dann trotzdem.
+String withdrawConsequence(Trail trail) =>
+    trail.recordings.any((r) => r.userId != trail.myId)
+        ? 'Der Trail bleibt für deine Buddys, die ihn auch belegt haben.'
+        : 'Der Trail verschwindet von deiner Karte.';
+
+/// „Löschen" im Blatt: eigene Aufzeichnungen, Einschätzung, Charakter,
+/// Status und Hinweise zu diesem Trail (Konzept 4, „Löschen und DSGVO").
+Future<void> withdrawContribution(BuildContext context, WidgetRef ref, Trail trail) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Meinen Beitrag löschen?'),
+      content: Text('Deine Aufzeichnungen, deine Einschätzung und deine '
+          'Hinweise zu diesem Trail werden gelöscht. '
+          '${withdrawConsequence(trail)}'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Abbrechen'),
+        ),
+        FilledButton(
+          key: const ValueKey('trail-withdraw-confirm'),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Löschen'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
+  final navigator = Navigator.of(context);
+  try {
+    final fresh = await ref.read(trailsProvider.notifier).withdraw(trail.id);
+    navigator.pop();
+    messenger.showSnackBar(SnackBar(
+        content: Text('Beitrag gelöscht${fresh ? '' : staleAfterWriteHint}')));
+  } catch (e, st) {
+    logError('Beitrag zurückziehen', e, st);
+    messenger.showSnackBar(SnackBar(content: Text(friendlyError(e))));
   }
 }
 

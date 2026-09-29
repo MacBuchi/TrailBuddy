@@ -352,6 +352,9 @@ check_rpc_protected "contribute_recording-RPC mit Höhen" "contribute_recording"
 # Angemeldete.
 check_rpc_protected "attach_elevation-RPC" "attach_elevation" \
   '{"recording_id":"00000000-0000-4000-8000-000000000000","coords":[9.0,48.0,9.002,48.0],"eles":[500,490]}'
+# Den eigenen Beitrag zurückziehen (Patch 010): nur für Angemeldete.
+check_rpc_protected "withdraw_contribution-RPC" "withdraw_contribution" \
+  '{"trail_id":"00000000-0000-4000-8000-000000000000"}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"

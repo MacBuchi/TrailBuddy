@@ -802,4 +802,74 @@ begin
   perform tb_test.check(app_internal.sweep_old_notes() = 0, 'zweiter Lauf räumt nichts mehr');
 end $$;
 
+\echo -- 21. Eigenen Beitrag zurückziehen (Patch 010)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  ub uuid := '22222222-2222-4222-8222-222222222222';
+  xy double precision[] := tb_test.line(400, y0 => 60000);
+  t uuid; t2 uuid; n integer; ok boolean := false;
+  mine text := 'select count(*) from public.%I where trail_id = %L and user_id = %L';
+begin
+  -- Bernd steht seit Block 18 am Tageslimit; seine Zeilen altern hier.
+  update public.trail_recordings set created_at = now() - interval '2 days' where user_id = ub;
+  t := tb_test.contribute(ua, xy);
+  t2 := tb_test.contribute(ub, xy);
+  perform tb_test.check(t = t2, 'Anna und Bernd belegen denselben Trail');
+  -- Den Beitrag legt contribute_recording schon an (Block 15).
+  perform tb_test.exec_as(ua, format(
+    'update public.trail_details set name = %L, visibility = %L where trail_id = %L and user_id = %L',
+    'Rückzug', 'private', t, ua));
+  perform tb_test.exec_as(ua, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
+                                     t, ua, 'Annas Hinweis'));
+  perform tb_test.exec_as(ub, format('insert into public.trail_notes (trail_id, user_id, body) values (%L, %L, %L)',
+                                     t, ub, 'Bernds Hinweis'));
+
+  -- Bernd zieht zurück: nur seine Zeilen, Annas bleiben, der Trail auch.
+  perform tb_test.as_user(ub);
+  n := public.withdraw_contribution(t);
+  perform tb_test.as_owner();
+  perform tb_test.check(n = 1, format('Bernd: eine Aufzeichnung gelöscht (%s)', n));
+  perform tb_test.check(tb_test.count_as(ub, format(mine, 'trail_recordings', t, ub)) = 0
+                        and (select count(*) from public.trail_notes where trail_id = t and user_id = ub) = 0,
+                        'Bernds Aufzeichnung und Hinweis sind weg');
+  perform tb_test.check((select count(*) from public.trail_recordings where trail_id = t and user_id = ua) = 1
+                        and (select count(*) from public.trail_notes where trail_id = t and user_id = ua) = 1
+                        and (select count(*) from public.trail_details where trail_id = t and user_id = ua) = 1,
+                        'Annas Aufzeichnung, Hinweis und Beitrag bleiben');
+  perform tb_test.check(app_internal.sweep_orphan_trails() = 0 and exists (select 1 from public.trails where id = t),
+                        'der Trail bleibt, solange Anna ihn belegt');
+  perform tb_test.check(not app_internal.can_see_trail(ub, t),
+                        'Annas Beitrag ist privat: Bernd sieht den Trail nicht mehr');
+
+  -- Anna zieht zurück: alles weg, der Aufräumjob holt den Trail.
+  perform tb_test.as_user(ua);
+  n := public.withdraw_contribution(t);
+  perform tb_test.as_owner();
+  perform tb_test.check(n = 1
+                        and not exists (select 1 from public.trail_recordings where trail_id = t)
+                        and not exists (select 1 from public.trail_notes where trail_id = t)
+                        and not exists (select 1 from public.trail_details where trail_id = t),
+                        'Anna: Aufzeichnung, Hinweis und Beitrag in einem Aufruf weg');
+  n := app_internal.sweep_orphan_trails();
+  perform tb_test.check(n = 1 and not exists (select 1 from public.trails where id = t),
+                        format('Aufräumjob entfernt den leeren Trail (%s)', n));
+
+  -- Ein zweiter Aufruf ist kein Fehler, nur 0.
+  perform tb_test.as_user(ua);
+  n := public.withdraw_contribution(t);
+  perform tb_test.as_owner();
+  perform tb_test.check(n = 0, 'nochmal zurückziehen: 0, kein Fehler');
+
+  begin
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    perform public.withdraw_contribution(t);
+  exception when others then
+    ok := sqlstate = '42501';
+  end;
+  execute 'reset role';
+  perform tb_test.check(ok, 'anon darf withdraw_contribution nicht ausführen');
+end $$;
+
 \echo -- Alle Prüfungen bestanden.
