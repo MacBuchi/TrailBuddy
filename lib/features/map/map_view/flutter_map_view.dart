@@ -9,6 +9,7 @@ import '../../offline_areas/area_providers.dart';
 import '../base_map_providers.dart';
 import '../finite_camera_constraint.dart';
 import '../online_map.dart';
+import 'line_labels.dart';
 import 'map_view.dart';
 
 /// Die flutter_map-Engine: der Web-Pfad und der Rückfall auf Android,
@@ -230,6 +231,10 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 ),
             ],
           ),
+        // Namen der Linien — flutter_map kann keinen Text entlang eines
+        // Pfads, also einmal in der Mitte, gedreht (`lineLabelAnchor`).
+        if (layers.polylines.any((l) => l.label != null))
+          IgnorePointer(child: _LineLabels(layers.polylines)),
         if (layers.markers.isNotEmpty)
           // Kein Tipp am Marker: Die Fassade löst Tipps auf (map_view.dart).
           IgnorePointer(
@@ -262,5 +267,61 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
         ),
       ],
     );
+  }
+}
+
+
+/// Die Liniennamen ab [kLineLabelMinZoom] — liest Zoom und Linien aus dem
+/// Karten-Kontext, damit ein Herauszoomen sie ohne Neuaufbau der Karte
+/// wegnimmt.
+class _LineLabels extends StatelessWidget {
+  const _LineLabels(this.lines);
+
+  final List<MapViewPolyline> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    final camera = MapCamera.of(context);
+    if (camera.zoom < kLineLabelMinZoom) return const SizedBox.shrink();
+    return MarkerLayer(markers: [
+      for (final l in lines)
+        if (l.label != null)
+          if (lineLabelAnchor(l.points) case final a?)
+            Marker(
+              point: a.point,
+              width: 12.0 * l.label!.length * 0.62 + 12,
+              height: 36,
+              child: Transform.rotate(
+                angle: a.angle,
+                // Leicht neben der Linie wie bei MapLibre (text-offset).
+                child: Transform.translate(
+                  offset: const Offset(0, -11),
+                  child: Center(child: _HaloText(l.label!)),
+                ),
+              ),
+            ),
+    ]);
+  }
+}
+
+/// Dunkle Schrift mit weißem Saum — die Karte ist immer hell.
+class _HaloText extends StatelessWidget {
+  const _HaloText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    const base = TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1);
+    return Stack(children: [
+      Text(text,
+          maxLines: 1,
+          style: base.copyWith(
+              foreground: Paint()
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 3
+                ..color = Colors.white)),
+      Text(text, maxLines: 1, style: base.copyWith(color: const Color(0xFF131A16))),
+    ]);
   }
 }

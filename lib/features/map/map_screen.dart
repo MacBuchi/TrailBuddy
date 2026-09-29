@@ -34,6 +34,7 @@ import '../update/update_banner.dart';
 import 'map_buttons.dart';
 import 'map_view/map_view.dart';
 import 'poi.dart';
+import 'line_smoothing.dart';
 import 'poi_layer.dart';
 import 'trail_badges.dart';
 import 'position_provider.dart';
@@ -215,6 +216,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _loadDebounce?.cancel();
     super.dispose();
   }
+
+  /// Geglättete Punkte je Trail, einmal gerechnet: Die Karte baut bei
+  /// jeder Kamerabewegung neu, die Trails ändern sich nur mit dem Laden.
+  static final _smoothCache = Expando<List<LatLng>>('smoothed');
+  List<LatLng> _smoothed(Trail t) => _smoothCache[t] ??= chaikinSmooth(t.points);
 
   /// Die Linie trägt die Schwierigkeit (seit 0.42.0), nicht mehr die
   /// Beziehung; eine Meldung liegt als Leuchtrand darum ([_borderOf]).
@@ -492,7 +498,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
         for (final t in shownTrails)
           MapViewPolyline(
-            points: t.points,
+            // Geglättet für das Bild (`line_smoothing.dart`) — gerechnet
+            // wird überall sonst mit den Originalpunkten.
+            points: _smoothed(t),
+            // Der Name fließt entlang der Linie (ab Zoom 14).
+            label: t.pending ? null : t.displayName,
             color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
             width: 4,
             // Wartet im Ausgangskorb (#30): gestrichelt, wie eine

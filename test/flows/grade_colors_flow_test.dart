@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/core/app_colors.dart';
+import 'package:trailbuddy/features/map/line_smoothing.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/models/trail.dart';
 
@@ -53,6 +54,14 @@ void main() {
     expect(closed.color, g.s0, reason: 'die Meldung übermalt die Schwierigkeit nicht');
     expect(closed.borderColor, AppColors.mapLines.warning);
     expect(lineOf(tester, 'Mein Blauer').borderColor, AppColors.mapLines.halo);
+    // Der Name fließt entlang der Linie; die Linie ist fürs Bild geglättet,
+    // Anfang und Ende bleiben die gespeicherten.
+    final blue = lineOf(tester, 'Mein Blauer');
+    expect(blue.label, 'Mein Blauer');
+    final t = blue.hitValue! as Trail;
+    expect(blue.points, chaikinSmooth(t.points));
+    expect(blue.points.first, t.points.first);
+    expect(blue.points.last, t.points.last);
     expect(lineOf(tester, 'Auffahrt').color, g.uphill, reason: 'Uphill schlägt die Stufe (S2 wäre rot)');
   });
 
