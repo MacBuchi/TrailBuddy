@@ -57,20 +57,23 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
   auf 40 779 Kacheln, die Obergrenze sind 40 000). Die App zählt die
   Kacheln von Zoom 8 bis zum Zoom des Hosts auf, die die Form berühren;
   ein Archiv braucht kein Rechteck, sein Rahmen im Header ist die Hülle.
-- **Sehen, was liegt** (seit 0.25.0, Stufe B): Das Blatt „Offline-Karten"
-  unter „Ebenen und Orte" dunkelt die Karte ab, solange es offen ist —
-  hell bleibt, was gespeichert ist (die Kacheln aus den Formen im Index,
-  zwei Stufen über dem Kamera-Zoom, bis zum Zoom des Bereichs). Die
-  Karte bleibt dabei bedienbar (persistentes Blatt am Scaffold der
-  Karte).
-- **Zeichnen** (seit 0.26.0, Stufe C, #67): Im selben Blatt entsteht
-  ein Bereich aus Fingerstrichen. Jeder Strich ist eine geschlossene
-  Fläche; jede Kachel, die sie berührt oder umschließt, kommt dazu
-  (Stift) oder fällt weg (Radierer). Die Kacheln entlang der eigenen
-  Trails lassen sich als Ausgangspunkt übernehmen. Der Entwurf steht
-  live grün auf der Karte, mit Kachelzahl; gespeichert wird er wie jede
-  andere Form, mit gemessener Größe. Offen: einen gespeicherten Bereich
-  nachträglich bearbeiten.
+- **Sehen, was liegt** (seit 0.25.0, Stufe B; seit 0.27.0 als Leiste):
+  Der Ebenen-Knopf öffnet links eine schmale Werkzeugleiste und dunkelt
+  die Karte ab, solange sie offen ist — hell bleibt, was gespeichert
+  ist, IMMER in den Kacheln des Bereichs (Zoom 13), unabhängig vom
+  Kamera-Zoom; zusammenhängende Kacheln als Rechtecke. Die Karte bleibt
+  dabei bedienbar.
+- **Zeichnen** (seit 0.26.0, Stufe C, #67): In derselben Leiste
+  entsteht ein Entwurf: der aktuelle Ausschnitt, Fingerstriche (jeder
+  eine geschlossene Fläche; jede Kachel, die sie berührt oder
+  umschließt, kommt dazu oder fällt weg) und die Kacheln entlang der
+  eigenen Trails. Seit 0.27.0 bearbeitet die Leiste den ganzen Bestand:
+  Der Radierer über gespeicherten Kacheln markiert sie zum Entfernen.
+  Hell ist gespeichert, grün schraffiert kommt dazu, rot gespiegelt
+  schraffiert fällt weg (Betreiber, 2026-09-29). Speichern fragt nach und
+  nennt, was geladen wird (Größe, Kacheln, Orte) und was frei wird;
+  Entfernen schreibt die betroffenen Archive auf dem Gerät neu, ohne
+  Netz. Schließen fragt nach, wenn der Entwurf nicht leer ist.
 - **Größe vorher, exakt**: Das PMTiles-Verzeichnis nennt die Bytezahl
   jeder Kachel. „Diesen Bereich speichern — 12,4 MB" ist eine Messung,
   keine Schätzung. Faustzahl aus den PilzBuddy-Werten: 5,54 GB auf

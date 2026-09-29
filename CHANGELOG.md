@@ -4,8 +4,31 @@
 
 ## Karte
 
-*Versionen 0.24.0 bis 0.26.1, 2026-09-28 bis 2026-09-29*
+*Versionen 0.24.0 bis 0.27.0, 2026-09-28 bis 2026-09-29*
 
+- **Offline-Karten über eine schmale Leiste statt eines halben Blatts**
+  (0.27.0): Der Ebenen-Knopf öffnet links eine Werkzeugleiste, die Karte
+  bleibt frei. Darin: Orte und offizielle Trails, der aktuelle
+  Ausschnitt (Kamera), Fläche dazunehmen und wegnehmen, die Kacheln
+  entlang der eigenen Trails, Rückgängig, „Meine Bereiche" (Karte mit
+  Zahnrad), Speichern und Schließen. Speichern fragt noch einmal nach
+  und nennt vorher Größe, Zahl der Kartenstücke und Zahl der Orte.
+  Schließen — über das X, den Ebenen-Knopf oder die Zurück-Taste —
+  fragt nach, wenn etwas noch nicht gespeichert ist.
+- **Die hervorgehobenen Kacheln bleiben beim Zoomen stehen**: Gespeichertes
+  und Geändertes erscheint jetzt immer in den feinen Kartenstücken,
+  nicht mehr je nach Zoom in größeren.
+- **Gespeichertes lässt sich wieder wegnehmen, und man sieht, was sich
+  ändert**: Hell ist, was auf dem Gerät liegt. Grün schraffiert ist,
+  was beim Speichern dazukommt; rot und andersherum schraffiert, was
+  wegfällt. Der Radierer über hellen Kacheln markiert sie zum Entfernen,
+  der Stift über schon Gespeichertem ändert nichts — es wird nicht
+  doppelt geladen. Die Leiste zählt beides getrennt (+ und −), der
+  Speicher-Dialog nennt, was geladen wird und wie viel Platz frei wird.
+  Entfernen geht auch ohne Empfang; ein Bereich, von dem nichts übrig
+  bleibt, verschwindet ganz.
+- **Die Knöpfe der Karte stehen jetzt rechts**, Maßstab und
+  Quellenhinweis links unten — dort liegt nichts mehr darüber.
 - **Einpassen stürzt auf Android nicht mehr ab** (0.26.1): Wenn die Karte
   auf das Netz, einen Trail, eine Fahrt oder einen Bereich zoomte, gab
   es im Hintergrund jedes Mal einen Fehler — sichtbar war er nicht, die

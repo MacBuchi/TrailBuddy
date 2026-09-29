@@ -61,6 +61,11 @@ class FakeMapViewState extends State<FakeMapView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.config.onCameraIdle?.call(camera);
     });
+    // Ohne angeforderten Frame läuft der Rückruf erst, wenn zufällig
+    // etwas anderes neu zeichnet — ein Test, der die Kamera bewegt,
+    // prüfte sonst den alten Ausschnitt (so gefunden: die Gegenprobe zur
+    // zoomfesten Hervorhebung blieb grün).
+    WidgetsBinding.instance.scheduleFrame();
   }
 
   // ---- MapViewCameraDelegate ----

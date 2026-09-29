@@ -29,6 +29,7 @@ import '../map/poi_source.dart';
 import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_store.dart';
+import 'area_trim.dart';
 
 /// Die Liste aus dem Index, in Speicherreihenfolge.
 class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
@@ -39,6 +40,16 @@ class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
 
   Future<void> delete(String id) async {
     await ref.read(areaStoreProvider).delete(id);
+    await refresh();
+  }
+
+  /// Was das Entfernen von [removes] (Kacheln bei Zoom 13) aus den
+  /// gespeicherten Bereichen macht — lokal gemessen, ohne Netz.
+  Future<TrimPlan> planTrim(Set<int> removes) async =>
+      AreaTrimmer(ref.read(areaStoreProvider)).plan(await future, removes);
+
+  Future<void> applyTrim(TrimPlan plan) async {
+    await AreaTrimmer(ref.read(areaStoreProvider)).apply(plan);
     await refresh();
   }
 }
@@ -96,20 +107,26 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
   @override
   AreaDownloadState build() => const AreaDownloadState();
 
-  /// Der Plan für [shape]: wirft [AreaTooLarge], liefert Kacheln und
-  /// Bytes. Braucht das Manifest — ohne Empfang gibt es keinen Plan.
+  /// Der Plan für [shape]: wirft [AreaTooLarge], liefert Kacheln, Bytes
+  /// und — seit 0.27.0 — die Orte samt Anzahl (der Dialog vor dem
+  /// Speichern nennt sie; der Download holt sie dann nicht noch einmal).
+  /// Braucht das Manifest — ohne Empfang gibt es keinen Plan.
   Future<AreaPlan> plan(AreaShape shape) async {
     final manifest = await ref.read(mapManifestProvider.future);
     if (manifest == null) throw StateError('Kein Kartenhost erreichbar');
     state = const AreaDownloadState(phase: AreaDownloadPhase.planning);
     final archive = await ref.read(areaSourceOpenerProvider)(manifest.archiveUri);
     try {
+      final poiManifest = await ref.read(areaPoiManifestLoaderProvider)();
+      final fetchPoi = ref.read(areaPoiFileLoaderProvider);
       final downloader = AreaDownloader(
           archive: archive,
           manifest: manifest,
           store: ref.read(areaStoreProvider),
-          fetchPoiFile: (_) async => null);
-      final plan = await downloader.plan(shape);
+          poiManifest: poiManifest,
+          fetchPoiFile: (fileName) =>
+              poiManifest == null ? Future.value(null) : fetchPoi(poiManifest, fileName));
+      final plan = await downloader.plan(shape, withPois: true);
       state = AreaDownloadState(phase: AreaDownloadPhase.idle, plan: plan);
       return plan;
     } catch (e) {
@@ -303,8 +320,7 @@ final areaMapStyleProvider = FutureProvider<BaseMapStyle?>((ref) async {
 /// nächsten Aufbau einpasst und dann zurücksetzt.
 final mapFocusAreaProvider = StateProvider<StoredArea?>((ref) => null);
 
-/// Solange das Blatt „Offline-Karten" offen ist: Die Karte dunkelt alles
-/// ab, was nicht gespeichert ist (Stufe B). Gesetzt beim Öffnen,
-/// zurückgenommen, wenn das Blatt zugeht — vom Blatt selbst, nicht vom
-/// Screen, damit es auch bei Zurück-Taste und Wisch stimmt.
+/// Solange die Werkzeugleiste „Ebenen" offen ist (seit 0.27.0; davor das
+/// Blatt „Offline-Karten"): Die Karte dunkelt alles ab, was nicht
+/// gespeichert ist, und der Entwurf liegt grün darüber.
 final offlineOverlayProvider = StateProvider<bool>((ref) => false);

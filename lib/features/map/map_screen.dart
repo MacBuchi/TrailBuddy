@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
@@ -22,9 +23,8 @@ import '../offline_areas/area_draw_overlay.dart';
 import '../offline_areas/area_overlay.dart';
 import '../offline_areas/area_plan.dart';
 import '../offline_areas/area_providers.dart';
-import '../offline_areas/area_sheet.dart';
 import '../offline_areas/area_store.dart';
-import '../offline_areas/offline_maps_sheet.dart';
+import '../offline_areas/offline_tool_rail.dart';
 import '../trails/outbox_providers.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
@@ -74,9 +74,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// offizielle Trails (welche Zellen, welcher Ausschnitt).
   MapViewCamera? _camera;
 
-  /// Der Scaffold der Karte — das persistente Blatt „Offline-Karten"
-  /// hängt an IHM, nicht an dem der Reiter-Hülle (offline_maps_sheet.dart).
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _loadDebounce;
   String? _requestedPois;
   String? _requestedOfficial;
@@ -111,24 +108,56 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!_focusOn(id)) _pendingFocus = id;
   }
 
-  /// „Bereich speichern" mit dem AKTUELLEN Ausschnitt und den Trails —
-  /// und, aus dem Entwurf (Stufe C), der gezeichneten Fläche vorgewählt.
-  void _openSaveArea(BuildContext context, {AreaShape? drawn}) {
+  /// Die Werkzeugleiste „Ebenen" öffnen (seit 0.27.0): abdunkeln, was
+  /// nicht gespeichert ist, und einen leeren Entwurf beginnen.
+  void _openTools() {
+    ref.read(areaDraftProvider.notifier).start();
+    ref.read(offlineOverlayProvider.notifier).state = true;
+  }
+
+  /// Schließen — über X, Ebenen-Knopf oder Zurück. Steht etwas im
+  /// Entwurf, wird gefragt; „Weiter bearbeiten" lässt alles offen.
+  Future<void> _closeTools() async {
+    final draft = ref.read(areaDraftProvider.notifier);
+    if (draft.hasChanges && !await confirmDiscardDraft(context)) return;
+    if (!mounted) return;
+    draft.discard();
+    ref.read(offlineOverlayProvider.notifier).state = false;
+  }
+
+  /// Der „Schnappschuss": die Kacheln des Ausschnitts in den Entwurf.
+  void _addViewport() {
     final camera = _camera;
+    if (camera == null) return;
+    final b = camera.bounds;
+    final keys = tilesInBounds(AreaBounds(south: b.south, west: b.west, north: b.north, east: b.east));
+    if (keys == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Der Ausschnitt ist zu groß — erst näher heranzoomen.')));
+      return;
+    }
+    ref.read(areaDraftProvider.notifier).addAll(keys);
+  }
+
+  /// Die Kacheln entlang der eigenen Trails in den Entwurf.
+  void _addTrails() {
     final trails = ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
-    showSaveAreaSheet(
-      context,
-      viewport: camera == null
-          ? null
-          : AreaBounds(
-              south: camera.bounds.south,
-              west: camera.bounds.west,
-              north: camera.bounds.north,
-              east: camera.bounds.east),
-      // Die Kacheln entlang der Trails, nicht ein Rechteck um alle (0.24.0).
-      aroundTrails: AreaShape.alongLines([for (final t in trails) t.points]),
-      drawn: drawn,
-    );
+    final along = AreaShape.alongLines([for (final t in trails) t.points]);
+    if (along != null) ref.read(areaDraftProvider.notifier).addAll(along.keys);
+  }
+
+  /// Speichern: der Dialog misst, fragt und führt aus; danach ist der
+  /// Entwurf leer, die Leiste bleibt offen und zeigt den neuen Bestand.
+  Future<void> _saveDraft(AreaDraft draft) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = await showSaveDraftDialog(context, draft);
+    if (!saved || !mounted) return;
+    ref.read(areaDraftProvider.notifier).clear();
+    final area = draft.adds.isEmpty ? null : ref.read(areaDownloadProvider).result;
+    messenger.showSnackBar(SnackBar(
+        content: Text(area == null
+            ? 'Änderungen gespeichert.'
+            : '„${area.name}" gespeichert: ${formatBytes(area.bytes)}.')));
   }
 
   /// Ein fertiger Strich (Stufe C): seine Kacheln in den Entwurf — oder,
@@ -372,23 +401,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ref.read(mapFocusAreaProvider.notifier).state = null;
     });
 
-    // Ein gespeicherter Entwurf ist erledigt (Stufe C) — der Download
-    // läuft im Notifier weiter, auch wenn das Blatt schon zu ist.
-    ref.listen(areaDownloadProvider, (previous, next) {
-      final saved = next.result;
-      if (next.phase == AreaDownloadPhase.done && saved != null &&
-          previous?.phase != AreaDownloadPhase.done) {
-        ref.read(areaDraftProvider.notifier).discardIfSaved(saved.shape);
-      }
-    });
-
     // Was der Ausschnitt braucht — und was davon fehlt, wird nachgeladen.
     final camera = _camera;
     final cells = poiCellsFor(camera, groups);
     final officialView = officialViewFor(camera, official, enabled: officialOn);
     _scheduleLoads(cells: cells, groups: groups, officialView: officialView);
 
-    // Offline-Karten (Stufe B): Solange das Blatt offen ist, liegt die
+    // Offline-Karten: Solange die Werkzeugleiste offen ist, liegt die
     // Abdunkelung unter allem — gespeicherte Kacheln sind die Löcher.
     // Beobachtet werden die Bereiche nur dann; sonst kostet jeder
     // Kamera-Stillstand eine Rechnung, die niemand sieht.
@@ -396,17 +415,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final overlayAreas =
         overlayOn ? ref.watch(storedAreasProvider).valueOrNull ?? const <StoredArea>[] : null;
     final mask = overlayAreas != null && camera != null
-        ? offlineCoverageMask(overlayAreas, camera.bounds, cameraZoom: camera.zoom)
+        ? offlineCoverageMask(overlayAreas, camera.bounds)
         : null;
-    // Der Entwurf (Stufe C) grün über der Abdunkelung — nur mit Blatt.
+    // Offene Änderungen über der Abdunkelung — „kommt dazu" grün
+    // schraffiert, „fällt weg" rot und gespiegelt; nur mit Werkzeugleiste.
+    final toolsOpen = overlayOn;
     final draft = overlayOn ? ref.watch(areaDraftProvider) : null;
     final drawTool = draft?.tool;
+    final pending = draft != null && camera != null ? draftLayers(draft, camera) : null;
 
     final layers = MapViewLayers(
       polygons: [
         ?mask,
-        if (draft != null && camera != null)
-          ...draftPolygons(draft, camera.bounds, cameraZoom: camera.zoom),
+        ...?pending?.polygons,
       ],
       circles: [
         if (position != null && position.accuracy > 0)
@@ -419,8 +440,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ),
       ],
       polylines: [
-        // Unten die offiziellen Trails, darüber die Fahrt, oben das Netz —
-        // ein Tipp trifft zuerst das Netz.
+        // Ganz unten die Schraffur offener Änderungen (ohne Kennung, ein
+        // Tipp geht hindurch); dann die offiziellen Trails, darüber die
+        // Fahrt, oben das Netz — ein Tipp trifft zuerst das Netz.
+        ...?pending?.lines,
         if (officialOn && camera != null && camera.zoom >= kOfficialMinZoom)
           ...officialPolylines(official),
         // Während das Zerlege-Blatt offen ist, zeichnet es die Fahrt
@@ -459,8 +482,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ],
     );
 
-    return Scaffold(
-      key: _scaffoldKey,
+    return PopScope(
+      // Offen gilt: Zurück schließt die Werkzeugleiste (mit Rückfrage),
+      // statt die App zu verlassen.
+      canPop: !toolsOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_closeTools());
+      },
+      child: Scaffold(
       body: Stack(
         children: [
           MapView(
@@ -512,18 +541,40 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
               ),
             ),
-          // Die Glühbirne (PilzBuddy-Muster): melden kann man immer, also
-          // steht sie immer da — klein, unten links, wo weder die
-          // Attribution (rechts) noch die Banner (oben) liegen. Der
-          // Orte-Filter steht aus demselben Grund darüber.
+          // Die Werkzeugleiste „Ebenen" (seit 0.27.0) links, mittig:
+          // unten liegen Maßstab und Quellenhinweis, oben die Banner —
+          // beide bleiben frei. Scrollt, wenn der Schirm zu kurz ist.
+          if (toolsOpen)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 56, 0, 64),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SingleChildScrollView(
+                    child: OfflineToolRail(
+                      onFilter: () => showPoiFilterSheet(context),
+                      onSnapshot: _addViewport,
+                      onTrails: trails.isEmpty ? null : _addTrails,
+                      onManage: () => context.go('/profile/areas'),
+                      onSave: _saveDraft,
+                      onClose: _closeTools,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Die Knöpfe rechts (seit 0.27.0; vorher links, wo jetzt die
+          // Werkzeugleiste und — auf beiden Engines — Maßstab und
+          // Quellenhinweis stehen). Die Glühbirne (PilzBuddy-Muster):
+          // melden kann man immer, also steht sie immer da.
           SafeArea(
             child: Align(
-              alignment: Alignment.bottomLeft,
+              alignment: Alignment.bottomRight,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     if (officialOn && official.unavailable)
                       const Card(
@@ -571,23 +622,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                     const SizedBox(height: 8),
                     FloatingActionButton.small(
+                      key: const ValueKey('layers-button'),
                       heroTag: 'poi-filter',
                       tooltip: 'Ebenen und Orte',
-                      // „Offline-Karten" wohnt im Blatt, nicht als
-                      // eigener Knopf: Die Spalte lief auf einem kleinen
-                      // Telefon sonst quer über (im Test gesehen).
-                      onPressed: () => showPoiFilterSheet(
-                        context,
-                        onOfflineMaps: () => showOfflineMapsSheet(
-                          _scaffoldKey.currentState!,
-                          ref,
-                          // Ausschnitt und Trails vom ZEITPUNKT des
-                          // Speicherns, nicht vom Öffnen des Blatts — man
-                          // schiebt die Karte ja, während es offen ist.
-                          onSaveArea: () => _openSaveArea(context),
-                          onSaveDrawn: (drawn) => _openSaveArea(context, drawn: drawn),
-                        ),
-                      ),
+                      // Öffnet und schließt die Werkzeugleiste — dasselbe
+                      // wie ihr X und die Zurück-Taste.
+                      backgroundColor: toolsOpen ? Theme.of(context).colorScheme.primary : null,
+                      foregroundColor: toolsOpen ? Theme.of(context).colorScheme.onPrimary : null,
+                      onPressed: toolsOpen ? _closeTools : _openTools,
                       child: const Icon(Icons.layers_outlined),
                     ),
                     const SizedBox(height: 8),
@@ -603,6 +645,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

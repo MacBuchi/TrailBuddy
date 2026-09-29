@@ -384,13 +384,13 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                       ? 'Die Wege kennt die App hier nur zum Teil: Ein gespeicherter '
                           'Bereich deckt die Fahrt nicht ganz. Kandidaten für neue '
                           'Trails findet sie erst, wenn ein Bereich bis Zoomstufe 13 '
-                          'die ganze Fahrt trägt („Ebenen und Orte" → „Bereich für '
-                          'unterwegs speichern").'
+                          'die ganze Fahrt trägt (Ebenen-Knopf auf der Karte → '
+                          'Ausschnitt oder Fläche wählen → Speichern).'
                       : 'Die Wege kennt die App hier nicht: Es gibt keinen '
                           'gespeicherten Bereich über der Fahrt. Kandidaten für neue '
-                          'Trails findet sie erst damit — „Ebenen und Orte" → „Bereich '
-                          'für unterwegs speichern", dann die Fahrt aus „Meine Fahrten" '
-                          'noch einmal zerlegen.',
+                          'Trails findet sie erst damit — Ebenen-Knopf auf der Karte → '
+                          'Ausschnitt oder Fläche wählen → Speichern, dann die Fahrt aus '
+                          '„Meine Fahrten" noch einmal zerlegen.',
                   style: theme.textTheme.bodyMedium,
                 ),
               )

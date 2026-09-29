@@ -1,15 +1,20 @@
-// Bereiche speichern (Konzept-Schritt 3), vom Blatt bis zur Liste: Die
-// Größe steht vor dem Speichern da, der Download legt den Bereich ab,
-// „Meine Bereiche" zeigt ihn mit Größe und Stand, Löschen räumt ab —
-// und ohne Kartenhost sagt das Blatt, dass es keinen Bereich gibt.
+// Bereiche speichern (Konzept-Schritt 3), seit 0.27.0 über die
+// Werkzeugleiste „Ebenen": Der Ebenen-Knopf öffnet sie (links), die Karte
+// dunkelt ab, was nicht liegt; Ausschnitt, Fläche dazu/weg und die Trails
+// füllen einen Entwurf; „Speichern" misst Größe und Orte, fragt und lädt;
+// X, Ebenen-Knopf und Zurück schließen — mit Rückfrage bei Änderungen.
+// Dazu „Meine Bereiche" (Liste, Löschen, Aktualisieren).
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pmtiles/pmtiles.dart';
+import 'package:trailbuddy/features/map/map_screen.dart';
+import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/features/map/online_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:trailbuddy/features/map/poi.dart';
 import 'package:trailbuddy/features/offline_areas/area_draw.dart';
 import 'package:trailbuddy/features/offline_areas/area_overlay.dart';
 import 'package:trailbuddy/features/offline_areas/area_plan.dart';
@@ -61,8 +66,14 @@ void main() {
     keepAlive = FakeKeepAlive();
   });
 
-  Future<void> start(WidgetTester tester, {bool host = true}) async {
+  /// Zwei Orte in jeder Wasser-Zelle rund um den Trail.
+  const twoSprings = '{"format":1,"pois":['
+      '{"id":"n1","kind":"spring","lat":48.0,"lng":9.0},'
+      '{"id":"n2","kind":"spring","lat":48.001,"lng":9.001}]}';
+
+  Future<void> start(WidgetTester tester, {bool host = true, bool pois = false}) async {
     final source = _sourceBytes();
+    final cells = poiCellsCovering(47.5, 8.5, 48.5, 9.5);
     await pumpApp(tester, backend,
         trails: trails,
         areaStore: store,
@@ -70,66 +81,23 @@ void main() {
         extraOverrides: [
           mapManifestLoaderProvider.overrideWithValue(() async => host ? _manifest : null),
           areaSourceOpenerProvider.overrideWithValue((_) => PmTilesArchive.fromBytes(source)),
-          areaPoiManifestLoaderProvider.overrideWithValue(() async => null),
+          areaPoiManifestLoaderProvider.overrideWithValue(() async => pois
+              ? PoiManifest(build: '20260928', prefix: 'pois-20260928', cells: {PoiGroup.water: cells.toSet()})
+              : null),
+          areaPoiFileLoaderProvider.overrideWithValue((_, _) async => twoSprings),
         ]);
     await settle(tester, frames: 20);
   }
 
-  Future<void> openSaveSheet(WidgetTester tester) async {
+  Future<void> openTools(WidgetTester tester) async {
     await tester.tap(find.byTooltip('Ebenen und Orte'));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('save-area-tile')));
-    await settle(tester, frames: 20);
   }
 
-  testWidgets('„Offline-Karten" dunkelt die Karte ab, gespeicherte Kacheln bleiben hell — bis das Blatt zugeht',
-      (tester) async {
-    // Ein Bereich liegt schon: seine Kacheln sind die Löcher der Maske.
-    await store.putArchive('old', _sourceBytes());
-    await store.saveIndex([
-      StoredArea(
-        id: 'old',
-        name: 'Alt',
-        bounds: const AreaBounds(south: 47.99, west: 8.99, north: 48.02, east: 9.01),
-        minZoom: 8,
-        maxZoom: 10,
-        build: '20260928',
-        tiles: 5,
-        bytes: 500,
-        savedAt: DateTime.utc(2026, 9, 28),
-      ),
-    ]);
-    await start(tester);
-    expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'ohne Blatt keine Maske');
-
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
+  Future<void> tapRail(WidgetTester tester, String key) async {
+    await tester.tap(find.byKey(ValueKey(key)));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
-    await settle(tester);
-    expect(find.text('Offline-Karten'), findsOneWidget);
-    expect(find.byKey(const ValueKey('offline-area-old')), findsOneWidget);
-    final mask = fakeMapLayers(tester).polygons.single;
-    expect(mask.fillColor, kOfflineDimColor);
-    expect(mask.holes, isNotEmpty, reason: 'der Bereich liegt im Ausschnitt');
-    // Jedes Loch ist eine Kachel des Bereichs (bei dessen Zoom 10).
-    final z = offlineOverlayZoom(fakeMap(tester).camera.zoom).clamp(8, 10);
-    for (final hole in mask.holes) {
-      final t = tileAt(hole.first.latitude - 1e-6, hole.first.longitude + 1e-6, z);
-      expect(tileBounds(z, t.x, t.y).contains(hole[2]), isTrue);
-    }
-
-    // Antippen zeigt den Bereich; die Karte bleibt bedienbar.
-    await tester.tap(find.byKey(const ValueKey('offline-area-old')));
-    await settle(tester);
-    expect(fakeMap(tester).camera.center.latitude, closeTo(48.005, 0.01));
-
-    await tester.tap(find.byKey(const ValueKey('offline-maps-close')));
-    await settle(tester);
-    expect(find.byKey(const ValueKey('offline-area-old')), findsNothing);
-    expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'zu heißt: keine Maske mehr');
-  });
+  }
 
   /// Ein Strich über die Karte, als geschlossene Schleife durch [pts].
   Future<void> stroke(WidgetTester tester, List<Offset> pts) async {
@@ -142,218 +110,304 @@ void main() {
     await settle(tester);
   }
 
+  /// Was dazukommt, laut Leiste (grün, „+N").
   int draftTiles(WidgetTester tester) {
     final text = (tester.widget(find.byKey(const ValueKey('area-draw-count'))) as Text).data!;
-    return int.parse(RegExp(r'^(\d+) Kacheln').firstMatch(text)!.group(1)!);
+    return text.startsWith('+') ? int.parse(text.substring(1)) : 0;
   }
 
-  testWidgets('Bereich zeichnen: Stift, Radierer, Rückgängig, Speichern — der Entwurf wird zum Bereich',
+  /// Was wegfällt, laut Leiste (rot, „−N").
+  int removedTiles(WidgetTester tester) {
+    final f = find.byKey(const ValueKey('area-draw-remove-count'));
+    if (f.evaluate().isEmpty) return 0;
+    return int.parse((tester.widget(f) as Text).data!.substring(1));
+  }
+
+  Iterable<MapViewPolygon> draftRects(WidgetTester tester) =>
+      fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaAddFill);
+
+  Iterable<MapViewPolyline> hatch(WidgetTester tester, Color color) =>
+      fakeMapLayers(tester).polylines.where((l) => l.color == color);
+
+  StoredArea oldArea({String build = '20260928'}) => StoredArea(
+        id: 'old',
+        name: 'Alt',
+        bounds: const AreaBounds(south: 47.99, west: 8.99, north: 48.02, east: 9.01),
+        minZoom: 8,
+        maxZoom: 10,
+        build: build,
+        tiles: 5,
+        bytes: 500,
+        savedAt: DateTime.utc(2026, 9, 28),
+      );
+
+  testWidgets('Knöpfe rechts, Werkzeugleiste links — Maßstab und Quellenhinweis bleiben frei',
       (tester) async {
     await start(tester);
-    // Weit draußen: Der Host des Tests endet bei Zoom 10, gezählt wird
-    // bis dorthin — ein Strich soll mehrere 10er-Kacheln fassen.
-    fakeMap(tester).move(const LatLng(48.0, 9.0), 8);
-    await settle(tester);
-
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('draw-area-tile')));
-    await settle(tester);
-    expect(find.text('Bereich zeichnen'), findsOneWidget);
-    expect(find.text('Noch keine Kachel'), findsOneWidget);
-    // Ohne Werkzeug liegt keine Zeichenfläche: Die Karte lässt sich
-    // verschieben.
-    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing);
-
-    await tester.tap(find.byKey(const ValueKey('area-draw-add')));
-    await settle(tester);
-    expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
-    expect(find.byKey(const ValueKey('area-draw-hint')), findsOneWidget);
-    await stroke(tester, const [
-      Offset(250, 120), Offset(450, 120), Offset(550, 170), Offset(450, 230), Offset(250, 230), Offset(250, 125),
-    ]);
-    // Nach dem Strich ist das Werkzeug weg und die Karte wieder frei.
-    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing);
-    final added = draftTiles(tester);
-    expect(added, greaterThan(5));
-    final draft = fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill);
-    expect(draft, isNotEmpty, reason: 'der Entwurf steht grün auf der Karte');
-    expect(fakeMapLayers(tester).polygons.first.fillColor, kOfflineDimColor,
-        reason: 'unter der Abdunkelung liegt nichts, darüber der Entwurf');
-
-    // Der Radierer umfährt die linke Hälfte.
-    const erase = [Offset(240, 100), Offset(400, 100), Offset(400, 250), Offset(240, 250), Offset(240, 105)];
-    await tester.tap(find.byKey(const ValueKey('area-draw-remove')));
-    await settle(tester);
-    await stroke(tester, erase);
-    final erased = draftTiles(tester);
-    expect(erased, lessThan(added));
-    expect(erased, greaterThan(0));
-
-    await tester.tap(find.byKey(const ValueKey('area-draw-undo')));
-    await settle(tester);
-    expect(draftTiles(tester), added);
-    await tester.tap(find.byKey(const ValueKey('area-draw-remove')));
-    await settle(tester);
-    await stroke(tester, erase);
-    expect(draftTiles(tester), erased);
-
-    // Speichern: das bekannte Blatt, die gezeichnete Fläche vorgewählt,
-    // die Größe gemessen.
-    await tester.tap(find.byKey(const ValueKey('area-draw-save')));
-    await settle(tester, frames: 20);
-    expect(find.byKey(const ValueKey('area-choice-drawn')), findsOneWidget);
-    expect(find.byKey(const ValueKey('area-size')), findsOneWidget);
-    await tester.enterText(find.byKey(const ValueKey('area-name')), 'Gezeichnet');
-    await tester.tap(find.byKey(const ValueKey('area-save')));
-    await settle(tester, frames: 30);
-    expect(find.textContaining('„Gezeichnet" gespeichert'), findsOneWidget);
-    await tester.tap(find.text('Fertig'));
-    await settle(tester);
-
-    final saved = (await store.list()).single;
-    final shape = saved.shape as TileSetShape;
-    expect(shape.zoom, kAreaShapeZoom);
-    // Gespeichert ist der Entwurf — Zoom 8–10 aus den 13er-Kacheln.
-    expect(shape.countTiles(maxZoom: 10), erased);
-    // Und der Entwurf ist erledigt: Das Blatt zeigt wieder die Liste.
-    expect(find.byKey(const ValueKey('draw-area-tile')), findsOneWidget);
-    expect(find.byKey(ValueKey('offline-area-${saved.id}')), findsOneWidget);
-    expect(fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill), isEmpty);
+    final size = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(tester.getCenter(find.byKey(const ValueKey('layers-button'))).dx, greaterThan(size.width / 2));
+    expect(find.byKey(const ValueKey('offline-tool-rail')), findsNothing);
+    await openTools(tester);
+    final rail = tester.getRect(find.byKey(const ValueKey('offline-tool-rail')));
+    expect(rail.center.dx, lessThan(size.width / 2));
+    expect(rail.left, lessThan(24));
+    // Unten links stehen Maßstab und Quellenhinweis: die Leiste endet
+    // darüber (die Reiterleiste liegt noch unter der Karte).
+    final map = tester.getRect(find.byType(MapScreen));
+    expect(rail.bottom, lessThanOrEqualTo(map.bottom - 64));
+    expect(rail.top, greaterThanOrEqualTo(map.top + 56));
+    // Und jeder Knopf ist erreichbar, ohne zu scrollen.
+    expect(tester.getRect(find.byKey(const ValueKey('offline-maps-close'))).bottom, lessThanOrEqualTo(rail.bottom));
   });
 
-  testWidgets('der Entwurf überlebt das Schließen des Blatts, das Werkzeug nicht; Verwerfen räumt ab',
+  testWidgets('Ebenen dunkelt ab, gespeicherte Kacheln bleiben hell — beim Zoomen DIESELBEN, bis zum Schließen',
       (tester) async {
+    await store.putArchive('old', _sourceBytes());
+    await store.saveIndex([oldArea()]);
     await start(tester);
-    fakeMap(tester).move(const LatLng(48.0, 9.0), 11);
-    await settle(tester);
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('draw-area-tile')));
-    await settle(tester);
-    // Entlang der Trails als Ausgangspunkt.
-    await tester.tap(find.byKey(const ValueKey('area-draw-trails')));
-    await settle(tester);
-    final along = draftTiles(tester);
-    expect(along, greaterThan(0));
-    await tester.tap(find.byKey(const ValueKey('area-draw-add')));
-    await settle(tester);
-    expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
+    expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'ohne Leiste keine Maske');
 
-    await tester.tap(find.byKey(const ValueKey('offline-maps-close')));
-    await settle(tester);
-    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
-        reason: 'ohne Blatt kein Werkzeug — sonst stünde die Karte fest');
-    expect(fakeMapLayers(tester).polygons, isEmpty);
+    await openTools(tester);
+    final mask = fakeMapLayers(tester).polygons.single;
+    expect(mask.fillColor, kOfflineDimColor);
+    expect(mask.holes, isNotEmpty, reason: 'der Bereich liegt im Ausschnitt');
+    // Die Löcher sind die Kacheln des Bereichs bei SEINEM Zoom (10).
+    Set<TileXYZ> covered(List<List<LatLng>> holes) => {
+          for (final h in holes)
+            ...tilesCovering(
+                AreaBounds(
+                    south: h[2].latitude + 1e-7,
+                    west: h[0].longitude + 1e-7,
+                    north: h[0].latitude - 1e-7,
+                    east: h[1].longitude - 1e-7),
+                minZoom: 10,
+                maxZoom: 10),
+        };
+    final before = covered(mask.holes);
+    expect(before, oldArea().shape.tilesWithin(offlineOverlayBox(fakeMap(tester).camera.bounds), 10).toSet());
 
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    // Herauszoomen: dieselben Kacheln, keine gröberen Eltern (0.27.0).
+    fakeMap(tester).move(fakeMap(tester).camera.center, 9);
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
-    await settle(tester);
-    expect(find.text('Bereich zeichnen'), findsOneWidget);
-    expect(draftTiles(tester), along);
-    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
-        reason: 'wiedergeöffnet steht die Karte nicht fest — das Werkzeug ging mit dem Blatt');
+    expect(covered(fakeMapLayers(tester).polygons.single.holes), before);
 
-    await tester.tap(find.byKey(const ValueKey('area-draw-discard')));
-    await settle(tester);
-    expect(find.byKey(const ValueKey('draw-area-tile')), findsOneWidget);
-    expect(fakeMapLayers(tester).polygons.where((p) => p.fillColor == kAreaDraftFill), isEmpty);
+    // Ohne Änderung schließt das X ohne Rückfrage.
+    await tapRail(tester, 'offline-maps-close');
+    expect(find.text('Entwurf verwerfen?'), findsNothing);
+    expect(find.byKey(const ValueKey('offline-tool-rail')), findsNothing);
+    expect(fakeMapLayers(tester).polygons, isEmpty, reason: 'zu heißt: keine Maske mehr');
   });
 
-  testWidgets('ohne Bereich ist alles abgedunkelt, und das Blatt sagt es', (tester) async {
+  testWidgets('ohne Bereich ist alles abgedunkelt', (tester) async {
     await start(tester);
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('offline-maps-tile')));
-    await settle(tester);
-    expect(find.textContaining('Noch kein Bereich gespeichert'), findsOneWidget);
+    await openTools(tester);
     final mask = fakeMapLayers(tester).polygons.single;
     expect(mask.holes, isEmpty);
+    expect(draftTiles(tester), 0);
+    final save = tester.widget<IconButton>(find.byKey(const ValueKey('area-draw-save')));
+    expect(save.onPressed, isNull, reason: 'ohne Kachel nichts zu speichern');
   });
 
-  testWidgets('Größe vorher, dann gespeichert, in der Liste, gelöscht', (tester) async {
-    await start(tester);
-    await openSaveSheet(tester);
-    expect(find.text('Bereich für unterwegs speichern'), findsOneWidget);
-    // Die Größe ist gemessen, nicht geschätzt: Kacheln und Bytes.
-    final size = find.byKey(const ValueKey('area-size'));
-    expect(size, findsOneWidget);
-    expect((tester.widget(size) as Text).data, matches(RegExp(r'^\d+ Kacheln, \d+ kB$')));
+  testWidgets('Schnappschuss, Speichern mit Größe und Zahl der Orte, dann in der Liste und gelöscht',
+      (tester) async {
+    await start(tester, pois: true);
+    fakeMap(tester).move(const LatLng(48.0, 9.0), 12);
+    await settle(tester);
+    await openTools(tester);
+    await tapRail(tester, 'rail-snapshot');
+    expect(draftTiles(tester), greaterThan(0));
+    expect(draftRects(tester), isNotEmpty, reason: 'was dazukommt, ist grün getönt');
+    expect(hatch(tester, kAreaAddHatch), isNotEmpty, reason: '… und grün schraffiert');
+    expect(hatch(tester, kAreaRemoveHatch), isEmpty);
 
-    await tester.tap(find.byKey(const ValueKey('area-choice-trails')));
+    await tapRail(tester, 'area-draw-save');
     await settle(tester, frames: 20);
-    expect(find.byKey(const ValueKey('area-size')), findsOneWidget);
+    expect(find.text('Änderungen speichern?'), findsOneWidget);
+    final size = (tester.widget(find.byKey(const ValueKey('area-size'))) as Text).data!;
+    expect(size, matches(RegExp(r'^Lädt \d+ kB · \d+ Kacheln · \d+ Orte$')));
+    // Zwei Orte je Zelle, so viele Zellen wie der Ausschnitt berührt.
+    final orte = int.parse(RegExp(r'(\d+) Orte').firstMatch(size)!.group(1)!);
+    expect(orte, isPositive);
+    expect(orte.isEven, isTrue);
 
     await tester.enterText(find.byKey(const ValueKey('area-name')), 'Roots-Runde');
     await tester.tap(find.byKey(const ValueKey('area-save')));
     await settle(tester, frames: 30);
+    expect(find.text('Änderungen speichern?'), findsNothing, reason: 'fertig heißt: Dialog zu');
     expect(find.textContaining('„Roots-Runde" gespeichert'), findsOneWidget);
-    // Der Vordergrunddienst lief als Download und ist wieder aus.
     expect(keepAlive.starts, 1);
     expect(keepAlive.running, isFalse);
-    expect(keepAlive.titles.first, 'Bereich wird gespeichert');
-    await tester.tap(find.text('Fertig'));
-    await settle(tester);
 
     final saved = (await store.list()).single;
     expect(saved.name, 'Roots-Runde');
     expect(saved.maxZoom, 10);
-    expect(saved.build, '20260928');
-    expect(saved.tiles, greaterThan(0));
-    // Die Kacheln entlang des Trails (0.24.0), die Hülle umschließt ihn.
     expect(saved.shape, isA<TileSetShape>());
-    expect(saved.bounds.south, lessThan(48.0));
-    expect(saved.bounds.north, greaterThan(48.009));
-    // Das Archiv liest der Leser beider Engines.
+    expect(saved.poiFiles, isNotEmpty);
     final archive = await PmTilesArchive.fromBytes((await store.readArchive(saved.id))!);
     expect(archive.header.numberOfAddressedTiles, saved.tiles);
+    // Der Entwurf ist erledigt, die Leiste bleibt offen, die neuen
+    // Kacheln sind hell.
+    expect(draftTiles(tester), 0);
+    expect(draftRects(tester), isEmpty);
+    expect(fakeMapLayers(tester).polygons.single.holes, isNotEmpty);
 
-    await openTab(tester, 'Profil');
-    await scrollTo(tester, find.text('Meine Bereiche'));
-    await tester.tap(find.text('Meine Bereiche'));
-    await settle(tester);
+    // Verwalten: Karte mit Zahnrad → „Meine Bereiche".
+    await tapRail(tester, 'manage-areas');
     expect(find.text('Roots-Runde'), findsOneWidget);
     expect(find.textContaining('Stand 28.09.2026'), findsOneWidget);
-    expect(find.textContaining('Neuerer Kartenstand'), findsNothing);
-
     await tester.tap(find.byKey(ValueKey('area-delete-${saved.id}')));
     await settle(tester);
     await tester.tap(find.text('Löschen'));
     await settle(tester);
     expect(find.text('Roots-Runde'), findsNothing);
     expect(await store.list(), isEmpty);
-    expect(await store.readArchive(saved.id), isNull);
   });
 
-  testWidgets('ohne Kartenhost gibt es keinen Bereich, und das Blatt sagt es', (tester) async {
+  testWidgets('ohne Kartenhost gibt es keinen Bereich, und der Dialog sagt es', (tester) async {
     await start(tester, host: false);
-    await openSaveSheet(tester);
-    expect(find.textContaining('Ohne Empfang lässt sich kein Bereich speichern'), findsOneWidget);
+    fakeMap(tester).move(const LatLng(48.0, 9.0), 12);
+    await settle(tester);
+    await openTools(tester);
+    await tapRail(tester, 'rail-snapshot');
+    await tapRail(tester, 'area-draw-save');
+    await settle(tester, frames: 20);
+    expect(find.textContaining('Ohne Empfang lässt sich nichts dazuladen'), findsOneWidget);
     final save = tester.widget<FilledButton>(find.byKey(const ValueKey('area-save')));
     expect(save.onPressed, isNull);
+    await tester.tap(find.byKey(const ValueKey('area-save-cancel')));
+    await settle(tester);
+    expect(draftTiles(tester), greaterThan(0), reason: 'Abbrechen lässt den Entwurf stehen');
+  });
+
+  testWidgets('Stift, Radierer, Rückgängig — und Speichern macht den Entwurf zum Bereich', (tester) async {
+    await start(tester);
+    // Weit draußen: Der Host des Tests endet bei Zoom 10, gezählt wird
+    // bis dorthin — ein Strich soll mehrere 10er-Kacheln fassen.
+    fakeMap(tester).move(const LatLng(48.0, 9.0), 8);
+    await settle(tester);
+    await openTools(tester);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
+        reason: 'ohne Werkzeug lässt sich die Karte verschieben');
+
+    await tapRail(tester, 'area-draw-add');
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
+    await stroke(tester, const [
+      Offset(250, 120), Offset(450, 120), Offset(550, 170), Offset(450, 230), Offset(250, 230), Offset(250, 125),
+    ]);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing,
+        reason: 'nach dem Strich ist die Karte wieder frei');
+    final added = draftTiles(tester);
+    expect(added, greaterThan(5));
+    expect(draftRects(tester), isNotEmpty);
+
+    const erase = [Offset(240, 100), Offset(400, 100), Offset(400, 250), Offset(240, 250), Offset(240, 105)];
+    await tapRail(tester, 'area-draw-remove');
+    await stroke(tester, erase);
+    final erased = draftTiles(tester);
+    expect(erased, lessThan(added));
+    expect(erased, greaterThan(0));
+
+    await tapRail(tester, 'area-draw-undo');
+    expect(draftTiles(tester), added);
+    await tapRail(tester, 'area-draw-remove');
+    await stroke(tester, erase);
+    expect(draftTiles(tester), erased);
+
+    await tapRail(tester, 'area-draw-save');
+    await settle(tester, frames: 20);
+    await tester.tap(find.byKey(const ValueKey('area-save')));
+    await settle(tester, frames: 30);
+    final saved = (await store.list()).single;
+    expect((saved.shape as TileSetShape).countTiles(maxZoom: 10), erased);
+    expect(draftTiles(tester), 0);
+  });
+
+  testWidgets('Gespeichertes wegnehmen: rot gespiegelt schraffiert, offline gespeichert, der Bereich ist weg',
+      (tester) async {
+    await store.putArchive('old', _sourceBytes());
+    await store.saveIndex([oldArea()]);
+    // Ohne Kartenhost: Entfernen braucht kein Netz.
+    await start(tester, host: false);
+    fakeMap(tester).move(const LatLng(48.005, 9.0), 12);
+    await settle(tester);
+    await openTools(tester);
+
+    // Der Stift über Gespeichertem ändert nichts: es liegt schon.
+    const loop = [Offset(250, 100), Offset(550, 100), Offset(550, 420), Offset(250, 420), Offset(250, 105)];
+    await tapRail(tester, 'area-draw-add');
+    await stroke(tester, loop);
+    expect(removedTiles(tester), 0);
+
+    await tapRail(tester, 'area-draw-remove');
+    await stroke(tester, loop);
+    expect(draftTiles(tester), 0, reason: 'die offene Zugabe ist zurückgenommen');
+    expect(removedTiles(tester), greaterThan(0), reason: 'das Gespeicherte fällt weg');
+    expect(hatch(tester, kAreaRemoveHatch), isNotEmpty, reason: 'rot schraffiert');
+    expect(hatch(tester, kAreaAddHatch), isEmpty);
+
+    await tapRail(tester, 'area-draw-save');
+    await settle(tester, frames: 20);
+    final free = (tester.widget(find.byKey(const ValueKey('area-free'))) as Text).data!;
+    expect(free, matches(RegExp(r'^Gibt \d+ Byte|^Gibt \d+ kB|^Gibt [\d,]+ MB')));
+    expect(free, contains('1 Bereich(e) ganz'));
+    expect(find.byKey(const ValueKey('area-name')), findsNothing, reason: 'kein neuer Bereich, kein Name');
+    await tester.tap(find.byKey(const ValueKey('area-save')));
+    await settle(tester, frames: 20);
+    expect(find.text('Änderungen speichern?'), findsNothing);
+    expect(await store.list(), isEmpty);
+    expect(await store.readArchive('old'), isNull);
+    expect(removedTiles(tester), 0);
+    expect(fakeMapLayers(tester).polygons.first.holes, isEmpty, reason: 'nichts liegt mehr — alles dunkel');
+    expect(keepAlive.starts, 0, reason: 'nichts geladen');
+  });
+
+  testWidgets('Schließen mit Änderungen fragt nach: X, Ebenen-Knopf und Zurück-Taste', (tester) async {
+    await start(tester);
+    await openTools(tester);
+    await tapRail(tester, 'area-draw-trails');
+    final along = draftTiles(tester);
+    expect(along, greaterThan(0));
+
+    // X: „Weiter bearbeiten" lässt alles offen.
+    await tapRail(tester, 'offline-maps-close');
+    expect(find.text('Entwurf verwerfen?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('draft-keep')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('offline-tool-rail')), findsOneWidget);
+    expect(draftTiles(tester), along);
+
+    // Zurück-Taste: dieselbe Frage statt die App zu verlassen.
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(find.text('Entwurf verwerfen?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('draft-keep')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('offline-tool-rail')), findsOneWidget);
+
+    // Ein armiertes Werkzeug geht beim Schließen mit.
+    await tapRail(tester, 'area-draw-add');
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
+
+    // Ebenen-Knopf: verwerfen.
+    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await settle(tester);
+    expect(find.text('Entwurf verwerfen?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('draft-discard')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('offline-tool-rail')), findsNothing);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing);
+    expect(fakeMapLayers(tester).polygons, isEmpty);
+
+    // Wieder geöffnet: ein leerer Entwurf, kein Werkzeug.
+    await openTools(tester);
+    expect(draftTiles(tester), 0);
+    expect(find.byKey(const ValueKey('area-draw-surface')), findsNothing);
   });
 
   testWidgets('ein älterer Bereich bekommt das Angebot, auf den neuen Stand zu kommen',
       (tester) async {
     await store.putArchive('old', _sourceBytes());
-    await store.saveIndex([
-      StoredArea(
-        id: 'old',
-        name: 'Alt',
-        bounds: const AreaBounds(south: 47.99, west: 8.99, north: 48.02, east: 9.01),
-        minZoom: 8,
-        maxZoom: 10,
-        build: '20260801',
-        tiles: 5,
-        bytes: 500,
-        savedAt: DateTime.utc(2026, 8, 1),
-      ),
-    ]);
+    await store.saveIndex([oldArea(build: '20260801')]);
     await start(tester);
     await openTab(tester, 'Profil');
     await scrollTo(tester, find.text('Meine Bereiche'));
