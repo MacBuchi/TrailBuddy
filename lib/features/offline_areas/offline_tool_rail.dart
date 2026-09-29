@@ -14,7 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../core/errors.dart';
+import '../map/map_buttons.dart';
 import '../map/online_map.dart';
 import 'area_downloader.dart';
 import 'area_draw.dart';
@@ -57,123 +60,109 @@ class OfflineToolRail extends ConsumerWidget {
     final adds = draft == null || draft.adds.isEmpty ? 0 : draft.addShape.countTiles(maxZoom: maxZoom);
     final removes = draft == null || draft.removes.isEmpty ? 0 : draft.removeShape.countTiles(maxZoom: maxZoom);
     final tooLarge = adds > kAreaMaxTiles;
-    final countStyle = Theme.of(context).textTheme.labelSmall;
-    final scheme = Theme.of(context).colorScheme;
+    final p = AppPalette.of(context);
+    final countStyle = AppFonts.numbers(Theme.of(context).textTheme.labelMedium);
 
-    Widget button(String key, String tip, Widget icon, VoidCallback? onPressed, {bool selected = false}) =>
+    // Aktives Werkzeug = helle Fläche (auf Hell: die dunkle — immer die
+    // Gegenhelligkeit der Leiste), Hauptaktion Speichern = Lime (3e).
+    Widget button(String key, String tip, Widget icon, VoidCallback? onPressed,
+            {bool selected = false, bool primary = false}) =>
         IconButton(
           key: ValueKey(key),
           tooltip: tip,
           isSelected: selected,
-          // 36 statt 48 dp: Die Leiste soll auch auf einem kurzen Schirm
-          // zwischen Banner und Maßstab passen.
-          iconSize: 20,
-          padding: const EdgeInsets.all(6),
-          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          iconSize: 22,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: kMapButtonSize, height: kMapButtonSize),
           style: IconButton.styleFrom(
-            backgroundColor: selected ? scheme.primaryContainer : null,
-            // Sonst polstert Material jeden Knopf auf 48 dp Trefferfläche
-            // auf, und die Leiste wird um ein Drittel höher (gemessen).
+            backgroundColor: selected
+                ? p.text
+                : primary && onPressed != null
+                    ? AppColors.brand
+                    : null,
+            foregroundColor: selected
+                ? p.ground
+                : primary && onPressed != null
+                    ? AppColors.onBrand
+                    : p.text,
+            // 44 ist schon die Trefferfläche (Handschuh); Material
+            // polsterte sonst auf 48 auf, und die Leiste würde länger.
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           onPressed: onPressed,
           icon: icon,
         );
 
-    Widget tool(AreaDrawTool t, String key, String tip, Widget icon) =>
-        button(key, tip, icon, () => notifier.arm(t), selected: draft?.tool == t);
+    Widget tool(AreaDrawTool t, String key, String tip, IconData icon) =>
+        button(key, tip, Icon(icon), () => notifier.arm(t), selected: draft?.tool == t);
 
-    return Card(
+    // Gruppen durch Luft statt Trennlinien.
+    const gap = SizedBox(height: 8);
+
+    return Container(
       key: const ValueKey('offline-tool-rail'),
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            button('rail-filter', 'Orte und offizielle Trails', const Icon(Icons.tune), onFilter),
-            const _RailDivider(),
-            button('rail-snapshot', 'Ausschnitt dazunehmen', const Icon(Icons.photo_camera_outlined), onSnapshot),
-            tool(AreaDrawTool.add, 'area-draw-add', 'Fläche dazunehmen',
-                const _PolygonIcon(sign: Icons.add)),
-            tool(AreaDrawTool.remove, 'area-draw-remove', 'Fläche wegnehmen',
-                const _PolygonIcon(sign: Icons.remove)),
-            button('area-draw-trails', 'Entlang meiner Trails dazunehmen', const Icon(Icons.route_outlined),
-                onTrails),
-            button('area-draw-undo', 'Rückgängig', const Icon(Icons.undo),
-                draft == null || draft.history.isEmpty ? null : notifier.undo),
-            const _RailDivider(),
-            button('manage-areas', 'Meine Bereiche verwalten', const _ManageIcon(), onManage),
-            button(
-              'area-draw-save',
-              tooLarge
-                  ? '+$adds Kacheln — zu viel auf einmal, erlaubt sind $kAreaMaxTiles'
-                  : empty
-                      ? 'Speichern — noch keine Änderung'
-                      : 'Speichern (+$adds / −$removes Kacheln)',
-              const Icon(Icons.save_outlined),
-              empty || tooLarge
-                  ? null
-                  : () {
-                      notifier.disarm();
-                      onSave(draft);
-                    },
-            ),
-            // Was dazukommt (grün) und was wegfällt (rot) — getrennt, wie
-            // auf der Karte.
+      width: kRailWidth,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(kRailWidth / 2),
+        border: Border.all(color: p.line),
+        boxShadow: const [BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Color(0x33000000))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button('rail-filter', 'Orte und offizielle Trails', const Icon(Icons.tune), onFilter),
+          gap,
+          button('rail-snapshot', 'Ausschnitt dazunehmen', const Icon(Icons.crop_free), onSnapshot),
+          tool(AreaDrawTool.add, 'area-draw-add', 'Fläche dazunehmen', Icons.add_circle_outline),
+          tool(AreaDrawTool.remove, 'area-draw-remove', 'Fläche wegnehmen', Icons.remove_circle_outline),
+          button('area-draw-trails', 'Entlang meiner Trails dazunehmen', const Icon(Icons.route_outlined),
+              onTrails),
+          button('area-draw-undo', 'Rückgängig', const Icon(Icons.undo),
+              draft == null || draft.history.isEmpty ? null : notifier.undo),
+          gap,
+          button('manage-areas', 'Meine Bereiche verwalten', const _ManageIcon(), onManage),
+          button(
+            'area-draw-save',
+            tooLarge
+                ? '+$adds Kacheln — zu viel auf einmal, erlaubt sind $kAreaMaxTiles'
+                : empty
+                    ? 'Speichern — noch keine Änderung'
+                    : 'Speichern (+$adds / −$removes Kacheln)',
+            const Icon(Icons.save_outlined),
+            empty || tooLarge
+                ? null
+                : () {
+                    notifier.disarm();
+                    onSave(draft);
+                  },
+            primary: true,
+          ),
+          // Der Zähler direkt unter Speichern, in Mono: was dazukommt und
+          // was wegfällt, getrennt — wie Schraffur und Gegenschraffur.
+          const SizedBox(height: 2),
+          Text(
+            adds == 0 ? (removes == 0 ? '–' : '') : '+${compactCount(adds)}',
+            key: const ValueKey('area-draw-count'),
+            style: countStyle.copyWith(color: tooLarge ? Theme.of(context).colorScheme.error : p.text),
+          ),
+          if (removes > 0)
             Text(
-              adds == 0 ? (removes == 0 ? '–' : '') : '+${compactCount(adds)}',
-              key: const ValueKey('area-draw-count'),
-              style: countStyle?.copyWith(
-                color: tooLarge ? scheme.error : kAreaAddHatch.withValues(alpha: 1),
-                fontWeight: FontWeight.bold,
-              ),
+              '−${compactCount(removes)}',
+              key: const ValueKey('area-draw-remove-count'),
+              style: countStyle.copyWith(color: p.muted),
             ),
-            if (removes > 0)
-              Text(
-                '−${compactCount(removes)}',
-                key: const ValueKey('area-draw-remove-count'),
-                style: countStyle?.copyWith(color: kAreaRemoveHatch.withValues(alpha: 1), fontWeight: FontWeight.bold),
-              ),
-            const _RailDivider(),
-            button('offline-maps-close', 'Schließen', const Icon(Icons.close), onClose),
-          ],
-        ),
+          gap,
+          button('offline-maps-close', 'Schließen', const Icon(Icons.close), onClose),
+        ],
       ),
     );
   }
 }
 
-class _RailDivider extends StatelessWidget {
-  const _RailDivider();
-
-  @override
-  Widget build(BuildContext context) => const SizedBox(width: 24, child: Divider(height: 6));
-}
-
-/// Vieleck mit Plus oder Minus: Fläche dazu oder weg.
-class _PolygonIcon extends StatelessWidget {
-  const _PolygonIcon({required this.sign});
-
-  final IconData sign;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 22,
-        height: 22,
-        child: Stack(children: [
-          const Icon(Icons.pentagon_outlined, size: 20),
-          Positioned(
-            right: -1,
-            bottom: -1,
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, shape: BoxShape.circle),
-              child: Icon(sign, size: 13),
-            ),
-          ),
-        ]),
-      );
-}
+/// Breite der linken Leiste (3e).
+const kRailWidth = 52.0;
 
 /// Karte mit Zahnrad: die gespeicherten Bereiche verwalten.
 class _ManageIcon extends StatelessWidget {
@@ -189,7 +178,7 @@ class _ManageIcon extends StatelessWidget {
             right: -1,
             bottom: -1,
             child: DecoratedBox(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppPalette.of(context).surface, shape: BoxShape.circle),
               child: const Icon(Icons.settings, size: 13),
             ),
           ),

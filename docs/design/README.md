@@ -203,7 +203,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 |---|---|---|
 | #74 | Tokens, Theme hell/dunkel, Schriften, „Erscheinungsbild" | 0.28.0 |
 | 2 | Logo, App-Symbole, Statusleisten-Symbol, Login | 0.29.0 |
-| 3 | Hülle und Karte (Turn 3) | |
+| 3 | Hülle und Karte (Turn 3) | 0.30.0 |
 | 4 | Offline-Kacheln: eine Regel (Turn 2) | |
 | 5 | Listen und Blätter (Turn 1g–1l, 4e/4f) | |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | |

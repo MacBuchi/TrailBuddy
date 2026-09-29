@@ -4,7 +4,19 @@
 
 ## Aussehen
 
-*Versionen 0.28.0 bis 0.29.0, 2026-09-29*
+*Versionen 0.28.0 bis 0.30.0, 2026-09-29*
+
+- **Neue Knöpfe auf der Karte** (0.30.0): Rechts unten stehen runde
+  Knöpfe — Idee, Ebenen, Position — und darunter, gut mit dem Daumen
+  erreichbar, der große Aufnahmeknopf: Lime zum Starten, orange mit
+  Stop-Quadrat, solange die Fahrt läuft. Ist die Werkzeugleiste offen,
+  hat der Ebenen-Knopf einen farbigen Rand.
+- **Die Werkzeugleiste links ist größer und ruhiger**: Die Knöpfe sind
+  größer (auch mit Handschuhen gut zu treffen), die Gruppen stehen mit
+  etwas Abstand statt mit Trennlinien. Das gewählte Werkzeug ist
+  hervorgehoben, Speichern leuchtet, sobald es etwas zu speichern gibt,
+  und die Zahl darunter sagt, wie viel dazukommt und wegfällt. Maßstab
+  und Quellenhinweis rücken zur Seite, solange die Leiste offen ist.
 
 - **Ein eigenes Logo** (0.29.0): eine Serpentine — zwei Kehren und ein
   Ziel. Sie ersetzt das Flutter-Standardsymbol auf dem Startbildschirm

@@ -95,6 +95,10 @@ void main() {
   }
 
   Future<void> tapRail(WidgetTester tester, String key) async {
+    // Die Leiste (44-px-Knöpfe, seit 0.30.0) ist höher als die 600 px der
+    // Test-Vorgabe hergeben — sie scrollt, wie auf einem kurzen Schirm.
+    await tester.ensureVisible(find.byKey(ValueKey(key)));
+    await tester.pump();
     await tester.tap(find.byKey(ValueKey(key)));
     await settle(tester);
   }
@@ -143,6 +147,13 @@ void main() {
 
   testWidgets('Knöpfe rechts, Werkzeugleiste links — Maßstab und Quellenhinweis bleiben frei',
       (tester) async {
+    // Ein kleines Telefon hochkant (360 × 740 dp): Die Leiste mit ihren
+    // 44-px-Knöpfen (Design 3e) passt ganz zwischen Banner und Maßstab.
+    // Die Test-Vorgabe 800 × 600 ist quer und zu kurz dafür — dort
+    // scrollt sie (tapRail).
+    tester.view.physicalSize = const Size(1080, 2220);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     await start(tester);
     final size = tester.view.physicalSize / tester.view.devicePixelRatio;
     expect(tester.getCenter(find.byKey(const ValueKey('layers-button'))).dx, greaterThan(size.width / 2));

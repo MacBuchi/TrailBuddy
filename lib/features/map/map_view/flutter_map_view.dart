@@ -242,16 +242,20 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
                 ),
             ]),
           ),
-        RichAttributionWidget(
-          // Links wie bei MapLibre: rechts stehen die Knöpfe (seit 0.27.0).
-          alignment: AttributionAlignment.bottomLeft,
-          animationConfig: const ScaleRAWA(),
-          attributions: [
-            const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
-            const TextSourceAttribution('Protomaps', prependCopyright: false),
-            for (final text in config.attributions)
-              TextSourceAttribution(text, prependCopyright: false),
-          ],
+        // Steht links die Werkzeugleiste, rückt der Hinweis neben sie.
+        Padding(
+          padding: EdgeInsets.only(left: config.bottomLeftInset),
+          child: RichAttributionWidget(
+            // Links wie bei MapLibre: rechts stehen die Knöpfe (seit 0.27.0).
+            alignment: AttributionAlignment.bottomLeft,
+            animationConfig: const ScaleRAWA(),
+            attributions: [
+              const TextSourceAttribution('OpenStreetMap-Mitwirkende'),
+              const TextSourceAttribution('Protomaps', prependCopyright: false),
+              for (final text in config.attributions)
+                TextSourceAttribution(text, prependCopyright: false),
+            ],
+          ),
         ),
       ],
     );

@@ -29,6 +29,7 @@ import '../trails/outbox_providers.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
+import 'map_buttons.dart';
 import 'map_view/map_view.dart';
 import 'poi.dart';
 import 'poi_layer.dart';
@@ -507,6 +508,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               backgroundColor: AppColors.mapBackground,
               // Die Quellen der offiziellen Trails, solange die Ebene an
               // ist und eine ihrer Regionen geladen.
+              bottomLeftInset: toolsOpen ? kRailWidth + 8 : 0,
               attributions: [
                 if (officialOn)
                   for (final src in official.loadedSources)
@@ -526,7 +528,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           if (trailsAsync.isLoading && trails.isEmpty)
             const Center(child: CircularProgressIndicator()),
-          if (trailsAsync.hasValue && trails.isEmpty)
+          // Solange ein Werkzeug scharf ist, gehört der Platz oben der
+          // Zeile, was der nächste Strich tut.
+          if (trailsAsync.hasValue && trails.isEmpty && drawTool == null)
             const _EmptyHint(),
           const UpdateBanner(),
           const _OutboxBanner(),
@@ -607,43 +611,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           child: Text('Orte gerade nicht erreichbar'),
                         ),
                       ),
-                    if (canRecord) ...[
-                      FloatingActionButton(
-                        key: const ValueKey('ride-button'),
-                        heroTag: 'ride',
-                        tooltip: ride == null ? 'Fahrt aufzeichnen' : 'Fahrt beenden',
-                        backgroundColor: ride == null ? null : AppColors.mapLines.warning,
-                        foregroundColor: ride == null ? null : Colors.white,
-                        onPressed: _toggleRide,
-                        child: Icon(ride == null ? Icons.fiber_manual_record : Icons.stop),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    FloatingActionButton.small(
-                      heroTag: 'locate',
-                      tooltip: 'Meine Position',
-                      onPressed: _locateMe,
-                      child: const Icon(Icons.my_location),
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton.small(
-                      key: const ValueKey('layers-button'),
-                      heroTag: 'poi-filter',
-                      tooltip: 'Ebenen und Orte',
-                      // Öffnet und schließt die Werkzeugleiste — dasselbe
-                      // wie ihr X und die Zurück-Taste.
-                      backgroundColor: toolsOpen ? Theme.of(context).colorScheme.primary : null,
-                      foregroundColor: toolsOpen ? Theme.of(context).colorScheme.onPrimary : null,
-                      onPressed: toolsOpen ? _closeTools : _openTools,
-                      child: const Icon(Icons.layers_outlined),
-                    ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton.small(
-                      heroTag: 'feedback',
+                    // Von oben nach unten wie im Entwurf (3a): Idee, Ebenen,
+                    // Position — und unten, am Daumen, die Aufnahme.
+                    const SizedBox(height: 4),
+                    MapRoundButton(
                       tooltip: 'Idee oder Fehler melden',
+                      icon: Icons.lightbulb_outline,
                       onPressed: () => showFeedbackFlow(context, ref),
-                      child: const Icon(Icons.lightbulb_outline),
                     ),
+                    const SizedBox(height: 10),
+                    MapRoundButton(
+                      key: const ValueKey('layers-button'),
+                      tooltip: 'Ebenen und Orte',
+                      icon: Icons.layers_outlined,
+                      // Öffnet und schließt die Werkzeugleiste — dasselbe
+                      // wie ihr X und die Zurück-Taste. Offen: Rand in der
+                      // Marke, die Leiste links gehört zu diesem Knopf.
+                      active: toolsOpen,
+                      onPressed: toolsOpen ? _closeTools : _openTools,
+                    ),
+                    const SizedBox(height: 10),
+                    MapRoundButton(
+                      tooltip: 'Meine Position',
+                      icon: Icons.my_location,
+                      onPressed: _locateMe,
+                    ),
+                    if (canRecord) ...[
+                      const SizedBox(height: 14),
+                      RecordButton(
+                        key: const ValueKey('ride-button'),
+                        recording: ride != null,
+                        onPressed: _toggleRide,
+                      ),
+                    ],
                   ],
                 ),
               ),
