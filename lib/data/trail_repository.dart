@@ -45,6 +45,12 @@ abstract class TrailRepository {
   Future<void> addNote({required String trailId, required String body});
 
   Future<void> deleteNote(String id);
+
+  /// Zieht den EIGENEN Beitrag zu [trailId] zurück (Patch 010,
+  /// `withdraw_contribution`): Aufzeichnungen, Hinweise und Beitrag in
+  /// einer Transaktion. Der Trail bleibt, solange ein anderer ihn belegt.
+  /// Gibt die Zahl der gelöschten Aufzeichnungen zurück.
+  Future<int> withdraw(String trailId);
 }
 
 /// Die Spalten der Sicht `recordings_visible` — dieselbe Liste prüft
@@ -147,5 +153,13 @@ class SupabaseTrailRepository implements TrailRepository {
   Future<void> deleteNote(String id) async {
     _client.requireUid;
     await _client.from('trail_notes').delete().eq('id', id);
+  }
+
+  @override
+  Future<int> withdraw(String trailId) async {
+    _client.requireUid;
+    final result = await _client
+        .rpc<dynamic>('withdraw_contribution', params: {'trail_id': trailId});
+    return (result as num).toInt();
   }
 }

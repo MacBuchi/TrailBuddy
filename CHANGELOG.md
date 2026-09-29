@@ -2,6 +2,15 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Trails verwalten
+
+*Version 0.46.0, 2026-09-29*
+
+- **Beitrag löschen**: Im Trail-Blatt steht neben „Mein Beitrag" jetzt
+  „Löschen". Es nimmt deine Aufzeichnungen, deine Einschätzung und deine
+  Hinweise zu diesem Trail weg. Haben Buddys ihn auch gefahren, bleibt
+  er für sie stehen; sonst verschwindet er.
+
 ## Aussehen
 
 *Versionen 0.38.0 bis 0.45.2, 2026-09-29*

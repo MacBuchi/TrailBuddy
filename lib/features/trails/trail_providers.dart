@@ -251,6 +251,14 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     return reloadAfterWrite('Hinweis löschen');
   }
 
+  /// Den eigenen Beitrag zurückziehen. Kein Ausgangskorb: Ein Löschauftrag,
+  /// der Tage später zuschlägt, wäre schlimmer als eine Fehlermeldung
+  /// (PilzBuddy #267) — ohne Netz scheitert es sichtbar.
+  Future<bool> withdraw(String trailId) async {
+    await ref.read(trailRepositoryProvider).withdraw(trailId);
+    return reloadAfterWrite('Beitrag zurückziehen');
+  }
+
   /// Höhen einer eigenen Aufzeichnung nachtragen (#16). Kein Neuladen
   /// hier: Der Import lädt einmal am Ende, nicht nach jeder Datei.
   Future<bool> attachElevation(ExistingRecording existing) {
