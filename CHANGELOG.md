@@ -4,8 +4,14 @@
 
 ## Karte
 
-*Versionen 0.24.0 bis 0.26.0, 2026-09-28 bis 2026-09-29*
+*Versionen 0.24.0 bis 0.26.1, 2026-09-28 bis 2026-09-29*
 
+- **Einpassen stürzt auf Android nicht mehr ab** (0.26.1): Wenn die Karte
+  auf das Netz, einen Trail, eine Fahrt oder einen Bereich zoomte, gab
+  es im Hintergrund jedes Mal einen Fehler — sichtbar war er nicht, die
+  Karte stand meist trotzdem richtig. Jetzt rechnet die App den
+  Ausschnitt selbst und setzt ihn in einem Schritt. Nebenbei landet
+  „Meine Position" auf Android nicht mehr eine Zoomstufe zu nah.
 - **Bereiche zeichnen** (0.26.0): Im Blatt „Offline-Karten" gibt es
   „Bereich zeichnen". Stift antippen, dann auf der Karte mit dem Finger
   eine Fläche umfahren — jedes Kartenstück, das sie berührt oder

@@ -1,6 +1,8 @@
 // Die Trefferprüfung der Kartenfassade: EINE Rechnung für beide Engines.
 // Was hier stimmt, stimmt auf Android (MapLibre) und im Web (flutter_map)
 // gleich — und was hier fehlt, fehlt auf beiden.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -57,6 +59,43 @@ void main() {
       expect(back.latitude, closeTo(p.latitude, 1e-9));
       expect(back.longitude, closeTo(p.longitude, 1e-9));
     }
+  });
+
+  test('Einpassen (#68): alle Punkte im Bild, mit Rand, Obergrenze wirkt', () {
+    const size = Size(400, 800);
+    const pts = [LatLng(47.9, 11.5), LatLng(48.1, 11.9)];
+    final cam = cameraToFit(pts, size, padding: 40, maxZoom: 18);
+    // Die Kamera, die daraus entsteht, zeigt beide Punkte innerhalb des
+    // Rands — und an der engeren Seite genau am Rand.
+    final scale = 256 * math.pow(2, cam.zoom) / 360;
+    final halfLon = size.width / 2 / scale;
+    expect(cam.center.longitude - halfLon, closeTo(11.5 - 40 / scale, 1e-9),
+        reason: 'die Breite ist hier die engere Seite');
+    final view = MapViewCamera(
+      center: cam.center,
+      bounds: MapViewBounds(
+          west: cam.center.longitude - halfLon, east: cam.center.longitude + halfLon,
+          south: 47.0, north: 49.0),
+      size: size,
+    );
+    for (final p in pts) {
+      final at = projectToScreen(view, p);
+      expect(at.dx, inInclusiveRange(39.99, 360.01));
+    }
+    // Mitte in Mercator, nicht das Mittel der Breiten.
+    expect(cam.center.latitude, isNot(closeTo(48.0, 1e-6)));
+    expect(cam.center.latitude, closeTo(48.0, 0.01));
+
+    // Ein kurzer Trail landet nicht auf Hausnummern-Maßstab.
+    final near = cameraToFit(const [LatLng(48.0, 11.0), LatLng(48.001, 11.001)], size,
+        padding: 40, maxZoom: 15);
+    expect(near.zoom, 15);
+    // Ein Punkt, eine Fläche ohne Platz: die Obergrenze um den Punkt.
+    expect(cameraToFit(const [LatLng(48.0, 11.0)], size, padding: 40, maxZoom: 15).zoom, 15);
+    expect(cameraToFit(pts, Size.zero, padding: 40, maxZoom: 15).zoom, 15);
+    // Die ganze Welt: nie unter die Untergrenze.
+    expect(cameraToFit(const [LatLng(-80, -170), LatLng(80, 170)], size, padding: 40, maxZoom: 15, minZoom: 3)
+        .zoom, 3);
   });
 
   test('Zoom aus Fenster und Breite: 256er Web-Mercator', () {
