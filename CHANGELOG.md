@@ -4,7 +4,13 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.42.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.43.0, 2026-09-29*
+
+- **Das Schild auch auf der Karte** (0.43.0): Wenn du nah genug
+  heranzoomst, steht am Anfang jedes Trails sein Schild — Schwierigkeit,
+  Charakter-Symbole und bei Auffahrten der Pfeil, in der Farbe der
+  Linie. Es steht neben der Linie, nicht auf ihr, und ein Tipp darauf
+  öffnet den Trail.
 
 - **Die Farbe zeigt jetzt die Schwierigkeit** (0.42.0): Trails sind
   eingefärbt wie Skipisten — grün S0, blau S1, rot S2, schwarz ab S3,

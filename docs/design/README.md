@@ -226,8 +226,19 @@ Stufenfarbe des Modus (`palette.grade`), Form und Zahl in
 der Kachel; ohne Einschätzung kein Schild. In der Liste steht es rechts
 oben über den Charakter-Symbolen, und „S2" fällt aus der Zahlenzeile —
 zweimal dieselbe Angabe. Der Bildschirmleser hört „Schwierigkeit S3:
-verblockt, hohe Stufen, enge Kehren". Das Schild auf der Karte (am
-Trailanfang, mit den Charakter-Symbolen) folgt als 6b.
+verblockt, hohe Stufen, enge Kehren".
+
+**Auf der Karte seit 0.43.0** (`trail_badges.dart`, Schritt 6b): ab der
+gerechneten Zoomstufe 13 (`kTrailBadgeMinZoom`) ein Schild je Trail am
+Anfang in Trail-Richtung (`trailStart`: bei einer gegen die Richtung
+aufgenommenen besten Linie deren Ende), mit Grad und den angezeigten
+Merkmalen wie im Entwurf 4c, in der Farbe der Linie (`AppColors.mapGrades`,
+die Karte ist immer hell). Abweichung vom Entwurf: Das Schild steht auf
+der Seite, von der die Linie WEGführt (`trailHeadsNorth`, gemessen an
+einem Punkt ~30 m weiter) — über dem Anfang lag es sonst auf der Linie.
+Kein Schild ohne Grad und ohne Merkmale, keins für wartende Trails. Ein
+Tipp öffnet den Trail (`hitValue`); die Trefferprüfung fragt Linien vor
+Markern, am Anfang treffen beide denselben Trail.
 
 **Charakter** — Mehrfachwahl je Beitrag, wie der Grad von Buddys
 vergeben; angezeigt die höchstens 2 häufigsten, als Symbol:
@@ -344,5 +355,5 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 5d | Profil (1l) | 0.41.0 |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72) |
 | 6a | S-Grad-Schild, Farbe = Schwierigkeit (Karte, Liste, Schild) | 0.42.0 |
-| 6b | Schild mit Charakter am Trailanfang auf der Karte | |
+| 6b | Schild mit Charakter am Trailanfang auf der Karte | 0.43.0 |
 | 7 | Animationen (Turn 1p–1t) | |

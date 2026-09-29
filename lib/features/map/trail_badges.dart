@@ -1,0 +1,80 @@
+// Das Schild am Trailanfang auf der Karte (Design 4c, Schritt 6b): Form,
+// Grad und die angezeigten Merkmale, in der Farbe der Linie — erst ab
+// Zoom 13 (Entwurf), darunter stünden die Schilder übereinander. Pur bis
+// auf das Widget; ein Tipp auf das Schild öffnet den Trail wie ein Tipp
+// auf die Linie.
+import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../../core/app_colors.dart';
+import '../../models/trail.dart';
+import '../trails/grade_shield.dart';
+import 'map_view/map_view.dart';
+
+/// Ab dieser (gerechneten) Zoomstufe stehen die Schilder auf der Karte.
+const kTrailBadgeMinZoom = 13.0;
+
+/// Der Anfang in Trail-Richtung: Die beste Aufzeichnung kann gegen die
+/// Richtung aufgenommen sein (`reversed`), dann ist ihr Ende der Anfang.
+LatLng trailStart(Trail t) => t.best.reversed ? t.points.last : t.points.first;
+
+/// Führt der Trail vom Anfang nach Norden (auf der Karte nach oben)? Dann
+/// steht das Schild UNTER dem Anfang, sonst darüber — es soll neben der
+/// Linie stehen, nicht auf ihr. Gemessen an einem Punkt ~30 m weiter,
+/// damit ein Zacken am Anfang die Seite nicht umwirft.
+bool trailHeadsNorth(Trail t) {
+  final pts = t.best.reversed ? t.points.reversed.toList() : t.points;
+  if (pts.length < 2) return false;
+  const d = Distance();
+  final start = pts.first;
+  var probe = pts[1];
+  for (final p in pts.skip(1)) {
+    probe = p;
+    if (d.as(LengthUnit.Meter, start, p) >= 30) break;
+  }
+  return probe.latitude > start.latitude;
+}
+
+const _fontSize = 11.0;
+
+/// Breite des Markerrahmens — die Fassade braucht sie vorab. Großzügig
+/// geschätzt; das Schild steht darin zentriert, ein Rest bleibt leer.
+double _badgeWidth(Trail t, bool uphill, List<TrailTrait> traits) {
+  var w = _fontSize * 1.1 + 2; // Rand links und rechts
+  if (uphill || t.grade != null) w += _fontSize * (t.grade == 4 || t.grade == 5 ? 2.2 : 1.0);
+  if (t.grade != null) w += _fontSize * (0.35 + 1.4);
+  w += traits.length * _fontSize * 1.5;
+  return w + 8;
+}
+
+/// Die Schilder für die gezeigten Trails — leer unter [kTrailBadgeMinZoom]
+/// und für Trails ohne Grad und ohne Merkmale. Wartende (Ausgangskorb)
+/// bekommen keins: Sie haben noch keinen Beitrag.
+List<MapViewMarker> trailBadgeMarkers(Iterable<Trail> trails, MapViewCamera? camera) {
+  if (camera == null || camera.zoom < kTrailBadgeMinZoom) return const [];
+  return [
+    for (final t in trails)
+      if (!t.pending && t.points.isNotEmpty && (t.grade != null || t.topTraits.isNotEmpty))
+        _marker(t),
+  ];
+}
+
+MapViewMarker _marker(Trail t) {
+  final uphill = isUphill(t);
+  final traits = [for (final x in t.topTraits) if (!(uphill && x == TrailTrait.uphill)) x];
+  return MapViewMarker(
+    key: ValueKey('trail-badge-${t.id}'),
+    point: trailStart(t),
+    width: _badgeWidth(t, uphill, traits),
+    height: _fontSize * 2.2,
+    // Das Schild steht neben dem Anfang auf der Seite, von der die Linie
+    // WEGführt: `topCenter` = darüber (der Punkt an der Unterkante),
+    // `bottomCenter` = darunter. So bleibt der Anfang der Linie frei.
+    alignment: trailHeadsNorth(t) ? Alignment.bottomCenter : Alignment.topCenter,
+    hitValue: t,
+    child: Center(
+      child: GradeShield(t.grade,
+          fontSize: _fontSize, uphill: uphill, traits: traits, palette: AppColors.mapGrades),
+    ),
+  );
+}
