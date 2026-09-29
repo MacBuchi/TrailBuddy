@@ -46,7 +46,7 @@ void main() {
     expect(find.text('Roots'), findsNothing);
     expect(find.text('Von Buddys (1)'), findsOneWidget);
     expect(find.text('Bobs Flow'), findsOneWidget);
-    expect(find.textContaining('Gesperrt'), findsOneWidget);
+    expect(find.textContaining('GESPERRT'), findsOneWidget);
     expect(find.text('Geheim'), findsNothing);
 
     // Das Blatt nennt den zweiten Namen und den Buddy.

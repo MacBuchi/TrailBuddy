@@ -43,6 +43,7 @@ abstract final class AppColors {
     brandMark: brand,
     warningText: Color(0xFFFF8A3D),
     buddyText: Color(0xFF5AD0F0),
+    noteText: Color(0xFFFFD23F),
     map: MapPalette.dark,
   );
 
@@ -63,6 +64,9 @@ abstract final class AppColors {
     brandMark: Color(0xFF4F8A10),
     warningText: Color(0xFFA94510),
     buddyText: Color(0xFF0A7299),
+    // Das Hinweis-Gelb (#F2B600) hat auf Weiß 1,9:1 — als Wort in der
+    // Liste („NEUER HINWEIS") ein dunkles Senfgelb, ≥ 5,2:1.
+    noteText: Color(0xFF7A5C00),
     map: MapPalette.light,
   );
 }
@@ -82,6 +86,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.brandMark,
     required this.warningText,
     required this.buddyText,
+    required this.noteText,
     required this.map,
   });
 
@@ -116,6 +121,9 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// „Von einem Buddy" als Schrift.
   final Color buddyText;
+
+  /// „Neuer Hinweis" als Schrift (die Linie trägt nur den Leuchtrand).
+  final Color noteText;
 
   /// Die Beziehungsfarben dieses Modus — für Symbole, Streifen und Chips
   /// auf den Flächen der App. Auf der Karte gilt [AppColors.mapLines].

@@ -90,7 +90,10 @@ ThemeData buildAppTheme(AppPalette p) {
       backgroundColor: p.ground,
       foregroundColor: p.text,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: textTheme.titleLarge,
+      // MIT Größe: `textTheme` bekommt seine Größen erst in `Theme.of`
+      // (Typografie), dieser Stil aber nie — ohne sie stand jeder Titel
+      // in 14 px da.
+      titleTextStyle: textTheme.titleLarge?.copyWith(fontSize: 22),
     ),
     // Der Knopf bleibt in beiden Modi Lime mit dunkler Schrift.
     filledButtonTheme: FilledButtonThemeData(

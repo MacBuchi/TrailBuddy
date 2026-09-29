@@ -176,4 +176,47 @@ void main() {
       expect(names(trailListOf([...list, noted])).first, 'Delta');
     });
   });
+
+  group('Wort der Zeile (Design 1j)', () {
+    String nameOf(String id, String? username) => username ?? 'Buddy';
+    List<String> tags(Trail t, {bool fresh = false}) =>
+        [for (final x in trailRowTags(t, freshNote: fresh, nameOf: nameOf)) x.text];
+
+    Trail shared(List<(String, String?)> users) => Trail(
+          id: 't',
+          myId: 'me',
+          recordings: [for (final (u, _) in users) rec('t', u)],
+          details: [
+            for (final (u, n) in users) TrailDetails(trailId: 't', userId: u, username: n, name: 'X'),
+          ],
+        );
+
+    test('ohne Zustand die Beziehung: MEIN, MEIN · n BUDDYS, Namen der Buddys', () {
+      expect(tags(trail('a', 'A')), ['MEIN']);
+      expect(tags(shared([('me', null), ('jan', 'jan'), ('mira', 'mira')])), ['MEIN · 2 BUDDYS']);
+      expect(tags(shared([('me', null), ('jan', 'jan')])), ['MEIN · 1 BUDDY']);
+      expect(tags(shared([('jan', 'jan'), ('mira', 'mira')])), ['JAN, MIRA']);
+      expect(tags(shared([('jan', 'jan'), ('mira', 'mira'), ('tom', 'tom')])), ['JAN, MIRA +1'],
+          reason: 'höchstens zwei Namen, sonst läuft die Zeile über');
+    });
+
+    test('ein Zustand schlägt die Beziehung, mehrere stehen nebeneinander', () {
+      expect(tags(trail('a', 'A', status: TrailStatus.closed)), ['GESPERRT']);
+      expect(tags(trail('a', 'A', user: 'jan', username: 'jan'), fresh: true), ['NEUER HINWEIS']);
+      expect(tags(trail('a', 'A', status: TrailStatus.destroyed), fresh: true),
+          ['ZERSTÖRT', 'NEUER HINWEIS']);
+    });
+
+    test('wartend: nur das Warten — eine Ablehnung als Satz, nicht in Versalien', () {
+      final waiting = Trail(
+          id: 'p', myId: 'me', recordings: [rec('p', 'me')], details: const [], pending: true);
+      expect(trailRowTags(waiting, freshNote: true, nameOf: nameOf).single,
+          (text: 'WARTET AUF ÜBERTRAGUNG', kind: TrailRowTagKind.pending));
+      final rejected = Trail(
+          id: 'p', myId: 'me', recordings: [rec('p', 'me')], details: const [],
+          pending: true, pendingFailure: 'Zu kurz für einen Trail.');
+      expect(trailRowTags(rejected, freshNote: false, nameOf: nameOf).single,
+          (text: 'Zu kurz für einen Trail.', kind: TrailRowTagKind.failure));
+    });
+  });
 }

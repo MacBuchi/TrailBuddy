@@ -271,7 +271,7 @@ void main() {
     await tester.tap(find.byTooltip('Fahrt zerlegen'));
     await settle(tester, frames: 30);
     expect(find.text('Fahrt zerlegen'), findsOneWidget);
-    expect(find.textContaining('12.0 km · 601 Punkte'), findsOneWidget);
+    expect(find.textContaining('12,0 km · 601 Punkte'), findsOneWidget);
     expect(find.text('Verwerfen'), findsNothing, reason: 'nur nach einer Aufzeichnung');
     expect(find.text('Schließen'), findsOneWidget);
   });

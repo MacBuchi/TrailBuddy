@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/app_colors.dart';
 import '../official/official_signposts.dart';
 import '../../core/errors.dart';
+import '../../core/geo.dart' show formatMeters;
 import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
@@ -42,8 +43,9 @@ String statusAge(DateTime? at, {DateTime? now}) {
   return 'gemeldet vor ${(days / 365).floor()} Jahren';
 }
 
-String formatLength(double m) =>
-    m >= 1000 ? '${(m / 1000).toStringAsFixed(1)} km' : '${m.round()} m';
+/// „3,4 km" bzw. „850 m" — [formatMeters], die EINE Schreibweise der App
+/// (bis 0.37.0 stand hier eine zweite mit Punkt: „3.4 km").
+String formatLength(double m) => formatMeters(m);
 
 /// „↓ 420 Hm · ↑ 35 Hm" — bergab zuerst, weil ein Trail bergab gefahren
 /// wird. Dieselbe Zeile im Import-Blatt und im Trail-Blatt.
