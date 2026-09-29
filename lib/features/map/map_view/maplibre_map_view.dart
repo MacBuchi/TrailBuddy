@@ -374,13 +374,14 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       children: [
         // Maßstab und Quellenhinweis (ODbL-Pflicht) unten links, wie bei
         // der flutter_map-Engine — unten rechts läge er unter den Knöpfen.
-        const ml.MapScalebar(
+        // Steht links die Werkzeugleiste, rücken beide neben sie.
+        ml.MapScalebar(
           alignment: Alignment.bottomLeft,
-          padding: EdgeInsets.only(left: 44, bottom: 12),
+          padding: EdgeInsets.only(left: 44 + widget.config.bottomLeftInset, bottom: 12),
         ),
-        const ml.SourceAttribution(
+        ml.SourceAttribution(
           alignment: Alignment.bottomLeft,
-          padding: EdgeInsets.all(6),
+          padding: EdgeInsets.fromLTRB(6 + widget.config.bottomLeftInset, 6, 6, 6),
         ),
         if (_visibleBounds != null)
           ml.WidgetLayer(

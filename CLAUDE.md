@@ -571,12 +571,21 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
         Zurück-Taste (`PopScope`, `canPop` nur bei geschlossener Leiste);
         mit Änderungen im Entwurf fragt `confirmDiscardDraft`.
       - **Die Leiste steht mittig links** zwischen den Bannern (oben
-        56 dp) und Maßstab/Quellenhinweis (unten 64 dp); die Knöpfe sind
-        36 dp mit `MaterialTapTargetSize.shrinkWrap` — sonst polstert
-        Material auf 48 dp, und auf einem 600-dp-Schirm lag das X
-        außerhalb (im Test gemessen). Der Layout-Test prüft beides.
-        flutter_map zeigt seinen Quellenhinweis deshalb links wie
-        MapLibre.
+        56 dp) und Maßstab/Quellenhinweis (unten 64 dp), seit 0.30.0 im
+        Look aus Design 3e: 52 dp breit (`kRailWidth`), Knöpfe 44 dp
+        (`kMapButtonSize`, Handschuh) mit `MaterialTapTargetSize.shrinkWrap`
+        — sonst polstert Material auf 48 dp —, Gruppen durch 8 dp Luft,
+        aktives Werkzeug in Gegenhelligkeit, Speichern Lime, der Zähler in
+        Mono darunter. Auf einem kleinen Telefon hochkant (360 × 740)
+        passt sie ganz, darunter scrollt sie (der Layout-Test misst auf
+        Telefonmaß, `tapRail` scrollt auf 800 × 600). Solange sie offen
+        ist, rücken Maßstab und Quellenhinweis neben sie
+        (`MapViewConfig.bottomLeftInset`); flutter_map zeigt seinen
+        Hinweis deshalb links wie MapLibre. Rechts stehen die runden
+        Kartenknöpfe (`map_buttons.dart`): Idee, Ebenen, Position (44 dp),
+        unten die Aufnahme (60 dp, Lime; läuft die Fahrt Orange mit
+        Stop). Ein offenes Menü markiert seinen Knopf mit Rand in der
+        Marke. `test/map/map_shell_test.dart` hält es hell und dunkel fest.
       - **Speichern ist ein Dialog** (`showSaveDraftDialog`): misst
         Kacheln, Bytes UND Orte (`AreaPlan.poiFiles`, die Zellendateien
         kommen schon beim Messen — das Manifest nennt keine Anzahl — und

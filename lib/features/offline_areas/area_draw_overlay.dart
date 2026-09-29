@@ -11,6 +11,7 @@
 // auf beiden Engines dieselbe.
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../map/map_view/map_hit_test.dart';
 import '../map/map_view/map_view.dart';
 import 'area_draw.dart';
@@ -78,14 +79,25 @@ class _AreaDrawOverlayState extends State<AreaDrawOverlay> {
           child: SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Card(
+              // Eine Zeile, was der nächste Strich tut (Design 3e) — nur
+              // solange ein Werkzeug scharf ist.
+              child: Container(
                 key: const ValueKey('area-draw-hint'),
                 margin: const EdgeInsets.all(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Text(add
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                decoration: BoxDecoration(
+                  color: AppPalette.of(context).surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppPalette.of(context).line),
+                  boxShadow: const [
+                    BoxShadow(blurRadius: 6, offset: Offset(0, 2), color: Color(0x33000000)),
+                  ],
+                ),
+                child: Text(
+                  add
                       ? 'Mit dem Finger umfahren, was dazukommen soll'
-                      : 'Mit dem Finger umfahren oder überwischen, was weg soll'),
+                      : 'Mit dem Finger umfahren oder überwischen, was weg soll',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
             ),

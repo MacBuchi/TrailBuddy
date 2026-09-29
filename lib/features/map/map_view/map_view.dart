@@ -119,6 +119,7 @@ class MapViewConfig {
     required this.maxZoom,
     required this.backgroundColor,
     this.attributions = const [],
+    this.bottomLeftInset = 0,
     this.onTap,
     this.onHit,
     this.onCameraIdle,
@@ -136,6 +137,10 @@ class MapViewConfig {
   /// Kartenquellen hinaus, die jede Engine selbst nennt: hier die
   /// Behörden hinter den offiziellen Trails.
   final List<String> attributions;
+
+  /// Wie weit Maßstab und Quellenhinweis (unten links) nach rechts
+  /// rücken — solange links die Werkzeugleiste steht, neben sie (3e).
+  final double bottomLeftInset;
 
   /// Tipp ins Leere — keine Linie, kein Marker getroffen.
   final void Function(MapTap tap)? onTap;
