@@ -18,6 +18,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'errors.dart';
@@ -38,6 +39,20 @@ Future<void> _ensureFirebase() async {
     options: kIsWeb ? pushFirebaseOptions : null,
   );
 }
+
+/// Fehlt diesem Build die Firebase-Konfiguration? Dann ist ein Scheitern
+/// beim Start kein Fehler des Geräts, sondern des Builds — „noch nicht
+/// eingerichtet" statt eines Eintrags im Wochendigest.
+///
+/// Zwei Formen, beide gesehen: `[core/…]` aus dem Dart-Teil von
+/// firebase_core, und — ohne `google-services.json` auf Android — die
+/// `PlatformException` „Failed to load FirebaseOptions from resource"
+/// aus dem nativen Teil (`optionsFromResource`). Die zweite kam bis
+/// 0.36.x als Fehlerbericht an (Wochendigest #62).
+bool isMissingFirebaseConfig(Object error) =>
+    (error is FirebaseException && error.plugin == 'core') ||
+    (error is PlatformException &&
+        (error.message ?? '').contains('Failed to load FirebaseOptions'));
 
 /// Wo der Web-Push-Worker liegt — RELATIV, und das ist der ganze Punkt.
 ///
@@ -75,16 +90,13 @@ Future<PushTokenResult> requestPushToken() async {
   }
   try {
     await _ensureFirebase();
-  } on FirebaseException catch (e) {
+  } catch (e, stackTrace) {
     // Ohne google-services.json hat Android keine Standard-App; das ist
     // kein Fehler dieses Geräts, sondern dieses Builds — und kein Fund
     // für den Wochendigest.
-    if (e.plugin == 'core') {
+    if (isMissingFirebaseConfig(e)) {
       return (token: null, denied: false, unavailable: true);
     }
-    logError('Firebase starten', e, StackTrace.current);
-    return (token: null, denied: false, unavailable: false);
-  } catch (e, stackTrace) {
     logError('Firebase starten', e, stackTrace);
     return (token: null, denied: false, unavailable: false);
   }
