@@ -161,6 +161,39 @@ void main() {
     expect(progress.last.phase, AreaPhase.writing);
   });
 
+  test('Messen mit Orten (0.27.0): zählt die Orte, und der Download holt sie nicht noch einmal', () async {
+    final cells = poiCellsCovering(_bounds.south, _bounds.west, _bounds.north, _bounds.east);
+    final poiManifest = PoiManifest(
+      build: '20260928',
+      prefix: 'pois-20260928',
+      cells: {PoiGroup.water: {cells.first}},
+    );
+    const two = '{"format":1,"pois":['
+        '{"id":"n1","kind":"spring","lat":47.91,"lng":11.61},'
+        '{"id":"n2","kind":"spring","lat":47.92,"lng":11.62},'
+        '{"id":"n3","kind":"unbekannt","lat":47.92,"lng":11.62}]}';
+    final downloader = AreaDownloader(
+      archive: source,
+      manifest: _manifest,
+      store: store,
+      poiManifest: poiManifest,
+      fetchPoiFile: (name) async {
+        poiAsked.add(name);
+        return two;
+      },
+    );
+    final plan = await downloader.plan(const RectShape(_bounds), withPois: true);
+    expect(plan.poiCount, 2, reason: 'eine unbekannte Art zählt nicht, wie auf der Karte');
+    expect(plan.poiBytes, utf8.encode(two).length);
+    expect(plan.totalBytes, plan.bytes + plan.poiBytes);
+    expect(poiAsked, hasLength(1));
+    final area = await downloader.download(plan, name: 'Mit Orten');
+    expect(poiAsked, hasLength(1), reason: 'die Dateien kamen schon mit dem Plan');
+    expect(area.poiFiles, [poiCellFileName(cells.first, PoiGroup.water)]);
+    // Ohne Orte gemessen: keine Zahl.
+    expect((await make().plan(const RectShape(_bounds))).poiCount, isNull);
+  });
+
   test('ein zweiter Bereich mit derselben Id ersetzt den ersten im Index', () async {
     final downloader = make();
     final plan = await downloader.plan(const RectShape(_bounds));

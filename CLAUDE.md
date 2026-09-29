@@ -542,31 +542,46 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       Hülle — innerhalb kann eine Kachel FEHLEN, der Wege-Index fragt
       deshalb das Archiv (`ProviderException` ⇒ nicht gedeckt). Die
       Orte-Zellen kommen aus der Form, nicht aus der Hülle.
-    - **„Offline-Karten" zeigt, was liegt** (Stufe B, seit 0.25.0,
-      `offline_maps_sheet.dart`, `area_overlay.dart` pur): ein
-      PERSISTENTES Blatt am Scaffold der KARTE (`_scaffoldKey`; aus dem
-      Build-Kontext fände `Scaffold.of` die Reiter-Hülle, deren Blatt
-      läge über dem Navigator und damit über dem modalen „Bereich
-      speichern" — im Test gefunden). Solange es offen ist
-      (`offlineOverlayProvider`, zurückgenommen über `closed`), liegt
-      EIN Polygon unter allem (`MapViewPolygon`, neu in der Fassade,
-      Löcher auf beiden Engines): der Ausschnitt plus eine Fensterbreite
-      Rand abgedunkelt, die gespeicherten Kacheln als Löcher — bei
-      `offlineOverlayZoom` (Kamera + 2, 8…13, nie über dem Zoom des
-      Bereichs), aus den FORMEN im Index (`tilesWithin`), nicht aus den
-      Archiven; über `kOfflineOverlayMaxHoles` eine Stufe gröber. Ohne
-      Bereiche ist alles dunkel — das IST die Aussage. Der Einstieg im
-      Blatt „Ebenen und Orte" heißt seither „Offline-Karten", „Bereich
-      speichern" wohnt darin. Geholt wird in Blöcken über
-      `PmTilesArchive.tiles()` — das Paket liest je Aufruf ALLE
-      zusammenhängenden Bereiche parallel, ein ganzer Bereich auf einmal
-      wäre ein Sturm aus Range-Anfragen.
+    - **Die Werkzeugleiste „Ebenen" zeigt, was liegt** (Stufe B seit
+      0.25.0, seit 0.27.0 als Leiste; `offline_tool_rail.dart`,
+      `area_overlay.dart` pur). Der Ebenen-Knopf (rechts, wie alle
+      Kartenknöpfe) öffnet links eine schmale Leiste — das halbhohe Blatt
+      davor deckte die Karte zu (Betreiber, 2026-09-29). Fünf Dinge, die
+      man wissen muss:
+      - **Solange sie offen ist** (`offlineOverlayProvider`), liegt EIN
+        Polygon unter allem (`MapViewPolygon`, Löcher auf beiden
+        Engines): Ausschnitt plus eine Fensterbreite Rand abgedunkelt,
+        die gespeicherten Kacheln als Löcher, aus den FORMEN im Index.
+        Ohne Bereiche ist alles dunkel — das IST die Aussage.
+      - **Immer die Kacheln des Bereichs, nie abhängig vom Kamera-Zoom**
+        (`offlineOverlayZoomOf` = min(Zoom des Bereichs, 13)). Bis 0.26.x
+        waren es zwei Stufen über der Kamera, und die Hervorhebung sprang
+        beim Zoomen. Damit weit draußen nicht tausende Löcher entstehen,
+        fasst `mergeTileRects` Kacheln zu Rechtecken zusammen (Läufe je
+        Zeile, gleiche Läufe übereinander); über `kOfflineOverlayMaxHoles`
+        fällt nur der Rand weg, nie die Stufe.
+      - **Schließen ist EIN Weg** (`_closeTools`): X, Ebenen-Knopf und
+        Zurück-Taste (`PopScope`, `canPop` nur bei geschlossener Leiste);
+        mit Änderungen im Entwurf fragt `confirmDiscardDraft`.
+      - **Die Leiste steht mittig links** zwischen den Bannern (oben
+        56 dp) und Maßstab/Quellenhinweis (unten 64 dp); die Knöpfe sind
+        36 dp mit `MaterialTapTargetSize.shrinkWrap` — sonst polstert
+        Material auf 48 dp, und auf einem 600-dp-Schirm lag das X
+        außerhalb (im Test gemessen). Der Layout-Test prüft beides.
+        flutter_map zeigt seinen Quellenhinweis deshalb links wie
+        MapLibre.
+      - **Speichern ist ein Dialog** (`showSaveDraftDialog`): misst
+        Kacheln, Bytes UND Orte (`AreaPlan.poiFiles`, die Zellendateien
+        kommen schon beim Messen — das Manifest nennt keine Anzahl — und
+        der Download holt sie nicht noch einmal), fragt nach dem Namen,
+        lädt mit Fortschritt und Abbruch. Orte und offizielle Trails
+        filtert der erste Knopf der Leiste (das bekannte Blatt).
     - **Bereiche zeichnen** (Stufe C, #67, seit 0.26.0,
-      `area_draw.dart` pur + Notifier, `area_draw_overlay.dart`): Im
-      Blatt „Offline-Karten" schaltet „Bereich zeichnen" auf einen
-      ENTWURF (`areaDraftProvider`, Kacheln bei `kAreaShapeZoom`, am
-      Ende eine `TileSetShape` wie „Entlang meiner Trails"). Fünf Dinge,
-      die man wissen muss:
+      `area_draw.dart` pur + Notifier, `area_draw_overlay.dart`): Die
+      Leiste füllt einen ENTWURF (`areaDraftProvider`, Kacheln bei
+      `kAreaShapeZoom`, am Ende eine `TileSetShape`): Ausschnitt
+      (`tilesInBounds`), Fläche dazu, Fläche weg, entlang der Trails,
+      Rückgängig. Fünf Dinge, die man wissen muss:
       - **Ein Strich ist eine Fläche**: geschlossen (Ende zum Anfang),
         dazu jede Kachel, die der Rand berührt oder die innen liegt
         (`tilesTouchedByRing`: Rand in Zehntelkachel-Schritten
@@ -582,19 +597,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
         Trefferprüfung, auf beiden Engines dieselbe Antwort. Nach dem
         Strich ist das Werkzeug weg und die Karte frei; die Fassade
         brauchte dafür keine Gesten-Schnittstelle.
-      - **Der Entwurf überlebt das Blatt, das Werkzeug nicht**
-        (`closed` ⇒ `disarm`): ohne Blatt kein Knopf, der es zurücknimmt,
-        und die Karte stünde fest. Gezeigt wird er nur mit Blatt.
-      - **Angezeigt als Zeilen-Rechtecke** (`draftPolygons`): Kacheln
-        einer Zeile zu EINEM Rechteck, beim Zoom der Maske, über
-        `kAreaDraftMaxRects` eine Stufe gröber. MapLibre gruppiert
-        Flächen seither nach Stil in EINE Ebene (`polygonLayers`) wie
-        die Linien.
-      - **Gespeichert wird über das bekannte Blatt** (`drawn`, vorgewählt)
-        — Größe gemessen, Obergrenze, Orte, Fortschritt wie immer. Ein
-        fertiger Download mit genau diesen Kacheln verwirft den Entwurf
-        (`discardIfSaved`, gehört im Karten-Screen an
-        `areaDownloadProvider`, weil der Download das Blatt überlebt).
+      - **Der Entwurf lebt mit der Leiste**: Schließen verwirft ihn (mit
+        Rückfrage), damit auch ein armiertes Werkzeug — sonst stünde die
+        Karte fest. Gezeigt wird er nur mit Leiste.
+      - **Angezeigt als Rechtecke** (`draftPolygons`, `mergeTileRects`),
+        IMMER bei Zoom 13 wie die Maske, ohne Rand je Rechteck (innere
+        Kanten sähen aus wie ein Gitter). MapLibre gruppiert Flächen nach
+        Stil in EINE Ebene (`polygonLayers`) wie die Linien.
+      - **Gespeichert wird über den Dialog** — Größe gemessen,
+        Obergrenze, Orte, Fortschritt. Ein fertiger Download mit genau
+        diesen Kacheln leert den Entwurf (`discardIfSaved`, im
+        Karten-Screen an `areaDownloadProvider`).
       Bestehende Bereiche bearbeiten gibt es nicht: Ein neuer Bereich
       aus Entwurf ist der Weg, das alte Archiv löscht man in „Meine
       Bereiche".
@@ -619,11 +632,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       an „freies Netz" gebunden — wer tippt, entscheidet.
     - **„Gesehenes bleibt liegen" (Konzept 3.2) gibt es noch nicht**:
       kein Kachel-Zwischenspeicher der Online-Karte. Ein eigener Schritt.
-    Der Einstieg wohnt im Blatt „Ebenen und Orte" (kein eigener Knopf:
-    die Knopfspalte lief auf einem kleinen Telefon quer über). Der
-    Harness hängt `MemoryAreaStore` und `FakeKeepAlive` ein;
-    `test/flows/offline_areas_flow_test.dart` fährt Blatt, Download,
-    Liste, Löschen und Aktualisieren gegen ein Quellarchiv aus dem
+    Der Einstieg ist der Ebenen-Knopf (kein eigener Knopf: die
+    Knopfspalte lief auf einem kleinen Telefon quer über). Der Harness
+    hängt `MemoryAreaStore` und `FakeKeepAlive` ein; die Test-Karte
+    fordert nach `move`/`fit` einen Frame an (sonst kam der Stillstand
+    erst beim nächsten zufälligen Neuzeichnen, und ein Test prüfte den
+    alten Ausschnitt). `test/flows/offline_areas_flow_test.dart` fährt
+    Leiste, Download, Liste, Löschen und Aktualisieren gegen ein
+    Quellarchiv aus dem
     eigenen Schreiber.
   - **Der Stil ist ERZEUGT, die Übersicht auch** (`assets/map_style/`,
     `assets/offline_maps/overview_dach.pmtiles`, Zoom 0–7, ~9 MB;

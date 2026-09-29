@@ -134,6 +134,28 @@ void main() {
     expect(c.read(areaDraftProvider)!.tool, isNull);
   });
 
+  test('Schnappschuss: die 13er-Kacheln des Ausschnitts, zu groß ⇒ null', () {
+    final b = tileBounds(_z, x, y);
+    final keys = tilesInBounds(AreaBounds(
+        south: b.south + 1e-6, west: b.west + 1e-6, north: b.north - 1e-6,
+        east: tileBounds(_z, x + 2, y).east - 1e-6))!;
+    expect(keys, {_key(x, y), _key(x + 1, y), _key(x + 2, y)});
+    expect(tilesInBounds(const AreaBounds(south: 30, west: 0, north: 60, east: 30)), isNull);
+  });
+
+  test('Werkzeuge und „dazunehmen" beginnen den Entwurf selbst', () {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final n = c.read(areaDraftProvider.notifier);
+    expect(n.hasChanges, isFalse);
+    n.addAll({_key(x, y)});
+    expect(n.hasChanges, isTrue);
+    n.discard();
+    n.arm(AreaDrawTool.add);
+    expect(c.read(areaDraftProvider)!.tool, AreaDrawTool.add);
+    expect(n.hasChanges, isFalse, reason: 'ein Werkzeug allein ist keine Änderung');
+  });
+
   test('die Anzeige zieht eine Zeile zu einem Rechteck, zwei Zeilen zu zweien', () {
     final draft = AreaDraft(keys: {
       for (var i = x; i < x + 5; i++) _key(i, y),
@@ -146,13 +168,18 @@ void main() {
         west: center.longitude - half, east: center.longitude + half,
         south: center.latitude - half / 2, north: center.latitude + half / 2);
     // Kamera weit genug drin, dass die Anzeige Zoom 13 nimmt.
-    final polys = draftPolygons(draft, view, cameraZoom: 12);
+    final polys = draftPolygons(draft, view);
     expect(polys, hasLength(3), reason: 'eine Zeile aus fünf, dann zwei einzelne');
     expect(polys.every((p) => p.fillColor == kAreaDraftFill), isTrue);
     final run = polys.firstWhere((p) => p.points[1].longitude - p.points[0].longitude > 0.2);
     expect(run.points[0].longitude, closeTo(tileBounds(_z, x, y).west, 1e-9));
     expect(run.points[1].longitude, closeTo(tileBounds(_z, x + 4, y).east, 1e-9));
     // Leer oder ohne Fenster: nichts.
-    expect(draftPolygons(AreaDraft(keys: const {}), view, cameraZoom: 12), isEmpty);
+    expect(draftPolygons(AreaDraft(keys: const {}), view), isEmpty);
+    // Weit draußen dieselben Rechtecke: Der Entwurf hängt nicht am Zoom.
+    final wide = MapViewBounds(
+        west: center.longitude - 2, east: center.longitude + 2,
+        south: center.latitude - 1, north: center.latitude + 1);
+    expect(draftPolygons(draft, wide).map((p) => p.points.first), polys.map((p) => p.points.first));
   });
 }

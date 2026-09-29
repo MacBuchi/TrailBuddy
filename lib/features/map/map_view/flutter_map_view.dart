@@ -243,6 +243,8 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             ]),
           ),
         RichAttributionWidget(
+          // Links wie bei MapLibre: rechts stehen die Knöpfe (seit 0.27.0).
+          alignment: AttributionAlignment.bottomLeft,
           animationConfig: const ScaleRAWA(),
           attributions: [
             const TextSourceAttribution('OpenStreetMap-Mitwirkende'),

@@ -19,7 +19,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../map/map_view/map_hit_test.dart' show kMercatorMaxLat;
 import '../map/map_view/map_view.dart';
-import 'area_overlay.dart' show offlineOverlayBox, offlineOverlayZoom;
+import 'area_overlay.dart' show mergeTileRects, offlineOverlayBox, rectRing;
 import 'area_plan.dart';
 
 /// Größer als so viele Kacheln (Rahmen des Strichs, bei Zoom 13) wird
@@ -32,9 +32,9 @@ const kAreaDrawMaxSpanTiles = 250000;
 /// Wie viele Schritte ein Entwurf zurücknehmen kann.
 const kAreaDraftHistory = 20;
 
-/// Wie viele Rechtecke die Anzeige des Entwurfs höchstens zeichnet —
-/// darüber eine Zoomstufe gröber (wie die Maske aus Stufe B).
-const kAreaDraftMaxRects = 1500;
+/// Mehr Rechtecke als das zeichnet die Anzeige des Entwurfs nur im
+/// Ausschnitt selbst, ohne Rand — nie gröber (wie die Maske).
+const kAreaDraftMaxRects = 3000;
 
 /// Die Farbe des Entwurfs auf der Karte: sichtbar über der Abdunkelung,
 /// verschieden von den hellen gespeicherten Kacheln.
@@ -151,12 +151,17 @@ class AreaDraft {
   }
 }
 
-/// Der Entwurf — null, solange niemand zeichnet. Er überlebt das
-/// Schließen des Blatts: Wer zwischendurch nachsieht, was liegt, verliert
-/// seine Striche nicht.
+/// Der Entwurf — null heißt leer. Er lebt, solange die Werkzeugleiste
+/// „Ebenen" offen ist; beim Schließen wird er verworfen (mit Rückfrage,
+/// wenn etwas darin steht — map_screen.dart).
 class AreaDraftNotifier extends Notifier<AreaDraft?> {
   @override
   AreaDraft? build() => null;
+
+  AreaDraft get _draft => state ?? AreaDraft(keys: const {});
+
+  /// Steht etwas im Entwurf, das noch nicht gespeichert ist?
+  bool get hasChanges => !(state?.isEmpty ?? true);
 
   void start() => state ??= AreaDraft(keys: const {});
 
@@ -164,8 +169,7 @@ class AreaDraftNotifier extends Notifier<AreaDraft?> {
   /// nimmt es zurück. Nach dem Strich ist es wieder weg — die Karte lässt
   /// sich zwischen zwei Strichen verschieben, ohne umzuschalten.
   void arm(AreaDrawTool tool) {
-    final d = state;
-    if (d == null) return;
+    final d = _draft;
     state = d.tool == tool ? d._with(clearTool: true) : d._with(tool: tool);
   }
 
@@ -183,11 +187,10 @@ class AreaDraftNotifier extends Notifier<AreaDraft?> {
         : ({...d.keys}..removeAll(stroke)));
   }
 
-  /// Kacheln dazu, ohne Strich (die Kacheln entlang der eigenen Trails
-  /// als Ausgangspunkt, von dem man dann abzieht).
+  /// Kacheln dazu, ohne Strich: der Ausschnitt („Schnappschuss") oder
+  /// die Kacheln entlang der eigenen Trails.
   void addAll(Set<int> keys) {
-    final d = state;
-    if (d == null) return;
+    final d = _draft;
     state = d._step({...d.keys, ...keys});
   }
 
@@ -210,52 +213,29 @@ class AreaDraftNotifier extends Notifier<AreaDraft?> {
 
 final areaDraftProvider = NotifierProvider<AreaDraftNotifier, AreaDraft?>(AreaDraftNotifier.new);
 
-/// Der Entwurf auf der Karte: im Ausschnitt (mit Rand) bei dem Zoom, den
-/// auch die Maske nimmt, Kacheln einer Zeile zu EINEM Rechteck
-/// zusammengezogen — ein Entwurf entlang eines Tals sind sonst tausende
-/// Einzelflächen. Zu viele ⇒ eine Stufe gröber.
-List<MapViewPolygon> draftPolygons(AreaDraft draft, MapViewBounds view, {required double cameraZoom}) {
-  if (draft.isEmpty || view.east <= view.west || view.north <= view.south) return const [];
-  final box = offlineOverlayBox(view);
-  var z = offlineOverlayZoom(cameraZoom);
-  var rects = _rowRuns(draft.shape.tilesWithin(box, z));
-  while (rects.length > kAreaDraftMaxRects && z > kAreaMinZoom) {
-    z--;
-    rects = _rowRuns(draft.shape.tilesWithin(box, z));
-  }
-  return [
-    for (final r in rects)
-      () {
-        final nw = tileBounds(r.z, r.x0, r.y);
-        final se = tileBounds(r.z, r.x1, r.y);
-        return MapViewPolygon(
-          points: [
-            LatLng(nw.north, nw.west),
-            LatLng(nw.north, se.east),
-            LatLng(se.south, se.east),
-            LatLng(se.south, nw.west),
-          ],
-          fillColor: kAreaDraftFill,
-          borderColor: kAreaDraftBorder,
-          borderWidth: 1,
-        );
-      }(),
-  ];
+/// Die Kacheln bei [zoom], die [bounds] berühren — der „Schnappschuss"
+/// des Ausschnitts. Null über [maxSpanTiles] (weit draußen wäre das halb
+/// Mitteleuropa bei Zoom 13).
+Set<int>? tilesInBounds(AreaBounds bounds,
+    {int zoom = kAreaShapeZoom, int maxSpanTiles = kAreaDrawMaxSpanTiles}) {
+  if (countTilesCovering(bounds, minZoom: zoom, maxZoom: zoom) > maxSpanTiles) return null;
+  return {
+    for (final t in tilesCovering(bounds, minZoom: zoom, maxZoom: zoom)) TileSetShape.keyOf(t.x, t.y, zoom),
+  };
 }
 
-List<({int z, int y, int x0, int x1})> _rowRuns(List<TileXYZ> tiles) {
-  if (tiles.isEmpty) return const [];
-  final sorted = [...tiles]..sort((a, b) => a.y != b.y ? a.y.compareTo(b.y) : a.x.compareTo(b.x));
-  final out = <({int z, int y, int x0, int x1})>[];
-  var cur = (z: sorted.first.z, y: sorted.first.y, x0: sorted.first.x, x1: sorted.first.x);
-  for (final t in sorted.skip(1)) {
-    if (t.y == cur.y && t.x == cur.x1 + 1) {
-      cur = (z: cur.z, y: cur.y, x0: cur.x0, x1: t.x);
-    } else {
-      out.add(cur);
-      cur = (z: t.z, y: t.y, x0: t.x, x1: t.x);
-    }
+/// Der Entwurf auf der Karte: im Ausschnitt (mit Rand), IMMER bei
+/// [kAreaShapeZoom] wie die Maske — beim Zoomen bleibt er stehen. Die
+/// Kacheln werden zu Rechtecken zusammengefasst ([mergeTileRects]),
+/// ohne Rand je Rechteck: Innere Kanten sähen aus wie ein Gitter, das es
+/// nicht gibt.
+List<MapViewPolygon> draftPolygons(AreaDraft draft, MapViewBounds view) {
+  if (draft.isEmpty || view.east <= view.west || view.north <= view.south) return const [];
+  var rects = mergeTileRects(draft.shape.tilesWithin(offlineOverlayBox(view), kAreaShapeZoom));
+  if (rects.length > kAreaDraftMaxRects) {
+    rects = mergeTileRects(draft.shape.tilesWithin(offlineOverlayBox(view, margin: false), kAreaShapeZoom));
   }
-  out.add(cur);
-  return out;
+  return [
+    for (final r in rects) MapViewPolygon(points: rectRing(r), fillColor: kAreaDraftFill),
+  ];
 }

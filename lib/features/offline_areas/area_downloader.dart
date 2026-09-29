@@ -10,6 +10,7 @@
 // Läuft im Main-Isolate; auf Android hält der KeepAlive-Koordinator den
 // Prozess wach (Vordergrunddienst `dataSync`), im Browser der Tab. Wer
 // abbricht, bekommt nichts Halbes: Geschrieben wird erst am Ende.
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:pmtiles/pmtiles.dart';
@@ -28,6 +29,7 @@ class AreaPlan {
     required this.maxZoom,
     required this.tiles,
     required this.bytes,
+    this.poiFiles,
   });
 
   /// Die Form, die geplant wurde — wird mit dem Bereich gemerkt, damit
@@ -44,6 +46,32 @@ class AreaPlan {
 
   /// Bytes im Archiv, Kachel für Kachel summiert.
   final int bytes;
+
+  /// Die Orte-Dateien des Bereichs, schon beim Messen geholt (seit
+  /// 0.27.0: der Dialog vor dem Speichern nennt die Zahl der Orte) — der
+  /// Download nimmt sie, statt sie ein zweites Mal zu holen. Null: ohne
+  /// Orte gemessen (kein Manifest).
+  final Map<String, String>? poiFiles;
+
+  /// Wie viele Orte in [poiFiles] stehen; null ohne Orte.
+  int? get poiCount => poiFiles?.values.fold<int>(0, (sum, text) => sum + _countPois(text));
+
+  /// Bytes der Orte-Dateien, als UTF-8 gezählt.
+  int get poiBytes =>
+      poiFiles == null ? 0 : poiFiles!.values.fold<int>(0, (sum, t) => sum + utf8.encode(t).length);
+
+  /// Alles zusammen, was auf das Gerät kommt.
+  int get totalBytes => bytes + poiBytes;
+
+  static int _countPois(String text) {
+    try {
+      return parsePoiFile(text).length;
+    } catch (_) {
+      // Eine Datei, die sich nicht lesen lässt, liest auch die Karte
+      // nicht — sie zählt als leer, statt das Messen zu kippen.
+      return 0;
+    }
+  }
 }
 
 /// Mehr Kacheln als [kAreaMaxTiles]: kleiner wählen oder zwei Bereiche.
@@ -101,7 +129,7 @@ class AreaDownloader {
 
   final DateTime Function()? now;
 
-  Future<AreaPlan> plan(AreaShape shape) async {
+  Future<AreaPlan> plan(AreaShape shape, {bool withPois = false}) async {
     final maxZoom = manifest.maxZoom;
     final count = shape.countTiles(maxZoom: maxZoom);
     if (count > kAreaMaxTiles) throw AreaTooLarge(count);
@@ -114,7 +142,39 @@ class AreaDownloader {
       present.add(t);
       bytes += entry.length;
     }
-    return AreaPlan(shape: shape, bounds: shape.hull, maxZoom: maxZoom, tiles: present, bytes: bytes);
+    return AreaPlan(
+      shape: shape,
+      bounds: shape.hull,
+      maxZoom: maxZoom,
+      tiles: present,
+      bytes: bytes,
+      poiFiles: withPois ? await _fetchPois(shape) : null,
+    );
+  }
+
+  /// Die Orte der berührten Zellen, alle Gruppen — was das Manifest
+  /// nennt. Alle Gruppen, damit der Filter offline umschaltbar bleibt;
+  /// die Dateien sind klein. Die Zellen kommen aus der FORM, nicht aus
+  /// der Hülle: Entlang der Trails sind das die Zellen der Kacheln, nicht
+  /// alles dazwischen. Null ohne Manifest.
+  Future<Map<String, String>?> _fetchPois(AreaShape shape,
+      {void Function(int done, int total)? onProgress, void Function()? check}) async {
+    final pm = poiManifest;
+    if (pm == null) return null;
+    final wanted = [
+      for (final cell in shape.poiCells())
+        for (final g in PoiGroup.values)
+          if (pm.has(cell, g)) poiCellFileName(cell, g),
+    ];
+    final files = <String, String>{};
+    onProgress?.call(0, wanted.length);
+    for (final fileName in wanted) {
+      check?.call();
+      final text = await fetchPoiFile(fileName);
+      if (text != null) files[fileName] = text;
+      onProgress?.call(files.length, wanted.length);
+    }
+    return files;
   }
 
   /// Holt und speichert den Bereich; wirft [AreaCancelled], sobald
@@ -146,27 +206,16 @@ class AreaDownloader {
       onProgress?.call(AreaProgress(phase: AreaPhase.tiles, done: fetched.length, total: ids.length));
     }
 
-    // Die Orte der berührten Zellen, alle Gruppen — was das Manifest
-    // nennt. Alle Gruppen, damit der Filter offline umschaltbar bleibt;
-    // die Dateien sind klein. Die Zellen kommen aus der FORM, nicht aus
-    // der Hülle: Entlang der Trails sind das die Zellen der Kacheln, nicht
-    // alles dazwischen.
-    final poiFiles = <String, String>{};
+    // Die Orte: vom Messen mitgebracht oder jetzt geholt.
+    final poiFiles = plan.poiFiles ??
+        await _fetchPois(
+              plan.shape,
+              check: check,
+              onProgress: (done, total) =>
+                  onProgress?.call(AreaProgress(phase: AreaPhase.pois, done: done, total: total)),
+            ) ??
+        const <String, String>{};
     final pm = poiManifest;
-    if (pm != null) {
-      final wanted = [
-        for (final cell in plan.shape.poiCells())
-          for (final g in PoiGroup.values)
-            if (pm.has(cell, g)) poiCellFileName(cell, g),
-      ];
-      onProgress?.call(AreaProgress(phase: AreaPhase.pois, done: 0, total: wanted.length));
-      for (final fileName in wanted) {
-        check();
-        final text = await fetchPoiFile(fileName);
-        if (text != null) poiFiles[fileName] = text;
-        onProgress?.call(AreaProgress(phase: AreaPhase.pois, done: poiFiles.length, total: wanted.length));
-      }
-    }
 
     check();
     onProgress?.call(const AreaProgress(phase: AreaPhase.writing, done: 0, total: 1));
