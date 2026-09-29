@@ -36,7 +36,7 @@ void main() {
 
     test('nur echte Ecken: ein leichter Knick bleibt ein Punkt (kostet sonst Übertragung)', () {
       // ~5° Knick über 100-m-Abschnitte.
-      const slight = [LatLng(48, 9), LatLng(48.0009, 9), LatLng(48.0018, 9.00011)];
+      const slight = [LatLng(48, 9), LatLng(48 + 0.0009, 9), LatLng(48 + 0.0018, 9 + 0.00011)];
       expect(chaikinSmooth(slight), slight);
     });
 
