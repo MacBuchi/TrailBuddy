@@ -297,3 +297,14 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) async {
 /// an der Kachel — geprüft wird derselbe Satz wie vorher im Chip.
 Finder findLabel(String label) =>
     find.byWidgetPredicate((w) => w is Semantics && w.properties.label == label);
+
+/// Eine Unterseite des Profils öffnen (seit 0.41.0, Design 1l): Reiter
+/// „Profil", dann die Zeile [id] (`profile-<id>`: account,
+/// notifications, appearance, about, import, rides, areas).
+Future<void> openProfilePage(WidgetTester tester, String id) async {
+  await openTab(tester, 'Profil');
+  final row = find.byKey(ValueKey('profile-$id'));
+  await scrollTo(tester, row);
+  await tester.tap(row);
+  await settle(tester);
+}

@@ -11,7 +11,7 @@ import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
 Future<void> _openDialog(WidgetTester tester) async {
-  await openTab(tester, 'Profil');
+  await openProfilePage(tester, 'account');
   final tile = find.text('E-Mail-Adresse ändern');
   await scrollTo(tester, tile);
   await tester.tap(tile);

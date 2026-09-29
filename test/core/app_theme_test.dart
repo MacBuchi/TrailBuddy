@@ -102,8 +102,7 @@ void main() {
         Theme.of(tester.element(find.byType(NavigationBar))).brightness;
     expect(brightness(), Brightness.dark);
 
-    await openTab(tester, 'Profil');
-    await scrollTo(tester, find.byKey(const ValueKey('appearance')));
+    await openProfilePage(tester, 'appearance');
     await tester.tap(find.text('Hell'));
     await settle(tester);
     expect(brightness(), Brightness.light);

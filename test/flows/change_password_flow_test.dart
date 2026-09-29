@@ -14,7 +14,7 @@ import '../fakes/test_app.dart';
 /// ist — der Eintrag muss also erst herangescrollt werden, bevor es ihn
 /// überhaupt gibt.
 Future<void> _openDialog(WidgetTester tester) async {
-  await openTab(tester, 'Profil');
+  await openProfilePage(tester, 'account');
   final tile = find.text('Passwort ändern');
   await scrollTo(tester, tile);
   await tester.tap(tile);

@@ -49,7 +49,7 @@ void main() {
     final backend = FakeBackend();
     backend.signInAs(backend.addUser(username: 'anna').id);
     await pumpApp(tester, backend);
-    await openTab(tester, 'Profil');
+    await openProfilePage(tester, 'about');
     // In die Mitte holen: am unteren Rand läge die Zeile unter der
     // Navigationsleiste, und der Tipp träfe die.
     final tile = find.text('Idee oder Fehler melden');

@@ -30,7 +30,10 @@ class ChangeUsernameTile extends ConsumerWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.badge_outlined),
       title: const Text('Benutzername ändern'),
-      subtitle: const Text('Der Name, unter dem Buddys dich finden'),
+      // Der aktuelle Name, wie die E-Mail-Kachel die Adresse zeigt — seit
+      // 0.41.0 steht die Kachel auf der Seite „Konto", nicht mehr unter
+      // dem Profilkopf.
+      subtitle: Text(name ?? 'Der Name, unter dem Buddys dich finden'),
       trailing: const Icon(Icons.chevron_right),
       enabled: name != null,
       onTap: name == null
