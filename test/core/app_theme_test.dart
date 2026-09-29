@@ -81,6 +81,13 @@ void main() {
         expect(theme.appBarTheme.titleTextStyle!.fontSize, 22);
         expect(theme.appBarTheme.titleTextStyle!.fontFamily, AppFonts.display);
       });
+
+      test('die Leiste unten: Text und Aktion ≥ 4,5:1, die Aktion in der Marke', () {
+        final bar = buildAppTheme(p).snackBarTheme;
+        expect(bar.actionTextColor, AppColors.brand);
+        expect(contrast(bar.contentTextStyle!.color!, bar.backgroundColor!), greaterThanOrEqualTo(4.5));
+        expect(contrast(bar.actionTextColor!, bar.backgroundColor!), greaterThanOrEqualTo(4.5));
+      });
     });
   }
 

@@ -4,7 +4,13 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.45.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.45.1, 2026-09-29*
+
+- **Nahtloser Start** (0.45.1): Das Startfenster auf Android hat jetzt
+  den Grundton der App statt Weiß oder Schwarz, und die Leiste mit
+  Meldungen unten trägt ihre Aktion in Lime. Die Kartenquellen unten
+  links stehen nur noch einmal da, auch mit mehreren gespeicherten
+  Bereichen.
 
 - **Ein bisschen Bewegung** (0.45.0): Beim Start zeichnet sich das Logo,
   während die App darunter schon lädt — ein Tipp überspringt es. Wo

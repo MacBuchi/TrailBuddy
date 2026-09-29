@@ -5,7 +5,9 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:trailbuddy/core/app_colors.dart';
 
 void main() {
   final gradle = File('android/app/build.gradle.kts').readAsStringSync();
@@ -134,6 +136,28 @@ void main() {
         isTrue);
     expect(File('android/app/src/main/res/values/colors.xml').readAsStringSync(),
         contains('name="notification_color"'));
+  });
+
+  test('das Startfenster trägt den Grund der App, hell und dunkel', () {
+    String ground(String dir) => RegExp(r'name="ground">#([0-9A-F]{6})<')
+        .firstMatch(File('android/app/src/main/res/$dir/colors.xml').readAsStringSync())!
+        .group(1)!;
+    String hex(Color c) => c.toARGB32().toRadixString(16).toUpperCase().substring(2);
+    expect(ground('values'), hex(AppColors.light.ground));
+    expect(ground('values-night'), hex(AppColors.dark.ground));
+    for (final d in ['drawable', 'drawable-v21']) {
+      expect(File('android/app/src/main/res/$d/launch_background.xml').readAsStringSync(),
+          contains('@color/ground'), reason: d);
+    }
+    for (final d in ['values', 'values-night', 'values-v31', 'values-night-v31']) {
+      final styles = File('android/app/src/main/res/$d/styles.xml').readAsStringSync();
+      expect(styles, isNot(contains('colorBackground')), reason: d);
+      expect(styles, contains('@color/ground'), reason: d);
+    }
+    for (final d in ['values-v31', 'values-night-v31']) {
+      expect(File('android/app/src/main/res/$d/styles.xml').readAsStringSync(),
+          contains('windowSplashScreenBackground">@color/ground'), reason: d);
+    }
   });
 
   test('google-services nur mit Datei — und die Datei kennt den Paketnamen', () {

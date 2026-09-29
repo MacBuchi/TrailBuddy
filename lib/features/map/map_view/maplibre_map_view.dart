@@ -20,6 +20,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 
 import '../../../core/errors.dart';
 import 'flutter_map_view.dart';
+import 'map_attribution.dart';
 import 'map_hit_test.dart';
 import 'map_view.dart';
 import 'maplibre_style_provider.dart';
@@ -407,9 +408,11 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
           alignment: Alignment.bottomLeft,
           padding: EdgeInsets.only(left: 44 + widget.config.bottomLeftInset, bottom: 12),
         ),
-        ml.SourceAttribution(
-          alignment: Alignment.bottomLeft,
-          padding: EdgeInsets.fromLTRB(6 + widget.config.bottomLeftInset, 6, 6, 6),
+        // Der eigene Hinweis, nicht `ml.SourceAttribution`: der nennt jede
+        // Quelle einzeln, also jeden gespeicherten Bereich noch einmal.
+        MapAttribution(
+          lines: mapAttributionLines(widget.config.attributions),
+          leftInset: widget.config.bottomLeftInset,
         ),
         if (_visibleBounds != null)
           ml.WidgetLayer(

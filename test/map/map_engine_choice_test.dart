@@ -60,9 +60,10 @@ void main() {
     final native = File('lib/features/map/map_view/maplibre_map_view.dart').readAsStringSync();
     expect(classic, contains('RichAttributionWidget('));
     expect(classic, isNot(contains('AttributionAlignment.bottomRight')));
-    expect(
-        RegExp(r'SourceAttribution\(\s*\n\s*alignment: Alignment\.bottomLeft').hasMatch(native),
-        isTrue);
+    // MapLibre: der eigene, entdoppelte Hinweis (MapAttribution steht
+    // unten links), nicht der des Pakets.
+    expect(native, contains('MapAttribution('));
+    expect(native, isNot(contains('ml.SourceAttribution(')));
   });
 
   test('MapLibre-Marker spiegeln die Ausrichtung (PilzBuddy #409)', () {
