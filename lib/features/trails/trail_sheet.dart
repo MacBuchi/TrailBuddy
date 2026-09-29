@@ -10,6 +10,7 @@ import '../../core/geo.dart' show formatMeters;
 import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
+import 'grade_shield.dart';
 import 'elevation_profile_chart.dart';
 import 'outbox_providers.dart';
 import 'singletrail_scale.dart';
@@ -124,9 +125,24 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
           children: [
             // Der Kopf (Design 1i/4f): Name in Versalien, darunter, wer ihn
             // kennt — die Beziehung, die in der Liste der Streifen sagt.
-            Text(trail.displayName.toUpperCase(),
-                key: const ValueKey('trail-sheet-title'),
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(trail.displayName.toUpperCase(),
+                      key: const ValueKey('trail-sheet-title'),
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                ),
+                // Das Schild neben dem Namen (Design 4f) — der Median, wie
+                // in der Kachel darunter.
+                if (trail.grade != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 4),
+                    child: GradeShield(trail.grade!,
+                        key: const ValueKey('grade-shield'), fontSize: 14, uphill: isUphill(trail)),
+                  ),
+              ],
+            ),
             if (trail.otherNames.isNotEmpty)
               Text('auch: ${trail.otherNames.join(', ')}',
                   style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted)),

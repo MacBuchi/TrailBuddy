@@ -12,6 +12,7 @@ import 'trail_filter_chips.dart';
 import 'trail_list.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
+import 'grade_shield.dart';
 import 'trail_traits.dart';
 
 /// Die Karte als Liste: erst die eigenen Trails, dann die, die nur Buddys
@@ -288,7 +289,6 @@ class _TrailTile extends ConsumerWidget {
     final numbers = <String>[
       formatLength(trail.lengthM),
       if (trail.elevation != null) '↓ ${trail.elevation!.lossM.round()} Hm',
-      if (trail.grade != null) gradeLabel(trail.grade!),
     ];
     final tags = trailRowTags(trail,
         freshNote: fresh, nameOf: (id, username) => names.of(id, username));
@@ -300,13 +300,11 @@ class _TrailTile extends ConsumerWidget {
           TrailRowTagKind.mine => palette.accentText,
           TrailRowTagKind.buddy => palette.buddyText,
         };
-    // Der Streifen sagt die Beziehung; gemeldet schlägt sie (Orange), ein
-    // wartender Trail ist blass — er ist noch nicht auf dem Server.
-    final stripe = trail.pending
-        ? palette.muted
-        : trail.status.warns
-            ? palette.map.warning
-            : (trail.isOwn ? palette.map.mine : palette.map.buddy);
+    // Der Streifen sagt die Schwierigkeit wie die Linie auf der Karte
+    // (seit 0.42.0); wem der Trail gehört und ob er gemeldet ist, sagt
+    // das Wort darunter. Ein wartender Trail ist blass — er ist noch
+    // nicht auf dem Server.
+    final stripe = trail.pending ? palette.muted : trailColorOf(trail, palette.grade);
     final tagStyle = theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700, letterSpacing: 0.8, fontSize: 11);
     return Card(
@@ -357,9 +355,19 @@ class _TrailTile extends ConsumerWidget {
               ),
           ],
         ),
-        trailing: trail.topTraits.isEmpty
+        // Rechts oben das Schild, darunter der Charakter (Design 4e).
+        trailing: trail.grade == null && trail.topTraits.isEmpty
             ? null
-            : TrailTraitIcons(trail.topTraits, color: palette.muted),
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (trail.grade != null) GradeShield(trail.grade!, key: const ValueKey('grade-shield'), uphill: isUphill(trail)),
+                  if (trail.grade != null && trail.topTraits.isNotEmpty) const SizedBox(height: 4),
+                  if (trail.topTraits.isNotEmpty) TrailTraitIcons(trail.topTraits, color: palette.muted),
+                ],
+              ),
         onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
       ),
     );

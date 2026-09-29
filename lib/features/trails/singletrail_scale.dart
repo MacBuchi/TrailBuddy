@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
+import 'grade_shield.dart';
 
 /// Die Singletrail-Skala (STS), S0 bis S5: die in DACH übliche Angabe,
 /// wie schwierig ein Trail FAHRTECHNISCH ist — bei guten Bedingungen,
@@ -101,11 +102,18 @@ class SingletrailScaleSheet extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Die Form des Schilds, damit man sie hier lernt.
+                    // Feste Spalte, damit die Texte fluchten; das breiteste
+                    // Schild (S5) schrumpft notfalls, statt überzulaufen.
                     SizedBox(
-                      width: 36,
-                      child: Text(g.label,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      width: 76,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: GradeShield(g.value, fontSize: 13),
+                        ),
+                      ),
                     ),
                     Expanded(child: Text(g.description)),
                   ],

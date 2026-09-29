@@ -35,8 +35,15 @@ nie die App. Namen, Trails und die Mailadresse darin sind Beispiele.
 
 Sportlich und kartografisch: ein Signal-Lime als Marke, Mono-Ziffern für
 Länge, Höhenmeter und S-Grad, schmale Großbuchstaben für Titel. Hell und
-dunkel. **Die Farbe sagt, was ICH mit dem Trail zu tun habe** — daran
-ändert das Design nichts; die Schwierigkeit steckt in der FORM (Turn 4).
+dunkel. **Die Farbe eines Trails sagt seine Schwierigkeit** — in
+Pistenfarben, auf der Karte, im Streifen der Liste und im Schild
+(Betreiber, 2026-09-29: „nicht nach Buddy / mein Trail, sondern nach den
+Schwierigkeitsstufen"). Der Entwurf hatte es umgekehrt (Farbe =
+Beziehung, Schwierigkeit nur als Form und als Schalter „Pisten-Brille");
+das gilt seit 0.42.0 nicht mehr. Wem ein Trail gehört, sagt nur noch das
+Wort („MEIN", „JAN, MIRA", „Du und 2 Buddys") — farblich gar nicht. Der
+Charakter bleibt Symbol, nie Farbe: Eine Linie trägt nur eine Farbe, ein
+Trail bis zu zwei Merkmale.
 
 ## 2. Farben (Turn 1a, 4a) — `lib/core/app_colors.dart`
 
@@ -59,14 +66,45 @@ erreicht es auf Weiß nur 4,2:1, verlangt sind 4,5:1. Dasselbe für Warnung
 (`#F2B600`, 1,9:1) als Wort in der Liste („NEUER HINWEIS", seit 0.38.0).
 `test/core/app_theme_test.dart` prüft jedes Paar.
 
-**Trail-Farben** (Linie, Symbol, Streifen):
+**Trail-Farben = Schwierigkeit** (Linie, Streifen, Schild;
+`GradePalette`, seit 0.42.0):
+
+| Stufe | Dunkel | Hell (auch Karte) | Form auf der Karte |
+|---|---|---|---|
+| S0 | `#4CC46E` | `#1F7A3A` | durchgezogen |
+| S1 | `#5A9BF0` | `#1F6FD1` | durchgezogen |
+| S2 | `#F0605C` | `#C62828` | durchgezogen |
+| S3 | `#F2F4EF` | `#131A16` | durchgezogen |
+| S4, S5 | `#F2F4EF` | `#131A16` | gestrichelt |
+| ohne Einschätzung | `#9AA69D` | `#6B756F` | durchgezogen |
+| **Uphill** (schlägt die Stufe) | `#4DB6AC` | `#00796B` | durchgezogen; im Schild ein Pfeil ↗ statt der Form |
+
+**Uphill** (Betreiber, 2026-09-29: „hier macht Symbol und Farbe Sinn"):
+Die Pistenfarben beschreiben eine Abfahrt; ein Trail, unter dessen
+angezeigten zwei Merkmalen Uphill ist (dieselbe Lesart wie die Filter),
+trägt Petrol statt seiner Stufe — auf der Karte, im Streifen und im
+Schild. Das Schild behält den Grad („↗ S2"): Er sagt, wie technisch die
+Auffahrt ist. EINE Regel für alle drei Stellen: `trailColorOf` in
+`grade_shield.dart`. Petrol, weil jede andere Farbe schon etwas heißt.
+
+Die Töne des Entwurfs (S0 `#2E9E4F`, S2 `#D6322F`) sind nachgedunkelt:
+Auf ihnen steht im Schild weiße Schrift, verlangt sind 4,5:1. Im Dunklen
+hellere Töne mit dunkler Schrift, und „schwarz" ist dort die Textfarbe —
+ein schwarzer Streifen auf dunkler Karte verschwände. Jede Stufe hat
+≥ 3:1 auf Fläche, Grund und dem Landton der Karte (Test).
+
+**Zustände liegen als Rand UM die Linie, nie auf ihr:**
 
 | Bedeutung | Dunkel | Hell | Form |
 |---|---|---|---|
-| Mein Trail | `#B6F04A` | `#4F8A10` | durchgezogen |
-| Von Buddy | `#5AD0F0` | `#0B84B0` | durchgezogen |
-| Gesperrt / Warnung | `#FF8A3D` | `#D9591A` | durchgezogen |
-| Neuer Hinweis | `#FFD23F` | `#F2B600` | NUR Leuchtrand, nie die Linie |
+| Gesperrt / Warnung | `#FF8A3D` | `#D9591A` | Leuchtrand (schlägt den Hinweis); als Wort in der Liste |
+| Neuer Hinweis | `#FFD23F` | `#F2B600` | Leuchtrand; Kartenrand in der Liste |
+
+**Andere Linien** (keine Trails des Netzes, keine Stufenfarbe):
+
+| Bedeutung | Dunkel | Hell | Form |
+|---|---|---|---|
+| Mein Trail / Von Buddy | `#B6F04A` / `#5AD0F0` | `#4F8A10` / `#0B84B0` | nur noch Symbole und Vorschau „bekannt" im Zerlege-Blatt, keine Trail-Linie |
 | Offiziell | `#B58CFF` | `#7B4FD6` | gestrichelt |
 | Kandidat | `#FF6BA8` | `#D1336F` | „eine Frage" |
 | Meine Fahrt / Position | `#E8ECE6` | `#2A332E` | |
@@ -169,7 +207,8 @@ der Strich beim Zeichnen folgt der Regel.
 
 ## 7. Schwierigkeit und Charakter (Turn 4)
 
-**S-Grad als Form**, farblos, schwarzes Schild mit weißer Form und „S3":
+**S-Grad als Form** — im Entwurf farblos, schwarzes Schild mit weißer
+Form und „S3"; seit 0.42.0 in der Stufenfarbe (siehe Abschnitt 2):
 
 | S0 | S1 | S2 | S3 | S4 | S5 |
 |---|---|---|---|---|---|
@@ -178,6 +217,17 @@ der Strich beim Zeichnen folgt der Regel.
 (Die Beschreibungen in der App bleiben die eigenen aus
 `singletrail_scale.dart`.) Auf der Karte am Trailanfang (Entwurf: erst ab
 Zoom 13), in Liste und Blatt neben dem Namen.
+
+**Gebaut in 0.42.0 für Liste, Blatt und Erklärblatt** (`grade_shield.dart`:
+`GradeShield`, Formen gezeichnet, nicht als Zeichen aus der Schrift —
+◆ und ▮ fehlen in Barlow wie der Pfeil). Das Schild trägt die
+Stufenfarbe des Modus (`palette.grade`), Form und Zahl in
+`GradePalette.ink`. Gezeigt wird der Median (`Trail.grade`), wie in
+der Kachel; ohne Einschätzung kein Schild. In der Liste steht es rechts
+oben über den Charakter-Symbolen, und „S2" fällt aus der Zahlenzeile —
+zweimal dieselbe Angabe. Der Bildschirmleser hört „Schwierigkeit S3:
+verblockt, hohe Stufen, enge Kehren". Das Schild auf der Karte (am
+Trailanfang, mit den Charakter-Symbolen) folgt als 6b.
 
 **Charakter** — Mehrfachwahl je Beitrag, wie der Grad von Buddys
 vergeben; angezeigt die höchstens 2 häufigsten, als Symbol:
@@ -188,11 +238,13 @@ Naturtrail und Verbindung aus der früheren „Art" erweitert (Betreiber,
 2026-09-29: der Charakter ERSETZT die Art, sieben Merkmale): Auswahl als
 Chips im Beitrag, im Blatt „Flowig · 3", in der Liste als Symbole
 (`trail_traits.dart`, Symbole farblos), seit 0.35.0 auch je Kandidat im
-Zerlege-Blatt. Offen: S-Grad als Form und die Pisten-Brille.
+Zerlege-Blatt.
 
-**Pisten-Brille** — Schalter unter Ebenen, „Farbe nach Schwierigkeit":
-S0 `#2E9E4F` · S1 `#1F6FD1` · S2 `#D6322F` · S3–S5 schwarz, S4+
-gestrichelt. Dann sagt die Breite die Beziehung: meiner 5, nur Buddy 3,5.
+**Pisten-Brille** — im Entwurf ein Schalter unter Ebenen, „Farbe nach
+Schwierigkeit", mit der Breite als Beziehung (meiner 5, nur Buddy 3,5).
+**Entfällt seit 0.42.0:** Die Pistenfarben sind der Normalzustand, und
+die Beziehung zeigt die Karte gar nicht mehr (Betreiber, 2026-09-29) —
+alle Trails gleich breit.
 
 Liste (4e): Filter-Chips „Alle", „bis S2", „Flowig", „Jumps" (Suche, „Alle/Meine/Von Buddys", „bis S2" und die Sortierung gibt es seit 0.32.0, #66 — `trail_list.dart`; der Filter gilt seit 0.33.0 auch auf der Karte, `TrailFilterChips` im Blatt „Ebenen"; „Flowig"/„Jumps" seit 0.34.0, #72 — sie filtern über die angezeigten zwei Merkmale, nicht über jede einzelne Nennung); Zeile als
 Karte mit Farbstreifen links, Zahlen in Mono, Schild und Symbole rechts.
@@ -217,9 +269,9 @@ Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
   Kacheln. „Mein Beitrag" steht als Textknopf unter „Deine
   Einschätzung" (4f bearbeitet den Beitrag direkt im Blatt; der Dialog
   kann mehr — Name, Status, Sichtbarkeit). Das S-Grad-Schild neben dem
-  Titel (4f) kommt mit Schritt 6.
+  Titel (4f) steht seit 0.42.0 (Schritt 6a).
 - **Trail-Liste (1j):** Karten mit 14 px Radius, Farbstreifen links =
-  Beziehung, rechts ein Wort in der Farbe (NEUER HINWEIS, MEIN, GESPERRT,
+  Beziehung (seit 0.42.0: Schwierigkeit), rechts ein Wort in der Farbe (NEUER HINWEIS, MEIN, GESPERRT,
   AUSGANGSKORB …), Zahlen in Mono. **Gebaut seit 0.38.0**
   (`trails_screen.dart`, Regel `trailRowTags` in `trail_list.dart`), mit
   drei Abweichungen: Das Wort steht unter den Zahlen, nicht rechts —
@@ -290,5 +342,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 5b | Trail-Blatt (1i, 4f ohne Schild) | 0.39.0 |
 | 5c | Buddys (1k) | 0.40.0 |
 | 5d | Profil (1l) | 0.41.0 |
-| 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
+| 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72) |
+| 6a | S-Grad-Schild, Farbe = Schwierigkeit (Karte, Liste, Schild) | 0.42.0 |
+| 6b | Schild mit Charakter am Trailanfang auf der Karte | |
 | 7 | Animationen (Turn 1p–1t) | |

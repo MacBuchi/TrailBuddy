@@ -4,7 +4,25 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.41.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.42.0, 2026-09-29*
+
+- **Die Farbe zeigt jetzt die Schwierigkeit** (0.42.0): Trails sind
+  eingefärbt wie Skipisten — grün S0, blau S1, rot S2, schwarz ab S3,
+  noch nicht eingeschätzt grau. Uphill-Trails haben ihre eigene Farbe,
+  Petrol, und im Schild einen Pfeil nach oben — eine Pistenfarbe
+  beschreibt eine Abfahrt. Das gilt für die Linie auf der Karte
+  (ab S4 gestrichelt), den Streifen in der Liste und das neue Schild.
+  Ob ein Trail deiner ist oder von Buddys kommt, steht nicht mehr in der
+  Farbe, sondern im Wort darunter („MEIN", die Namen). Gesperrte Trails
+  und neue Hinweise erkennst du auf der Karte am orangen bzw. gelben
+  Rand um die Linie.
+
+- **Die Schwierigkeit als Zeichen** (0.42.0): Neben jedem
+  eingeschätzten Trail steht ein kleines Schild wie auf der Skipiste:
+  Ring für S0, Punkt für S1, Quadrat für S2, Raute für S3, zwei Rauten
+  für S4 und zwei Rauten mit Balken für S5. In der Liste rechts oben, im
+  Blatt neben dem Namen, und in „Was bedeuten S0 bis S5?" lernst du die
+  Zeichen.
 
 - **Das Profil im neuen Look** (0.41.0): Oben stehen dein Name und
   wie viele Trails, Buddys und Fahrten du hast. Darunter führt je eine
