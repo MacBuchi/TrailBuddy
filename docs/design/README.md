@@ -1,13 +1,35 @@
 # TrailBuddy — Design
 
-*Stand 2026-09-29. Quelle: das Design-Projekt des Betreibers („TrailBuddy
-Design", Turns 1–4). Die Entwurfsdatei selbst liegt nicht im Repo (sie lädt
-Schriften von Google und enthält Beispielkonten); hier steht, was davon
-gilt und wo es im Code umgesetzt ist.*
+*Stand 2026-09-29. Quelle: das Design-Projekt des Betreibers in Claude
+Design („TrailBuddy Design", Turns 1–4), abgelegt in diesem Ordner. Hier
+steht, was davon gilt und wo es im Code umgesetzt ist.*
 
 Die Reihenfolge der Umsetzung (je ein PR) steht am Ende. Was hier steht,
 ist verbindlich wie das Konzept: Wer im Code davon abweicht, ändert diese
-Datei im selben PR.
+Datei im selben PR. **Die Entwurfsdatei ist die Vorlage, diese Datei die
+Entscheidung** — wo beide sich widersprechen (etwa Text in `#4F8A10` auf
+Hell), gilt diese hier.
+
+## 0. Die Vorlage in diesem Ordner
+
+Das Design-Projekt, so unverändert wie möglich (Stand des letzten Syncs
+2026-09-29 06:54 UTC):
+
+| Datei | Was | Herkunft |
+|---|---|---|
+| `TrailBuddy Design.dc.html` | der Entwurf, alle vier Turns auf einer Leinwand | unverändert aus dem Projekt |
+| `support.js` | die Laufzeit von Claude Design, die die Datei rendert | unverändert |
+| `github.md` | die Sync-Notiz von Claude Design (welche Repo-Dateien es gelesen hat) | unverändert |
+| `web/favicon.png`, `web/icons/Icon-512.png`, `web/icons/Icon-maskable-512.png` | die damaligen App-Symbole, die Claude Design aus dem Repo kopiert hatte (noch das Flutter-Standardsymbol) | byte-gleich aus Commit `8e10007` |
+| `notification_icon_512.png`, `notification_icon_96.png` | das Statusleisten-Symbol (1f): weiß, Alpha, 12 % Rand | **neu gerendert** aus dem Logo-Pfad mit `tool/brand_icons.py` — das Original kam nur als Text über die Schnittstelle, byte-genau war es nicht zu übernehmen; dieselbe Form, ohne die Herkunftsdaten (C2PA) des Originals |
+
+Nicht übernommen: `.thumbnail`, das Vorschaubild, das Claude Design selbst
+für die Projektübersicht erzeugt.
+
+**Ansehen:** `TrailBuddy Design.dc.html` im Browser öffnen (sie lädt
+`support.js` daneben). Die Datei holt Schriften und Symbole von Google
+Fonts und React von unpkg.com — das betrifft nur die Vorlage beim Ansehen,
+nie die App. Namen, Trails und die Mailadresse darin sind Beispiele.
 
 ## 1. Grundidee
 
