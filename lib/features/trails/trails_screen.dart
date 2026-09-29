@@ -12,6 +12,7 @@ import 'trail_filter_chips.dart';
 import 'trail_list.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
+import 'grade_shield.dart';
 import 'trail_traits.dart';
 
 /// Die Karte als Liste: erst die eigenen Trails, dann die, die nur Buddys
@@ -288,7 +289,6 @@ class _TrailTile extends ConsumerWidget {
     final numbers = <String>[
       formatLength(trail.lengthM),
       if (trail.elevation != null) '↓ ${trail.elevation!.lossM.round()} Hm',
-      if (trail.grade != null) gradeLabel(trail.grade!),
     ];
     final tags = trailRowTags(trail,
         freshNote: fresh, nameOf: (id, username) => names.of(id, username));
@@ -357,9 +357,19 @@ class _TrailTile extends ConsumerWidget {
               ),
           ],
         ),
-        trailing: trail.topTraits.isEmpty
+        // Rechts oben das Schild, darunter der Charakter (Design 4e).
+        trailing: trail.grade == null && trail.topTraits.isEmpty
             ? null
-            : TrailTraitIcons(trail.topTraits, color: palette.muted),
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (trail.grade != null) GradeShield(trail.grade!, key: const ValueKey('grade-shield')),
+                  if (trail.grade != null && trail.topTraits.isNotEmpty) const SizedBox(height: 4),
+                  if (trail.topTraits.isNotEmpty) TrailTraitIcons(trail.topTraits, color: palette.muted),
+                ],
+              ),
         onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
       ),
     );

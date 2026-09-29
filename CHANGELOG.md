@@ -4,7 +4,15 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.41.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.42.0, 2026-09-29*
+
+- **Die Schwierigkeit als Zeichen** (0.42.0): Neben jedem
+  eingeschätzten Trail steht ein kleines Schild wie auf der Skipiste:
+  Ring für S0, Punkt für S1, Quadrat für S2, Raute für S3, zwei Rauten
+  für S4 und zwei Rauten mit Balken für S5. In der Liste rechts oben, im
+  Blatt neben dem Namen, und in „Was bedeuten S0 bis S5?" lernst du die
+  Zeichen. Das Schild hat bewusst keine Farbe: Farbe heißt in
+  TrailBuddy, wem ein Trail gehört.
 
 - **Das Profil im neuen Look** (0.41.0): Oben stehen dein Name und
   wie viele Trails, Buddys und Fahrten du hast. Darunter führt je eine

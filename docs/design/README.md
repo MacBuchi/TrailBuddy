@@ -179,6 +179,18 @@ der Strich beim Zeichnen folgt der Regel.
 `singletrail_scale.dart`.) Auf der Karte am Trailanfang (Entwurf: erst ab
 Zoom 13), in Liste und Blatt neben dem Namen.
 
+**Gebaut in 0.42.0 für Liste, Blatt und Erklärblatt** (`grade_shield.dart`:
+`GradeShield`, Formen gezeichnet, nicht als Zeichen aus der Schrift —
+◆ und ▮ fehlen in Barlow wie der Pfeil). Das Schild steht in der
+Gegenhelligkeit des Grunds (`palette.text` mit Form und Zahl in
+`palette.ground`): im Hellen schwarz wie im Entwurf, im Dunklen hell,
+sonst verschwände es. Gezeigt wird der Median (`Trail.grade`), wie in
+der Kachel; ohne Einschätzung kein Schild. In der Liste steht es rechts
+oben über den Charakter-Symbolen, und „S2" fällt aus der Zahlenzeile —
+zweimal dieselbe Angabe. Der Bildschirmleser hört „Schwierigkeit S3:
+verblockt, hohe Stufen, enge Kehren". Die Karte (am Trailanfang) und die
+Pisten-Brille folgen als 6b.
+
 **Charakter** — Mehrfachwahl je Beitrag, wie der Grad von Buddys
 vergeben; angezeigt die höchstens 2 häufigsten, als Symbol:
 Flowig (Wellen, Anlieger, Rhythmus), Jump-Line (Kicker, Drops, Tables),
@@ -217,7 +229,7 @@ Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
   Kacheln. „Mein Beitrag" steht als Textknopf unter „Deine
   Einschätzung" (4f bearbeitet den Beitrag direkt im Blatt; der Dialog
   kann mehr — Name, Status, Sichtbarkeit). Das S-Grad-Schild neben dem
-  Titel (4f) kommt mit Schritt 6.
+  Titel (4f) steht seit 0.42.0 (Schritt 6a).
 - **Trail-Liste (1j):** Karten mit 14 px Radius, Farbstreifen links =
   Beziehung, rechts ein Wort in der Farbe (NEUER HINWEIS, MEIN, GESPERRT,
   AUSGANGSKORB …), Zahlen in Mono. **Gebaut seit 0.38.0**
@@ -290,5 +302,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 5b | Trail-Blatt (1i, 4f ohne Schild) | 0.39.0 |
 | 5c | Buddys (1k) | 0.40.0 |
 | 5d | Profil (1l) | 0.41.0 |
-| 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
+| 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72) |
+| 6a | S-Grad-Schild in Liste, Blatt, Erklärblatt | 0.42.0 |
+| 6b | Schild auf der Karte, Pisten-Brille | |
 | 7 | Animationen (Turn 1p–1t) | |
