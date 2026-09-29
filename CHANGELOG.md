@@ -4,7 +4,15 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.40.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.41.0, 2026-09-29*
+
+- **Das Profil im neuen Look** (0.41.0): Oben stehen dein Name und
+  wie viele Trails, Buddys und Fahrten du hast. Darunter führt je eine
+  Zeile zu Import, Fahrten, Bereichen, Benachrichtigungen,
+  Erscheinungsbild, Konto und „Über TrailBuddy" — und sagt gleich, was
+  gerade eingestellt ist. Name, E-Mail, Passwort und „Konto löschen"
+  findest du jetzt unter „Konto", Datenschutz, Impressum und „Was ist
+  neu" unter „Über TrailBuddy".
 
 - **Die Buddys im neuen Look** (0.40.0): Nach dem Annehmen einer
   Anfrage steht oben eine Karte „Mit Jan verbunden" mit drei Zahlen —

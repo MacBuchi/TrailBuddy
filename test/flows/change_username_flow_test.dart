@@ -10,7 +10,7 @@ import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
 Future<void> _openDialog(WidgetTester tester) async {
-  await openTab(tester, 'Profil');
+  await openProfilePage(tester, 'account');
   final tile = find.text('Benutzername ändern');
   await scrollTo(tester, tile);
   await tester.tap(tile);
@@ -42,8 +42,8 @@ void main() {
     expect(backend.users.single.username, 'flowtrailer');
     expect(find.widgetWithText(TextField, 'Neuer Benutzername'), findsNothing,
         reason: 'Nach dem Speichern schließt der Dialog.');
-    // Zum Profilkopf zurückscrollen — die Liste baut nur, was im Bild
-    // ist, und wir stehen noch bei den Kacheln weiter unten.
+    // Die Kachel auf der Seite „Konto" zeigt den aktuellen Namen (seit
+    // 0.41.0 steht sie nicht mehr unter dem Profilkopf).
     for (var i = 0;
         i < 6 && find.text('flowtrailer').evaluate().isEmpty;
         i++) {
@@ -51,7 +51,7 @@ void main() {
       await settle(tester, frames: 4);
     }
     expect(find.text('flowtrailer'), findsWidgets,
-        reason: 'Der Profilkopf muss den neuen Namen sofort zeigen — '
+        reason: 'Die Kachel muss den neuen Namen sofort zeigen — '
             'Read-after-write, kein alter Zwischenstand.');
     await drainSnackbars(tester);
   });

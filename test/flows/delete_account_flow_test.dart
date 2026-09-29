@@ -6,7 +6,7 @@ import '../fakes/fake_backend.dart';
 import '../fakes/test_app.dart';
 
 Future<void> _openProfileBottom(WidgetTester tester) async {
-  await openTab(tester, 'Profil');
+  await openProfilePage(tester, 'account');
   // Bis ans Listenende scrollen — `scrollUntilVisible` schiebt den Eintrag
   // nur knapp ins Bild, wo er die untere Navigationsleiste überlappt.
   for (var i = 0; i < 6; i++) {

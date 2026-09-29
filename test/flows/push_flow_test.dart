@@ -43,7 +43,7 @@ void main() {
   });
 
   Future<void> scrollToSwitch(WidgetTester tester) async {
-    await openTab(tester, 'Profil');
+    await openProfilePage(tester, 'notifications');
     await tester.scrollUntilVisible(
         find.widgetWithText(SwitchListTile, 'Benachrichtigungen'), 200,
         scrollable: find.byType(Scrollable).first);

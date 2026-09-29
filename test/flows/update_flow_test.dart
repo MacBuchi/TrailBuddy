@@ -60,8 +60,7 @@ void main() {
   }
 
   Future<void> openAbout(WidgetTester tester) async {
-    await openTab(tester, 'Profil');
-    await scrollTo(tester, find.text('Über TrailBuddy'));
+    await openProfilePage(tester, 'about');
   }
 
   testWidgets('Ein verfügbares Update steht in der Statuszeile',

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_distribution.dart';
 import '../../core/app_info.dart';
 import '../../core/app_theme.dart';
@@ -15,7 +16,10 @@ import '../../core/widgets/letter_avatar.dart';
 import '../../core/widgets/password_field.dart';
 import '../../data/providers.dart';
 import '../feedback/feedback_dialog.dart';
-import '../trails/trail_providers.dart' show trailCacheProvider;
+import '../friends/friend_providers.dart';
+import '../offline_areas/area_providers.dart' show storedAreasProvider;
+import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
+import '../trails/trail_providers.dart' show trailCacheProvider, trailsProvider;
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
 import 'push_providers.dart';
@@ -27,10 +31,15 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(myProfileProvider);
     final profile = profileAsync.valueOrNull;
+    final palette = AppPalette.of(context);
+    final theme = Theme.of(context);
+    final version = ref.watch(appVersionProvider).valueOrNull;
+    final areas = ref.watch(storedAreasProvider).valueOrNull;
+    final push = ref.watch(pushEnabledProvider);
+    final mode = ref.watch(appearanceProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profil'),
         actions: [
           IconButton(
             // Nach dem Abmelden leitet der Router sofort auf /login um —
@@ -46,72 +55,273 @@ class ProfileScreen extends ConsumerWidget {
             icon: const Icon(Icons.logout),
             tooltip: 'Abmelden',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
           if (profile != null) ...[
-            Row(
-              children: [
-                LetterAvatar(name: profile.username, size: 56),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(profile.username,
-                      style: Theme.of(context).textTheme.titleLarge),
-                ),
-              ],
-            ),
-            const Divider(height: 32),
+            _ProfileHeader(username: profile.username),
+            const SizedBox(height: 16),
+            Divider(height: 1, color: palette.line),
+            const SizedBox(height: 16),
           ] else if (profileAsync.isLoading)
             const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.file_download_outlined),
-            title: const Text('Trails importieren'),
-            subtitle: const Text(
-                'GPX-Aufzeichnungen aus anderen Apps in dein Trail-Netz holen'),
-            trailing: const Icon(Icons.chevron_right),
+          _ProfileRow(
+            id: 'import',
+            icon: Icons.file_download_outlined,
+            title: 'Trails importieren',
+            value: 'GPX aus anderen Apps in dein Netz holen',
             onTap: () => context.push('/profile/import'),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.directions_bike),
-            title: const Text('Meine Fahrten'),
-            subtitle: const Text(
-                'Aufgezeichnete Fahrten — liegen nur auf diesem Gerät'),
-            trailing: const Icon(Icons.chevron_right),
+          _ProfileRow(
+            id: 'rides',
+            icon: Icons.directions_bike,
+            title: 'Meine Fahrten',
+            value: 'Liegen nur auf diesem Gerät',
             onTap: () => context.push('/profile/rides'),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.map_outlined),
-            title: const Text('Meine Bereiche'),
-            subtitle: const Text(
-                'Gespeicherte Kartenbereiche für unterwegs — liegen nur auf diesem Gerät'),
-            trailing: const Icon(Icons.chevron_right),
+          _ProfileRow(
+            id: 'areas',
+            icon: Icons.map_outlined,
+            title: 'Meine Bereiche',
+            value: switch (areas?.length) {
+              null || 0 => 'Karten für unterwegs',
+              final n => 'Karten für unterwegs · $n gespeichert',
+            },
             onTap: () => context.push('/profile/areas'),
           ),
-          const Divider(height: 32),
-          ChangeUsernameTile(username: profile?.username),
-          const ChangeEmailTile(),
-          const _ChangePasswordTile(),
-          const SignOutOtherDevicesTile(),
-          const Divider(height: 40),
-          const _AppearanceSection(),
-          const Divider(height: 40),
-          const _PushSection(),
-          const Divider(height: 40),
-          const _AboutSection(),
-          const Divider(height: 40),
-          _DeleteAccountTile(username: profile?.username),
+          _ProfileRow(
+            id: 'notifications',
+            icon: Icons.notifications_outlined,
+            title: 'Benachrichtigungen',
+            value: push ? 'Ein · ohne Inhalt in der Meldung' : 'Aus',
+            onTap: () => context.push('/profile/notifications'),
+          ),
+          _ProfileRow(
+            id: 'appearance',
+            icon: Icons.contrast,
+            title: 'Erscheinungsbild',
+            value: switch (mode) {
+              ThemeMode.light => 'Hell',
+              ThemeMode.dark => 'Dunkel',
+              ThemeMode.system => theme.brightness == Brightness.dark
+                  ? 'Dunkel · folgt dem System'
+                  : 'Hell · folgt dem System',
+            },
+            onTap: () => context.push('/profile/appearance'),
+          ),
+          _ProfileRow(
+            id: 'account',
+            icon: Icons.person_outline,
+            title: 'Konto',
+            value: 'Name, E-Mail, Passwort, Geräte',
+            onTap: () => context.push('/profile/account'),
+          ),
+          _ProfileRow(
+            id: 'about',
+            icon: Icons.info_outline,
+            title: 'Über TrailBuddy',
+            value: 'Neuigkeiten, Datenschutz, Impressum, Lizenzen',
+            onTap: () => context.push('/profile/about'),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '${version == null ? '' : 'v$version · '}'
+            'Kartendaten © OpenStreetMap · Protomaps',
+            key: const ValueKey('profile-footer'),
+            style: AppFonts.numbers(theme.textTheme.bodySmall).copyWith(color: palette.muted),
+          ),
         ],
       ),
     );
   }
+}
+
+/// Kopf des Profils (Design 1l): Avatar, Name, drei Zahlen — gezählt
+/// aus dem, was die App ohnehin geladen hat; eine fehlende Zahl fällt
+/// weg, statt als 0 dazustehen.
+class _ProfileHeader extends ConsumerWidget {
+  const _ProfileHeader({required this.username});
+
+  final String username;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    final uid = ref.watch(currentUserIdProvider) ?? '';
+    final trails = ref.watch(trailsProvider).valueOrNull;
+    final friendships = ref.watch(friendshipsProvider).valueOrNull;
+    final rides = ref.watch(rideRecordingAvailableProvider)
+        ? ref.watch(ridesProvider).valueOrNull
+        : null;
+    String plural(int n, String one, String many) => '$n ${n == 1 ? one : many}';
+    final stats = [
+      if (trails != null)
+        plural(trails.where((t) => t.pending || t.recordings.any((r) => r.userId == uid)).length,
+            'Trail', 'Trails'),
+      if (friendships != null)
+        plural(friendships.where((f) => f.isAccepted).length, 'Buddy', 'Buddys'),
+      if (rides != null) plural(rides.length, 'Fahrt', 'Fahrten'),
+    ];
+    return Row(
+      children: [
+        LetterAvatar(name: username, size: 64),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Versalien wie die Titel — der Bildschirmleser bekommt den
+              // Namen, wie er geschrieben ist.
+              Semantics(
+                label: username,
+                excludeSemantics: true,
+                child: Text(username.toUpperCase(),
+                    key: const ValueKey('profile-name'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+              ),
+              if (stats.isNotEmpty)
+                Text(stats.join(' · '),
+                    key: const ValueKey('profile-stats'),
+                    style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Eine Zeile des Profils als Karte: Symbol auf eigener Fläche, Titel,
+/// darunter der aktuelle Wert, rechts der Pfeil (Design 1l).
+class _ProfileRow extends StatelessWidget {
+  const _ProfileRow({
+    required this.id,
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String id;
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        key: ValueKey('profile-$id'),
+        color: palette.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: palette.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: palette.surface2,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 22, color: palette.accentText),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                      Text(value, style: theme.textTheme.bodySmall?.copyWith(color: palette.muted)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: palette.muted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Unterseite des Profils: Titel oben, Inhalt als Liste.
+class _ProfilePage extends StatelessWidget {
+  const _ProfilePage({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: ListView(padding: const EdgeInsets.all(16), children: children),
+      );
+}
+
+/// „Konto": Name, E-Mail, Passwort, andere Geräte — und ganz unten,
+/// abgesetzt, das Löschen.
+class AccountScreen extends ConsumerWidget {
+  const AccountScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(myProfileProvider).valueOrNull;
+    return _ProfilePage(title: 'Konto', children: [
+      ChangeUsernameTile(username: profile?.username),
+      const ChangeEmailTile(),
+      const _ChangePasswordTile(),
+      const SignOutOtherDevicesTile(),
+      const Divider(height: 40),
+      _DeleteAccountTile(username: profile?.username),
+    ]);
+  }
+}
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const _ProfilePage(title: 'Benachrichtigungen', children: [_PushSection()]);
+}
+
+class AppearanceScreen extends StatelessWidget {
+  const AppearanceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const _ProfilePage(title: 'Erscheinungsbild', children: [_AppearanceSection()]);
+}
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const _ProfilePage(title: 'Über TrailBuddy', children: [_AboutSection()]);
 }
 
 /// Passwort ändern für Angemeldete. Der Reset-Flow auf dem Login-Screen
@@ -382,8 +592,6 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   }
 }
 
-/// Dezente „Über"-Sektion am Ende des Profils: Version, Update-Status
-/// und die öffentlichen Links der App.
 /// „Erscheinungsbild": wie das System, hell oder dunkel. Gerätelokal —
 /// das Zweitgerät darf anders aussehen.
 class _AppearanceSection extends ConsumerWidget {
@@ -395,9 +603,6 @@ class _AppearanceSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Erscheinungsbild',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<ThemeMode>(
@@ -444,8 +649,6 @@ class _PushSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Benachrichtigungen',
-            style: Theme.of(context).textTheme.titleMedium),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           secondary: const Icon(Icons.notifications_outlined),
@@ -485,6 +688,8 @@ class _PushSection extends ConsumerWidget {
   }
 }
 
+/// „Über TrailBuddy": Version, Update-Status und die öffentlichen Links
+/// der App.
 class _AboutSection extends ConsumerWidget {
   const _AboutSection();
 
@@ -508,9 +713,6 @@ class _AboutSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Über TrailBuddy',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 4),
         Text('Version $version — $updateStatus',
             style: Theme.of(context).textTheme.bodySmall),
         // Nur wo der Update-Weg überhaupt läuft. Im Web und im Play-Build

@@ -115,6 +115,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'changelog',
                       builder: (context, state) => const ChangelogScreen()),
+                  GoRoute(
+                      path: 'account',
+                      builder: (context, state) => const AccountScreen()),
+                  GoRoute(
+                      path: 'notifications',
+                      builder: (context, state) => const NotificationsScreen()),
+                  GoRoute(
+                      path: 'appearance',
+                      builder: (context, state) => const AppearanceScreen()),
+                  GoRoute(
+                      path: 'about',
+                      builder: (context, state) => const AboutScreen()),
                 ]),
           ]),
         ],

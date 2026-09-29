@@ -248,6 +248,17 @@ Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
   beiden Modi; Lime bleibt dem eigenen Avatar, denn Lime heißt „mein".
 - **Profil (1l):** Kopf mit Avatar und drei Zahlen, darunter Zeilen mit
   Wert rechts (Benachrichtigungen, Erscheinungsbild …).
+  Gebaut in 0.41.0 (`profile_screen.dart`): Die Zeilen sind Karten mit
+  Symbol auf eigener Fläche, der Wert steht UNTER dem Titel wie im
+  Entwurf. Benachrichtigungen, Erscheinungsbild und Konto sind eigene
+  Unterseiten (`/profile/notifications`, `appearance`, `account`); dazu
+  kommt eine siebte Zeile „Über TrailBuddy" (`/profile/about`), die der
+  Entwurf nicht hat — Datenschutzerklärung, Impressum und Lizenzen
+  müssen aus der App erreichbar bleiben. Abmelden steht oben rechts,
+  „Konto löschen" am Ende der Seite „Konto". Die drei Zahlen zählen
+  eigene Trails (belegt oder wartend), angenommene Buddys und Fahrten
+  auf dem Gerät; was nicht geladen ist, fällt weg statt als 0
+  dazustehen, im Web gibt es keine Fahrten.
 
 ## 9. Bewegung (Turn 1p–1t)
 
@@ -278,6 +289,6 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 5a | Trail-Liste (1j, 4e ohne Schild) | 0.38.0 |
 | 5b | Trail-Blatt (1i, 4f ohne Schild) | 0.39.0 |
 | 5c | Buddys (1k) | 0.40.0 |
-| 5d | Profil (1l) | |
+| 5d | Profil (1l) | 0.41.0 |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
 | 7 | Animationen (Turn 1p–1t) | |
