@@ -3,9 +3,12 @@
 // Abfrage: alles aus `trailsProvider`, also auch ohne Empfang und mit dem
 // Ausgangskorb.
 //
-// Die Karte hat keinen Filter bekommen, bewusst (PilzBuddy-Regel aus dem
-// Reiter „Spots"): Ein Filter, der an zwei Orten verschieden wirkt, wäre
-// schlimmer als zwei getrennte.
+// **Der Filter gilt für Liste UND Karte** (seit 0.33.0, Betreiber
+// 2026-09-29): EIN Provider, EINE Regel ([passesTrailFilter]). Suche und
+// Sortierung bleiben in der Liste — wer „Hexentanz" sucht, will ihn
+// finden, nicht die Karte leeren. Ein aktiver Filter meldet sich auf der
+// Karte (PilzBuddy #154: eine Karte, die still ausblendet, sieht aus, als
+// fehlten Trails).
 import 'package:flutter/foundation.dart';
 
 import '../../core/search_text.dart';
@@ -62,6 +65,14 @@ class TrailListFilter {
   final bool reportedOnly;
 
   bool get isActive => owner != TrailOwnerFilter.all || easyOnly || freshNotesOnly || reportedOnly;
+
+  /// Was gefiltert ist, in Worten — für die Zeile auf der Karte.
+  String describe() => [
+        if (owner != TrailOwnerFilter.all) owner.label,
+        if (easyOnly) 'bis S$kEasyMaxGrade',
+        if (freshNotesOnly) 'neuer Hinweis',
+        if (reportedOnly) 'gemeldet',
+      ].join(' · ');
 
   TrailListFilter copyWith({
     TrailOwnerFilter? owner,
@@ -135,6 +146,29 @@ DateTime lastActivity(Trail t) {
   return latest;
 }
 
+/// Lässt [filter] diesen Trail durch? Die EINE Regel für Liste und Karte.
+bool passesTrailFilter(Trail t, TrailListFilter filter,
+    {Set<String> seenNotes = const {}, DateTime? now}) {
+  if (filter.owner == TrailOwnerFilter.mine && !t.isOwn) return false;
+  if (filter.owner == TrailOwnerFilter.buddies && t.isOwn) return false;
+  if (filter.freshNotesOnly && !t.hasFreshNote(now: now, seen: seenNotes)) return false;
+  if (filter.reportedOnly && !t.status.warns) return false;
+  if (filter.easyOnly) {
+    final g = t.grade;
+    if (g == null || g > kEasyMaxGrade) return false;
+  }
+  return true;
+}
+
+/// Fällt [t] NUR deshalb heraus, weil „bis S2" an ist und niemand ihn
+/// eingeschätzt hat? Die Liste zählt diese, damit „bis S2" nicht stumm
+/// verschluckt, was die App bloß nicht weiß.
+bool hiddenOnlyForMissingGrade(Trail t, TrailListFilter filter,
+        {Set<String> seenNotes = const {}, DateTime? now}) =>
+    filter.easyOnly &&
+    t.grade == null &&
+    passesTrailFilter(t, filter.copyWith(easyOnly: false), seenNotes: seenNotes, now: now);
+
 /// Filtern, suchen, sortieren — in dieser Reihenfolge. Die Suche läuft
 /// über das, was die Filter übrig lassen, damit „Meintest du …?" nie
 /// einen Trail vorschlägt, den die Chips gerade ausblenden.
@@ -149,19 +183,11 @@ TrailListResult trailListOf(
   var hiddenUngraded = 0;
   final candidates = <Trail>[];
   for (final t in trails) {
-    if (filter.owner == TrailOwnerFilter.mine && !t.isOwn) continue;
-    if (filter.owner == TrailOwnerFilter.buddies && t.isOwn) continue;
-    if (filter.freshNotesOnly && !t.hasFreshNote(now: now, seen: seenNotes)) continue;
-    if (filter.reportedOnly && !t.status.warns) continue;
-    if (filter.easyOnly) {
-      final g = t.grade;
-      if (g == null) {
-        hiddenUngraded++;
-        continue;
-      }
-      if (g > kEasyMaxGrade) continue;
+    if (passesTrailFilter(t, filter, seenNotes: seenNotes, now: now)) {
+      candidates.add(t);
+    } else if (hiddenOnlyForMissingGrade(t, filter, seenNotes: seenNotes, now: now)) {
+      hiddenUngraded++;
     }
-    candidates.add(t);
   }
 
   var isGuess = false;

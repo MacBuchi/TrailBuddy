@@ -26,6 +26,7 @@ import '../offline_areas/area_providers.dart';
 import '../offline_areas/area_store.dart';
 import '../offline_areas/offline_tool_rail.dart';
 import '../trails/outbox_providers.dart';
+import '../trails/trail_list.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
@@ -183,6 +184,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _focusOn(String id) {
     final t = ref.read(trailsProvider).valueOrNull?.where((x) => x.id == id).firstOrNull;
     if (t == null) return false;
+    // Blendet der Filter (#66) genau diesen Trail aus, fällt er — sonst
+    // führte eine Push-Meldung auf eine leere Stelle. Und die App sagt es.
+    final filter = ref.read(trailListFilterProvider);
+    if (!passesTrailFilter(t, filter, seenNotes: ref.read(seenNotesProvider))) {
+      ref.read(trailListFilterProvider.notifier).state = const TrailListFilter();
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+          key: ValueKey('filter-reset-for-focus'),
+          content: Text('Filter zurückgesetzt, damit der Trail zu sehen ist.')));
+    }
     _fittedOnce = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _fitTo([t]);
@@ -336,6 +346,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final trailsAsync = ref.watch(trailsProvider);
     final trails = trailsAsync.valueOrNull ?? const <Trail>[];
     final seenNotes = ref.watch(seenNotesProvider);
+    // Derselbe Filter wie in der Liste (#66, seit 0.33.0). Er wirkt NUR
+    // auf das, was gezeichnet und getroffen wird — „Entlang meiner
+    // Trails", Einpassen und Fokus rechnen weiter mit allen.
+    final trailFilter = ref.watch(trailListFilterProvider);
+    final shownTrails = trailFilter.isActive
+        ? [for (final t in trails) if (passesTrailFilter(t, trailFilter, seenNotes: seenNotes)) t]
+        : trails;
     final groups = ref.watch(poiGroupsProvider);
     final hidden = ref.watch(poiHiddenKindsProvider);
     final poiState = ref.watch(poiControllerProvider);
@@ -462,7 +479,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         else if (focusRide != null)
           _ridePolyline(focusRide.points),
         if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
-        for (final t in trails)
+        for (final t in shownTrails)
           MapViewPolyline(
             points: t.points,
             color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
@@ -539,8 +556,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           // Zeile, was der nächste Strich tut.
           if (trailsAsync.hasValue && trails.isEmpty && drawTool == null)
             const _EmptyHint(),
-          const UpdateBanner(),
-          const _OutboxBanner(),
+          // Die Banner oben untereinander, nicht übereinander: Update,
+          // Ausgangskorb und — solange einer gilt — der Trail-Filter.
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const UpdateBanner(),
+                  const _OutboxBanner(),
+                  if (trailFilter.isActive)
+                    _TrailFilterBanner(
+                        filter: trailFilter, shown: shownTrails.length, total: trails.length),
+                ],
+              ),
+            ),
+          ),
           if (ride != null || focusRide != null)
             SafeArea(
               child: Align(
@@ -704,6 +736,35 @@ class _OutboxBanner extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Ein aktiver Trail-Filter meldet sich auf der Karte (#66; PilzBuddy
+/// #154): Eine Karte, die still ausblendet, sieht aus, als fehlten
+/// Trails. Das X setzt ihn zurück — für Liste und Karte.
+class _TrailFilterBanner extends ConsumerWidget {
+  const _TrailFilterBanner({required this.filter, required this.shown, required this.total});
+
+  final TrailListFilter filter;
+  final int shown;
+  final int total;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Card(
+        key: const ValueKey('map-filter-banner'),
+        margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: ListTile(
+          dense: true,
+          leading: const Icon(Icons.filter_alt_outlined),
+          title: Text('Gefiltert: ${filter.describe()}'),
+          subtitle: Text('$shown von $total ${total == 1 ? 'Trail' : 'Trails'}'),
+          trailing: IconButton(
+            key: const ValueKey('map-filter-reset'),
+            tooltip: 'Filter zurücksetzen',
+            icon: const Icon(Icons.close),
+            onPressed: () => ref.read(trailListFilterProvider.notifier).state = const TrailListFilter(),
+          ),
+        ),
+      );
 }
 
 /// „28.9., 10:12" — Tag und Uhrzeit des zwischengespeicherten Stands.

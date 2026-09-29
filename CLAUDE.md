@@ -253,9 +253,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   und die Liste sagt dann „Meintest du …?". Gesucht wird über Namen und
   Buddy-Namen, nie über Hinweistexte. „bis S2" lässt Trails OHNE
   Einschätzung weg (im Zweifel die Warnung) und zählt sie. Filter und
-  Sortierung gelten für die Sitzung und NUR für die Liste — die Karte
-  filtert nicht (ein Filter an zwei Orten mit zwei Wirkungen wäre
-  schlimmer als zwei getrennte).
+  Sortierung gelten für die Sitzung. **Der Filter gilt seit 0.33.0 für
+  Liste UND Karte** (Betreiber, 2026-09-29): EIN Provider
+  (`trailListFilterProvider`), EINE Regel (`passesTrailFilter`), EIN
+  Chip-Widget (`TrailFilterChips`, in der Liste und im Blatt „Ebenen").
+  Suche und Sortierung bleiben in der Liste. Auf der Karte wirkt er NUR
+  auf Zeichnen und Treffen — „Entlang meiner Trails", Einpassen, Fokus
+  und das Zerlege-Blatt rechnen mit allen. Ein aktiver Filter meldet sich
+  oben auf der Karte mit X (PilzBuddy #154: still ausblenden sieht aus
+  wie fehlende Trails); ein Fokus-Sprung auf einen ausgeblendeten Trail
+  (Push) setzt ihn zurück und sagt es. Die Banner oben stehen seither
+  untereinander in EINER Spalte (Update, Ausgangskorb, Filter).
 - **Offizielle Trails in der App** (#13, `lib/features/official/`):
   Index und Regionen von `raw.githubusercontent.com` (Daten-Branch),
   erst ab Zoom 8 (`kOfficialMinZoom`) und nur für Regionen, deren Rahmen

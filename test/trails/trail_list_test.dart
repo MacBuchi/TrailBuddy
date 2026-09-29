@@ -131,6 +131,20 @@ void main() {
       expect(r.trails, isEmpty);
     });
 
+    test('describe nennt, was gefiltert ist — für die Zeile auf der Karte', () {
+      expect(const TrailListFilter().describe(), '');
+      expect(const TrailListFilter(owner: TrailOwnerFilter.mine, easyOnly: true, reportedOnly: true).describe(),
+          'Meine · bis S2 · gemeldet');
+    });
+
+    test('passesTrailFilter ist dieselbe Regel wie die Liste', () {
+      const f = TrailListFilter(easyOnly: true);
+      final kept = trailListOf(list, filter: f, now: now).trails.toSet();
+      for (final t in list) {
+        expect(passesTrailFilter(t, f, now: now), kept.contains(t), reason: t.displayName);
+      }
+    });
+
     test('isActive', () {
       expect(const TrailListFilter().isActive, isFalse);
       expect(const TrailListFilter(easyOnly: true).isActive, isTrue);
