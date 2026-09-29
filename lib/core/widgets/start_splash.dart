@@ -102,7 +102,10 @@ class _StartSplashState extends ConsumerState<StartSplash> with TickerProviderSt
             onTap: _dismiss,
             child: Semantics(
               label: 'TrailBuddy',
-              child: ColoredBox(
+              // Material statt ColoredBox: Der Splash liegt im Builder der
+              // App, ÜBER dem Navigator — ohne Material darüber zeichnet
+              // Flutter Text mit dem Warnstil (gelb, doppelt unterstrichen).
+              child: Material(
                 color: p.ground,
                 child: Center(
                   child: AnimatedBuilder(

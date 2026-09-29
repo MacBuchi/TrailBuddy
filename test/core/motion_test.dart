@@ -154,6 +154,24 @@ void main() {
       expect(_tickers(), 0);
     });
 
+    testWidgets('die Wortmarke hat einen echten Textstil, auch über dem Navigator',
+        (tester) async {
+      // Wie in app.dart: im Builder, also ohne Material der Seite darüber.
+      await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+          theme: buildAppTheme(AppColors.dark),
+          builder: (context, child) => StartSplash(child: child!),
+          home: const _Counter(),
+        ),
+      ));
+      await tester.pump(kSplashDuration);
+      final word = find.byType(TrailBuddyWordmark);
+      expect(word, findsOneWidget);
+      final style = DefaultTextStyle.of(tester.element(word)).style;
+      expect(style.debugLabel ?? '', isNot(contains('fallback')),
+          reason: 'sonst gelb doppelt unterstrichen');
+    });
+
     testWidgets('ein Tipp überspringt ihn', (tester) async {
       await tester.pumpWidget(app());
       await tester.pump(const Duration(milliseconds: 200));

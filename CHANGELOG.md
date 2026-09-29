@@ -4,7 +4,10 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 bis 0.45.1, 2026-09-29*
+*Versionen 0.38.0 bis 0.45.2, 2026-09-29*
+
+- **Sauberes Logo** (0.45.2): Die Schrift im Startbild ist nicht mehr
+  gelb doppelt unterstrichen.
 
 - **Nahtloser Start** (0.45.1): Das Startfenster auf Android hat jetzt
   den Grundton der App statt Weiß oder Schwarz, und die Leiste mit
