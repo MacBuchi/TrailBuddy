@@ -4,7 +4,15 @@
 
 ## Aussehen
 
-*Versionen 0.38.0 und 0.39.0, 2026-09-29*
+*Versionen 0.38.0 bis 0.40.0, 2026-09-29*
+
+- **Die Buddys im neuen Look** (0.40.0): Nach dem Annehmen einer
+  Anfrage steht oben eine Karte „Mit Jan verbunden" mit drei Zahlen —
+  wie viele Trails ihr gemeinsam habt, wie viele neu von Jan kommen und
+  wie viele neu für Jan sind. Sie bleibt, bis du sie schließt. Anfragen
+  stehen als Karten mit „Annehmen", jeder Buddy hat ein farbiges
+  Buchstabenfeld und darunter, wie viele Trails ihr beide kennt. Das
+  Einladen findest du oben rechts.
 
 - **Das Trail-Blatt im neuen Look** (0.39.0): Der Name steht groß
   oben, darunter, wer den Trail kennt. Länge, Abfahrt und

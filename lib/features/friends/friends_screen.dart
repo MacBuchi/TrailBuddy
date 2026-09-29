@@ -4,14 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../core/app_info.dart';
 import '../../core/errors.dart';
 import '../../core/widgets/letter_avatar.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
 import '../profile/profile_providers.dart';
+import '../trails/trail_providers.dart';
 import 'buddy_alias.dart';
 import 'buddy_alias_dialog.dart';
+import 'connect_summary.dart';
 import 'friend_providers.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -26,6 +29,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   List<ProfileSearchResult> _results = [];
   bool _searching = false;
   bool _searched = false;
+  ({String name, ConnectSummary summary})? _connected;
 
   @override
   void dispose() {
@@ -78,17 +82,16 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   /// „14 Trails gemeinsam, 8 neu von Jan, 5 neu für Jan". Erst nach dem
   /// Annehmen, nie davor. Kommen die Zahlen nicht (Neuladen gescheitert),
   /// bleibt es beim Annehmen; die Liste zeigt den Buddy ohnehin.
+  ///
+  /// Seit Design 1k eine Karte oben in der Liste statt einer Leiste: Sie
+  /// bleibt, bis man sie schließt oder den Reiter verlässt — eine Leiste
+  /// war nach acht Sekunden weg, und mit ihr die Zahlen.
   Future<void> _accept(FriendshipEntry f) async {
-    final messenger = ScaffoldMessenger.of(context);
     final uid = ref.read(currentUserIdProvider) ?? '';
     final name = f.otherUsername(uid);
     final summary = await ref.read(friendshipsProvider.notifier).accept(f.id);
     if (!mounted || summary == null) return;
-    messenger.showSnackBar(SnackBar(
-      key: const ValueKey('connect-summary'),
-      content: Text(summary.sentence(name)),
-      duration: const Duration(seconds: 8),
-    ));
+    setState(() => _connected = (name: name, summary: summary));
   }
 
   Future<void> _sendRequest(ProfileSearchResult result) async {
@@ -127,8 +130,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
     final uid = ref.watch(currentUserIdProvider) ?? '';
     final friendshipsAsync = ref.watch(friendshipsProvider);
     final friendships = friendshipsAsync.valueOrNull ?? [];
@@ -137,45 +143,75 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     final outgoing = friendships.where((f) => f.isOutgoingFor(uid)).toList();
     final accepted = friendships.where((f) => f.isAccepted).toList();
     final names = ref.watch(buddyNamesViewProvider);
+    // „n gemeinsam" aus dem, was ohnehin geladen ist (Konzept 12: nur
+    // zählen, was ich sehe). Ohne Trails steht die Zeile ohne Zahl da.
+    final shared = switch (ref.watch(trailsProvider).valueOrNull) {
+      final trails? => sharedTrailCounts(trails, uid),
+      null => null,
+    };
 
     final requestedIds = {
       for (final f in friendships) ...[f.requesterId, f.addresseeId]
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Buddys')),
+      appBar: AppBar(
+        toolbarHeight: 64,
+        title: Text('BUDDYS',
+            style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+        actions: [
+          IconButton(
+            onPressed: _invite,
+            icon: const Icon(Icons.share),
+            tooltip: 'Buddys zu TrailBuddy einladen',
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(friendshipsProvider),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            OutlinedButton.icon(
-              onPressed: _invite,
-              icon: const Icon(Icons.share),
-              label: const Text('Buddys zu TrailBuddy einladen'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              onSubmitted: (_) => _search(),
-              decoration: InputDecoration(
-                labelText: 'Buddy finden',
-                hintText: 'Benutzername oder genaue E-Mail',
-                border: const OutlineInputBorder(),
-                suffixIcon: _searching
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                      )
-                    : IconButton(
-                        onPressed: _search, icon: const Icon(Icons.search)),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onSubmitted: (_) => _search(),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      labelText: 'Buddy finden',
+                      hintText: 'Benutzername oder genaue E-Mail',
+                      filled: true,
+                      fillColor: palette.surface,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: palette.line),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox.square(
+                  dimension: 56,
+                  child: _searching
+                      ? const Center(
+                          child: SizedBox.square(
+                              dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                      : IconButton.outlined(
+                          onPressed: _search,
+                          icon: const Icon(Icons.search),
+                          tooltip: 'Suchen',
+                          style: IconButton.styleFrom(
+                            backgroundColor: palette.surface,
+                            side: BorderSide(color: palette.line),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                ),
+              ],
             ),
             if (_searched) ...[
               const SizedBox(height: 8),
@@ -187,108 +223,330 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               else
                 for (final result in _results)
                   ListTile(
-                    leading: LetterAvatar(name: result.username),
-                    title: Text(result.username),
+                    contentPadding: EdgeInsets.zero,
+                    leading: LetterAvatar(name: result.username, colorKey: result.id),
+                    title: Text(result.username,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
                     subtitle: result.displayName != null
                         ? Text(result.displayName!)
                         : null,
                     trailing: requestedIds.contains(result.id)
                         ? const Text('Verbunden')
-                        : FilledButton.tonal(
+                        : FilledButton(
                             onPressed: () => _sendRequest(result),
                             child: const Text('Anfragen'),
                           ),
                   ),
             ],
-            if (incoming.isNotEmpty) ...[
+            if (_connected case final c?) ...[
               const SizedBox(height: 16),
-              Text('Anfragen an dich',
-                  style: Theme.of(context).textTheme.titleMedium),
+              _ConnectedCard(
+                name: c.name,
+                summary: c.summary,
+                onClose: () => setState(() => _connected = null),
+              ),
+            ],
+            if (incoming.isNotEmpty) ...[
+              _SectionLabel('ANFRAGEN AN DICH · ${incoming.length}'),
               for (final f in incoming)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: LetterAvatar(name: f.otherUsername(uid)),
-                  title: Text(f.otherUsername(uid)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: () => _accept(f),
-                        icon: Icon(Icons.check_circle,
-                            color: AppPalette.of(context).map.mine),
-                        tooltip: 'Annehmen',
-                      ),
-                      IconButton(
-                        onPressed: () =>
-                            ref.read(friendshipsProvider.notifier).remove(f.id),
-                        icon: const Icon(Icons.cancel_outlined),
-                        tooltip: 'Ablehnen',
-                      ),
-                    ],
+                _RequestCard(
+                  name: f.otherUsername(uid),
+                  colorKey: f.otherId(uid),
+                  primary: FilledButton(
+                    onPressed: () => _accept(f),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Annehmen'),
+                  ),
+                  cancel: _SquareIconButton(
+                    onPressed: () => ref.read(friendshipsProvider.notifier).remove(f.id),
+                    icon: Icons.close,
+                    tooltip: 'Ablehnen',
                   ),
                 ),
             ],
             if (outgoing.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text('Gesendete Anfragen',
-                  style: Theme.of(context).textTheme.titleMedium),
+              _SectionLabel('GESENDETE ANFRAGEN · ${outgoing.length}'),
               for (final f in outgoing)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: LetterAvatar(name: f.otherUsername(uid)),
-                  title: Text(f.otherUsername(uid)),
-                  subtitle: const Text('Ausstehend'),
-                  trailing: IconButton(
-                    onPressed: () =>
-                        ref.read(friendshipsProvider.notifier).remove(f.id),
-                    icon: const Icon(Icons.cancel_outlined),
+                _RequestCard(
+                  name: f.otherUsername(uid),
+                  colorKey: f.otherId(uid),
+                  subtitle: 'Ausstehend',
+                  cancel: _SquareIconButton(
+                    onPressed: () => ref.read(friendshipsProvider.notifier).remove(f.id),
+                    icon: Icons.close,
                     tooltip: 'Zurückziehen',
                   ),
                 ),
             ],
-            const SizedBox(height: 16),
-            Text('Meine Buddys',
-                style: Theme.of(context).textTheme.titleMedium),
+            _SectionLabel(accepted.isEmpty ? 'MEINE BUDDYS' : 'MEINE BUDDYS · ${accepted.length}'),
             if (friendshipsAsync.isLoading && friendships.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (accepted.isEmpty)
+            else if (accepted.isEmpty) ...[
               const Padding(
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.symmetric(vertical: 8),
                 child: Text('Noch keine Buddys verbunden. Suche oben nach '
                     'Benutzername oder E-Mail!'),
-              )
-            else
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _invite,
+                icon: const Icon(Icons.share),
+                label: const Text('Buddys zu TrailBuddy einladen'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              ),
+            ] else
               for (final f in accepted)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: LetterAvatar(name: f.otherUsername(uid)),
-                  // Mit Alias steht er oben und der Name darunter — genau
-                  // dafür ist er da: wissen, wer „klabuster 2" eigentlich
-                  // ist.
-                  title: Text(names.of(f.otherId(uid), f.otherUsername(uid))),
-                  subtitle: names.aliasOf(f.otherId(uid)) == null
-                      ? null
-                      : Text(f.otherUsername(uid)),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AliasButton(
-                          friendId: f.otherId(uid),
-                          username: f.otherUsername(uid)),
-                      IconButton(
-                        onPressed: () => _confirmRemove(
-                            f, names.of(f.otherId(uid), f.otherUsername(uid))),
-                        icon: const Icon(Icons.person_remove_outlined),
-                        tooltip: 'Buddy entfernen',
-                      ),
-                    ],
-                  ),
+                _BuddyRow(
+                  id: f.otherId(uid),
+                  username: f.otherUsername(uid),
+                  alias: names.aliasOf(f.otherId(uid)),
+                  shared: shared?[f.otherId(uid)] ?? (shared == null ? null : 0),
+                  onRemove: () => _confirmRemove(f, names.of(f.otherId(uid), f.otherUsername(uid))),
                 ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Abschnitt in Versalien mit Anzahl („ANFRAGEN AN DICH · 1").
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 24, bottom: 8),
+        child: Text(text,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+                color: AppPalette.of(context).muted)),
+      );
+}
+
+/// „MIT JAN VERBUNDEN" mit drei Zahlen (Design 1k). Für den
+/// Bildschirmleser der ganze Satz — dieselbe Aussage, die bis 0.39.0 in
+/// der Leiste stand.
+class _ConnectedCard extends StatelessWidget {
+  const _ConnectedCard({required this.name, required this.summary, required this.onClose});
+
+  final String name;
+  final ConnectSummary summary;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    Widget number(int n, String label, Color color) => Expanded(
+          child: Column(
+            children: [
+              Text('$n',
+                  style: AppFonts.numbers(theme.textTheme.headlineSmall).copyWith(color: color)),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(color: palette.muted)),
+            ],
+          ),
+        );
+    return Container(
+      key: const ValueKey('connect-summary'),
+      padding: const EdgeInsets.fromLTRB(16, 8, 4, 16),
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: palette.brandMark, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('MIT ${name.toUpperCase()} VERBUNDEN',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontFamily: AppFonts.display,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                        color: palette.accentText)),
+              ),
+              IconButton(
+                onPressed: onClose,
+                icon: const Icon(Icons.close, size: 20),
+                tooltip: 'Schließen',
+              ),
+            ],
+          ),
+          Semantics(
+            label: summary.sentence(name),
+            excludeSemantics: true,
+            child: summary.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Text(summary.sentence(name),
+                        style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted)),
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      number(summary.shared, 'gemeinsam', palette.text),
+                      number(summary.newFromBuddy, 'neu von $name', palette.buddyText),
+                      number(summary.newForBuddy, 'neu für $name', palette.accentText),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Eine Anfrage als Karte: Avatar, Name, rechts die Knöpfe.
+class _RequestCard extends StatelessWidget {
+  const _RequestCard({
+    required this.name,
+    required this.colorKey,
+    required this.cancel,
+    this.primary,
+    this.subtitle,
+  });
+
+  final String name;
+  final String colorKey;
+  final Widget cancel;
+  final Widget? primary;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: palette.line),
+        ),
+        child: Row(
+          children: [
+            LetterAvatar(name: name, colorKey: colorKey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  if (subtitle != null)
+                    Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: palette.muted)),
+                ],
+              ),
+            ),
+            if (primary != null) ...[primary!, const SizedBox(width: 8)],
+            cancel,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Quadratischer Randknopf, 44 dp (Handschuh).
+class _SquareIconButton extends StatelessWidget {
+  const _SquareIconButton({required this.onPressed, required this.icon, required this.tooltip});
+
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    return IconButton.outlined(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        fixedSize: const Size.square(44),
+        minimumSize: const Size.square(44),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        foregroundColor: palette.text,
+        side: BorderSide(color: palette.line),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+}
+
+/// Ein Buddy: oben Alias oder Name, darunter „14 gemeinsam" und — mit
+/// Alias — der Name. Rechts Alias und Entfernen; einen Chevron wie im
+/// Entwurf gibt es nicht, weil es (noch) keine Seite je Buddy gibt.
+class _BuddyRow extends StatelessWidget {
+  const _BuddyRow({
+    required this.id,
+    required this.username,
+    required this.alias,
+    required this.shared,
+    required this.onRemove,
+  });
+
+  final String id;
+  final String username;
+  final String? alias;
+  final int? shared;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(color: palette.muted);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          LetterAvatar(name: alias ?? username, colorKey: id, size: 44),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Mit Alias steht er oben und der Name darunter — genau
+                // dafür ist er da: wissen, wer „klabuster 2" eigentlich
+                // ist.
+                Text(alias ?? username,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Wrap(
+                  children: [
+                    if (alias != null) Text(username, style: muted),
+                    if (alias != null && shared != null) Text(' · ', style: muted),
+                    if (shared != null) Text('$shared gemeinsam', style: muted),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          AliasButton(friendId: id, username: username),
+          IconButton(
+            onPressed: onRemove,
+            icon: Icon(Icons.person_remove_outlined, color: palette.muted),
+            tooltip: 'Buddy entfernen',
+          ),
+        ],
       ),
     );
   }

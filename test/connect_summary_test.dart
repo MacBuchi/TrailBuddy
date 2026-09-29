@@ -58,4 +58,14 @@ void main() {
     expect(empty.isEmpty, isTrue);
     expect(empty.sentence('Jan'), contains('noch keine Trails'));
   });
+
+  test('„n gemeinsam" je Buddy: nur Trails, die ich auch belegt habe; wartende nicht', () {
+    final counts = sharedTrailCounts([
+      trail('a', ['me', 'jan', 'mira']),
+      trail('b', ['me', 'jan', 'jan']),
+      trail('c', ['jan']),
+      trail('d', ['me', 'mira'], pending: true),
+    ], 'me');
+    expect(counts, {'jan': 2, 'mira': 1});
+  });
 }

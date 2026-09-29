@@ -235,6 +235,17 @@ Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
 - **Buddys (1k):** Nach dem Annehmen eine Karte „Mit Jan verbunden" mit
   drei Zahlen (gemeinsam / neu von / neu für) statt einer Leiste;
   Avatare als abgerundetes Quadrat (12 px).
+  Gebaut in 0.40.0 (`friends_screen.dart`) mit vier Abweichungen: Die
+  Karte bleibt, bis man sie schließt (eine Leiste war nach acht Sekunden
+  weg). „vor 2 Stunden" an der Anfrage fehlt — die App kennt den
+  Zeitpunkt einer Anfrage nicht. Statt des Chevrons stehen rechts Alias
+  und Entfernen: Eine Seite je Buddy gibt es nicht, ein Pfeil ins Leere
+  wäre eine falsche Zusage. Das Einladen, im Entwurf nicht zu sehen,
+  steht oben rechts (ohne Buddys zusätzlich als Knopf in der Liste).
+  „n gemeinsam" zählt dieselben Trails wie „gemeinsam" in der Karte
+  (`sharedTrailCounts`). Die Avatarflächen (`AppColors.avatarFills`:
+  Blau, Gelb, Pink, Lila, fest je Nutzer-id) tragen dunkle Schrift in
+  beiden Modi; Lime bleibt dem eigenen Avatar, denn Lime heißt „mein".
 - **Profil (1l):** Kopf mit Avatar und drei Zahlen, darunter Zeilen mit
   Wert rechts (Benachrichtigungen, Erscheinungsbild …).
 
@@ -266,6 +277,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 4 | Offline-Kacheln: eine Regel (Turn 2) | 0.31.0 |
 | 5a | Trail-Liste (1j, 4e ohne Schild) | 0.38.0 |
 | 5b | Trail-Blatt (1i, 4f ohne Schild) | 0.39.0 |
-| 5c | Buddys und Profil (1k, 1l) | |
+| 5c | Buddys (1k) | 0.40.0 |
+| 5d | Profil (1l) | |
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
 | 7 | Animationen (Turn 1p–1t) | |

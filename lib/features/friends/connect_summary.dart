@@ -63,3 +63,18 @@ ConnectSummary summarizeConnection({
   }
   return ConnectSummary(shared: shared, newFromBuddy: fromBuddy, newForBuddy: forBuddy);
 }
+
+/// „14 gemeinsam" je Buddy (Design 1k): Trails, die ich UND er belegt
+/// haben — dieselbe Regel wie [ConnectSummary.shared], gezählt aus dem,
+/// was ich ohnehin sehe. Wartende zählen nicht, sie haben noch keinen
+/// Trail.
+Map<String, int> sharedTrailCounts(List<Trail> trails, String myId) {
+  final counts = <String, int>{};
+  for (final t in trails) {
+    if (t.pending || !t.recordings.any((r) => r.userId == myId)) continue;
+    for (final u in {for (final r in t.recordings) r.userId}) {
+      if (u != myId) counts[u] = (counts[u] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
