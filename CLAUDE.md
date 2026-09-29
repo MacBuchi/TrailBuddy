@@ -276,8 +276,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `palette.grade`. `docs/design/README.md` Abschnitt 1–2 und 7.
 - **Glatte Linien und Namen am Trail** (seit 0.44.0, Betreiber
   2026-09-29): Die Trail-Linien werden fürs BILD mit Chaikin geglättet
-  (`line_smoothing.dart`, drei Durchgänge, Anfang und Ende fest, einmal je
-  Trail im Karten-Screen gemerkt); Abgleich, Länge, Höhen, Deckung und
+  (`line_smoothing.dart`, drei Durchgänge, NUR an Ecken ab 12° und
+  Abschnitten ab 2 m, Anfang und Ende fest, einmal je Trail im
+  Karten-Screen gemerkt); Abgleich, Länge, Höhen, Deckung und
   Zerlegung rechnen weiter mit den Originalpunkten, die Trefferprüfung
   mit der geglätteten Linie. MapLibre zeichnet Linien mit runden Ecken
   (`RoundPolylineLayer` — das Paket setzt kein `line-join`, spitz auf
@@ -289,6 +290,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   diese Ebene nicht; der falsche Name lässt den Text still weg, ein Test
   prüft den Ordner). flutter_map kann keinen Text auf einem Pfad: einmal
   in der Mitte, gedreht, nie kopfüber (`lineLabelAnchor`).
+  **Flüssig bleibt es, weil nichts unnötig übertragen wird** (gemessen
+  2026-09-29, 200 Trails à 2 km): Das Glätten sind wenige ms einmal je
+  Laden; teuer war die Übertragung an MapLibre (GeoJSON-Text, 30–60 ms auf
+  dem Rechner), und die lief bei JEDEM Neuaufbau des Karten-Screens —
+  jede Positionsmeldung, jeder Kamera-Stillstand. `MapLibreLineCache`
+  gibt für eine unveränderte Gruppe (Stil, DIESELBEN Punktlisten, Namen)
+  die alten Ebenen-Objekte zurück, das Paket überträgt dann nichts
+  (0,2 ms). Die Glättung nur an Ecken hält die Punkte beim 2,5-Fachen
+  statt beim 7,7-Fachen. Wer die Punktlisten je Aufbau neu anlegt, hebt
+  den Cache aus — der Test in `trail_line_look_test.dart` hält es fest.
 - **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
   freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
   den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie

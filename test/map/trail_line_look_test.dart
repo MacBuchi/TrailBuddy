@@ -34,6 +34,12 @@ void main() {
       expect(nearest, lessThan(seg / 4));
     });
 
+    test('nur echte Ecken: ein leichter Knick bleibt ein Punkt (kostet sonst Übertragung)', () {
+      // ~5° Knick über 100-m-Abschnitte.
+      const slight = [LatLng(48, 9), LatLng(48.0009, 9), LatLng(48.0018, 9.00011)];
+      expect(chaikinSmooth(slight), slight);
+    });
+
     test('eine Gerade bleibt gerade, zwei Punkte bleiben zwei', () {
       final line = [const LatLng(48, 9), const LatLng(48.001, 9), const LatLng(48.002, 9)];
       expect(chaikinSmooth(line).every((p) => p.longitude == 9), isTrue);
@@ -57,6 +63,28 @@ void main() {
         expect(a, inInclusiveRange(-math.pi / 2, math.pi / 2));
       }
     });
+  });
+
+  test('MapLibre: ein Neuaufbau mit denselben Linien überträgt nichts neu', () {
+    final pts = [const LatLng(48, 9), const LatLng(48.01, 9)];
+    final other = [const LatLng(48, 9.1), const LatLng(48.01, 9.1)];
+    List<MapViewPolyline> build(List<LatLng> b) => [
+          MapViewPolyline(points: pts, color: const Color(0xFF1F6FD1), label: 'A'),
+          MapViewPolyline(points: b, color: const Color(0xFFC62828), label: 'B'),
+        ];
+    final cache = MapLibreLineCache();
+    final first = mapLibrePolylineLayers(build(other), cache);
+    // Neue Polyline-Objekte wie bei jedem Aufbau des Screens, dieselben Punktlisten.
+    final again = mapLibrePolylineLayers(build(other), cache);
+    for (var i = 0; i < first.length; i++) {
+      expect(identical(again[i], first[i]), isTrue, reason: 'Ebene $i');
+      expect(again[i] == first[i], isTrue, reason: 'MapLibre vergleicht mit ==');
+    }
+    // Ändert sich eine Linie, wird genau ihre Gruppe (und die Namen) neu gebaut.
+    final changed = mapLibrePolylineLayers(build([...other]), cache);
+    expect(identical(changed.first, first.first), isTrue, reason: 'blaue Gruppe unverändert');
+    expect(identical(changed[1], first[1]), isFalse, reason: 'rote Gruppe hat eine neue Liste');
+    expect(identical(changed.last, first.last), isFalse, reason: 'die Namen tragen die neue Linie');
   });
 
   test('MapLibre: runde Ecken, Namen als Symbol-Ebene entlang der Linie, darüber, ab Zoom 14', () {

@@ -53,6 +53,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     implements MapViewCameraDelegate {
   ml.MapController? _ml;
 
+  /// Unveränderte Linien behalten ihre Ebenen-OBJEKTE — MapLibre überträgt
+  /// dann nichts neu (siehe [MapLibreLineCache]).
+  final _lineCache = MapLibreLineCache();
+
   /// Kamerawunsch aus der Zeit zwischen Einbau und Map-Ready (z. B. der
   /// Zoom auf das Netz beim Start): wird bei `onMapCreated` nachgeholt,
   /// statt still verloren zu gehen.
@@ -175,43 +179,57 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Die Linien nach Stil gruppiert, in der Reihenfolge des ersten
   /// Auftretens — MapLibre trägt Farbe, Breite und Strich am LAYER. Ein
   /// Rand wird zu einer breiteren Ebene DARUNTER in der Randfarbe.
-  static List<ml.Layer> polylineLayers(List<MapViewPolyline> lines) {
+  static List<ml.Layer> polylineLayers(List<MapViewPolyline> lines, [MapLibreLineCache? cache]) {
     final groups = <String, List<MapViewPolyline>>{};
     for (final line in lines) {
       if (line.points.length < 2) continue;
       (groups[line.styleKey] ??= []).add(line);
     }
     final out = <ml.Layer>[];
-    for (final group in groups.values) {
-      final style = group.first;
-      final features = [
-        for (final line in group)
-          ml.Feature(
-            // `build` nimmt eine flache Kette lon,lat,lon,lat…
-            geometry: ml.LineString.build([
-              for (final p in line.points) ...[p.longitude, p.latitude],
-            ]),
-          ),
-      ];
-      final width = math.max(1, style.width.round());
-      if (style.borderColor != null && style.borderWidth > 0) {
-        out.add(RoundPolylineLayer(
-          polylines: features,
-          color: style.borderColor!,
-          width: width + (2 * style.borderWidth).round(),
-        ));
-      }
-      out.add(RoundPolylineLayer(
-        polylines: features,
-        color: style.color,
-        width: width,
-        dashArray: style.dash == null ? null : dashArrayFor(style.dash!, style.width),
-      ));
+    for (final entry in groups.entries) {
+      out.addAll(cache?.lookup('line:${entry.key}', entry.value) ??
+          cache?.store('line:${entry.key}', entry.value, _groupLayers(entry.value)) ??
+          _groupLayers(entry.value));
     }
     // Die Namen zuletzt: über allen Linien.
     final labelled = [for (final l in lines) if (l.label != null && l.points.length >= 2) l];
     if (labelled.isNotEmpty) {
-      out.add(LineLabelLayer(features: [
+      out.addAll(cache?.lookup('labels', labelled) ??
+          cache?.store('labels', labelled, [_labelLayer(labelled)]) ??
+          [_labelLayer(labelled)]);
+    }
+    return out;
+  }
+
+  static List<ml.Layer> _groupLayers(List<MapViewPolyline> group) {
+    final style = group.first;
+    final features = [
+      for (final line in group)
+        ml.Feature(
+          // `build` nimmt eine flache Kette lon,lat,lon,lat…
+          geometry: ml.LineString.build([
+            for (final p in line.points) ...[p.longitude, p.latitude],
+          ]),
+        ),
+    ];
+    final width = math.max(1, style.width.round());
+    return [
+      if (style.borderColor != null && style.borderWidth > 0)
+        RoundPolylineLayer(
+          polylines: features,
+          color: style.borderColor!,
+          width: width + (2 * style.borderWidth).round(),
+        ),
+      RoundPolylineLayer(
+        polylines: features,
+        color: style.color,
+        width: width,
+        dashArray: style.dash == null ? null : dashArrayFor(style.dash!, style.width),
+      ),
+    ];
+  }
+
+  static ml.Layer _labelLayer(List<MapViewPolyline> labelled) => LineLabelLayer(features: [
         for (final l in labelled)
           ml.Feature(
             geometry: ml.LineString.build([
@@ -219,10 +237,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             ]),
             properties: {'label': l.label!},
           ),
-      ]));
-    }
-    return out;
-  }
+      ]);
 
   @override
   void initState() {
@@ -382,7 +397,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             outlineColor: c.borderColor ?? c.fillColor,
           ),
         ],
-        ...polylineLayers(layers.polylines),
+        ...polylineLayers(layers.polylines, _lineCache),
       ],
       children: [
         // Maßstab und Quellenhinweis (ODbL-Pflicht) unten links, wie bei
@@ -414,8 +429,44 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
 /// Die Linien-Ebenen, wie die Engine sie baut — für Tests erreichbar
 /// (die Platform-View selbst ist im Widget-Test nicht renderbar).
 @visibleForTesting
-List<ml.Layer> mapLibrePolylineLayers(List<MapViewPolyline> lines) =>
-    _MapLibreMapViewState.polylineLayers(lines);
+List<ml.Layer> mapLibrePolylineLayers(List<MapViewPolyline> lines, [MapLibreLineCache? cache]) =>
+    _MapLibreMapViewState.polylineLayers(lines, cache);
+
+/// Merkt sich die Ebenen des letzten Aufbaus je Gruppe. Gemessen (200
+/// Trails, 2026-09-29): Jede Übertragung an MapLibre baut den ganzen
+/// GeoJSON-Text neu, 30–60 ms schon auf dem Rechner — und der Karten-Screen
+/// baut bei JEDER Positionsmeldung und jedem Kamera-Stillstand neu. Das
+/// Paket überträgt eine Ebene nur, wenn sie ungleich der vorigen ist, und
+/// „gleich" heißt dort: DIESELBE Punktliste. Deshalb: Sind Stil, Punkte
+/// (dieselbe Liste — der Screen merkt sich die geglätteten je Trail),
+/// Name und Reihenfolge einer Gruppe unverändert, kommen die alten
+/// Ebenen-Objekte zurück, und es wird nichts übertragen.
+class MapLibreLineCache {
+  final _last = <String, (List<Object?>, List<ml.Layer>)>{};
+
+  static List<Object?> _signature(List<MapViewPolyline> group) => [
+        for (final l in group) ...[l.points, l.label],
+      ];
+
+  static bool _same(List<Object?> a, List<Object?> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i]) && a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// Die Ebenen vom letzten Mal, wenn die Gruppe sich nicht geändert hat.
+  List<ml.Layer>? lookup(String key, List<MapViewPolyline> group) {
+    final hit = _last[key];
+    return hit != null && _same(hit.$1, _signature(group)) ? hit.$2 : null;
+  }
+
+  List<ml.Layer> store(String key, List<MapViewPolyline> group, List<ml.Layer> layers) {
+    _last[key] = (_signature(group), layers);
+    return layers;
+  }
+}
 
 /// Eine Linie mit runden Ecken und Enden. Das Paket setzt kein Layout, und
 /// MapLibre zeichnet ohne `line-join` spitz auf Gehrung — jede Kehre sah
