@@ -1,0 +1,165 @@
+// Suchen, Filtern, Sortieren der Trail-Liste (#66), pur.
+import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:trailbuddy/core/search_text.dart';
+import 'package:trailbuddy/features/trails/trail_list.dart';
+import 'package:trailbuddy/features/trails/trail_geometry.dart';
+import 'package:trailbuddy/models/trail.dart';
+
+TrailRecording rec(String trail, String user, {int day = 1, double lengthM = 1000, List<double>? ele}) =>
+    TrailRecording(
+      id: '$trail-$user-$day',
+      trailId: trail,
+      userId: user,
+      source: RecordingSource.import,
+      recordedAt: null,
+      reversed: false,
+      quality: 0.5,
+      createdAt: DateTime(2026, 9, day),
+      points: ele == null
+          ? const [LatLng(48, 9), LatLng(48.01, 9)]
+          : [for (var i = 0; i < ele.length; i++) LatLng(48 + i * 0.001, 9)],
+      lengthM: lengthM,
+      ele: ele,
+    );
+
+/// Ein Trail mit einem Beleg und einem Beitrag von [user].
+Trail trail(String id, String name,
+        {String user = 'me', String? username, int? grade, int day = 1, double lengthM = 1000,
+        TrailStatus status = TrailStatus.open, List<double>? ele, List<TrailNote> notes = const []}) =>
+    Trail(
+      id: id,
+      myId: 'me',
+      recordings: [rec(id, user, day: day, lengthM: lengthM, ele: ele)],
+      details: [
+        TrailDetails(trailId: id, userId: user, username: username, name: name, grade: grade, status: status),
+      ],
+      notes: notes,
+    );
+
+List<String> names(TrailListResult r) => [for (final t in r.trails) t.displayName];
+
+void main() {
+  group('Falten (PilzBuddy #395)', () {
+    test('Umlaut, ae/oe/ue, ß, Leer- und Satzzeichen führen auf denselben Schlüssel', () {
+      expect(foldSearchText('Roßkopf Süd'), 'roskopfsud');
+      expect(foldSearchText('Rosskopf-Sued'), 'roskopfsud');
+      expect(foldSearchText('ROSSKOPF sud!'), 'roskopfsud');
+    });
+
+    test('Tippfehler: Abstand zu einem Teilstück, nicht zum ganzen Wort', () {
+      expect(nearContainsDistance('roskopf', 'roskopfsudtrail'), 0);
+      expect(nearContainsDistance(foldSearchText('Rosskopf'), foldSearchText('Roßkopf Süd')), 0);
+      expect(nearContainsDistance('rokopf', 'roskopfsud'), 1);
+      expect(searchTypoTolerance(3), -1, reason: 'unter vier Zeichen wird nicht geraten');
+      expect(searchTypoTolerance(5), 1);
+      expect(searchTypoTolerance(9), 2);
+    });
+  });
+
+  group('Suche', () {
+    final list = [
+      trail('a', 'Roßkopf Süd', day: 3),
+      trail('b', 'Hexentanz', user: 'jan', username: 'jan_mtb', day: 5),
+      trail('c', 'Kandel Freeride', day: 1),
+    ];
+
+    test('Teiltreffer über den gefalteten Namen und über den Buddy', () {
+      expect(names(trailListOf(list, query: 'rosskopf sued')), ['Roßkopf Süd']);
+      expect(names(trailListOf(list, query: 'jan')), ['Hexentanz'], reason: 'gesucht wird auch nach dem Buddy');
+      expect(trailListOf(list, query: 'kandel').isGuess, isFalse);
+    });
+
+    test('leere Suche zeigt alles', () {
+      expect(trailListOf(list).trails, hasLength(3));
+      expect(trailListOf(list, query: '  - ').trails, hasLength(3));
+    });
+
+    test('kein Teiltreffer ⇒ geraten, nur der nächste, und die Oberfläche erfährt es', () {
+      final r = trailListOf(list, query: 'Hexntanz');
+      expect(names(r), ['Hexentanz']);
+      expect(r.isGuess, isTrue);
+      final none = trailListOf(list, query: 'xyzzyqq');
+      expect(none.trails, isEmpty);
+      expect(none.isGuess, isTrue);
+      expect(trailListOf(list, query: 'hxt').trails, isEmpty, reason: 'zu kurz zum Raten');
+    });
+
+    test('Hinweistexte sind kein Suchtext', () {
+      final withNote = trail('n', 'Roots', notes: [
+        TrailNote(id: 'n1', trailId: 'n', userId: 'jan', body: 'Baum liegt quer', createdAt: DateTime(2026, 9, 1)),
+      ]);
+      expect(trailListOf([withNote], query: 'Baum').isGuess, isTrue);
+    });
+  });
+
+  group('Filter', () {
+    final now = DateTime(2026, 9, 20);
+    final list = [
+      trail('m', 'Mein Flow', grade: 1),
+      trail('b', 'Buddy Steil', user: 'jan', grade: 4),
+      trail('u', 'Ungeschätzt'),
+      trail('r', 'Gesperrt', user: 'jan', grade: 2, status: TrailStatus.closed),
+      trail('h', 'Mit Hinweis', user: 'jan', grade: 0, notes: [
+        TrailNote(id: 'h1', trailId: 'h', userId: 'jan', body: 'x', createdAt: DateTime(2026, 9, 19)),
+      ]),
+    ];
+
+    test('Meine / Von Buddys', () {
+      expect(names(trailListOf(list, filter: const TrailListFilter(owner: TrailOwnerFilter.mine))),
+          unorderedEquals(['Mein Flow', 'Ungeschätzt']));
+      expect(trailListOf(list, filter: const TrailListFilter(owner: TrailOwnerFilter.buddies)).trails, hasLength(3));
+    });
+
+    test('bis S2: ohne Einschätzung NICHT dabei — und gezählt', () {
+      final r = trailListOf(list, filter: const TrailListFilter(easyOnly: true), sort: TrailSort.name);
+      expect(names(r), ['Gesperrt', 'Mein Flow', 'Mit Hinweis']);
+      expect(r.hiddenUngraded, 1);
+    });
+
+    test('neuer Hinweis und gemeldet', () {
+      expect(names(trailListOf(list, filter: const TrailListFilter(freshNotesOnly: true), now: now)),
+          ['Mit Hinweis']);
+      expect(trailListOf(list,
+              filter: const TrailListFilter(freshNotesOnly: true), now: now, seenNotes: {'h1'}).trails,
+          isEmpty, reason: 'gesehen ist nicht mehr neu');
+      expect(names(trailListOf(list, filter: const TrailListFilter(reportedOnly: true))), ['Gesperrt']);
+    });
+
+    test('geraten wird nur unter dem, was die Filter übrig lassen', () {
+      final r = trailListOf(list, query: 'Buddy Stel', filter: const TrailListFilter(owner: TrailOwnerFilter.mine));
+      expect(r.trails, isEmpty);
+    });
+
+    test('isActive', () {
+      expect(const TrailListFilter().isActive, isFalse);
+      expect(const TrailListFilter(easyOnly: true).isActive, isTrue);
+    });
+  });
+
+  group('Sortierung', () {
+    final list = [
+      trail('a', 'Alpha', day: 2, lengthM: 800, grade: 3, ele: [900, 800]),
+      trail('b', 'beta', day: 9, lengthM: 2500, ele: [1000, 700]),
+      trail('c', 'Gamma', day: 5, lengthM: 1200, grade: 1),
+    ];
+
+    test('zuletzt aktiv, Name (ohne Groß/Klein), Länge', () {
+      expect(names(trailListOf(list)), ['beta', 'Gamma', 'Alpha']);
+      expect(names(trailListOf(list, sort: TrailSort.name)), ['Alpha', 'beta', 'Gamma']);
+      expect(names(trailListOf(list, sort: TrailSort.length)), ['beta', 'Gamma', 'Alpha']);
+    });
+
+    test('Abfahrt und Schwierigkeit: fehlende Werte immer ans Ende', () {
+      expect(names(trailListOf(list, sort: TrailSort.descent)), ['beta', 'Alpha', 'Gamma']);
+      expect(names(trailListOf(list, sort: TrailSort.grade)), ['Gamma', 'Alpha', 'beta']);
+    });
+
+    test('ein neuer Hinweis macht einen Trail „zuletzt aktiv"', () {
+      final noted = trail('d', 'Delta', day: 1, notes: [
+        TrailNote(id: 'd1', trailId: 'd', userId: 'jan', body: 'x', createdAt: DateTime(2026, 9, 12)),
+      ]);
+      expect(names(trailListOf([...list, noted])).first, 'Delta');
+    });
+  });
+}
