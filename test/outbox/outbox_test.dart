@@ -27,7 +27,7 @@ void main() {
         userId: 'me',
         name: 'Roots',
         grade: 3,
-        kind: TrailKind.tech,
+        traits: const {TrailTrait.rocky, TrailTrait.steep},
         status: TrailStatus.closed,
         statusAt: at),
     note: 'Baum liegt quer',
@@ -46,7 +46,7 @@ void main() {
     final d = back[1] as DetailsJob;
     expect(d.details.trailId, 'trail-9');
     expect(d.details.grade, 3);
-    expect(d.details.kind, TrailKind.tech);
+    expect(d.details.traits, {TrailTrait.rocky, TrailTrait.steep});
     expect(d.details.status, TrailStatus.closed);
     expect(d.details.statusAt!.toUtc(), at);
     expect(d.note, 'Baum liegt quer');

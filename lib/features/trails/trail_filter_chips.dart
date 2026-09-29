@@ -8,6 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/trail.dart';
 import 'trail_list.dart';
 import 'trail_providers.dart';
+import 'trail_traits.dart';
+
+/// Die Merkmale mit eigenem Filter-Chip — die aus dem Design (4e); der
+/// Rest bleibt im Blatt sichtbar, filtert aber nicht, sonst wäre die
+/// Chip-Reihe länger als der Schirm.
+const kFilterTraits = [TrailTrait.flowy, TrailTrait.jumps];
 
 class TrailFilterChips extends ConsumerWidget {
   const TrailFilterChips({super.key, required this.showOwner, this.keyPrefix = 'trail'});
@@ -56,6 +62,16 @@ class TrailFilterChips extends ConsumerWidget {
               selected: filter.freshNotesOnly,
               onSelected: (v) => set(filter.copyWith(freshNotesOnly: v)),
             ),
+            // Der Charakter (#72): die beiden Chips aus dem Design (4e).
+            for (final t in kFilterTraits)
+              TrailTraitChip(
+                t,
+                key: ValueKey('$keyPrefix-filter-${t.db}'),
+                label: t == TrailTrait.jumps ? 'Jumps' : null,
+                selected: filter.traits.contains(t),
+                onSelected: (v) => set(filter.copyWith(
+                    traits: v ? {...filter.traits, t} : ({...filter.traits}..remove(t)))),
+              ),
             FilterChip(
               key: ValueKey('$keyPrefix-filter-reported'),
               label: const Text('Gemeldet'),

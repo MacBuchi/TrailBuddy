@@ -125,7 +125,10 @@ create table public.trail_details (
   name text,
   description text,
   grade smallint check (grade between 0 and 5),   -- Singletrail-Skala S0–S5
-  kind text check (kind in ('natural', 'flow', 'tech', 'jump', 'connection')),
+  -- Charakter (#72, Patch 009): Mehrfachwahl statt der früheren Einzelwahl
+  -- „Art“ (kind, bleibt für Clients bis 0.33.0 und wird später entfernt).
+  traits text[] not null default '{}'
+    check (traits <@ array['flowy', 'jumps', 'rocky', 'steep', 'uphill', 'natural', 'connection']),
   visibility text not null default 'buddies' check (visibility in ('buddies', 'private')),
   status text not null default 'open' check (status in ('open', 'closed', 'destroyed', 'changed')),
   status_at timestamptz,

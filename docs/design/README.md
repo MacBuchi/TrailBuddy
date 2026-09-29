@@ -159,13 +159,18 @@ Zoom 13), in Liste und Blatt neben dem Namen.
 vergeben; angezeigt die höchstens 2 häufigsten, als Symbol:
 Flowig (Wellen, Anlieger, Rhythmus), Jump-Line (Kicker, Drops, Tables),
 Verblockt (Steine, Wurzeln, Stufen), Steil (anhaltendes Gefälle), Uphill
-(Auffahrt, auch bergauf fahrbar).
+(Auffahrt, auch bergauf fahrbar). **Gebaut seit 0.34.0 (#72)** und um
+Naturtrail und Verbindung aus der früheren „Art" erweitert (Betreiber,
+2026-09-29: der Charakter ERSETZT die Art, sieben Merkmale): Auswahl als
+Chips im Beitrag, im Blatt „Flowig · 3", in der Liste als Symbole
+(`trail_traits.dart`, Symbole farblos). Offen: S-Grad als Form, die
+Pisten-Brille und der Charakter im Zerlege-Blatt.
 
 **Pisten-Brille** — Schalter unter Ebenen, „Farbe nach Schwierigkeit":
 S0 `#2E9E4F` · S1 `#1F6FD1` · S2 `#D6322F` · S3–S5 schwarz, S4+
 gestrichelt. Dann sagt die Breite die Beziehung: meiner 5, nur Buddy 3,5.
 
-Liste (4e): Filter-Chips „Alle", „bis S2", „Flowig", „Jumps" (Suche, „Alle/Meine/Von Buddys", „bis S2" und die Sortierung gibt es seit 0.32.0, #66 — `trail_list.dart`; der Filter gilt seit 0.33.0 auch auf der Karte, `TrailFilterChips` im Blatt „Ebenen"; „Flowig"/„Jumps" kommen mit dem Charakter); Zeile als
+Liste (4e): Filter-Chips „Alle", „bis S2", „Flowig", „Jumps" (Suche, „Alle/Meine/Von Buddys", „bis S2" und die Sortierung gibt es seit 0.32.0, #66 — `trail_list.dart`; der Filter gilt seit 0.33.0 auch auf der Karte, `TrailFilterChips` im Blatt „Ebenen"; „Flowig"/„Jumps" seit 0.34.0, #72 — sie filtern über die angezeigten zwei Merkmale, nicht über jede einzelne Nennung); Zeile als
 Karte mit Farbstreifen links, Zahlen in Mono, Schild und Symbole rechts.
 Blatt (4f): Name, „Du und 2 Buddys", Charakter-Chips mit Anzahl, drei
 Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
@@ -213,5 +218,5 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 3 | Hülle und Karte (Turn 3) | 0.30.0 |
 | 4 | Offline-Kacheln: eine Regel (Turn 2) | 0.31.0 |
 | 5 | Listen und Blätter (Turn 1g–1l, 4e/4f) | |
-| 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | |
+| 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72); Form und Pisten-Brille offen |
 | 7 | Animationen (Turn 1p–1t) | |

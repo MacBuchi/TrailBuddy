@@ -112,6 +112,10 @@ void main() {
     await pumpApp(tester, backend, trails: trails);
     await openTab(tester, 'Trails');
     await settle(tester, frames: 20);
+    // Quer liegen Suche und Filter-Chips über dem ersten Trail; die Liste
+    // scrollt, geprüft wird hier das Blatt.
+    await tester.ensureVisible(find.text('Kurzer'));
+    await settle(tester);
     await tester.tap(find.text('Kurzer'));
     await settle(tester);
     expect(tester.takeException(), isNull, reason: 'kein Überlauf');

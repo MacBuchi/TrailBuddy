@@ -241,7 +241,7 @@ check_get_protected "recordings_visible-Spalten (Aufzeichnungen)" \
 
 # trail_details: die Spalten des Beitrags (TrailRepository).
 check_get_protected "trail_details-Spalten (Beiträge)" \
-  "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,kind,visibility,status,status_at,created_at,updated_at&limit=1"
+  "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,traits,visibility,status,status_at,created_at,updated_at&limit=1"
 
 # trail_notes: Hinweise für Buddys (Patch 004), exakt die Query aus
 # TrailRepository.fetchNotes samt Embed über den Constraint-NAMEN.

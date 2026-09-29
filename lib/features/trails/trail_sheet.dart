@@ -16,6 +16,7 @@ import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_notes.dart';
 import 'trail_providers.dart';
+import 'trail_traits.dart';
 
 /// Das Blatt zu einem Trail: Name (und die anderen Namen), Länge, S-Grad,
 /// Status mit Alter, wer ihn belegt hat, Hinweise für Buddys und der
@@ -155,7 +156,17 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                     label: Text(gradeSummary(trail)!),
                     onPressed: () => showGradeVotesSheet(context, trail),
                   ),
-                if (mine?.kind != null) Chip(label: Text(mine!.kind!.label)),
+                // Der Charakter (#72): die höchstens zwei häufigsten, mit
+                // der Zahl der Beiträge, die ihn nennen.
+                for (final t in trail.topTraits)
+                  Tooltip(
+                    message: t.description,
+                    child: Chip(
+                      key: ValueKey('trait-chip-${t.db}'),
+                      avatar: Icon(t.icon, size: 18),
+                      label: Text('${t.label} · ${trail.traitCounts[t]}'),
+                    ),
+                  ),
                 if (trail.status.warns)
                   Chip(
                     avatar: const Icon(Icons.warning_amber, size: 18),

@@ -7,6 +7,7 @@ import '../../models/trail.dart';
 import 'singletrail_scale.dart';
 import 'trail_notes.dart';
 import 'trail_providers.dart';
+import 'trail_traits.dart';
 
 /// Der eigene Beitrag zu einem Trail: Name, Schwierigkeit, Art,
 /// Sichtbarkeit, Status. Nur für Trails, die man selbst belegt hat —
@@ -51,7 +52,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
       TextEditingController(text: widget.initial.description ?? '');
   final _note = TextEditingController();
   late int? _grade = widget.initial.grade;
-  late TrailKind? _kind = widget.initial.kind;
+  late final Set<TrailTrait> _traits = {...widget.initial.traits};
   late TrailVisibility _visibility = widget.initial.visibility;
   late TrailStatus _status = widget.initial.status;
 
@@ -104,15 +105,25 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               ],
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<TrailKind?>(
-              initialValue: _kind,
-              decoration: const InputDecoration(labelText: 'Art'),
-              items: [
-                const DropdownMenuItem<TrailKind?>(value: null, child: Text('Keine Angabe')),
-                for (final k in TrailKind.values)
-                  DropdownMenuItem<TrailKind?>(value: k, child: Text(k.label)),
+            // Der Charakter (#72): Mehrfachwahl statt der früheren „Art".
+            // Was jedes Merkmal heißt, steht direkt am Chip.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Charakter', style: Theme.of(context).textTheme.bodySmall),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final t in TrailTrait.values)
+                  TrailTraitChip(
+                    t,
+                    key: ValueKey('trait-${t.db}'),
+                    selected: _traits.contains(t),
+                    onSelected: (v) => setState(() => v ? _traits.add(t) : _traits.remove(t)),
+                  ),
               ],
-              onChanged: (v) => setState(() => _kind = v),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<TrailStatus>(
@@ -179,7 +190,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
                   ? null
                   : _description.text.trim(),
               grade: _grade,
-              kind: _kind,
+              traits: {..._traits},
               visibility: _visibility,
               status: _status,
               // Eine Statusmeldung trägt ihr Datum (Entscheidung 6); ein
