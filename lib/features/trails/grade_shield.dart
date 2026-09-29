@@ -4,10 +4,10 @@
 //
 //   S0 ○  S1 ●  S2 ■  S3 ◆  S4 ◆◆  S5 ◆◆▮
 //
-// Farblos, weil Farbe in TrailBuddy die Beziehung sagt (grün meiner,
-// blau Buddy); ein rotes S2 läse sich als „gemeldet". Das Schild steht in
-// der Gegenhelligkeit des Grunds — im Hellen dunkel mit heller Form, im
-// Dunklen umgekehrt —, damit es in beiden Modi dieselbe Kraft hat.
+// In der Pistenfarbe der Stufe (seit 0.42.0 trägt die Farbe überall die
+// Schwierigkeit, `GradePalette`): grün, blau, rot, ab S3 schwarz — im
+// Dunklen die helleren Töne, S3+ dann hell, sonst verschwände es. Die
+// Form sagt die Stufe trotzdem auch ohne Farbe.
 import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
@@ -27,7 +27,7 @@ class GradeShield extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final ink = palette.ground;
+    final ink = palette.grade.ink;
     final g = singletrailGrade(grade);
     return Semantics(
       label: 'Schwierigkeit ${g.label}: ${g.short}',
@@ -35,7 +35,7 @@ class GradeShield extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: fontSize * 0.55, vertical: fontSize * 0.2),
         decoration: BoxDecoration(
-          color: palette.text,
+          color: palette.grade.of(grade),
           borderRadius: BorderRadius.circular(fontSize * 0.5),
         ),
         child: Row(

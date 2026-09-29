@@ -42,6 +42,18 @@ void main() {
         }
       }
 
+      test('Schwierigkeitsfarben: Streifen auf Fläche und Grund ≥ 3:1, Schild-Schrift ≥ 4,5:1', () {
+        for (var g = 0; g <= 5; g++) {
+          final c = p.grade.of(g);
+          expect(contrast(c, p.surface), greaterThanOrEqualTo(3), reason: 'S$g');
+          expect(contrast(c, p.ground), greaterThanOrEqualTo(3), reason: 'S$g');
+          expect(contrast(p.grade.ink, c), greaterThanOrEqualTo(4.5), reason: 'S$g');
+        }
+        expect(contrast(p.grade.ungraded, p.surface), greaterThanOrEqualTo(3));
+        // Vier verschiedene Stufenfarben, sonst sagt die Farbe nichts.
+        expect({for (var g = 0; g <= 3; g++) p.grade.of(g)}, hasLength(4));
+      });
+
       test('Symbole in Beziehungsfarbe auf Fläche ≥ 3:1', () {
         for (final c in [p.map.mine, p.map.buddy, p.map.warning]) {
           expect(contrast(c, p.surface), greaterThanOrEqualTo(3), reason: '$c');
@@ -80,6 +92,11 @@ void main() {
   test('die Karte ist hell: ihre Linien haben einen weißen Saum', () {
     expect(AppColors.mapLines, same(MapPalette.light));
     expect(AppColors.mapLines.halo, Colors.white);
+    // Die Karte ist hell: dort gilt der helle Stufensatz, ≥ 3:1 auf dem Landton.
+    expect(AppColors.mapGrades, same(GradePalette.light));
+    for (var g = 0; g <= 5; g++) {
+      expect(contrast(AppColors.mapGrades.of(g), AppColors.mapBackground), greaterThanOrEqualTo(3), reason: 'S$g');
+    }
     expect(AppColors.mapLines.haloBorderWidth * 2, 4, reason: 'Breite + 4');
     expect(MapPalette.dark.haloBorderWidth, 0);
   });

@@ -195,7 +195,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Angezeigt die höchstens zwei häufigsten über alle sichtbaren Beiträge
   (`Trail.topTraits`, Gleichstand nach Reihenfolge von `TrailTrait`);
   Beschreibung und Symbol an EINER Stelle (`trail_traits.dart`, Symbole
-  farblos — die Farbe gehört der Beziehung). Die Filter „Flowig"/„Jumps"
+  farblos — die Farbe gehört der Schwierigkeit). Die Filter „Flowig"/„Jumps"
   prüfen die ANGEZEIGTEN zwei, nicht jede Nennung. Vier Dinge, die man
   wissen muss:
   - **`kind` bleibt vorerst stehen** (erweitern → ausliefern →
@@ -262,6 +262,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     den Trail-Linien (Fassade) und tragen nie eine der Trail-Farben; das
     Kuchenstück ist gezeichnet (`PoiGlyph`). Der Detailfilter
     (`Settings.poiHiddenKinds`) blendet nur aus, geladen wird je Gruppe.
+- **Farbe = Schwierigkeit** (seit 0.42.0, Betreiber 2026-09-29): Linie
+  auf der Karte, Streifen in der Liste und S-Grad-Schild tragen die
+  Pistenfarbe des Medians (`GradePalette`: S0 grün, S1 blau, S2 rot, ab
+  S3 schwarz — im Dunklen hell —, ohne Einschätzung grau; ab S4
+  gestrichelt auf der Karte). Wem ein Trail gehört, zeigt KEINE Farbe
+  mehr, nur das Wort. Gemeldet und neuer Hinweis liegen als Leuchtrand
+  um die Linie (gemeldet schlägt Hinweis), die Linie behält ihre Stufe.
+  Die Karte nimmt immer `AppColors.mapGrades` (hell), die App
+  `palette.grade`. `docs/design/README.md` Abschnitt 1–2 und 7.
 - **Hinweise für Buddys** (#7, Patch 004 + 005, `trail_notes.dart`):
   freier Text zu einem Trail („Baum liegt quer"). Schreiben darf, wer
   den Trail SIEHT (`app_internal.can_see_trail`, dieselbe Regel wie
@@ -274,7 +283,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Blatt zeigt von den alten nur den jüngsten (`Trail.notesShown`). Ein
   Hinweis eines Buddys jünger als `kFreshNoteDays` (7), der auf diesem
   Gerät noch nicht im Blatt zu sehen war (`Settings.seenNoteIds`), hebt
-  den Trail hervor — gelber Rand auf der Karte, getönte Zeile mit „neuer
+  den Trail hervor — gelber Rand auf der Karte, gelb umrandete Karte mit „neuer
   Hinweis" in der Liste; eigene zählen nie. Beim Ändern des Status
   bietet „Mein Beitrag" einen Hinweis an. Entscheidungen des Betreibers
   vom 2026-09-28; `matcher_check.sql` Block 20 prüft RLS und Aufräumen.
@@ -336,7 +345,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `positionFixProvider` — kein Systemdialog beim Start (Play: Prominent
   Disclosure). Nur Vordergrund (`ACCESS_FINE/COARSE_LOCATION`, kein
   Background); die Position verlässt das Gerät nicht. Punkt in
-  `MapPalette.ride` (nicht Blau — Blau heißt Buddy), Punkt und
+  `MapPalette.ride` (nicht Blau — Blau heißt S1), Punkt und
   Kreis fangen keine Tipps ab. Die Karte dreht sich nicht
   (`InteractiveFlag.rotate` aus). Der Harness hängt `fakePosition` /
   `FakePositionFix` ein.

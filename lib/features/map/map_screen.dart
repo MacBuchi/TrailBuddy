@@ -214,10 +214,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     super.dispose();
   }
 
-  Color _colorOf(Trail t) {
+  /// Die Linie trägt die Schwierigkeit (seit 0.42.0), nicht mehr die
+  /// Beziehung; eine Meldung liegt als Leuchtrand darum ([_borderOf]).
+  Color _colorOf(Trail t) => AppColors.mapGrades.of(t.grade);
+
+  /// Der Rand um die Linie sagt den Zustand: gemeldet orange (die
+  /// Warnung schlägt den Hinweis — meist kommt beides zusammen, und die
+  /// Liste nennt beide Wörter), neuer Hinweis eines Buddys gelb, sonst
+  /// der weiße Saum.
+  (Color, double) _borderOf(Trail t, Set<String> seenNotes) {
     const c = AppColors.mapLines;
-    if (t.status.warns) return c.warning;
-    return t.isOwn ? c.mine : c.buddy;
+    if (t.status.warns) return (c.warning, 4);
+    if (t.hasFreshNote(seen: seenNotes)) return (c.note, 4);
+    return (c.halo!, c.haloBorderWidth);
   }
 
   void _onCameraIdle(MapViewCamera camera) {
@@ -485,16 +494,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
             width: 4,
             // Wartet im Ausgangskorb (#30): gestrichelt, wie eine
-            // Zusage, die noch nicht eingelöst ist.
-            dash: t.pending ? const [12, 8] : null,
-            // Neuer Hinweis eines Buddys (#7): ein gelber Leuchtrand statt
-            // des weißen Saums, die Linie behält ihre Farbe.
-            borderColor: t.hasFreshNote(seen: seenNotes)
-                ? AppColors.mapLines.note
-                : AppColors.mapLines.halo,
-            borderWidth: t.hasFreshNote(seen: seenNotes)
-                ? 4
-                : AppColors.mapLines.haloBorderWidth,
+            // Zusage, die noch nicht eingelöst ist. Ab S4 gestrichelt wie
+            // eine Skiroute — schwarz allein unterschiede S3 nicht von S5.
+            dash: t.pending
+                ? const [12, 8]
+                : (t.grade ?? 0) >= 4
+                    ? const [14, 10]
+                    : null,
+            borderColor: _borderOf(t, seenNotes).$1,
+            borderWidth: _borderOf(t, seenNotes).$2,
             hitValue: t,
           ),
       ],

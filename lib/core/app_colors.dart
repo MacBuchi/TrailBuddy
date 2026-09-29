@@ -41,6 +41,10 @@ abstract final class AppColors {
   /// wählt man hier nach dessen Helligkeit.
   static const mapLines = MapPalette.light;
 
+  /// Die Schwierigkeitsfarben AUF DER KARTE — aus demselben Grund wie
+  /// [mapLines] immer der helle Satz.
+  static const mapGrades = GradePalette.light;
+
   static const dark = AppPalette(
     brightness: Brightness.dark,
     ground: Color(0xFF0E1411),
@@ -55,6 +59,7 @@ abstract final class AppColors {
     buddyText: Color(0xFF5AD0F0),
     noteText: Color(0xFFFFD23F),
     map: MapPalette.dark,
+    grade: GradePalette.dark,
   );
 
   static const light = AppPalette(
@@ -78,6 +83,7 @@ abstract final class AppColors {
     // Liste („NEUER HINWEIS") ein dunkles Senfgelb, ≥ 5,2:1.
     noteText: Color(0xFF7A5C00),
     map: MapPalette.light,
+    grade: GradePalette.light,
   );
 }
 
@@ -98,6 +104,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.buddyText,
     required this.noteText,
     required this.map,
+    required this.grade,
   });
 
   final Brightness brightness;
@@ -139,6 +146,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// auf den Flächen der App. Auf der Karte gilt [AppColors.mapLines].
   final MapPalette map;
 
+  /// Die Schwierigkeitsfarben dieses Modus — Streifen und Schild. Auf der
+  /// Karte gilt [AppColors.mapGrades].
+  final GradePalette grade;
+
   static AppPalette of(BuildContext context) =>
       Theme.of(context).extension<AppPalette>() ?? AppColors.light;
 
@@ -150,10 +161,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
       other == null || t < 0.5 ? this : other;
 }
 
-/// Die Farben der Trails. **Die Regel bleibt: Die Farbe sagt, was ICH
-/// mit dem Trail zu tun habe** — meiner, von einem Buddy, gemeldet. Was
-/// kein Trail des Netzes ist (offiziell, Kandidat, Fahrt), trägt keine
-/// dieser drei.
+/// Die übrigen Farben der Karte. Seit 0.42.0 trägt die LINIE eines
+/// Trails seine Schwierigkeit ([GradePalette], Betreiber 2026-09-29);
+/// [mine] und [buddy] sind keine Linienfarben mehr, sondern bleiben für
+/// Symbole und Vorschauen (Zerlege-Blatt: „bekannt"). [warning] und
+/// [note] liegen als Leuchtrand UM die Linie. Was kein Trail des Netzes
+/// ist (offiziell, Kandidat, Fahrt), trägt keine Schwierigkeitsfarbe.
 @immutable
 class MapPalette {
   const MapPalette({
@@ -224,5 +237,68 @@ class MapPalette {
     candidate: Color(0xFFD1336F),
     ride: Color(0xFF2A332E),
     halo: Color(0xFFFFFFFF),
+  );
+}
+
+
+/// Die Farbe eines Trails ist seine Schwierigkeit (Betreiber,
+/// 2026-09-29: „nicht nach Buddy / mein Trail, sondern nach den
+/// Schwierigkeitsstufen"). Pistenfarben wie im Skigebiet: S0 grün,
+/// S1 blau, S2 rot, ab S3 schwarz; ohne Einschätzung grau. Ob ein Trail
+/// meiner ist, sagt seither nur noch das Wort („MEIN", Namen).
+///
+/// Zwei Sätze, weil „schwarz" auf dunklem Grund verschwände: Im Dunklen
+/// sind die Farben heller und S3+ ist die Textfarbe. [ink] ist die
+/// Schrift auf der Farbe (das Schild), ≥ 4,5:1 auf jeder Stufe; jede
+/// Stufe hat ≥ 3:1 auf der Fläche (`test/core/app_theme_test.dart`).
+/// Die Töne des Entwurfs (#2E9E4F, #D6322F) sind dafür nachgedunkelt.
+@immutable
+class GradePalette {
+  const GradePalette({
+    required this.s0,
+    required this.s1,
+    required this.s2,
+    required this.s3,
+    required this.ungraded,
+    required this.ink,
+  });
+
+  final Color s0;
+  final Color s1;
+  final Color s2;
+
+  /// S3 bis S5 — ab S4 zusätzlich gestrichelt auf der Karte.
+  final Color s3;
+
+  /// Noch niemand hat den Trail eingeschätzt.
+  final Color ungraded;
+
+  /// Schrift und Form auf einer Stufenfarbe.
+  final Color ink;
+
+  Color of(int? grade) => switch (grade) {
+        null => ungraded,
+        0 => s0,
+        1 => s1,
+        2 => s2,
+        _ => s3,
+      };
+
+  static const light = GradePalette(
+    s0: Color(0xFF1F7A3A),
+    s1: Color(0xFF1F6FD1),
+    s2: Color(0xFFC62828),
+    s3: Color(0xFF131A16),
+    ungraded: Color(0xFF6B756F),
+    ink: Color(0xFFFFFFFF),
+  );
+
+  static const dark = GradePalette(
+    s0: Color(0xFF4CC46E),
+    s1: Color(0xFF5A9BF0),
+    s2: Color(0xFFF0605C),
+    s3: Color(0xFFF2F4EF),
+    ungraded: Color(0xFF9AA69D),
+    ink: Color(0xFF0E1411),
   );
 }

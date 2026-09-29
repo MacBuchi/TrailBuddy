@@ -300,13 +300,11 @@ class _TrailTile extends ConsumerWidget {
           TrailRowTagKind.mine => palette.accentText,
           TrailRowTagKind.buddy => palette.buddyText,
         };
-    // Der Streifen sagt die Beziehung; gemeldet schlägt sie (Orange), ein
-    // wartender Trail ist blass — er ist noch nicht auf dem Server.
-    final stripe = trail.pending
-        ? palette.muted
-        : trail.status.warns
-            ? palette.map.warning
-            : (trail.isOwn ? palette.map.mine : palette.map.buddy);
+    // Der Streifen sagt die Schwierigkeit wie die Linie auf der Karte
+    // (seit 0.42.0); wem der Trail gehört und ob er gemeldet ist, sagt
+    // das Wort darunter. Ein wartender Trail ist blass — er ist noch
+    // nicht auf dem Server.
+    final stripe = trail.pending ? palette.muted : palette.grade.of(trail.grade);
     final tagStyle = theme.textTheme.labelSmall?.copyWith(
         fontWeight: FontWeight.w700, letterSpacing: 0.8, fontSize: 11);
     return Card(
