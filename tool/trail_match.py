@@ -631,6 +631,18 @@ def self_test() -> int:
     # Frechet sanity
     expect(abs(frechet([(0, 0), (1, 0)], [(0, 1), (1, 1)]) - 1.0) < 1e-9, "frechet of parallel unit lines is 1")
 
+    # Simulation (#106): "same" is not transitive. X and Y overlap 900 m
+    # of 1000, Y and C 850 m, X and C only 750 m. Compared with the best
+    # recording alone (X, the older of equal quality), C starts a second
+    # trail; compared with every recording, it joins Y's trail.
+    sx = _synthetic(_line(1000), name="x", tid="S1")
+    sy = _synthetic(_line(1000, x0=100.0), name="y", tid="S2")
+    sc = _synthetic(_line(1000, x0=250.0), name="c", tid="S3")
+    expect(import_kind(sx) == "trail", f"a short downhill line is a trail, got {import_kind(sx)}")
+    one, every = simulate([sx, sy, sc], 1), simulate([sx, sy, sc], None)
+    expect((one.trails, one.attached) == (2, 1), f"best-1: 2 trails, 1 attached, got {one.trails}/{one.attached}")
+    expect((every.trails, every.attached) == (1, 2), f"all: 1 trail, 2 attached, got {every.trails}/{every.attached}")
+
     if fails:
         for f in fails:
             print("FAIL:", f, file=sys.stderr)
@@ -641,6 +653,105 @@ def self_test() -> int:
 
 # -------------------------------------------------------------------- main
 
+# -------------------------------------------------------------- simulate
+
+TRAIL_MAX_M = 8000.0       # import rule (concept 5.2): shorter and mostly
+                           # downhill is a trail, the rest is a ride
+QUALITY = {"app": 0.6, "import": 0.4, "planned": 0.1}
+
+
+def import_kind(tr: Track) -> str:
+    """The app's import rule (classifyTrack): fragment, trail or ride."""
+    if tr.length_m < MIN_TRAIL_M:
+        return "fragment"
+    if tr.length_m >= TRAIL_MAX_M:
+        return "ride"
+    if tr.gain_m == 0 and tr.loss_m == 0 and any(e is None for e in tr.ele):
+        return "trail"      # without elevation the length decides
+    return "trail" if tr.loss_m > 2 * tr.gain_m else "ride"
+
+
+@dataclass
+class SimResult:
+    reps: int | None       # representatives per trail; None = all
+    contributed: int
+    trails: int
+    attached: int
+    twin_events: int       # candidate "same" as two or more trails
+    twin_pairs: int        # distinct trail pairs seen as twins
+    name_groups: int       # names that occur on 2+ trail-like files
+    name_split: int        # of those: files that ended on another trail
+                           # than the first file of their name
+
+
+def simulate(tracks: list[Track], reps: int | None) -> SimResult:
+    """Contribute the trail-like files one after another, the way
+    contribute_recording does: compare against the best `reps`
+    recordings of every trail in reach (quality desc, older first),
+    attach on "same" to the trail with the highest two-sided coverage,
+    else a new trail. Order: first timestamp, files without one last.
+
+    Duplicates are measured by name: files with the same folded name are
+    meant as the same trail by the operator; each one that ends on a
+    different trail than the first of its name is a duplicate the
+    matcher did not see (an upper bound -- same names can be variants).
+    """
+    cands = [t for t in tracks if import_kind(t) == "trail"]
+    cands.sort(key=lambda t: (min((x for x in t.time if x is not None), default=None) is None,
+                              min((x for x in t.time if x is not None), default=datetime.max)
+                              if any(x is not None for x in t.time) else datetime.max, t.tid))
+    trails: list[list[Track]] = []      # recordings per trail, in contribution order
+    trail_of: dict[str, int] = {}
+    attached = twin_events = 0
+    twin_pairs: set[tuple[int, int]] = set()
+    for c in cands:
+        matches: dict[int, float] = {}
+        for i, recs in enumerate(trails):
+            ranked = sorted(recs, key=lambda r: -QUALITY[r.source])  # stable: older first
+            pool = ranked if reps is None else ranked[:reps]
+            best = -1.0
+            for r in pool:
+                res = compare(c, r)
+                if res is None:
+                    continue
+                if res.classify().startswith("same"):
+                    best = max(best, min(res.coverage(DEFAULT_D)))
+            if best >= 0:
+                matches[i] = best
+        if matches:
+            target = max(matches, key=lambda k: matches[k])
+            trails[target].append(c)
+            attached += 1
+            if len(matches) > 1:
+                twin_events += 1
+                ids = sorted(matches)
+                for x in range(len(ids)):
+                    for y in range(x + 1, len(ids)):
+                        twin_pairs.add((ids[x], ids[y]))
+        else:
+            target = len(trails)
+            trails.append([c])
+        trail_of[c.tid] = target
+    groups: dict[str, list[Track]] = {}
+    for c in cands:
+        groups.setdefault(name_key(c.name), []).append(c)
+    multi = [g for g in groups.values() if len(g) > 1]
+    split = sum(1 for g in multi for t in g[1:] if trail_of[t.tid] != trail_of[g[0].tid])
+    return SimResult(reps, len(cands), len(trails), attached, twin_events, len(twin_pairs),
+                     len(multi), split)
+
+
+def simulate_report(tracks: list[Track], reps_list: list[int | None]) -> str:
+    rows = [simulate(tracks, r) for r in reps_list]
+    out = ["| Vertreter je Trail | beigesteuert | Trails | angehängt | Zwillings-Ereignisse | "
+           "Zwillings-Paare | Namen mehrfach | davon auf anderem Trail |",
+           "|---|---|---|---|---|---|---|---|"]
+    for r in rows:
+        out.append(f"| {'alle' if r.reps is None else r.reps} | {r.contributed} | {r.trails} | "
+                   f"{r.attached} | {r.twin_events} | {r.twin_pairs} | {r.name_groups} | {r.name_split} |")
+    return "\n".join(out)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("path", nargs="?", default=os.environ.get("TRAIL_GPX"),
@@ -648,6 +759,10 @@ def main(argv=None) -> int:
     ap.add_argument("--report", help="write the aggregated markdown report here")
     ap.add_argument("--private-out", help="write the pair table WITH names here (never into the repo)")
     ap.add_argument("--self-test", action="store_true")
+    ap.add_argument("--simulate", metavar="N,N,…",
+                    help="contribute the trail-like files in order like contribute_recording, "
+                         "comparing against the best N recordings per trail ('all' = every one); "
+                         "prints an aggregated table")
     args = ap.parse_args(argv)
     if args.self_test:
         return self_test()
@@ -657,6 +772,10 @@ def main(argv=None) -> int:
     if not tracks:
         print("no tracks found", file=sys.stderr)
         return 1
+    if args.simulate:
+        reps = [None if x.strip() == "all" else int(x) for x in args.simulate.split(",")]
+        print(simulate_report(tracks, reps))
+        return 0
     print(run(tracks, args.report, args.private_out))
     return 0
 
