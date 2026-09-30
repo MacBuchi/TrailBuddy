@@ -2,6 +2,15 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Kleine Korrekturen an der Einführung
+
+*Version 0.64.1, 2026-09-30*
+
+- In der Trails-Tour hebt der Schritt „Deine Einschätzung" jetzt auch
+  die Sterne hervor, nicht nur den S-Grad — der Text sprach von beidem.
+- Die Kurzanleitung sagt richtig, wo die Schere sitzt: im Import, nicht
+  auf der Karte.
+
 ## Entdecken und Neuheiten
 
 *Version 0.64.0, 2026-09-30*
