@@ -7,6 +7,7 @@
 // Platte, keine Provider. Der Baustein ist die Pilztour aus PilzBuddy
 // (#338/#342 dort), ohne die Leergang-Logik.
 import '../trails/trail_geometry.dart' show haversineM;
+import 'ride_confirm.dart' show ConfirmEvent;
 
 /// Ein gemessener Punkt der Fahrt.
 class RidePoint {
@@ -72,12 +73,17 @@ class Ride {
     required this.startedAt,
     required this.endedAt,
     required this.points,
+    this.events = const [],
   });
 
   final String id;
   final DateTime startedAt;
   final DateTime endedAt;
   final List<RidePoint> points;
+
+  /// Fragen und Antworten während der Fahrt (#116), in der Reihenfolge
+  /// der Datei.
+  final List<ConfirmEvent> events;
 
   Duration get duration => endedAt.difference(startedAt);
   double get lengthM => rideLengthM(points);

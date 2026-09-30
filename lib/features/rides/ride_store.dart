@@ -15,6 +15,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/errors.dart';
+import 'ride_confirm.dart';
 import 'ride_track.dart';
 
 abstract interface class RideStore {
@@ -28,6 +29,22 @@ abstract interface class RideStore {
   /// Hängt einen Punkt an. **Wirft nie** — ein verlorener Fix ist ein
   /// verlorener Fix, kein Grund, die laufende Fahrt abzubrechen.
   Future<void> appendPoint(RidePoint point);
+
+  /// Hängt eine Frage oder Antwort (#116) an die LAUFENDE Fahrt. Mit
+  /// [rideStartedAt] nur, wenn es noch dieselbe Fahrt ist — eine Antwort
+  /// auf eine Benachrichtigung kann eintreffen, wenn die Fahrt längst
+  /// beendet und eine neue begonnen ist. Gibt zurück, ob geschrieben
+  /// wurde. **Wirft nie.**
+  Future<bool> appendConfirmEvent(ConfirmEvent event, {DateTime? rideStartedAt});
+
+  /// Die Fragen und Antworten der laufenden Fahrt. Wirft nie.
+  Future<List<ConfirmEvent>> activeConfirmEvents({required String uid});
+
+  /// Die Trails, zu denen während der Fahrt gefragt wird (#116). Die App
+  /// schreibt, der Service liest. Wirft nie — ohne Datei wird nicht
+  /// gefragt, gefahren wird trotzdem.
+  Future<void> writeConfirmTargets({required String uid, required List<ConfirmTarget> targets});
+  Future<List<ConfirmTarget>> readConfirmTargets({required String uid});
 
   /// Die laufende Fahrt, oder `null`. Wirft nie.
   Future<RecordedRide?> readActive({required String uid});
@@ -53,6 +70,7 @@ class FileRideStore implements RideStore {
   /// Muss in `backup_rules.xml` UND `full_backup_content.xml` stehen.
   static const dirName = 'rides';
   static const _activeName = 'active.jsonl';
+  static const _targetsName = 'confirm_targets.json';
 
   /// Schreibvorgänge in einer Kette: Der Takt hängt an, während das
   /// Beenden liest — ohne die Kette verlöre einer von beiden seinen
@@ -107,6 +125,85 @@ class FileRideStore implements RideStore {
       });
 
   @override
+  Future<bool> appendConfirmEvent(ConfirmEvent event, {DateTime? rideStartedAt}) =>
+      _serialized(() async {
+        try {
+          final file = await _active();
+          if (!await file.exists()) return false;
+          if (rideStartedAt != null) {
+            final head = await _head(file);
+            if (head == null || !head.startedAt.isAtSameMomentAs(rideStartedAt)) return false;
+          }
+          await file.writeAsString('${jsonEncode(event.toJson())}\n',
+              mode: FileMode.append, flush: true);
+          return true;
+        } catch (e, stackTrace) {
+          logError('Fahrt: Frage oder Antwort anhängen', e, stackTrace);
+          return false;
+        }
+      });
+
+  @override
+  Future<List<ConfirmEvent>> activeConfirmEvents({required String uid}) =>
+      _serialized(() async => (await _parse(await _active(), uid: uid))?.events ?? const []);
+
+  @override
+  Future<void> writeConfirmTargets({required String uid, required List<ConfirmTarget> targets}) async {
+    try {
+      final file = File('${(await _dir()).path}/$_targetsName');
+      final part = File('${file.path}.part');
+      await part.writeAsString(encodeConfirmTargets(uid: uid, targets: targets), flush: true);
+      // Umbenennen statt überschreiben: Der Service liest dieselbe Datei
+      // aus einem anderen Isolate und soll nie eine halbe sehen.
+      await part.rename(file.path);
+    } catch (e, stackTrace) {
+      logError('Fahrt: Trails zum Bestätigen ablegen', e, stackTrace);
+    }
+  }
+
+  @override
+  Future<List<ConfirmTarget>> readConfirmTargets({required String uid}) async {
+    try {
+      final file = File('${(await _dir()).path}/$_targetsName');
+      if (!await file.exists()) return const [];
+      return decodeConfirmTargets(await file.readAsString(), uid: uid);
+    } catch (_) {
+      // Unlesbar heißt „nichts zu fragen" — je Takt ein Bericht wäre Lärm.
+      return const [];
+    }
+  }
+
+  /// Wann die Ziel-Datei zuletzt geschrieben wurde; der Service liest sie
+  /// nur neu, wenn sich das ändert.
+  Future<DateTime?> confirmTargetsModified() async {
+    try {
+      final file = File('${(await _dir()).path}/$_targetsName');
+      return await file.exists() ? await file.lastModified() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Nur die Kopfzeile der Fahrt: wem sie gehört und wann sie begann.
+  Future<({String uid, DateTime startedAt})?> _head(File file) async {
+    try {
+      final first = await file
+          .openRead()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .first;
+      final head = jsonDecode(first);
+      if (head is! Map<String, dynamic>) return null;
+      final uid = head['uid'];
+      final startedAt = DateTime.tryParse(head['startedAt'] as String? ?? '');
+      if (uid is! String || startedAt == null) return null;
+      return (uid: uid, startedAt: startedAt.toUtc());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<RecordedRide?> readActive({required String uid}) =>
       _serialized(() async {
         final parsed = await _parse(await _active(), uid: uid);
@@ -135,7 +232,8 @@ class FileRideStore implements RideStore {
               id: id,
               startedAt: parsed.startedAt,
               endedAt: endedAt.toUtc(),
-              points: parsed.points);
+              points: parsed.points,
+              events: parsed.events);
         } catch (e, stackTrace) {
           logError('Fahrt abschließen', e, stackTrace);
           return null;
@@ -173,6 +271,7 @@ class FileRideStore implements RideStore {
               endedAt: parsed.endedAt ??
                   (parsed.points.isEmpty ? parsed.startedAt : parsed.points.last.at),
               points: parsed.points,
+              events: parsed.events,
             ));
           }
           rides.sort((a, b) => b.startedAt.compareTo(a.startedAt));
@@ -200,7 +299,13 @@ class FileRideStore implements RideStore {
   /// Liest eine Fahrt-Datei: Kopfzeile, Punkte, optional die Ende-Zeile.
   /// `null` bei fremdem Konto oder unlesbarem Kopf; kaputte Punktzeilen
   /// fallen einzeln weg.
-  Future<({DateTime startedAt, DateTime? endedAt, List<RidePoint> points})?>
+  Future<
+          ({
+            DateTime startedAt,
+            DateTime? endedAt,
+            List<RidePoint> points,
+            List<ConfirmEvent> events,
+          })?>
       _parse(File file, {required String uid}) async {
     try {
       if (!await file.exists()) return null;
@@ -217,6 +322,7 @@ class FileRideStore implements RideStore {
       final startedAt = DateTime.tryParse(head['startedAt'] as String? ?? '');
       if (startedAt == null) return null;
       final points = <RidePoint>[];
+      final events = <ConfirmEvent>[];
       DateTime? endedAt;
       for (final line in lines.skip(1)) {
         // Eine abgeschnittene LETZTE Zeile ist der Normalfall nach einem
@@ -228,13 +334,18 @@ class FileRideStore implements RideStore {
             endedAt = DateTime.tryParse(json['endedAt'] as String? ?? '')?.toUtc();
             continue;
           }
+          if (ConfirmEvent.isEvent(json)) {
+            final event = ConfirmEvent.fromJson(json);
+            if (event != null) events.add(event);
+            continue;
+          }
           final point = RidePoint.fromJson(json);
           if (point != null) points.add(point);
         } catch (_) {
           continue;
         }
       }
-      return (startedAt: startedAt.toUtc(), endedAt: endedAt, points: points);
+      return (startedAt: startedAt.toUtc(), endedAt: endedAt, points: points, events: events);
     } catch (_) {
       return null;
     }

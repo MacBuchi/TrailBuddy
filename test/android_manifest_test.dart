@@ -76,6 +76,7 @@ void main() {
       'FOREGROUND_SERVICE_LOCATION',
       'FOREGROUND_SERVICE_DATA_SYNC',
       'POST_NOTIFICATIONS',
+      'VIBRATE',
       'RECEIVE_BOOT_COMPLETED',
     });
     expect(manifest, isNot(contains('ACCESS_BACKGROUND_LOCATION"')));
@@ -136,6 +137,28 @@ void main() {
         isTrue);
     expect(File('android/app/src/main/res/values/colors.xml').readAsStringSync(),
         contains('name="notification_color"'));
+  });
+
+  test('die Frage während der Fahrt nimmt den lauten Kanal und hat ihren Empfänger (#116)', () {
+    // Der Kanal der Frage ist der der Meldungen — derselbe Name in Dart
+    // und strings.xml, sonst legte das Paket still einen zweiten an.
+    final dart = File('lib/features/rides/ride_confirm_notify.dart').readAsStringSync();
+    final id = RegExp(r"kConfirmChannelId = '([\w]+)'").firstMatch(dart)!.group(1)!;
+    final name = RegExp(r"kConfirmChannelName = '([^']+)'").firstMatch(dart)!.group(1)!;
+    final strings = File('android/app/src/main/res/values/strings.xml').readAsStringSync();
+    expect(strings, contains('name="notification_channel_id" translatable="false">$id<'));
+    expect(strings, contains('name="notification_channel_name">$name<'));
+    // Ohne Empfänger tut ein Knopf nichts, ohne Fehlermeldung.
+    expect(
+        RegExp(r'android:exported="false"\s+android:name="com\.dexterous\.flutterlocalnotifications\.ActionBroadcastReceiver"')
+            .hasMatch(manifest),
+        isTrue);
+    // Das Symbol ist dasselbe Alpha-Drawable wie bei Push und Fahrt.
+    expect(dart, contains("kConfirmNotificationIcon = 'ic_notification'"));
+    // Das Paket verlangt Desugaring; ohne bricht der Build ab.
+    final gradle = File('android/app/build.gradle.kts').readAsStringSync();
+    expect(gradle, contains('isCoreLibraryDesugaringEnabled = true'));
+    expect(gradle, contains('coreLibraryDesugaring("com.android.tools:desugar_jdk_libs'));
   });
 
   test('das Startfenster trägt den Grund der App, hell und dunkel', () {

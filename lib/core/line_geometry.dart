@@ -155,3 +155,17 @@ double pointSegmentDistance(math.Point<double> p, math.Point<double> a, math.Poi
   final t = (((p.x - a.x) * dx + (p.y - a.y) * dy) / len2).clamp(0.0, 1.0);
   return p.distanceTo(math.Point(a.x + t * dx, a.y + t * dy));
 }
+
+/// Kürzester Abstand von [p] zur Linie [line] in Metern, null ohne Linie.
+double? distanceToLineM(LatLng p, List<LatLng> line) {
+  if (line.isEmpty) return null;
+  final proj = FlatProjection(p.latitude);
+  final q = proj.xy(p);
+  final xy = proj.line(line);
+  if (xy.length == 1) return q.distanceTo(xy.first);
+  var best = double.infinity;
+  for (var i = 1; i < xy.length; i++) {
+    best = math.min(best, pointSegmentDistance(q, xy[i - 1], xy[i]));
+  }
+  return best;
+}

@@ -15,6 +15,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/rides/ride_confirm_notify.dart';
 import '../../features/trails/trail_providers.dart';
 import '../errors.dart';
 import '../push_messaging.dart';
@@ -33,6 +34,7 @@ class PushListener extends ConsumerStatefulWidget {
 class _PushListenerState extends ConsumerState<PushListener> {
   StreamSubscription<RemoteMessage>? _subscription;
   StreamSubscription<RemoteMessage>? _taps;
+  StreamSubscription<String>? _confirmTaps;
 
   @override
   void initState() {
@@ -60,6 +62,12 @@ class _PushListenerState extends ConsumerState<PushListener> {
       } catch (e, stackTrace) {
         logError('Tipp auf Meldungen verdrahten', e, stackTrace);
       }
+      // Die lokale Frage während einer Fahrt (#116): Ein Tipp darauf oder
+      // auf „Ändern…" zeigt den Trail — gemeldet wird dort.
+      _confirmTaps = ref.read(rideConfirmTapsProvider)().listen((trailId) {
+        final route = pushRouteOf({'route': '/trail/$trailId'});
+        if (route != null && mounted) ref.read(routerProvider).go(route);
+      });
     });
   }
 
@@ -118,6 +126,7 @@ class _PushListenerState extends ConsumerState<PushListener> {
   void dispose() {
     _subscription?.cancel();
     _taps?.cancel();
+    _confirmTaps?.cancel();
     super.dispose();
   }
 

@@ -29,6 +29,7 @@ import 'package:trailbuddy/features/map/poi_source.dart';
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
 import 'package:trailbuddy/features/map/position_provider.dart';
 import 'package:trailbuddy/features/official/official_trails_source.dart';
+import 'package:trailbuddy/features/rides/ride_confirm_notify.dart';
 import 'package:trailbuddy/features/rides/ride_providers.dart';
 import 'package:trailbuddy/features/rides/ride_service.dart';
 import 'package:trailbuddy/features/trails/outbox_providers.dart';
@@ -183,6 +184,7 @@ List<Override> overridesFor(FakeBackend backend,
       pushMessageListenerProvider
           .overrideWithValue(() => pushMessages ?? const Stream.empty()),
       pushTapListenerProvider.overrideWithValue(() => const Stream.empty()),
+      rideConfirmTapsProvider.overrideWithValue(() => const Stream.empty()),
       pushInitialMessageProvider.overrideWithValue(() async => null),
       // Mindestversion: ohne Angabe sperrt nichts. PackageInfo gibt es im
       // Test nicht, deshalb kommt die eigene Version aus dem Harness.

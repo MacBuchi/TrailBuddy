@@ -2,6 +2,7 @@
 // und Service steuerbar. Ohne diese Fakes ginge JEDER Kartentest an
 // echtes Plattform-IO — der Karten-Screen holt beim ersten Frame eine
 // unterbrochene Fahrt zurück (`restore`).
+import 'package:trailbuddy/features/rides/ride_confirm.dart';
 import 'package:trailbuddy/features/rides/ride_providers.dart';
 import 'package:trailbuddy/features/rides/ride_service.dart';
 import 'package:trailbuddy/features/rides/ride_store.dart';
@@ -23,10 +24,40 @@ class FakeRideStore implements RideStore {
     this.uid = uid;
     this.startedAt = startedAt;
     points.clear();
+    events.clear();
   }
 
   @override
   Future<void> appendPoint(RidePoint point) async => points.add(point);
+
+  /// Fragen und Antworten der laufenden Fahrt (#116).
+  final events = <ConfirmEvent>[];
+
+  /// Was die App zuletzt als Trails zum Bestätigen abgelegt hat.
+  List<ConfirmTarget> targets = const [];
+  String? targetsUid;
+
+  @override
+  Future<bool> appendConfirmEvent(ConfirmEvent event, {DateTime? rideStartedAt}) async {
+    if (startedAt == null) return false;
+    if (rideStartedAt != null && !rideStartedAt.isAtSameMomentAs(startedAt!)) return false;
+    events.add(event);
+    return true;
+  }
+
+  @override
+  Future<List<ConfirmEvent>> activeConfirmEvents({required String uid}) async =>
+      startedAt == null || this.uid != uid ? const [] : List.of(events);
+
+  @override
+  Future<void> writeConfirmTargets({required String uid, required List<ConfirmTarget> targets}) async {
+    targetsUid = uid;
+    this.targets = targets;
+  }
+
+  @override
+  Future<List<ConfirmTarget>> readConfirmTargets({required String uid}) async =>
+      targetsUid == uid ? targets : const [];
 
   @override
   Future<RecordedRide?> readActive({required String uid}) async {
@@ -41,10 +72,12 @@ class FakeRideStore implements RideStore {
         id: startedAt!.toIso8601String().replaceAll(RegExp(r'[-:.]'), ''),
         startedAt: startedAt!,
         endedAt: endedAt,
-        points: List.of(points));
+        points: List.of(points),
+        events: List.of(events));
     rides.insert(0, ride);
     startedAt = null;
     points.clear();
+    events.clear();
     return ride;
   }
 
@@ -52,6 +85,7 @@ class FakeRideStore implements RideStore {
   Future<void> discardActive() async {
     startedAt = null;
     points.clear();
+    events.clear();
   }
 
   @override
@@ -67,13 +101,15 @@ class FakeRideStore implements RideStore {
 class FakeRideServiceBridge implements RideServiceBridge {
   bool armed = false;
   String? uid;
+  DateTime? startedAt;
   int arms = 0;
 
   @override
-  Future<void> arm({required String uid}) async {
+  Future<void> arm({required String uid, required DateTime startedAt}) async {
     armed = true;
     arms++;
     this.uid = uid;
+    this.startedAt = startedAt;
   }
 
   @override

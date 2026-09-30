@@ -234,6 +234,13 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   Abstimmung. **Ausnahme seit 0.46.1 (#100, Patch 011):** eine geplante
   Aufzeichnung (`planned`, Datei ohne Fahrzeiten) — sie belegt nicht,
   dass jemand den Trail befahrbar vorgefunden hat.
+  **Bestätigen durch Fahren** (#116, seit 0.52.0): Wer aufzeichnet und
+  auf einem Trail mit unbestätigter Meldung oder unbestätigtem Zustand
+  fährt, wird per lokaler Benachrichtigung gefragt (geprüft auf dem
+  Gerät, auf der Linie, nicht nur in der Nähe). Die Antwort ist eine
+  eigene, bestätigte Meldung des Fahrers („vor Ort") — kein eigenes
+  Merkmal, sichtbar nur in seinem Netz. Eine Fahrt ohne Antwort
+  bestätigt keine fremde Meldung.
   **Aufbewahrt 90 Tage** (`sweep_old_reports`), damit man nachsehen
   kann, wer was gemeldet hat (Name bzw. Alias im Blatt); die jüngste
   bestätigte und die jüngste unbestätigte je Person, Trail und Art

@@ -228,13 +228,20 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// wartet beides im Ausgangskorb, mit der Zeit des Meldens; [onSite]
   /// ist dann schon geprüft (die Position von damals zählt, nicht die beim
   /// Senden).
+  ///
+  /// [at] ist der Zeitpunkt der Angabe, wenn er nicht jetzt ist — eine
+  /// Antwort unterwegs (#116) geht erst beim Beenden der Fahrt hinaus.
   Future<WriteOutcome> report(String trailId,
-      {TrailStatus? status, int? condition, required bool onSite, String? note}) async {
+      {TrailStatus? status,
+      int? condition,
+      required bool onSite,
+      String? note,
+      DateTime? at}) async {
     final repo = ref.read(trailRepositoryProvider);
     final text = note?.trim() ?? '';
     final job = ReportJob(
       id: newClientId(),
-      createdAt: DateTime.now().toUtc(),
+      createdAt: (at ?? DateTime.now()).toUtc(),
       trailId: trailId,
       status: status,
       condition: condition,

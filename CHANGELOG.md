@@ -4,7 +4,17 @@
 
 ## Bewerten und melden
 
-*Versionen 0.49.0 bis 0.51.0, 2026-09-30*
+*Versionen 0.49.0 bis 0.52.0, 2026-09-30*
+
+- **Unterwegs bestätigen**: Fährst du mit laufender Aufzeichnung auf
+  einem Trail, zu dem eine Meldung oder ein Zustand noch bestätigt
+  werden muss, fragt dich die App sofort per Benachrichtigung — mit dem
+  Namen des Trails und dem, was gemeldet ist. „Stimmt" bestätigt es,
+  „Trail ist frei" meldet ihn offen, „Ändern…" öffnet den Trail. Je
+  Trail und Fahrt kommt die Frage höchstens einmal. Deine Antwort geht
+  beim Beenden der Fahrt als bestätigte Meldung an deine Buddys, ohne
+  Empfang später. Die Prüfung läuft auf dem Telefon, deine Position
+  verlässt es nicht.
 
 - **Auf der Karte sieht man den Zustand an der Linie**: durchgezogen,
   wenn alles gut ist, bröckelig bei „ausgefahren", gestrichelt bei

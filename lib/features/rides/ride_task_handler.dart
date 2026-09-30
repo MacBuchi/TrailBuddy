@@ -17,6 +17,8 @@ import 'dart:io';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'ride_confirm.dart';
+import 'ride_confirm_notify.dart';
 import 'ride_store.dart';
 import 'ride_track.dart';
 
@@ -25,6 +27,11 @@ import 'ride_track.dart';
 const kRideDataDir = 'ride_dir';
 const kRideDataUid = 'ride_uid';
 const kRideDataActive = 'ride_active';
+
+/// Beginn der laufenden Fahrt (ISO-8601, UTC) — trägt die Frage an einen
+/// Trail (#116) in ihrer Benachrichtigung mit, damit eine späte Antwort
+/// nicht in einer anderen Fahrt landet.
+const kRideDataStartedAt = 'ride_started_at';
 
 /// Ein gemessener Punkt als Zeichenkette an den Main-Isolate —
 /// `sendDataToMain` trägt nur einfache Werte.
@@ -58,6 +65,7 @@ RidePoint? decodeRideTick(Object? data) {
 Future<RidePoint?> recordRideTick({
   Future<Position?> Function()? fix,
   RideStore Function(String dir)? storeFor,
+  ConfirmNotify? notify,
 }) async {
   try {
     final active = await FlutterForegroundTask.getData<bool>(key: kRideDataActive);
@@ -75,10 +83,12 @@ Future<RidePoint?> recordRideTick({
       altM: position.altitude,
     );
 
-    await (storeFor ?? _storeFor)(dir).appendPoint(point);
+    final store = (storeFor ?? _storeFor)(dir);
+    await store.appendPoint(point);
     // Damit die Karte mitläuft, solange jemand hinsieht. Ist die App weg,
     // geht das ins Leere — und genau dann trägt die Datei allein.
     FlutterForegroundTask.sendDataToMain(encodeRideTick(point));
+    await _confirmTick(point, store: store, dir: dir, notify: notify ?? _notify);
     return point;
   } catch (_) {
     return null;
@@ -86,6 +96,79 @@ Future<RidePoint?> recordRideTick({
 }
 
 RideStore _storeFor(String dir) => FileRideStore(baseDir: Directory(dir));
+
+/// Zeigt die Frage zu einem Trail; die Naht für den Test.
+typedef ConfirmNotify = Future<void> Function(ConfirmTarget target, {required String payload});
+
+Future<void> _notify(ConfirmTarget target, {required String payload}) =>
+    showConfirmNotice(target, payload: payload);
+
+/// Der Wächter der laufenden Fahrt — einer je Fahrt, im Speicher dieses
+/// Isolates. Stirbt das Isolate, liest der nächste die gestellten Fragen
+/// aus der Datei; nur der vorige Punkt ist dann weg (ein Takt später
+/// geht es weiter).
+RideConfirmWatcher? _watcher;
+
+Future<void> _confirmTick(RidePoint point,
+    {required RideStore store, required String dir, required ConfirmNotify notify}) async {
+  try {
+    final uid = await FlutterForegroundTask.getData<String>(key: kRideDataUid);
+    final started = DateTime.tryParse(
+        await FlutterForegroundTask.getData<String>(key: kRideDataStartedAt) ?? '');
+    if (uid == null || started == null) return;
+    final watcher = _watcher;
+    final current = watcher != null &&
+            watcher.uid == uid &&
+            watcher.rideStartedAt.isAtSameMomentAs(started)
+        ? watcher
+        : _watcher = RideConfirmWatcher(uid: uid, rideStartedAt: started.toUtc(), dir: dir);
+    await current.onPoint(point, store: store, notify: notify);
+  } catch (_) {
+    // Die Frage ist ein Zusatz; die Fahrt läuft weiter.
+  }
+}
+
+/// Fragt je Trail und Fahrt höchstens einmal (#116). Die Ziele liest er
+/// aus der Datei, die die App schreibt — neu nur, wenn sie sich ändert.
+class RideConfirmWatcher {
+  RideConfirmWatcher({required this.uid, required this.rideStartedAt, required this.dir});
+
+  final String uid;
+  final DateTime rideStartedAt;
+  final String dir;
+
+  RidePoint? _previous;
+  Set<String>? _asked;
+  List<ConfirmTarget> _targets = const [];
+  Object? _version = const Object();
+
+  Future<void> onPoint(RidePoint point,
+      {required RideStore store, required ConfirmNotify notify}) async {
+    final previous = _previous;
+    _previous = point;
+    final version = store is FileRideStore ? await store.confirmTargetsModified() : null;
+    if (version != _version || store is! FileRideStore) {
+      _version = version;
+      _targets = await store.readConfirmTargets(uid: uid);
+    }
+    if (_targets.isEmpty) return;
+    final asked = _asked ??= {
+      for (final e in await store.activeConfirmEvents(uid: uid))
+        if (e is ConfirmAsked) e.trailId,
+    };
+    final target =
+        confirmPromptFor(targets: _targets, previous: previous, current: point, asked: asked);
+    if (target == null) return;
+    asked.add(target.trailId);
+    // Erst ins Protokoll, dann fragen: Die Antwort braucht die Frage
+    // (was bestätigt wird, steht dort), und ein Neustart des Isolates
+    // soll nicht noch einmal fragen.
+    await store.appendConfirmEvent(ConfirmAsked.of(target, at: point.at));
+    await notify(target,
+        payload: encodeConfirmPayload(
+            (dir: dir, uid: uid, rideStartedAt: rideStartedAt, trailId: target.trailId)));
+  }
+}
 
 Future<Position?> _fix() async {
   try {

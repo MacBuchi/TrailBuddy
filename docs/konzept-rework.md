@@ -329,10 +329,13 @@ Bestätigen durch Fahren samt lokaler Benachrichtigung: #116.
   hat — das weicht von Konzept 3 („ohne Beleg kein Beitrag") ab.
 - **Ein Buddy bestätigt** eine solche Angabe, indem er den Trail fährt
   (eine Aufzeichnung darauf beisteuert, auch „wieder gefahren" im
-  Zerlege-Blatt) oder vor Ort dieselbe Angabe macht. Wie die
-  Bestätigung gespeichert wird (eigene Tabelle je Bestätigung oder
-  Merkmal am Beitrag), entscheidet der Schritt mit seiner
-  Schemaskizze; sichtbar ist sie nur im Netz (Konzept 12).
+  Zerlege-Blatt) oder vor Ort dieselbe Angabe macht. **Gespeichert als
+  eigene, bestätigte Meldung des Fahrers** (Betreiber, 2026-09-30, #116):
+  kein Schema, `report_trail` mit `on_site`; sichtbar nur im Netz
+  (Konzept 12). Eine Fahrt OHNE Antwort bestätigt nichts — gefragt wird
+  unterwegs und im Zerlege-Blatt. Knöpfe: „Stimmt" / „Trail ist frei"
+  bei einer Meldung, „Stimmt" / „Ändern…" beim Zustand; der Trailname
+  steht in der Benachrichtigung.
 
 **Welche Meldung steht da (Betreiber, 2026-09-30).** Die **jüngste
 bestätigte** Meldung, und dazu — verblasst, „zu bestätigen" — die
@@ -438,7 +441,7 @@ bekommen ihren PR erst danach.
 | 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | #114 (Messung) | — | vorerst keins | Daten mehrerer Nutzer |
 | 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
-| 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | — | feat | noch offen | #101 |
+| 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | (a) Benachrichtigung, (b) Zerlege-Blatt | feat 0.52.0– | keins | #101 |
 | 11 | Übersicht „Noch gültig? Ja / Nein / Weiß nicht“ für eigene Meldungen (9) | #119 | — | feat | — | #101 |
 | 12 | Fahrdatum für eine Datei ohne Zeiten eintragen | #120 | — | feat | Skizze nötig | #101 |
 

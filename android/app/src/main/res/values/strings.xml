@@ -7,5 +7,5 @@
          NEUE ID. -->
     <string name="notification_channel_id" translatable="false">trailbuddy_meldungen</string>
     <string name="notification_channel_name">Meldungen</string>
-    <string name="notification_channel_description">Statusmeldungen und Hinweise deiner Buddys zu Trails, die du siehst.</string>
+    <string name="notification_channel_description">Meldungen und Hinweise deiner Buddys zu Trails, die du siehst, und die Frage während einer Fahrt, ob eine Meldung stimmt.</string>
 </resources>
