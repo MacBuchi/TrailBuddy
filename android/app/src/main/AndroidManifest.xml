@@ -27,6 +27,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Bringt flutter_local_notifications mit (#116, die Frage während
+         der Fahrt); hier ausgeschrieben, damit die Liste vollständig ist.
+         Eine normale Berechtigung, Android fragt nicht nach. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
         tools:node="remove"/>
     <application
@@ -90,6 +94,13 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
+        <!-- Die Knöpfe der Frage während der Fahrt (#116, „Stimmt",
+             „Trail ist frei"): Ohne diesen Empfänger tut ein Tipp darauf
+             nichts, ohne Fehlermeldung. Nicht exportiert — nur die eigene
+             Benachrichtigung ruft ihn. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
         <!-- Reicht die geladene Update-APK an den System-Installer heraus
              (content-URI mit Leseerlaubnis; `file://` ist ab Android 7
              verboten). `exported="false"`: nur wer die Erlaubnis bekommt,

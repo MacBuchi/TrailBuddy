@@ -15,6 +15,8 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/errors.dart';
 import '../../data/providers.dart';
+import '../trails/trail_providers.dart';
+import 'ride_confirm.dart';
 import 'ride_service.dart';
 import 'ride_store.dart';
 import 'ride_task_handler.dart';
@@ -92,7 +94,7 @@ final rideStoreProvider = Provider<RideStore>((ref) => FileRideStore());
 /// Eigene Naht, weil dahinter `path_provider` und SharedPreferences
 /// stecken — im Widget-Test gibt es beide nicht.
 abstract interface class RideServiceBridge {
-  Future<void> arm({required String uid});
+  Future<void> arm({required String uid, required DateTime startedAt});
   Future<void> disarm();
 }
 
@@ -100,13 +102,15 @@ class PlatformRideServiceBridge implements RideServiceBridge {
   const PlatformRideServiceBridge();
 
   @override
-  Future<void> arm({required String uid}) async {
+  Future<void> arm({required String uid, required DateTime startedAt}) async {
     // Der Pfad wird EINMAL hier aufgelöst: Er ist eine Konstante des
     // Geräts, und drüben je Takt einen Kanal zu bemühen wäre eine
     // Fehlerquelle mehr.
     await FlutterForegroundTask.saveData(
         key: kRideDataDir, value: (await getApplicationSupportDirectory()).path);
     await FlutterForegroundTask.saveData(key: kRideDataUid, value: uid);
+    await FlutterForegroundTask.saveData(
+        key: kRideDataStartedAt, value: startedAt.toUtc().toIso8601String());
     await FlutterForegroundTask.saveData(key: kRideDataActive, value: true);
   }
 
@@ -139,7 +143,8 @@ class RideNotifier extends Notifier<RecordedRide?> {
       // Der Service läuft nach einem Wegwischen weiter; hier wird nur
       // wieder angemeldet, was ohnehin gilt. Läuft er nicht mehr
       // (Neustart des Geräts), setzt das ihn wieder auf.
-      await _arm(uid);
+      await _arm(uid, ride.startedAt);
+      await syncConfirmTargets();
     } else {
       await _disarm();
     }
@@ -164,7 +169,8 @@ class RideNotifier extends Notifier<RecordedRide?> {
       return RideStartResult.failed;
     }
     state = (startedAt: startedAt, points: const []);
-    await _arm(uid);
+    await _arm(uid, startedAt);
+    await syncConfirmTargets();
     // Der erste Punkt sofort und aus DIESEM Isolate — der Takt des
     // Service beginnt erst nach dem eingestellten Abstand.
     unawaited(_firstFix());
@@ -174,6 +180,10 @@ class RideNotifier extends Notifier<RecordedRide?> {
   /// Beendet die Aufzeichnung und speichert die Fahrt auf dem Gerät.
   /// Gibt sie zurück; `null`, wenn keine lief. Gespeichert wird VOR dem
   /// Abschluss-Blatt: Wer es wegwischt, verliert nichts.
+  ///
+  /// Die Antworten auf die Fragen unterwegs (#116) gehen hier als
+  /// Meldungen hinaus — ohne Netz in den Ausgangskorb —, bevor das Blatt
+  /// kommt: Wer es wegwischt, hat trotzdem geantwortet.
   Future<Ride?> stop() async {
     final ride = state;
     await _disarm();
@@ -181,11 +191,45 @@ class RideNotifier extends Notifier<RecordedRide?> {
     if (ride == null) return null;
     final uid = ref.read(currentUserIdProvider);
     if (uid == null) return null;
-    return ref.read(rideStoreProvider).finish(uid: uid, endedAt: DateTime.now().toUtc());
+    final store = ref.read(rideStoreProvider);
+    await store.writeConfirmTargets(uid: uid, targets: const []);
+    final done = await store.finish(uid: uid, endedAt: DateTime.now().toUtc());
+    if (done != null) await _sendConfirmations(done);
+    return done;
   }
 
-  Future<void> _arm(String uid) async {
-    await ref.read(rideServiceBridgeProvider).arm(uid: uid);
+  /// Schreibt die Trails, zu denen unterwegs gefragt wird (#116) — beim
+  /// Start und immer, wenn sich die Trails ändern (die Karte hört darauf).
+  /// Ohne geladene Trails bleibt die Datei, wie sie ist — beim Beenden
+  /// wird sie geleert, eine neue Fahrt erbt also nichts.
+  Future<void> syncConfirmTargets() async {
+    if (state == null) return;
+    final uid = ref.read(currentUserIdProvider);
+    final trails = ref.read(trailsProvider).valueOrNull;
+    if (uid == null || trails == null) return;
+    await ref.read(rideStoreProvider).writeConfirmTargets(uid: uid, targets: confirmTargetsOf(trails));
+  }
+
+  Future<void> _sendConfirmations(Ride ride) async {
+    final reports = confirmReportsOf(ride.events);
+    if (reports.isEmpty) return;
+    final notifier = ref.read(trailsProvider.notifier);
+    for (final r in reports) {
+      try {
+        // Vor Ort war, wer gefragt wurde: Der Dienst hat ihn im Korridor
+        // der Linie gesehen. Zum Server geht nur das Ja.
+        await notifier.report(r.trailId,
+            status: r.status, condition: r.condition, onSite: true, at: r.at);
+      } catch (e, stackTrace) {
+        // Ein Serverfehler bleibt sichtbar im Bericht; die Fahrt ist
+        // trotzdem gespeichert.
+        logError('Fahrt: Bestätigung senden', e, stackTrace);
+      }
+    }
+  }
+
+  Future<void> _arm(String uid, DateTime startedAt) async {
+    await ref.read(rideServiceBridgeProvider).arm(uid: uid, startedAt: startedAt);
     await ref.read(rideServiceProvider).start(
           title: 'Fahrt wird aufgezeichnet',
           text: 'TrailBuddy zeichnet deinen Weg auf. Die Fahrt bleibt auf dem Gerät.',

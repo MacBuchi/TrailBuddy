@@ -522,6 +522,51 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `FakeRideStore`, `FakeRideFix`, `FakeRideServiceBridge` und
   `FakeRideService` ein, sonst ginge jeder Kartentest über `restore()`
   an `path_provider`.
+- **Bestätigen durch Fahren** (#116, seit 0.52.0, `ride_confirm.dart`
+  pur, `ride_confirm_notify.dart`, Wächter in `ride_task_handler.dart`):
+  Wer aufzeichnet und AUF einen Trail mit unbestätigter Meldung oder
+  unbestätigtem Zustand kommt, bekommt sofort eine lokale
+  Benachrichtigung — Trailname, was gemeldet ist, Knöpfe „Stimmt",
+  „Trail ist frei" (nur bei einer warnenden Meldung), „Ändern…". Kein
+  Schema (Betreiber, 2026-09-30): Die Antwort IST eine bestätigte
+  Meldung des Fahrers mit demselben Wert, über `report_trail` mit
+  `on_site` — der Dienst hat ihn auf der Linie gesehen. Sechs Dinge,
+  die man wissen muss:
+  - **Eine Fahrt ohne Antwort bestätigt nichts** fremdes; Schritt 8 von
+    `contribute_recording` (die EIGENE Meldung auf „offen") bleibt.
+  - **Die App legt die Ziele ab, der Dienst liest sie**
+    (`rides/confirm_targets.json`, mit Konto, per `.part` + `rename`):
+    `confirmTargetsOf` nimmt dieselbe Regel wie die Anzeige
+    (`shownReportsOf`, auch eigene), geschrieben beim Start, bei jedem
+    Laden der Trails (Karte) und leer beim Beenden. Der Dienst liest nur
+    neu, wenn sich die Datei ändert — nie die ganze `network.json` je
+    Takt.
+  - **Gefragt wird auf der Linie, nicht daneben** (`confirmPromptFor`):
+    zwei aufeinanderfolgende Fixe ≤ 30 m Genauigkeit, beide ≤ 20 m von
+    der Linie, ≥ 25 m auseinander — wer quert oder steht, wird nicht
+    gefragt. Enger als „vor Ort" (200 m) mit Absicht.
+  - **Fragen und Antworten stehen als Zeilen IN der Fahrt**
+    (`ConfirmAsked` mit dem Wert von damals, `ConfirmAnswered`;
+    `RidePoint.fromJson` lässt sie liegen). Je Trail und Fahrt einmal —
+    auch über einen Neustart des Isolates, der Wächter liest die
+    gestellten Fragen aus der Datei. Eine Antwort trägt den Beginn der
+    Fahrt im Payload und landet nie in einer anderen.
+  - **Zwei Wege für eine Antwort**: Knöpfe ohne Oberfläche laufen im
+    Hintergrund-Isolate des Pakets (`rideConfirmBackgroundResponse`,
+    `vm:entry-point`), „Ändern…" und der Tipp auf die Benachrichtigung
+    im Main-Isolate (`rideConfirmTapsProvider`, `PushListener` öffnet
+    `/trail/<id>`). Beide schreiben über `handleConfirmResponse` in die
+    Datei. Gesendet wird beim Beenden (`RideNotifier.stop`, vor dem
+    Blatt), je Trail die letzte Antwort, mit ihrer Zeit — ohne Netz in
+    den Ausgangskorb. „Ändern…" und Unbeantwortetes schreiben nichts
+    (die fragt das Zerlege-Blatt, #116 Teil 2).
+  - **Kanal `trailbuddy_meldungen`** (IMPORTANCE_HIGH, derselbe wie
+    Push) — die Dauerbenachrichtigung der Fahrt ist leise und zeigte
+    kein Banner. `flutter_local_notifications` braucht Desugaring
+    (`build.gradle.kts`), den `ActionBroadcastReceiver` im Manifest
+    (ohne tut ein Knopf nichts, still) und bringt `VIBRATE` mit; der
+    Manifest-Test hält alles zusammen. Der Harness überschreibt
+    `rideConfirmTapsProvider`.
 - **Das Zerlege-Blatt** (#29, Konzept 5.1, `ride_split.dart` pur,
   `road_index.dart`, `ride_split_sheet.dart`, seit 0.20.0): nach der
   Aufzeichnung, aus „Meine Fahrten" (Schere) und aus dem GPX-Import für

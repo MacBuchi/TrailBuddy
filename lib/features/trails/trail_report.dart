@@ -8,7 +8,6 @@
 // Linie, mit der Position, die ein Tipp auf „Ich bin vor Ort" holt. Zum
 // Server geht das Ja/Nein, nie die Position — und gespeichert wird dort
 // nicht einmal das, nur das Ergebnis `confirmed`.
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,20 +29,6 @@ import 'trail_providers.dart';
 /// So nah muss man an der Linie sein, damit eine Meldung „vor Ort" gilt
 /// (Betreiber, 2026-09-30).
 const kOnSiteMaxM = 200.0;
-
-/// Kürzester Abstand von [p] zur Linie [line] in Metern, null ohne Linie.
-double? distanceToLineM(LatLng p, List<LatLng> line) {
-  if (line.isEmpty) return null;
-  final proj = FlatProjection(p.latitude);
-  final q = proj.xy(p);
-  final xy = proj.line(line);
-  if (xy.length == 1) return q.distanceTo(xy.first);
-  var best = double.infinity;
-  for (var i = 1; i < xy.length; i++) {
-    best = math.min(best, pointSegmentDistance(q, xy[i - 1], xy[i]));
-  }
-  return best;
-}
 
 /// „heute", „gestern", „vor 3 Tagen", „vor 4 Monaten" — das Alter einer
 /// Meldung, ohne das Verb (das sagt die Zeile).

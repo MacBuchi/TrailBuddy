@@ -389,6 +389,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // werden.
     ref.listen(trailsProvider, (_, next) {
       final list = next.valueOrNull;
+      // Während einer Fahrt fragt der Dienst zu unbestätigten Meldungen
+      // (#116); seine Liste folgt dem, was die App gerade sieht.
+      if (list != null) unawaited(ref.read(rideProvider.notifier).syncConfirmTargets());
       // Ein wartender Fokus-Wunsch geht vor dem Einpassen auf das Netz.
       final pending = _pendingFocus;
       if (pending != null && list != null && _focusOn(pending)) {
