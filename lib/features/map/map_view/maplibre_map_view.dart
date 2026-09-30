@@ -220,6 +220,9 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
           polylines: features,
           color: style.borderColor!,
           width: width + (2 * style.borderWidth).round(),
+          dashArray: style.borderDash == null
+              ? null
+              : dashArrayFor(style.borderDash!, style.width + 2 * style.borderWidth),
         ),
       RoundPolylineLayer(
         polylines: features,

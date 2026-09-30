@@ -313,7 +313,7 @@ Meldenden; die jüngste bestätigte und unbestätigte je Person bleiben
 länger. Offen und nicht in #101: Meldungen nicht still wegräumen,
 sondern den Meldenden in einer Übersicht fragen, ob sie noch gelten
 („Ja / Nein / Weiß nicht"; „Weiß nicht" lässt alles, wie es ist) — das
-Schema trägt es schon, eine Antwort ist eine neue Meldung.
+Schema trägt es schon, eine Antwort ist eine neue Meldung (#119); das Fahrdatum für eine Datei ohne Zeiten eintragen: #120.
 Bestätigen durch Fahren samt lokaler Benachrichtigung: #116.
 
 **Bestätigt oder zu bestätigen (E6).** Für Meldung UND Zustand:
@@ -430,7 +430,7 @@ bekommen ihren PR erst danach.
 | # | Schritt | Issue | PR | Typ | Schema | Hängt ab von |
 |---|---|---|---|---|---|---|
 | 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | #111 ✓ | fix 0.46.1 | Patch 011 | — |
-| 2 | Bewertung (Sterne) und Zustand samt „zu bestätigen“, Meldung umbenannt (3, 9) | #101 | (a) Blatt + Schema | feat 0.49.0 | Patch 013 | — |
+| 2 | Bewertung (Sterne) und Zustand samt „zu bestätigen“, Meldung umbenannt (3, 9) | #101 | #118 Schema + Blatt, #121 Liste, (c) Karte | feat 0.49.0–0.51.0 | Patch 013 | — |
 | 3 | Übernehmen beim ersten Befahren (Pflicht), Zustand je Fahrt, Filter (1, 9) | #102 | — | feat | — | #101 |
 | 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 ✓ | feat 0.48.0 | Patch 012 | — |
 | 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 ✓ | feat 0.47.0 | — | — |
@@ -439,6 +439,8 @@ bekommen ihren PR erst danach.
 | 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
 | 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | — | feat | noch offen | #101 |
+| 11 | Übersicht „Noch gültig? Ja / Nein / Weiß nicht“ für eigene Meldungen (9) | #119 | — | feat | — | #101 |
+| 12 | Fahrdatum für eine Datei ohne Zeiten eintragen | #120 | — | feat | Skizze nötig | #101 |
 
 ### Schritt 1 — Geplant
 

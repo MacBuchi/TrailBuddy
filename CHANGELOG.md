@@ -4,7 +4,14 @@
 
 ## Bewerten und melden
 
-*Versionen 0.49.0 bis 0.50.0, 2026-09-30*
+*Versionen 0.49.0 bis 0.51.0, 2026-09-30*
+
+- **Auf der Karte sieht man den Zustand an der Linie**: durchgezogen,
+  wenn alles gut ist, bröckelig bei „ausgefahren", gestrichelt bei
+  „abgerockt", gestrichelt und blass bei „kaum fahrbar". Die Farbe
+  bleibt die Schwierigkeit. Gezählt wird nur ein bestätigter Zustand.
+- **S4 und S5** erkennt man jetzt am gestrichelten weißen Rand um die
+  Linie, nicht mehr an der gestrichelten Linie selbst.
 
 - **In der Trail-Liste** stehen die Sterne jetzt unter den Zahlen — blass,
   solange du einen eigenen Trail noch nicht bewertet hast. Sortieren

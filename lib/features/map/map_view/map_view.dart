@@ -214,6 +214,7 @@ class MapViewPolyline {
     this.dash,
     this.borderColor,
     this.borderWidth = 0,
+    this.borderDash,
     this.hitValue,
     this.label,
   });
@@ -236,13 +237,19 @@ class MapViewPolyline {
   final Color? borderColor;
   final double borderWidth;
 
+  /// Strichmuster des RANDS in Bildpunkten; null = durchgezogen. Eigenes
+  /// Muster, weil der Saum seit #101 S4/S5 trägt, während die Linie den
+  /// Zustand zeigt (Rework E9). Auf beiden Engines eine eigene Ebene
+  /// unter der Linie.
+  final List<double>? borderDash;
+
   /// Was ein Tipp meldet; null heißt nicht antippbar (die Fahrt).
   final Object? hitValue;
 
   /// Der Stil ohne Geometrie — MapLibre gruppiert danach.
   String get styleKey =>
       '${color.toARGB32()}|$width|${dash?.join(',') ?? ''}|'
-      '${borderColor?.toARGB32() ?? ''}|$borderWidth';
+      '${borderColor?.toARGB32() ?? ''}|$borderWidth|${borderDash?.join(',') ?? ''}';
 }
 
 /// Eine Fläche mit Löchern — die Abdunkelung außerhalb der gespeicherten
