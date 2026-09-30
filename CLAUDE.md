@@ -18,7 +18,11 @@ dezentralen Weg in Abschnitt 12). Die Schwellen des Abgleichs sind gemessen
 Konzept widerspricht, ändert das Konzept im selben PR — oder den Code.
 Das Rework vom 2026-09-30 (`docs/konzept-rework.md`, #109) plant die
 nächsten Schritte am Modell; gebaut wird es Schritt für Schritt, und
-jeder zieht `konzept-trails.md` nach. Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
+jeder zieht `konzept-trails.md` nach. Die Einführung (Tour, Kurzanleitung,
+„Entdecken“; `docs/konzept-onboarding.md`, #137) übernimmt PilzBuddys
+Mechanik aus #350/#596 und schneidet den Inhalt für Trails neu — sechs
+gestapelte PRs, die Regeln für Anker, Merker und Beispiele stehen dort.
+Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
 `docs/konzept-offizielle-trails.md`. Gebaut von `official-trails.yml`
 (`tool/official_trails.py`, Quellen in `tool/official/sources.json`)
 auf den Branch `official-trails-data` — nie als Release (die
