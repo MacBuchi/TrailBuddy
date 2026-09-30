@@ -11,6 +11,8 @@ import '../../core/geo.dart' show formatMeters;
 import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
+import '../coach/coach.dart';
+import '../help/map_tour.dart' show SheetCoach;
 import 'grade_shield.dart';
 import 'elevation_profile_chart.dart';
 import 'outbox_providers.dart';
@@ -222,7 +224,10 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               ),
             ],
             const SizedBox(height: 12),
-            _MetricTiles(trail: trail),
+            // Die Anker der Touren (#132): Kacheln, Einschätzung, Beitrag,
+            // Hinweis und Karte — die Karten-Tour und die Trails-Tour
+            // zeigen auf dieselben.
+            CoachAnchor(id: SheetCoach.metrics, child: _MetricTiles(trail: trail)),
             const SizedBox(height: 8),
             _OpinionTiles(trail: trail),
             const SizedBox(height: 8),
@@ -273,7 +278,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             ],
             if (trail.isOwn && !trail.pending) ...[
               const SizedBox(height: 12),
-              OwnGradePicker(trail: trail),
+              CoachAnchor(id: SheetCoach.ownGrade, child: OwnGradePicker(trail: trail)),
               OwnRatingPicker(trail: trail),
               // Der ganze Beitrag (Name, Charakter, Bewertung, Sichtbarkeit)
               // — gleich unter der Einschätzung, die ein Teil davon ist.
@@ -289,10 +294,14 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                       icon: const Icon(Icons.bookmark_add_outlined),
                       label: const Text('Übernehmen'),
                     ),
-                  TextButton.icon(
-                    onPressed: () => showTrailDetailsDialog(context, ref, trail),
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Mein Beitrag'),
+                  CoachAnchor(
+                    id: SheetCoach.contribution,
+                    child: TextButton.icon(
+                      key: const ValueKey('trail-contribution'),
+                      onPressed: () => showTrailDetailsDialog(context, ref, trail),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Mein Beitrag'),
+                    ),
                   ),
                   // Nicht, solange ein Beitrag im Ausgangskorb wartet: Der
                   // legte die gelöschte Zeile beim Nachholen wieder an.
@@ -314,13 +323,15 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: FilledButton.icon(
+                    child: CoachAnchor(
+                      id: SheetCoach.addNote,
+                      child: FilledButton.icon(
                       key: const ValueKey('add-note'),
                       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                       onPressed: () => addTrailNote(context, ref, trail),
                       icon: const Icon(Icons.add_comment_outlined),
                       label: const Text('Hinweis schreiben'),
-                    ),
+                    )),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -338,7 +349,9 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             // passen auf ein kleines Telefon nicht.
             if (widget.showOnMapButton) ...[
               if (!trail.pending) const SizedBox(height: 8),
-              OutlinedButton.icon(
+              CoachAnchor(
+                id: SheetCoach.showOnMap,
+                child: OutlinedButton.icon(
                 key: const ValueKey('trail-show-on-map'),
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 onPressed: () {
@@ -350,7 +363,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                 },
                 icon: const Icon(Icons.map),
                 label: const Text('Karte'),
-              ),
+              )),
             ],
           ],
         ),
@@ -709,7 +722,9 @@ class _MetricTiles extends StatelessWidget {
             key: const ValueKey('metric-elevation'),
           ),
           const SizedBox(width: 8),
-          tile(
+          CoachAnchor(
+            id: SheetCoach.grade,
+            child: tile(
             'S-GRAD',
             gradeSummary(trail) ?? 'Noch keine Einschätzung',
             grade == null || range == null
@@ -728,7 +743,7 @@ class _MetricTiles extends StatelessWidget {
             // Der Schlüssel des früheren Chips bleibt: Die Kachel tut dasselbe.
             key: const ValueKey('grade-chip'),
             onTap: grade == null ? null : () => showGradeVotesSheet(context, trail),
-          ),
+          )),
         ],
       ),
     );

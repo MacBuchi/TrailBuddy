@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Tour über die Karte
+
+*Version 0.60.0, 2026-09-30*
+
+- **Tour auf der Karte**: In der Kurzanleitung startet „Tour auf der
+  Karte zeigen" eine geführte Tour. Sie dunkelt die Karte ab, hebt
+  hervor, worum es gerade geht, und öffnet selbst, was sie erklärt —
+  das Blatt eines Trails, die Werkzeugleiste unter „Ebenen" und den
+  Filter für Orte und offizielle Trails. Eine kleine Legende zeigt, was
+  Farbe und Art einer Linie bedeuten. Antippen löst während der Tour
+  nichts aus; „Überspringen" oder die Zurück-Taste beenden sie jederzeit.
+
 ## Kurzanleitung und Sicherheitshinweis
 
 *Version 0.59.0, 2026-09-30*

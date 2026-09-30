@@ -12,3 +12,4 @@
 - [ ] New network target, permission or data category? → `web/datenschutz.html` (and `docs/play-console.md` once it exists) in this PR.
 - [ ] Schema change? → `patch_NNN`, `schema.sql` structure **and** seed list; `tool/schema_check.sh` extended for new columns/embeds/RPCs.
 - [ ] Concept touched? → `docs/konzept-trails.md` says the same thing as the code.
+- [ ] UI a tour points at changed (map buttons, tool rail, filter sheet, trail sheet, bottom bar)? → anchors still there; `map_tour_flow_test` green.

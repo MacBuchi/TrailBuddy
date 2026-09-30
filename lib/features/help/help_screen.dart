@@ -18,11 +18,14 @@
 // sind die Obergrenze — eine Anleitung, die man scrollen muss, liest
 // niemand zu Ende.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/widgets/safety_note.dart';
 import '../trails/grade_shield.dart';
 import '../trails/trail_report.dart' show kReportFieldLabel;
+import 'map_tour.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein paar Sätze.
 class HelpStep {
@@ -118,11 +121,11 @@ const kHelpSteps = <HelpStep>[
 ];
 
 /// Zeigt in sechs Schritten, wie TrailBuddy benutzt wird.
-class HelpScreen extends StatelessWidget {
+class HelpScreen extends ConsumerWidget {
   const HelpScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Kurzanleitung')),
@@ -140,6 +143,21 @@ class HelpScreen extends StatelessWidget {
           // den Hinweis nicht erst finden müssen.
           const SafetyNoteTile(),
           for (final step in kHelpSteps) _StepTile(step: step),
+          const SizedBox(height: 24),
+          // Der Wiederaufruf der Tour (#132). Hier und nicht als eigene
+          // Zeile im Profil: Wer die Tour sucht, sucht eine Erklärung — und
+          // landet ohnehin hier.
+          OutlinedButton.icon(
+            key: const ValueKey('help-map-tour'),
+            onPressed: () {
+              // Erst die Karte, dann die Tour: Ihre Anker hängen am
+              // Karten-Screen, und dessen Reiter muss sichtbar sein.
+              context.go('/');
+              startMapTour(ref);
+            },
+            icon: const Icon(Icons.play_circle_outline),
+            label: const Text('Tour auf der Karte zeigen'),
+          ),
         ],
       ),
     );

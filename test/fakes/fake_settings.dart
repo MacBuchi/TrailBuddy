@@ -16,7 +16,8 @@ class FakeSettings implements Settings {
       // „Schon gesehen" ist die Vorgabe (#126): Jeder Flow-Test pumpt die
       // App auf die Karte, und mit `false` läge über jedem der Hinweis.
       // Tests für Hinweis und Tour geben ihre Einstellungen ausdrücklich mit.
-      this.safetyNoteSeen = true});
+      this.safetyNoteSeen = true,
+      this.mapTourSeen = true});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -53,6 +54,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setSafetyNoteSeen(bool value) async {
     safetyNoteSeen = value;
+  }
+
+  @override
+  bool mapTourSeen;
+
+  @override
+  Future<void> setMapTourSeen(bool value) async {
+    mapTourSeen = value;
   }
 
   @override

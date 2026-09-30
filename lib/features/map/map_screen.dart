@@ -12,7 +12,9 @@ import '../../core/geo.dart';
 import '../../core/widgets/motion.dart';
 import '../../core/widgets/safety_note.dart';
 import '../../models/trail.dart';
+import '../coach/coach.dart';
 import '../feedback/feedback_dialog.dart';
+import '../help/map_tour.dart';
 import '../rides/ride_providers.dart';
 import '../rides/ride_split_sheet.dart';
 import '../rides/ride_task_handler.dart';
@@ -85,6 +87,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   String? _requestedPois;
   String? _requestedOfficial;
 
+  /// Die Szenen der Karten-Tour (#132) — abgemeldet in [dispose].
+  final _coachScenes = <VoidCallback>[];
+
+  /// Der Trail, dessen Schild und Blatt die Tour zeigt: der erste
+  /// gezeichnete mit Schild, sonst der erste gezeichnete. Gesetzt bei
+  /// jedem Aufbau, gelesen von der Szene [MapCoach.trailSheet].
+  Trail? _coachTrail;
+
   /// Nachladen kurz verzögert, damit ein Wischen über die Karte nicht
   /// zehn Abfragen auslöst.
   static const _loadDelay = Duration(milliseconds: 500);
@@ -101,6 +111,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // die Karte, solange die App lebt. Der Port dafür entsteht in
     // `main()` (`initRideCommunication`).
     FlutterForegroundTask.addTaskDataCallback(_onRideTick);
+    _registerCoachScenes();
     // Ein Fokus-Wunsch, der VOR dem Aufbau gestellt wurde (Route
     // `/trail/<id>` aus einer Push): `ref.listen` sieht nur Änderungen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -123,6 +134,41 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (ref.read(safetyNoteSeenProvider)) return;
     ref.read(safetyNoteSeenProvider.notifier).set(true);
     await showSafetyNoteDialog(context);
+  }
+
+  /// Die Szenen der Karten-Tour (#132): Das Skript sagt WAS geöffnet
+  /// wird, hier steht WIE — und wie es wieder zugeht. Direkt geöffnet,
+  /// nicht über [_closeTools], das bei einem Entwurf nachfragte; die Tour
+  /// beginnt ihn leer und verwirft ihn wieder.
+  void _registerCoachScenes() {
+    final coach = ref.read(coachRegistryProvider);
+    Future<VoidCallback> sheet(Future<void> Function() show) async {
+      final navigator = Navigator.of(context);
+      var open = true;
+      unawaited(show().whenComplete(() => open = false));
+      return () {
+        if (open) navigator.pop();
+      };
+    }
+
+    _coachScenes
+      ..add(coach.registerScene(MapCoach.rail, () async {
+        final wasOpen = ref.read(offlineOverlayProvider);
+        if (!wasOpen) _openTools();
+        return () {
+          if (wasOpen || !mounted) return;
+          ref.read(areaDraftProvider.notifier).discard();
+          ref.read(offlineOverlayProvider.notifier).state = false;
+        };
+      }))
+      ..add(coach.registerScene(MapCoach.filterSheet, () => sheet(() => showPoiFilterSheet(context))))
+      ..add(coach.registerScene(MapCoach.trailSheet, () async {
+        final trail = _coachTrail;
+        // Ohne Trail nichts zu öffnen — der Schritt fällt über `unless`
+        // ohnehin weg; ein leerer Schließer hält die Kette trotzdem.
+        if (trail == null) return () {};
+        return sheet(() => showTrailSheet(context, ref.read(trailByIdProvider(trail.id)) ?? trail));
+      }));
   }
 
   void _takeFocusWish() {
@@ -232,6 +278,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    for (final unregister in _coachScenes) {
+      unregister();
+    }
     FlutterForegroundTask.removeTaskDataCallback(_onRideTick);
     _loadDebounce?.cancel();
     super.dispose();
@@ -411,6 +460,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               if (passesTrailFilter(t, trailFilter, seenNotes: seenNotes, snoozed: snoozed)) t
           ]
         : trails;
+    _coachTrail = shownTrails.where(hasTrailBadge).firstOrNull ?? shownTrails.firstOrNull;
     final groups = ref.watch(poiGroupsProvider);
     final hidden = ref.watch(poiHiddenKindsProvider);
     final poiState = ref.watch(poiControllerProvider);
@@ -565,7 +615,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ...poiMarkers(poiState, camera, cells, groups, hidden),
         // Das Schild am Trailanfang (Design 4c) — über den Orten, weil
         // es zum Netz gehört.
-        ...trailBadgeMarkers(shownTrails, camera),
+        ...trailBadgeMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
         if (position != null)
           MapViewMarker(
             key: const ValueKey('my-position'),
@@ -666,13 +716,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: SingleChildScrollView(
-                    child: OfflineToolRail(
+                    child: CoachAnchor(
+                      id: MapCoach.rail,
+                      child: OfflineToolRail(
                       onFilter: () => showPoiFilterSheet(context),
                       onSnapshot: _addViewport,
                       onTrails: trails.isEmpty ? null : _addTrails,
                       onManage: () => context.go('/profile/areas'),
                       onSave: _saveDraft,
                       onClose: _closeTools,
+                      ),
                     ),
                   ),
                 ),
@@ -720,49 +773,76 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     // Von oben nach unten wie im Entwurf (3a): Idee, Ebenen,
                     // Position — und unten, am Daumen, die Aufnahme.
                     const SizedBox(height: 4),
-                    MapRoundButton(
-                      tooltip: 'Idee oder Fehler melden',
-                      icon: Icons.lightbulb_outline,
-                      onPressed: () => showFeedbackFlow(context, ref),
-                    ),
-                    const SizedBox(height: 10),
-                    MapRoundButton(
-                      key: const ValueKey('layers-button'),
-                      tooltip: 'Ebenen und Orte',
-                      icon: Icons.layers_outlined,
-                      // Öffnet und schließt die Werkzeugleiste — dasselbe
-                      // wie ihr X und die Zurück-Taste. Offen: Rand in der
-                      // Marke, die Leiste links gehört zu diesem Knopf.
-                      active: toolsOpen,
-                      onPressed: toolsOpen ? _closeTools : _openTools,
-                    ),
-                    const SizedBox(height: 10),
-                    MapRoundButton(
-                      tooltip: 'Meine Position',
-                      icon: Icons.my_location,
-                      onPressed: _locateMe,
-                    ),
-                    // Die Marke über der Aufnahme, nur während einer Fahrt
-                    // (#105, E12): Fahne für „beginnt", Zielflagge für
-                    // „endet"; läuft ein markierter Trail, Rand in der Marke.
-                    if (canRecord && ride != null) ...[
-                      const SizedBox(height: 14),
-                      MapRoundButton(
-                        key: const ValueKey('ride-mark-button'),
-                        tooltip: markedTrailOpen(ride.marks) ? 'Trail endet' : 'Trail beginnt',
-                        icon: markedTrailOpen(ride.marks) ? Icons.sports_score : Icons.flag_outlined,
-                        active: markedTrailOpen(ride.marks),
-                        onPressed: _toggleMark,
+                    // Die Knopfspalte als EIN Anker (#132): Die Tour spart
+                    // sie ganz aus und legt den Ring auf den gemeinten Knopf.
+                    CoachAnchor(
+                      id: MapCoach.buttons,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          CoachAnchor(
+                            id: MapCoach.feedback,
+                            child: MapRoundButton(
+                              key: const ValueKey('feedback-button'),
+                              tooltip: 'Idee oder Fehler melden',
+                              icon: Icons.lightbulb_outline,
+                              onPressed: () => showFeedbackFlow(context, ref),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          CoachAnchor(
+                            id: MapCoach.layers,
+                            child: MapRoundButton(
+                              key: const ValueKey('layers-button'),
+                              tooltip: 'Ebenen und Orte',
+                              icon: Icons.layers_outlined,
+                              // Öffnet und schließt die Werkzeugleiste —
+                              // dasselbe wie ihr X und die Zurück-Taste.
+                              // Offen: Rand in der Marke, die Leiste links
+                              // gehört zu diesem Knopf.
+                              active: toolsOpen,
+                              onPressed: toolsOpen ? _closeTools : _openTools,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          CoachAnchor(
+                            id: MapCoach.locate,
+                            child: MapRoundButton(
+                              key: const ValueKey('locate-button'),
+                              tooltip: 'Meine Position',
+                              icon: Icons.my_location,
+                              onPressed: _locateMe,
+                            ),
+                          ),
+                          // Die Marke über der Aufnahme, nur während einer
+                          // Fahrt (#105, E12): Fahne für „beginnt",
+                          // Zielflagge für „endet"; läuft ein markierter
+                          // Trail, Rand in der Marke.
+                          if (canRecord && ride != null) ...[
+                            const SizedBox(height: 14),
+                            MapRoundButton(
+                              key: const ValueKey('ride-mark-button'),
+                              tooltip: markedTrailOpen(ride.marks) ? 'Trail endet' : 'Trail beginnt',
+                              icon: markedTrailOpen(ride.marks) ? Icons.sports_score : Icons.flag_outlined,
+                              active: markedTrailOpen(ride.marks),
+                              onPressed: _toggleMark,
+                            ),
+                          ],
+                          if (canRecord) ...[
+                            const SizedBox(height: 14),
+                            CoachAnchor(
+                              id: MapCoach.record,
+                              child: RecordButton(
+                                key: const ValueKey('ride-button'),
+                                recording: ride != null,
+                                onPressed: _toggleRide,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                    if (canRecord) ...[
-                      const SizedBox(height: 14),
-                      RecordButton(
-                        key: const ValueKey('ride-button'),
-                        recording: ride != null,
-                        onPressed: _toggleRide,
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -1030,7 +1110,9 @@ class _EmptyHint extends StatelessWidget {
     return SafeArea(
       child: Align(
         alignment: Alignment.topCenter,
-        child: Card(
+        child: CoachAnchor(
+          id: MapCoach.empty,
+          child: Card(
           key: const ValueKey('map-empty-hint'),
           margin: const EdgeInsets.all(16),
           clipBehavior: Clip.antiAlias,
@@ -1054,6 +1136,7 @@ class _EmptyHint extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
