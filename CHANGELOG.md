@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Trails beschreiben
+
+*Version 0.48.0, 2026-09-30*
+
+- **Link zur Quelle**: Ein Trail kann auf eine Seite zeigen, etwa die
+  des Vereins mit Beschreibung und Regeln. Trägt deine GPX-Datei einen
+  Link, übernimmt der Import ihn; sonst trägst du ihn in „Mein Beitrag"
+  ein. Das Blatt zeigt die Adresse kurz, ein Tipp öffnet sie im Browser.
+  Nur https, und alles nach „?" fällt weg — Freigabelinks tragen dort
+  oft einen Schlüssel.
+
 ## Fahrten zerlegen
 
 *Version 0.47.0, 2026-09-30*

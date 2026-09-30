@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_theme.dart' show AppFonts;
@@ -17,6 +18,7 @@ import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
+import 'trail_link.dart';
 import 'trail_notes.dart';
 import 'trail_providers.dart';
 import 'trail_traits.dart';
@@ -234,6 +236,19 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(mine.description!),
+              ),
+            // Link zur Quelle (#103): nur der Host, geöffnet im Browser —
+            // die App selbst ruft ihn nie ab.
+            if (trail.displayLink case final link?)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const ValueKey('trail-link'),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  onPressed: () => launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: Text(linkHost(link)),
+                ),
               ),
             if (!trail.pending) ...[
               const SizedBox(height: 12),

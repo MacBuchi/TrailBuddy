@@ -2,6 +2,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:trailbuddy/core/errors.dart';
 import 'package:trailbuddy/data/trail_repository.dart';
 import 'package:trailbuddy/features/trails/trail_geometry.dart';
+import 'package:trailbuddy/features/trails/trail_link.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 import 'package:trailbuddy/models/trail.dart';
 
@@ -77,6 +78,7 @@ class FakeTrailRepository implements TrailRepository {
             description: d.description,
             grade: d.grade,
             traits: d.traits,
+            link: d.link,
             visibility: d.visibility,
             status: d.status,
             statusAt: d.statusAt,
@@ -213,6 +215,12 @@ class FakeTrailRepository implements TrailRepository {
     if (name != null && (name.isEmpty || name.length > 80)) {
       throw StateError('23514: Name mit ${name.length} Zeichen');
     }
+    // Spiegelt trail_details_link_check (Patch 012): nur, was sanitizeLink
+    // durchlässt.
+    final link = d.link;
+    if (link != null && sanitizeLink(link) != link) {
+      throw StateError('23514: Link $link');
+    }
     details.removeWhere((x) => x.trailId == d.trailId && x.userId == me);
     details.add(TrailDetails(
       trailId: d.trailId,
@@ -221,6 +229,7 @@ class FakeTrailRepository implements TrailRepository {
       description: d.description,
       grade: d.grade,
       traits: d.traits,
+      link: d.link,
       visibility: d.visibility,
       status: d.status,
       statusAt: d.statusAt,
@@ -320,7 +329,7 @@ class FakeTrailRepository implements TrailRepository {
       TrailVisibility visibility = TrailVisibility.buddies, String? trailId,
       List<double>? ele, bool reversed = false, int? grade,
       Set<TrailTrait> traits = const {},
-      RecordingSource source = RecordingSource.import}) {
+      RecordingSource source = RecordingSource.import, String? link}) {
     final id = trailId ?? 'trail-${newClientId()}';
     recordings.add(TrailRecording(
       id: 'rec-${newClientId()}',
@@ -341,6 +350,7 @@ class FakeTrailRepository implements TrailRepository {
       name: name,
       grade: grade,
       traits: traits,
+      link: link,
       status: status,
       statusAt: statusAt,
       visibility: visibility,

@@ -317,6 +317,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   grün geblieben). Der Harness schaltet ihn ab
   (`startSplashEnabledProvider`), sonst schluckte er die ersten Tipps
   jedes Flow-Tests.
+- **Link zur Quelle** (#103, seit 0.48.0, Patch 012,
+  `trail_link.dart`): `trail_details.link`, nur https ohne Query und
+  Fragment — `sanitizeLink` in der App, `trail_details_link_check` in der
+  Datenbank, der Fake spiegelt beides. Der Import nimmt `<link href>` der
+  Spur, sonst aus `<metadata>`, über `linkFromFile` (ohne Gerätehersteller
+  und Tourenportale, `kLinkIgnoredHosts`) und übernimmt ihn wie den Namen
+  nur in einen Beitrag ohne Link (`adoptDetails`, `ContributeJob.link`).
+  Das Blatt zeigt den Host (`linkHost`), geöffnet wird extern; die App
+  ruft ihn nie ab. **Jeder, der `TrailDetails` neu baut** (Dialog, Fake),
+  muss den Link mitgeben — sonst löscht Speichern ihn still.
+  `matcher_check.sql` Block 22.
 - **Beitrag löschen** (seit 0.46.0, Patch 010, `withdrawContribution`
   im Trail-Blatt): `withdraw_contribution(trail_id)` löscht eigene
   Aufzeichnungen, eigene Hinweise und den eigenen Beitrag in EINER

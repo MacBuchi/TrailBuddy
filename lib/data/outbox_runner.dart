@@ -21,9 +21,11 @@ class OutboxRunner {
   final TrailRepository repository;
   final Outbox outbox;
 
-  /// Nach dem Beisteuern: den Namen aus der Datei als eigenen übernehmen,
-  /// wenn noch keiner steht — und den S-Grad aus dem Zerlege-Blatt.
-  final Future<void> Function(String trailId, String name, int? grade, Set<TrailTrait> traits)
+  /// Nach dem Beisteuern: den Namen (und den Link, #103) aus der Datei als
+  /// eigenen übernehmen, wenn noch keiner steht — und den S-Grad aus dem
+  /// Zerlege-Blatt.
+  final Future<void> Function(
+          String trailId, String name, int? grade, Set<TrailTrait> traits, String? link)
       adoptDetails;
 
   /// Nach so vielen erfolglosen Anläufen gilt ein Auftrag als abgelehnt.
@@ -67,8 +69,11 @@ class OutboxRunner {
               clientId: job.id,
             );
             final name = job.name?.trim() ?? '';
-            if (name.isNotEmpty || job.grade != null || job.traits.isNotEmpty) {
-              await adoptDetails(trailId, name, job.grade, job.traits);
+            if (name.isNotEmpty ||
+                job.grade != null ||
+                job.traits.isNotEmpty ||
+                job.link != null) {
+              await adoptDetails(trailId, name, job.grade, job.traits, job.link);
             }
           case DetailsJob():
             await repository.saveDetails(job.details);
