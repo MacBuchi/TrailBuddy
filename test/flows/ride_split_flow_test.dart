@@ -307,4 +307,63 @@ void main() {
     expect(find.text('Verwerfen'), findsNothing, reason: 'nur nach einer Aufzeichnung');
     expect(find.text('Schließen'), findsOneWidget);
   });
+
+  group('Frage zu einer unbestätigten Meldung (#116)', () {
+    testWidgets('an der Zeile des Trails, zur Zeit der Fahrt — „Trail ist frei" meldet sofort',
+        (tester) async {
+      final benId = trails.recordings.single.userId;
+      // Ben meldete Roots von zu Hause als gesperrt, VOR der Fahrt.
+      trails.seedReport(benId, 'trail-roots',
+          status: TrailStatus.closed, confirmed: false, at: t0.subtract(const Duration(days: 1)));
+      await pumpApp(tester, backend, trails: trails, rideStore: store);
+      await openFromRides(tester);
+      await sheetScrollTo(tester, find.byKey(const ValueKey('split-confirm-0-free')));
+      expect(find.byKey(const ValueKey('split-confirm-0-question')), findsOneWidget);
+      expect(find.text('Gemeldet: gesperrt — stimmt das?'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('split-confirm-0-free')));
+      await settle(tester, frames: 10);
+      final mine = trails.reports.where((r) => r.userId == annaId).single;
+      expect(mine.status, TrailStatus.open);
+      expect(mine.confirmed, isTrue, reason: 'gefahren heißt vor Ort');
+      expect(mine.reportedAt.toUtc(), t0, reason: 'die Zeit der Fahrt am Trail, nicht die des Tipps');
+      expect(find.byKey(const ValueKey('split-confirm-0-sent')), findsOneWidget);
+      expect(trails.contributeCalls, 0, reason: 'die Antwort hängt nicht am Beisteuern');
+    });
+
+    testWidgets('„Ändern…" lässt den Wert wählen',
+        (tester) async {
+      final benId = trails.recordings.single.userId;
+      trails.seedReport(benId, 'trail-roots',
+          condition: 2, confirmed: false, at: t0.subtract(const Duration(hours: 2)));
+      await pumpApp(tester, backend, trails: trails, rideStore: store);
+      await openFromRides(tester);
+      await sheetScrollTo(tester, find.byKey(const ValueKey('split-confirm-0-change')));
+      expect(find.text('Zustand: Abgerockt — stimmt das?'), findsOneWidget);
+      expect(find.byKey(const ValueKey('split-confirm-0-free')), findsNothing,
+          reason: '„Trail ist frei" gibt es nur zu einer warnenden Meldung');
+      await tester.tap(find.byKey(const ValueKey('split-confirm-0-change')));
+      await settle(tester);
+      await sheetScrollTo(tester, find.byKey(const ValueKey('split-confirm-0-condition-4')));
+      await tester.tap(find.byKey(const ValueKey('split-confirm-0-condition-4')));
+      await settle(tester);
+      await sheetScrollTo(tester, find.byKey(const ValueKey('split-confirm-0-submit')));
+      await tester.tap(find.byKey(const ValueKey('split-confirm-0-submit')));
+      await settle(tester, frames: 10);
+      final mine = trails.reports.where((r) => r.userId == annaId).single;
+      expect(mine.kind, ReportKind.condition);
+      expect(mine.condition, 4);
+      expect(mine.confirmed, isTrue);
+    });
+
+    testWidgets('eine Meldung, die erst NACH der Fahrt kam, wird nicht gefragt', (tester) async {
+      final benId = trails.recordings.single.userId;
+      trails.seedReport(benId, 'trail-roots',
+          status: TrailStatus.closed, confirmed: false, at: t0.add(const Duration(days: 2)));
+      await pumpApp(tester, backend, trails: trails, rideStore: store);
+      await openFromRides(tester);
+      await sheetScrollTo(tester, find.text('Kandidaten für neue Trails'));
+      expect(find.text('Roots'), findsOneWidget);
+      expect(find.byKey(const ValueKey('split-confirm-0-question')), findsNothing);
+    });
+  });
 }

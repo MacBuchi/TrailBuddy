@@ -4,7 +4,7 @@
 
 ## Bewerten und melden
 
-*Versionen 0.49.0 bis 0.52.0, 2026-09-30*
+*Versionen 0.49.0 bis 0.53.0, 2026-09-30*
 
 - **Unterwegs bestätigen**: Fährst du mit laufender Aufzeichnung auf
   einem Trail, zu dem eine Meldung oder ein Zustand noch bestätigt
@@ -15,6 +15,10 @@
   beim Beenden der Fahrt als bestätigte Meldung an deine Buddys, ohne
   Empfang später. Die Prüfung läuft auf dem Telefon, deine Position
   verlässt es nicht.
+- Hast du unterwegs nicht geantwortet oder „Ändern…" gewählt, steht
+  dieselbe Frage **nach der Fahrt im Zerlege-Blatt** an der Zeile des
+  Trails — dort auch mit der Wahl, was stattdessen gilt. Die Antwort
+  zählt mit der Zeit, zu der du dort warst.
 
 - **Auf der Karte sieht man den Zustand an der Linie**: durchgezogen,
   wenn alles gut ist, bröckelig bei „ausgefahren", gestrichelt bei

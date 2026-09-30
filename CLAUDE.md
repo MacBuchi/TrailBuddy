@@ -558,8 +558,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `/trail/<id>`). Beide schreiben über `handleConfirmResponse` in die
     Datei. Gesendet wird beim Beenden (`RideNotifier.stop`, vor dem
     Blatt), je Trail die letzte Antwort, mit ihrer Zeit — ohne Netz in
-    den Ausgangskorb. „Ändern…" und Unbeantwortetes schreiben nichts
-    (die fragt das Zerlege-Blatt, #116 Teil 2).
+    den Ausgangskorb. „Ändern…" und Unbeantwortetes schreiben nichts —
+    die fragt das Zerlege-Blatt (seit 0.53.0, `splitQuestionFor`,
+    `split_confirm_row.dart`): an der Zeile des wieder gefahrenen
+    Trails, nur was VOR der Fahrt gemeldet war, nur mit Zeitstempeln,
+    gesendet SOFORT beim Tipp mit der Zeit der Fahrt am Trail (nicht
+    mit „Speichern" — die Antwort hängt nicht am Beisteuern). Wer
+    unterwegs geantwortet hat, wird nicht noch einmal gefragt: Seine
+    Meldung ist die jüngste bestätigte (auch wartend im Korb), die
+    unbestätigte damit überholt.
   - **Kanal `trailbuddy_meldungen`** (IMPORTANCE_HIGH, derselbe wie
     Push) — die Dauerbenachrichtigung der Fahrt ist leise und zeigte
     kein Banner. `flutter_local_notifications` braucht Desugaring

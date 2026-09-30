@@ -276,4 +276,34 @@ void main() {
       expect(store.events, isEmpty);
     });
   });
+
+  group('Frage im Zerlege-Blatt', () {
+    Trail trailWith(List<TrailReport> reports) => buildTrails(
+          recordings: [
+            TrailRecording(
+                id: 'r', trailId: 't', userId: 'bob', source: RecordingSource.import,
+                recordedAt: null, reversed: false, quality: 0.4, createdAt: DateTime.utc(2026),
+                points: northLine(), lengthM: 1000),
+          ],
+          details: const [],
+          myId: 'me',
+          reports: reports,
+        ).single;
+    TrailReport unconfirmed(DateTime at, {TrailStatus? status, int? condition}) => TrailReport(
+        id: 'u-$at-$condition', trailId: 't', userId: 'bob',
+        kind: status != null ? ReportKind.status : ReportKind.condition,
+        status: status, condition: condition, confirmed: false, reportedAt: at);
+
+    test('nur, was VOR der Fahrt gemeldet war — und nur mit Zeit', () {
+      final t = trailWith([
+        unconfirmed(t0.subtract(const Duration(days: 1)), status: TrailStatus.closed),
+        unconfirmed(t0.add(const Duration(hours: 1)), condition: 2),
+      ]);
+      final q = splitQuestionFor(t, t0)!;
+      expect(q.status, TrailStatus.closed);
+      expect(q.condition, isNull, reason: 'der Zustand kam nach der Fahrt');
+      expect(splitQuestionFor(t, null), isNull, reason: 'ohne Zeit war niemand nachweislich dort');
+      expect(splitQuestionFor(t, t0.subtract(const Duration(days: 2))), isNull);
+    });
+  });
 }

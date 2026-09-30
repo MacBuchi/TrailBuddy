@@ -318,3 +318,27 @@ ConfirmReport? _reportFor(ConfirmAsked q, ConfirmAnswered a) => switch (a.choice
       ConfirmChoice.free => (trailId: q.trailId, status: TrailStatus.open, condition: null, at: a.at),
       _ => null,
     };
+
+/// Die Frage an der Zeile eines wieder gefahrenen Trails im Zerlege-Blatt
+/// (#116, zweiter Teil): wer unterwegs nicht geantwortet oder „Ändern…"
+/// gewählt hat, bekommt sie hier noch einmal. Nur, was VOR der Fahrt
+/// gemeldet war ([rodeAt] = Zeit am Trail) — eine alte Datei bestätigt
+/// keine Meldung von gestern. Wer unterwegs geantwortet hat, wird nicht
+/// noch einmal gefragt: Seine Meldung ist dann die jüngste bestätigte
+/// (auch wartend im Ausgangskorb), und die unbestätigte ist überholt.
+ConfirmTarget? splitQuestionFor(Trail trail, DateTime? rodeAt) {
+  if (rodeAt == null || trail.pending || trail.points.length < 2) return null;
+  bool before(TrailReport? r) => r != null && !r.reportedAt.isAfter(rodeAt);
+  final s = trail.shownStatus.unconfirmed;
+  final c = trail.shownCondition.unconfirmed;
+  final status = before(s) ? s!.status : null;
+  final condition = before(c) ? c!.condition : null;
+  if (status == null && condition == null) return null;
+  return ConfirmTarget(
+    trailId: trail.id,
+    name: trail.displayName,
+    line: trail.points,
+    status: status,
+    condition: condition,
+  );
+}

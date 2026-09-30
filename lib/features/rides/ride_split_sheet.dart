@@ -29,9 +29,11 @@ import '../trails/trail_geometry.dart';
 import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart' show formatLength;
 import '../trails/trail_traits.dart';
+import 'ride_confirm.dart';
 import 'ride_split.dart';
 import 'ride_track.dart';
 import 'road_index.dart';
+import 'split_confirm_row.dart';
 
 /// Was zerlegt werden soll: die Spur, ihre Quelle, die Streuung je Punkt
 /// (nur bei eigenen Aufzeichnungen).
@@ -231,6 +233,16 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     _pushPreview();
   }
 
+  /// Die Frage zur bekannten Zeile [i], mit der Zeit der Fahrt am Trail.
+  /// Ohne Zeiten (geplante Datei) keine Frage: Wer nicht nachweislich dort
+  /// war, bestätigt nichts.
+  (ConfirmTarget, DateTime)? _questionAt(RideSplit split, int i) {
+    final known = split.known[i];
+    final at = split.points[known.start].time;
+    final target = splitQuestionFor(known.trail, at);
+    return target == null || at == null ? null : (target, at);
+  }
+
   List<LatLng> _latLng(int start, int end) => [
         for (final p in _split!.points.sublist(start, end + 1)) LatLng(p.lat, p.lon),
       ];
@@ -382,7 +394,7 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
             if (split.known.isNotEmpty) ...[
               Text('Wieder gefahren', style: theme.textTheme.titleMedium),
               const Text('Vorangehakt — als Beleg beigesteuert, das hält den Trail aktuell.'),
-              for (var i = 0; i < split.known.length; i++)
+              for (var i = 0; i < split.known.length; i++) ...[
                 CheckboxListTile(
                   key: ValueKey('split-known-$i'),
                   contentPadding: EdgeInsets.zero,
@@ -400,6 +412,11 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                   title: Text(split.known[i].trail.displayName),
                   subtitle: Text(formatLength(split.known[i].lengthM)),
                 ),
+                // Unbestätigtes zu diesem Trail, das unterwegs offen blieb
+                // (#116): hier noch einmal gefragt, zur Zeit der Fahrt.
+                if (_questionAt(split, i) case (final target, final at))
+                  SplitConfirmRow(target: target, rodeAt: at, index: i),
+              ],
               const SizedBox(height: 12),
             ],
             Text('Kandidaten für neue Trails', style: theme.textTheme.titleMedium),
