@@ -5,6 +5,7 @@ import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
 import '../../models/trail.dart';
 import 'singletrail_scale.dart';
+import 'trail_link.dart';
 import 'trail_notes.dart';
 import 'trail_providers.dart';
 import 'trail_traits.dart';
@@ -50,6 +51,8 @@ class _DetailsDialogState extends State<_DetailsDialog> {
   late final _name = TextEditingController(text: widget.initial.name ?? '');
   late final _description =
       TextEditingController(text: widget.initial.description ?? '');
+  late final _link = TextEditingController(text: widget.initial.link ?? '');
+  String? _linkError;
   final _note = TextEditingController();
   late int? _grade = widget.initial.grade;
   late final Set<TrailTrait> _traits = {...widget.initial.traits};
@@ -60,6 +63,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
   void dispose() {
     _name.dispose();
     _description.dispose();
+    _link.dispose();
     _note.dispose();
     super.dispose();
   }
@@ -168,6 +172,20 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
             ),
+            const SizedBox(height: 8),
+            // Link zur Quelle (#103): etwa die Seite des Vereins. Nur https,
+            // Query und Fragment fallen weg (sanitizeLink).
+            TextField(
+              key: const ValueKey('details-link'),
+              controller: _link,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              decoration: InputDecoration(
+                labelText: 'Link zur Quelle (optional)',
+                hintText: 'z. B. die Seite des Vereins',
+                errorText: _linkError,
+              ),
+            ),
           ],
         ),
       ),
@@ -178,6 +196,12 @@ class _DetailsDialogState extends State<_DetailsDialog> {
         ),
         FilledButton(
           onPressed: () {
+            final linkText = _link.text.trim();
+            final link = sanitizeLink(linkText);
+            if (linkText.isNotEmpty && link == null) {
+              setState(() => _linkError = 'Nur https-Adressen, ohne Leerzeichen');
+              return;
+            }
             final statusChanged = _status != widget.initial.status;
             Navigator.of(context).pop((
               note: statusChanged ? _note.text.trim() : null,
@@ -191,6 +215,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
                   : _description.text.trim(),
               grade: _grade,
               traits: {..._traits},
+              link: link,
               visibility: _visibility,
               status: _status,
               // Eine Statusmeldung trägt ihr Datum (Entscheidung 6); ein

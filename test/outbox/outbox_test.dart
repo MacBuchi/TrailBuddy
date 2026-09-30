@@ -18,6 +18,7 @@ void main() {
     source: RecordingSource.import,
     recordedAt: at.subtract(const Duration(days: 3)),
     name: 'Wurzeltrail',
+    link: 'https://verein.example/trails/wurzel',
     grade: 2,
     traits: const {TrailTrait.steep, TrailTrait.flowy},
   );
@@ -30,6 +31,7 @@ void main() {
         name: 'Roots',
         grade: 3,
         traits: const {TrailTrait.rocky, TrailTrait.steep},
+        link: 'https://verein.example/roots',
         status: TrailStatus.closed,
         statusAt: at),
     note: 'Baum liegt quer',
@@ -48,10 +50,13 @@ void main() {
     expect(c.grade, 2);
     expect(c.traits, {TrailTrait.flowy, TrailTrait.steep});
     expect(c.copyWith(attempts: 1).traits, c.traits, reason: 'copyWith verliert den Charakter nicht');
+    expect(c.link, 'https://verein.example/trails/wurzel');
+    expect(c.copyWith(attempts: 1).link, c.link, reason: 'copyWith verliert den Link nicht');
     final d = back[1] as DetailsJob;
     expect(d.details.trailId, 'trail-9');
     expect(d.details.grade, 3);
     expect(d.details.traits, {TrailTrait.rocky, TrailTrait.steep});
+    expect(d.details.link, 'https://verein.example/roots');
     expect(d.details.status, TrailStatus.closed);
     expect(d.details.statusAt!.toUtc(), at);
     expect(d.note, 'Baum liegt quer');
@@ -63,6 +68,12 @@ void main() {
     final back = decodeOutbox(raw, uid: 'me').single as ContributeJob;
     expect(back.traits, isEmpty);
     expect(back.grade, 2);
+  });
+
+  test('ein Auftrag von vor 0.48.0 (ohne link) liest sich ohne Link', () {
+    final raw = encodeOutbox([contribute], uid: 'me').replaceAll(RegExp(r',"link":"[^"]*"'), '');
+    expect(raw, isNot(contains('"link"')));
+    expect((decodeOutbox(raw, uid: 'me').single as ContributeJob).link, isNull);
   });
 
   test('Zähler und Ablehnung reisen mit; retry löscht die Ablehnung', () {

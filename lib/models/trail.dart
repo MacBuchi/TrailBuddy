@@ -179,6 +179,7 @@ class TrailDetails {
     this.description,
     this.grade,
     this.traits = const {},
+    this.link,
     this.visibility = TrailVisibility.buddies,
     this.status = TrailStatus.open,
     this.statusAt,
@@ -197,6 +198,10 @@ class TrailDetails {
 
   /// Der Charakter laut DIESEM Beitrag, leer = keine Angabe.
   final Set<TrailTrait> traits;
+
+  /// Link zur Quelle (#103, Patch 012): https, ohne Query — geprüft von
+  /// `sanitizeLink` und vom Check in der Datenbank.
+  final String? link;
   final TrailVisibility visibility;
   final TrailStatus status;
   final DateTime? statusAt;
@@ -212,6 +217,7 @@ class TrailDetails {
       description: json['description'] as String?,
       grade: json['grade'] as int?,
       traits: _traitsFromJson(json),
+      link: json['link'] as String?,
       visibility: TrailVisibility.fromDb(json['visibility'] as String?),
       status: TrailStatus.fromDb(json['status'] as String?),
       statusAt: json['status_at'] == null
@@ -232,6 +238,7 @@ class TrailDetails {
         // `kind` schreibt die App nicht mehr; der Server behält den
         // alten Wert, bis Patch-Folge die Spalte entfernt.
         'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
+        'link': link,
         'visibility': visibility.db,
         'status': status.db,
         'status_at': statusAt?.toUtc().toIso8601String(),
@@ -243,6 +250,8 @@ class TrailDetails {
     int? grade,
     bool clearGrade = false,
     Set<TrailTrait>? traits,
+    String? link,
+    bool clearLink = false,
     TrailVisibility? visibility,
     TrailStatus? status,
     DateTime? statusAt,
@@ -255,6 +264,7 @@ class TrailDetails {
         description: description ?? this.description,
         grade: clearGrade ? null : (grade ?? this.grade),
         traits: traits ?? this.traits,
+        link: clearLink ? null : (link ?? this.link),
         visibility: visibility ?? this.visibility,
         status: status ?? this.status,
         statusAt: statusAt ?? this.statusAt,
@@ -432,6 +442,18 @@ class Trail {
       if (n != null && n.trim().isNotEmpty) return n;
     }
     return 'Trail ohne Namen';
+  }
+
+  /// Link zur Quelle wie der Name (#103): eigener, sonst der des
+  /// ältesten sichtbaren Beitrags, der einen hat.
+  String? get displayLink {
+    final own = myDetails?.link;
+    if (own != null && own.isNotEmpty) return own;
+    for (final d in contributionsOrdered) {
+      final l = d.link;
+      if (l != null && l.isNotEmpty) return l;
+    }
+    return null;
   }
 
   List<String> get otherNames {

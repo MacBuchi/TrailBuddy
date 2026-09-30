@@ -196,6 +196,10 @@ create table public.trail_details (
   visibility text not null default 'buddies' check (visibility in ('buddies', 'private')),
   status text not null default 'open' check (status in ('open', 'closed', 'destroyed', 'changed')),
   status_at timestamptz,
+  -- Verweis auf die Quelle (Patch 012, #103): eine Vereinsseite o. Ä.,
+  -- vorgeschlagen aus dem <link> der GPX-Datei. Nur https, ohne Query
+  -- und Fragment — Freigabelinks von Tourenportalen tragen dort Tokens.
+  link text constraint trail_details_link_check check (link is null or (link ~ '^https://[^[:space:]/?#]+(/[^[:space:]?#]*)?$' and char_length(link) <= 500)),
   -- Nicht in der Skizze des Konzepts, aber von ihr verlangt: „Name =
   -- eigener Name, sonst der Name des ÄLTESTEN sichtbaren Beitrags"
   -- (Abschnitt 3) braucht das Alter des Beitrags, und updated_at ändert
@@ -1473,5 +1477,6 @@ insert into public.applied_patches (filename) values
   ('patch_008_push.sql'),
   ('patch_009_trail_traits.sql'),
   ('patch_010_withdraw_contribution.sql'),
-  ('patch_011_planned_keeps_status.sql')
+  ('patch_011_planned_keeps_status.sql'),
+  ('patch_012_contribution_link.sql')
 on conflict do nothing;

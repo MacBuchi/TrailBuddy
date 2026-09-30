@@ -1,5 +1,7 @@
 import 'package:xml/xml.dart';
 
+import 'trail_link.dart';
+
 /// Ein Punkt einer GPX-Spur. `ele` und `time` fehlen bei gezeichneten
 /// Routen (Konzept 5.2: „geplant", nicht „gefahren").
 class TrackPoint {
@@ -15,10 +17,15 @@ class TrackPoint {
 /// hintereinander (ein Segmentbruch ist eine Lücke, kein neuer Trail) —
 /// oder ein `<rte>`, wenn die Datei nur eine Route trägt.
 class GpxTrack {
-  const GpxTrack({required this.name, required this.points});
+  const GpxTrack({required this.name, required this.points, this.link});
 
   final String name;
   final List<TrackPoint> points;
+
+  /// Der Link zur Quelle (#103): `<link href>` der Spur, sonst der aus
+  /// `<metadata>` — schon durch [linkFromFile] gefiltert, also https, ohne
+  /// Query, und nie der Hersteller des Geräts. Null, wenn keiner taugt.
+  final String? link;
 }
 
 class GpxFormatException implements Exception {
@@ -47,6 +54,7 @@ List<GpxTrack> parseGpx(String xml, {String fallbackName = 'Ohne Namen'}) {
   if (root.name.local != 'gpx') {
     throw GpxFormatException('Keine GPX-Datei (Wurzel ist <${root.name.local}>).');
   }
+  final fileLink = _link(root.getElement('metadata'));
   final tracks = <GpxTrack>[];
   for (final trk in root.findElements('trk')) {
     final points = <TrackPoint>[];
@@ -54,17 +62,30 @@ List<GpxTrack> parseGpx(String xml, {String fallbackName = 'Ohne Namen'}) {
       _collect(seg.findElements('trkpt'), points);
     }
     if (points.length >= 2) {
-      tracks.add(GpxTrack(name: _name(trk) ?? fallbackName, points: points));
+      tracks.add(GpxTrack(
+          name: _name(trk) ?? fallbackName, points: points, link: _link(trk) ?? fileLink));
     }
   }
   for (final rte in root.findElements('rte')) {
     final points = <TrackPoint>[];
     _collect(rte.findElements('rtept'), points);
     if (points.length >= 2) {
-      tracks.add(GpxTrack(name: _name(rte) ?? fallbackName, points: points));
+      tracks.add(GpxTrack(
+          name: _name(rte) ?? fallbackName, points: points, link: _link(rte) ?? fileLink));
     }
   }
   return tracks;
+}
+
+/// Der erste taugliche `<link href>` direkt unter [parent] (GPX 1.1; in
+/// GPX 1.0 ist `<url>` ein Textelement).
+String? _link(XmlElement? parent) {
+  if (parent == null) return null;
+  for (final el in parent.findElements('link')) {
+    final link = linkFromFile(el.getAttribute('href'));
+    if (link != null) return link;
+  }
+  return linkFromFile(parent.getElement('url')?.innerText);
 }
 
 String? _name(XmlElement parent) {
