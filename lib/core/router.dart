@@ -6,11 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/providers.dart';
+import '../features/coach/coach.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/changelog/changelog_screen.dart';
 import '../features/friends/friends_screen.dart';
 import '../features/help/help_screen.dart';
+import '../features/help/map_tour.dart' show NavCoach;
 import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/offline_areas/areas_screen.dart';
@@ -175,30 +177,43 @@ class AppShell extends StatelessWidget {
       // Leistenhöhe über dem Rand — ein Reiter-Scaffold darf nur um den
       // Rest der Tastatur schrumpfen.
       body: KeyboardInsetBelowBar(child: navigationShell),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(
-          index,
-          initialLocation: index == navigationShell.currentIndex,
+      bottomNavigationBar: CoachAnchor(
+        id: NavCoach.bar,
+        child: NavigationBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: (index) => navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          ),
+          // Die Anker der Karten-Tour (#132): Sie nennt die Bereiche zum
+          // Schluss, der Ring liegt je Bereich.
+          destinations: const [
+            CoachAnchor(
+                id: NavCoach.map,
+                child: NavigationDestination(
+                    icon: Icon(Icons.map_outlined),
+                    selectedIcon: Icon(Icons.map),
+                    label: 'Karte')),
+            CoachAnchor(
+                id: NavCoach.trails,
+                child: NavigationDestination(
+                    icon: Icon(Icons.route_outlined),
+                    selectedIcon: Icon(Icons.route),
+                    label: 'Trails')),
+            CoachAnchor(
+                id: NavCoach.buddys,
+                child: NavigationDestination(
+                    icon: Icon(Icons.group_outlined),
+                    selectedIcon: Icon(Icons.group),
+                    label: 'Buddys')),
+            CoachAnchor(
+                id: NavCoach.profile,
+                child: NavigationDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: 'Profil')),
+          ],
         ),
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map),
-              label: 'Karte'),
-          NavigationDestination(
-              icon: Icon(Icons.route_outlined),
-              selectedIcon: Icon(Icons.route),
-              label: 'Trails'),
-          NavigationDestination(
-              icon: Icon(Icons.group_outlined),
-              selectedIcon: Icon(Icons.group),
-              label: 'Buddys'),
-          NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profil'),
-        ],
       ),
     );
   }

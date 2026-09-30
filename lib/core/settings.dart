@@ -87,6 +87,13 @@ abstract interface class Settings {
   bool get safetyNoteSeen;
 
   Future<void> setSafetyNoteSeen(bool value);
+
+  /// Hat dieses Gerät die Karten-Tour (#132) gesehen — durchgesehen oder
+  /// übersprungen? Gerätelokal; nach einer Neuinstallation läuft sie
+  /// wieder, und das ist angenommen.
+  bool get mapTourSeen;
+
+  Future<void> setMapTourSeen(bool value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -180,6 +187,14 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setSafetyNoteSeen(bool value) =>
       _prefs.setBool(_safetyNoteSeenKey, value);
+
+  static const _mapTourSeenKey = 'map_tour_seen';
+
+  @override
+  bool get mapTourSeen => _prefs.getBool(_mapTourSeenKey) ?? false;
+
+  @override
+  Future<void> setMapTourSeen(bool value) => _prefs.setBool(_mapTourSeenKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

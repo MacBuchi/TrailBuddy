@@ -9,6 +9,7 @@ import 'core/widgets/preview_ribbon.dart';
 import 'core/widgets/push_listener.dart';
 import 'core/widgets/start_splash.dart';
 import 'core/widgets/update_gate.dart';
+import 'features/coach/coach.dart';
 
 class TrailBuddyApp extends ConsumerWidget {
   const TrailBuddyApp({super.key});
@@ -29,11 +30,30 @@ class TrailBuddyApp extends ConsumerWidget {
       // reicht er nur durch.
       // StartSplash über allem (1p): Er liegt nur beim Start einmal
       // darüber, die App lädt darunter schon.
+      //
+      // Die Hinweis-Maschine (#132) liegt UNTER dem Splash und über allem
+      // anderen, auch über Dialogen und Blättern — nur so kann sie in der
+      // Werkzeugleiste und im Filter-Blatt hervorheben. Der Splash bleibt
+      // ganz außen: Er schluckt 1,45 s lang Tipps, Hinweis und Startseite
+      // darunter sind statisch, nichts geht verloren. Update-Banner und
+      // Push-Leiste liegen während einer Tour im Dunkel — hinnehmbar.
+      // `CoachSemanticsGate` blendet für TalkBack aus, was darunter liegt.
       builder: (context, child) => StartSplash(
-        child: PreviewRibbon(
-          child: PushListener(
-            child: UpdateGate(child: child ?? const SizedBox.shrink()),
-          ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CoachSemanticsGate(
+              child: PreviewRibbon(
+                child: PushListener(
+                  child: UpdateGate(child: child ?? const SizedBox.shrink()),
+                ),
+              ),
+            ),
+            CoachOverlay(
+              onNavigate: (route) => router.push(route),
+              backButtonDispatcher: router.backButtonDispatcher,
+            ),
+          ],
         ),
       ),
       theme: buildAppTheme(AppColors.light),

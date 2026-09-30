@@ -383,6 +383,8 @@ Jede Animation ist aus, wenn das System es will
 | 1r Fahrt läuft | Ring um den Positionspunkt skaliert 1 → 3,2 und blendet von 0,7 aus; die Spur wächst | 1,6 s, Schleife |
 | 1s Buddy verbunden | zwei Spuren laufen zu einer zusammen, dann der Punkt | 3 s |
 | 1t Neuer Hinweis | der gelbe Leuchtrand atmet (2 → 6/14 px Schein) | 1,8 s, nur solange ungesehen |
+| 1u Tour-Ring | Lime-Ring um das Gemeinte pulsiert 3 → 7 px (Abschnitt 12) | 1,8 s, Schleife, solange die Tour läuft |
+| 1v Tour-Hand | herankommen, drücken, abheben (Wischen: rechts nach links) | 1,8 s, Schleife |
 
 Gebaut in 0.45.0 (`lib/core/widgets/motion.dart`, `start_splash.dart`;
 die Keyframes stehen je als pure Funktion daneben — `splashAt`,
@@ -433,3 +435,35 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 6c | Glatte Linien, Name entlang der Linie (Betreiber-Wunsch) | 0.44.0 |
 | 7 | Animationen (Turn 1p–1t) | 0.45.0 |
 | E1 | Einführung: Kurzanleitung, Sicherheitshinweis (#131) | 0.59.0 |
+| E2 | Hinweis-Maschine, Karten-Tour aus der Kurzanleitung (#132) | 0.60.0 |
+
+## 12. Einführung: Hinweis-Maschine und Touren (#126)
+
+Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
+(`lib/features/coach/coach.dart`, Kopie von PilzBuddy #596).
+
+- **Abdunkelung** Schwarz mit 65 %, Aussparung in der Form des
+  Elements, 2 px Luft, Radius 12. Kein Vergrößern — der Fehler der
+  ersten PilzBuddy-Tour, die runde Löcher je Knopf schnitt.
+- **Ring = Marke**: außen Weiß 90 % 5 px, innen Lime 3 px, pulsiert
+  3 → 7 px in 1,8 s. Der Ring heißt „hier, für dich" und ist nie eine
+  Bedeutungsfarbe der Karte. Lime kollidiert nicht: S0 ist ein anderes
+  Grün, und „mein" ist seit 0.42.0 ein Wort. Orange, Gelb, Petrol,
+  Violett und Blau bleiben den Linien.
+- **Hand** gezeichnet (`FingerPainter`), Ärmel und Druckpunkt in der
+  Marke, Kontur fast schwarz (`onBrand` — PilzBuddy: Pilzbraun); heran,
+  drücken, abheben, Keyframes pur (`FingerMotion`).
+- **Blase** auf `surface` mit Rand `line`, Radius 12, Pfeil zum Ziel;
+  Titel `titleLarge` (Barlow Condensed), Text `bodyMedium`, Zähler
+  „2 von 7" in JetBrains Mono, gedämpft; „Überspringen" als Text,
+  „Weiter"/„Los geht's" gefüllt in Lime. Erst messen, dann setzen: neben
+  ein hohes schmales Ziel, ins Bild geschoben ohne Pfeil.
+- **Illustration** (TrailBuddys Erweiterung): ein Bild unter dem Text,
+  wo nichts auszusparen ist. Die Mini-Legende (`tour_legend.dart`)
+  steht auf dem Landton der Karte (`mapBackground`) und zeichnet mit
+  denselben Farben (`mapGrades`, `mapLines`) und Mustern
+  (`kLineDashWorn`, `kLineDashRough`, `kHaloDashExpert`) wie die Karte.
+- **Reduzierte Bewegung**: Ring steht, Hand steht in der Druckstellung.
+  Während einer Tour blendet die Maschine alles darunter für TalkBack
+  aus; die Blase ist eine Live-Region.
+

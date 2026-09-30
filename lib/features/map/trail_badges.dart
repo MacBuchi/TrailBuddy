@@ -8,6 +8,8 @@ import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
 import '../../models/trail.dart';
+import '../coach/coach.dart';
+import '../help/map_tour.dart' show MapCoach;
 import '../trails/grade_shield.dart';
 import 'map_view/map_view.dart';
 
@@ -50,18 +52,29 @@ double _badgeWidth(Trail t, bool uphill, List<TrailTrait> traits) {
 /// Die Schilder für die gezeigten Trails — leer unter [kTrailBadgeMinZoom]
 /// und für Trails ohne Grad und ohne Merkmale. Wartende (Ausgangskorb)
 /// bekommen keins: Sie haben noch keinen Beitrag.
-List<MapViewMarker> trailBadgeMarkers(Iterable<Trail> trails, MapViewCamera? camera) {
+///
+/// Das Schild von [coachTrailId] trägt den Anker der Karten-Tour (#132,
+/// `MapCoach.trailBadge`) — die Tour zeigt auf GENAU das Schild, dessen
+/// Blatt sie danach öffnet.
+List<MapViewMarker> trailBadgeMarkers(Iterable<Trail> trails, MapViewCamera? camera,
+    {String? coachTrailId}) {
   if (camera == null || camera.zoom < kTrailBadgeMinZoom) return const [];
   return [
     for (final t in trails)
-      if (!t.pending && t.points.isNotEmpty && (t.grade != null || t.topTraits.isNotEmpty))
-        _marker(t),
+      if (hasTrailBadge(t)) _marker(t, anchored: t.id == coachTrailId),
   ];
 }
 
-MapViewMarker _marker(Trail t) {
+/// Bekommt [t] ein Schild? Nicht wartend, mit Linie, mit Grad oder
+/// Merkmalen — dieselbe Regel für die Marker und für die Tour.
+bool hasTrailBadge(Trail t) =>
+    !t.pending && t.points.isNotEmpty && (t.grade != null || t.topTraits.isNotEmpty);
+
+MapViewMarker _marker(Trail t, {bool anchored = false}) {
   final uphill = isUphill(t);
   final traits = [for (final x in t.topTraits) if (!(uphill && x == TrailTrait.uphill)) x];
+  final shield = GradeShield(t.grade,
+      fontSize: _fontSize, uphill: uphill, traits: traits, palette: AppColors.mapGrades);
   return MapViewMarker(
     key: ValueKey('trail-badge-${t.id}'),
     point: trailStart(t),
@@ -73,8 +86,9 @@ MapViewMarker _marker(Trail t) {
     alignment: trailHeadsNorth(t) ? Alignment.bottomCenter : Alignment.topCenter,
     hitValue: t,
     child: Center(
-      child: GradeShield(t.grade,
-          fontSize: _fontSize, uphill: uphill, traits: traits, palette: AppColors.mapGrades),
+      child: anchored
+          ? CoachAnchor(id: MapCoach.trailBadge, child: shield)
+          : shield,
     ),
   );
 }

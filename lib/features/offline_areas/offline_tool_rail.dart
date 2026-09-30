@@ -17,6 +17,8 @@ import 'package:intl/intl.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_theme.dart';
 import '../../core/errors.dart';
+import '../coach/coach.dart';
+import '../help/map_tour.dart' show MapCoach;
 import '../map/map_buttons.dart';
 import '../map/online_map.dart';
 import 'area_downloader.dart';
@@ -65,9 +67,15 @@ class OfflineToolRail extends ConsumerWidget {
 
     // Aktives Werkzeug = helle Fläche (auf Hell: die dunkle — immer die
     // Gegenhelligkeit der Leiste), Hauptaktion Speichern = Lime (3e).
+    //
+    // Jeder Knopf ist ein Anker der Karten-Tour (#132), generisch aus
+    // seinem Schlüssel: `map.rail.<key>` — ein neuer Knopf bekommt ihn
+    // von selbst.
     Widget button(String key, String tip, Widget icon, VoidCallback? onPressed,
             {bool selected = false, bool primary = false}) =>
-        IconButton(
+        CoachAnchor(
+          id: MapCoach.railButton(key),
+          child: IconButton(
           key: ValueKey(key),
           tooltip: tip,
           isSelected: selected,
@@ -91,7 +99,7 @@ class OfflineToolRail extends ConsumerWidget {
           ),
           onPressed: onPressed,
           icon: icon,
-        );
+        ));
 
     Widget tool(AreaDrawTool t, String key, String tip, IconData icon) =>
         button(key, tip, Icon(icon), () => notifier.arm(t), selected: draft?.tool == t);

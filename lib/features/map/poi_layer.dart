@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_colors.dart';
+import '../coach/coach.dart';
+import '../help/map_tour.dart' show MapCoach;
 import '../../models/trail.dart';
 import '../official/official_trails_source.dart';
 import '../trails/trail_filter_chips.dart';
@@ -274,11 +276,14 @@ class _PoiFilterSheet extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 child: Text('Trails', style: text.titleLarge),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: TrailFilterChips(
-                  keyPrefix: 'map-trail',
-                  showOwner: trails.any((t) => t.isOwn) && trails.any((t) => !t.isOwn),
+              CoachAnchor(
+                id: MapCoach.filterTrails,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: TrailFilterChips(
+                    keyPrefix: 'map-trail',
+                    showOwner: trails.any((t) => t.isOwn) && trails.any((t) => !t.isOwn),
+                  ),
                 ),
               ),
             ],
@@ -286,7 +291,11 @@ class _PoiFilterSheet extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Text('Ebenen', style: text.titleLarge),
             ),
-            SwitchListTile(
+            // Die Anker der Karten-Tour (#132): der Schalter und die
+            // Gruppen der Orte, jeweils mit Überschrift.
+            CoachAnchor(
+              id: MapCoach.filterOfficial,
+              child: SwitchListTile(
               key: const ValueKey('official-trails-switch'),
               secondary: CircleAvatar(
                 backgroundColor: AppPalette.of(context).map.official,
@@ -297,7 +306,13 @@ class _PoiFilterSheet extends ConsumerWidget {
                   'gestrichelt — bisher Tirol'),
               value: official,
               onChanged: (v) => ref.read(officialTrailsEnabledProvider.notifier).set(v),
-            ),
+            )),
+            CoachAnchor(
+              id: MapCoach.filterPois,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: Text('Orte auf der Karte', style: text.titleLarge),
@@ -351,6 +366,9 @@ class _PoiFilterSheet extends ConsumerWidget {
                   ),
                 ),
             ],
+                ],
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Text(

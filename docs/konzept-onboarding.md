@@ -188,8 +188,10 @@ Startseite und Kette kommen in PR 3.
 - `lib/features/help/map_tour.dart`: Anker-Kennungen (`NavCoach`,
   `MapCoach`, `SheetCoach` — das Trail-Blatt teilt sich PR 5 mit der
   Karte), `kMapTourScript`, `kNavStep`, `startMapTour`,
-  `mapTourSeenProvider`; `safetyNoteSeenProvider` zieht hierher. Noch
-  ohne Startseite: ohne `art` beginnt die Tour beim ersten Schritt.
+  `mapTourSeenProvider`. Noch ohne Startseite: ohne `art` beginnt die
+  Tour beim ersten Schritt. **Gebaut abweichend:**
+  `safetyNoteSeenProvider` bleibt in `safety_note.dart` — der Merker
+  gehört zum Hinweis, nicht zur Tour.
 - Einbau in `lib/app.dart`:
 
   ```dart
@@ -237,8 +239,11 @@ Startseite und Kette kommen in PR 3.
   - Szenen in `MapScreen.initState`: `map.rail` (`_openTools` /
     `_closeTools`), `map.rail/filter` (`showPoiFilterSheet` direkt),
     `map.trailSheet` (`showTrailSheet` mit dem ersten sichtbaren Trail;
-    ohne Trail fällt der Schritt über `requires` weg). Abmelden in
-    `dispose`.
+    ohne Trail fällt der Schritt weg). Abmelden in `dispose`. **Gebaut:**
+    Schild und Blatt zeigen DENSELBEN Trail (der erste gezeichnete mit
+    Schild); Schritt 2 fällt über `unless: [map.empty]` weg — der leere
+    Kartenzustand ist ein Anker, denn der Anker im Blatt entsteht erst
+    mit der Szene und darf nicht in `requires` stehen.
 - Kurzanleitung: Knopf „Tour auf der Karte zeigen“ → `context.go('/')`,
   `startMapTour(ref)`. Merker `mapTourSeen` (`map_tour_seen`).
 - PR-Template: Haken „UI, auf die eine Tour zeigt, geändert? Anker noch
