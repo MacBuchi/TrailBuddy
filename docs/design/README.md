@@ -385,6 +385,7 @@ Jede Animation ist aus, wenn das System es will
 | 1t Neuer Hinweis | der gelbe Leuchtrand atmet (2 → 6/14 px Schein) | 1,8 s, nur solange ungesehen |
 | 1u Tour-Ring | Lime-Ring um das Gemeinte pulsiert 3 → 7 px (Abschnitt 12) | 1,8 s, Schleife, solange die Tour läuft |
 | 1v Tour-Hand | herankommen, drücken, abheben (Wischen: rechts nach links) | 1,8 s, Schleife |
+| 1w Startseiten-Bild | ein Punkt fährt die Serpentine ab: Moment am Start, weich die Linie entlang, Moment am Ziel (`introDriftAt`) | 4 s, Schleife; ohne Takt der Punkt am Ziel |
 
 Gebaut in 0.45.0 (`lib/core/widgets/motion.dart`, `start_splash.dart`;
 die Keyframes stehen je als pure Funktion daneben — `splashAt`,
@@ -436,6 +437,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 7 | Animationen (Turn 1p–1t) | 0.45.0 |
 | E1 | Einführung: Kurzanleitung, Sicherheitshinweis (#131) | 0.59.0 |
 | E2 | Hinweis-Maschine, Karten-Tour aus der Kurzanleitung (#132) | 0.60.0 |
+| E3 | Karten-Tour beim ersten Start mit Startseite (#133) | 0.61.0 |
 
 ## 12. Einführung: Hinweis-Maschine und Touren (#126)
 
@@ -466,4 +468,14 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
 - **Reduzierte Bewegung**: Ring steht, Hand steht in der Druckstellung.
   Während einer Tour blendet die Maschine alles darunter für TalkBack
   aus; die Blase ist eine Live-Region.
-
+- **Startseite** (seit 0.61.0, `tour_intro_art.dart`): Karte mit Radius
+  24 auf `surface` mit Rand `line`, darin das Bild 240 × 150 (Radius 20,
+  schrumpft mit dem Schirm auf bis zu 80 px Höhe), Titel
+  `headlineSmall`, zwei Sätze `bodyLarge`, die Wahl „Nicht jetzt" /
+  „Tour starten" (aus der Kurzanleitung „Zeig's mir"; in der Kette ab
+  #136 „Später" / „Weiter"). Nur der Inhalt scrollt, die Wahl bleibt im
+  Bild. Bilder: `welcomeArt` — die Serpentine in `brandMark` auf dem
+  Grund des Modus, der Zielpunkt halb durchsichtig, ein Punkt in
+  Textfarbe mit Kern in der Marke fährt sie ab; `mapArt` — drei
+  Linienstücke S0/S1/S2 mit weißem Saum auf dem Landton der Karte und
+  ein S1-Schild. Kein Foto, kein Lottie, keine Emojis.

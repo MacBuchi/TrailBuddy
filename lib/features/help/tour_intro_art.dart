@@ -1,0 +1,183 @@
+// Die Bilder der Tour-Startseiten (#133, Plan `docs/konzept-onboarding.md`
+// 3.3 und 6; Form nach PilzBuddys `tour_intro_art.dart`, #596).
+//
+// **Neu gezeichnet, nicht kopiert** — PilzBuddy zeichnet Pilze. Hier ist
+// das Motiv die Serpentine aus dem Logo (`logoPath()`), und die Farben
+// sind die der App: die Marke für den Weg, die Pistenfarben für die
+// Linien. Kein Foto, kein Lottie, keine Emojis (Design 6): Screenshots
+// veralteten mit jeder Oberflächenänderung.
+//
+// Jede Szene steht auf derselben Bühne (240 × 150, Radius 20, Grund des
+// Modus), damit die Startseiten zusammengehören. Bewegt wird nur, solange
+// `TickerMode` an ist — die Startseite schaltet ihn bei „Animationen
+// entfernen" ab, und dann steht das ENDBILD da (der Punkt am Ziel), nicht
+// der Anfang.
+import 'package:flutter/material.dart';
+
+import '../../core/app_colors.dart';
+import '../../core/widgets/trailbuddy_logo.dart';
+import '../trails/grade_shield.dart';
+
+/// Die Bühne: abgerundeter Grund des Modus, darin die Szene.
+class _Stage extends StatelessWidget {
+  const _Stage({required this.painter});
+
+  final CustomPainter painter;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 240,
+        height: 150,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: ColoredBox(
+            color: AppPalette.of(context).ground,
+            child: CustomPaint(painter: painter),
+          ),
+        ),
+      );
+}
+
+/// Wie weit der Punkt auf der Serpentine ist, 0…1, bei [t] (0…1, eine
+/// Schleife von vier Sekunden): erst ein Moment am Start, dann weich die
+/// Linie entlang, dann ein Moment am Ziel. Rein, damit ein Test den
+/// Ablauf ohne Pixel prüft.
+double introDriftAt(double t) {
+  final x = t.clamp(0.0, 1.0);
+  if (x < 0.1) return 0;
+  if (x >= 0.8) return 1;
+  // Kurveneingänge klemmen (CLAUDE.md, Bewegung): Gleitkomma ergibt hier
+  // sonst Werte knapp über 1, und `Curve.transform` wirft darauf.
+  return Curves.easeInOut.transform(((x - 0.1) / 0.7).clamp(0.0, 1.0));
+}
+
+/// Die Startseite „Willkommen bei TrailBuddy": die Serpentine in der
+/// Marke, ein Punkt fährt sie ab.
+Widget welcomeArt(BuildContext context) => const _WelcomeArt();
+
+class _WelcomeArt extends StatefulWidget {
+  const _WelcomeArt();
+
+  @override
+  State<_WelcomeArt> createState() => _WelcomeArtState();
+}
+
+class _WelcomeArtState extends State<_WelcomeArt> with SingleTickerProviderStateMixin {
+  late final AnimationController _loop =
+      AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+
+  @override
+  void dispose() {
+    _loop.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+    // Ohne Takt (reduzierte Bewegung) das Endbild: Punkt am Ziel.
+    final moving = TickerMode.valuesOf(context).enabled;
+    return AnimatedBuilder(
+      animation: _loop,
+      builder: (context, _) => _Stage(
+        painter: _SerpentinePainter(
+          progress: moving ? introDriftAt(_loop.value) : 1,
+          road: p.brandMark,
+          rider: p.text,
+        ),
+      ),
+    );
+  }
+}
+
+class _SerpentinePainter extends CustomPainter {
+  const _SerpentinePainter({required this.progress, required this.road, required this.rider});
+
+  final double progress;
+  final Color road;
+  final Color rider;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Der Logo-Pfad liegt in einer viewBox 100 zwischen 20 und 72 (dazu
+    // der Zielpunkt bei 82) — auf die Bühne gesetzt, mittig.
+    const scale = 1.7;
+    canvas.translate(size.width / 2 - 51 * scale, size.height / 2 - 46 * scale);
+    canvas.scale(scale);
+    final path = logoPath();
+    canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 7
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = road);
+    // Das Ziel wie im Logo.
+    canvas.drawCircle(Offset(kLogoDot.x, kLogoDot.y), kLogoDot.r * 0.8,
+        Paint()..color = road.withValues(alpha: 0.5));
+    final metric = path.computeMetrics().first;
+    final at = metric.getTangentForOffset(metric.length * progress)!.position;
+    canvas.drawCircle(at, 6.5, Paint()..color = rider);
+    canvas.drawCircle(at, 3, Paint()..color = road);
+  }
+
+  @override
+  bool shouldRepaint(_SerpentinePainter old) =>
+      old.progress != progress || old.road != road || old.rider != rider;
+}
+
+/// Die Startseite „Die Karte": drei Linienstücke in den Pistenfarben mit
+/// weißem Saum auf dem Landton der Karte, am Anfang des mittleren das
+/// Schild. Steht still — die Karte selbst bewegt sich auch nicht.
+Widget mapArt(BuildContext context) => SizedBox(
+      width: 240,
+      height: 150,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: const ColoredBox(
+          color: AppColors.mapBackground,
+          child: Stack(
+            children: [
+              Positioned.fill(child: CustomPaint(painter: _MapLinesPainter())),
+              Positioned(
+                left: 104,
+                top: 88,
+                child: GradeShield(1, fontSize: 12, palette: AppColors.mapGrades),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+class _MapLinesPainter extends CustomPainter {
+  const _MapLinesPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const g = AppColors.mapGrades;
+    final halo = AppColors.mapLines.halo!;
+    void line(List<Offset> pts, Color color) {
+      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (var i = 1; i + 1 < pts.length; i += 2) {
+        path.quadraticBezierTo(pts[i].dx, pts[i].dy, pts[i + 1].dx, pts[i + 1].dy);
+      }
+      Paint stroke(Color c, double w) => Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = c;
+      canvas.drawPath(path, stroke(halo, 9));
+      canvas.drawPath(path, stroke(color, 5));
+    }
+
+    line(const [Offset(18, 30), Offset(70, 20), Offset(96, 58), Offset(120, 92), Offset(170, 70)], g.s0);
+    line(const [Offset(110, 120), Offset(150, 40), Offset(214, 36)], g.s1);
+    line(const [Offset(30, 130), Offset(60, 88), Offset(100, 110)], g.s2);
+  }
+
+  @override
+  bool shouldRepaint(_MapLinesPainter old) => false;
+}

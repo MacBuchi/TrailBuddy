@@ -45,7 +45,8 @@ bool covers(Rect lit, Rect widget) =>
     lit.inflate(0.5).contains(widget.topLeft) &&
     lit.inflate(0.5).contains(widget.bottomRight - const Offset(0.01, 0.01));
 
-final kTourTitles = [for (final s in kMapTourScript.steps) s.title];
+/// Die Schritte der Bedienung — ohne die Startseite davor (#133).
+final kTourTitles = [for (final s in kMapTourScript.tourSteps) s.title];
 
 final bubble = find.byKey(const ValueKey('coach-bubble'));
 
@@ -79,12 +80,20 @@ void main() {
     await settle(tester);
     await tester.tap(start);
     await settle(tester);
+    // Seit #133 beginnt sie mit ihrer Startseite „Die Karte".
+    expect(find.text('Die Karte'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
+    await settle(tester);
   }
 
   Future<FakeSettings> pumpAndStart(WidgetTester tester, {bool withTrail = true}) async {
-    final settings = FakeSettings(mapTourSeen: false);
+    // Schon gesehen — sonst liefe seit #133 die Willkommens-Tour von
+    // selbst. Danach zurückgesetzt, damit der Test sieht, dass die Tour
+    // aus der Kurzanleitung den Merker wieder setzt.
+    final settings = FakeSettings();
     await pumpApp(tester, backend, trails: withTrail ? trails : null, settings: settings);
     await settle(tester, frames: 20);
+    settings.mapTourSeen = false;
     await startFromHelp(tester);
     return settings;
   }
@@ -220,13 +229,16 @@ void main() {
     // Direkt gestartet, nicht über die Kurzanleitung: Sonst läge im
     // Profil-Reiter noch eine Seite, und Zurück hätte etwas zu tun, das
     // mit der Tour nichts zu tun hat.
-    final settings = FakeSettings(mapTourSeen: false);
+    final settings = FakeSettings();
     await pumpApp(tester, backend, trails: trails, settings: settings);
     await settle(tester, frames: 20);
+    settings.mapTourSeen = false;
     expect(await tester.binding.handlePopRoute(), isFalse, reason: 'ohne Tour: bis zum System');
     ProviderScope.containerOf(tester.element(find.byType(Scaffold).first))
         .read(coachProvider.notifier)
         .start(kMapTourScript, onDone: () => settings.mapTourSeen = true);
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('coach-intro-start')));
     await settle(tester);
     await next(tester); // das Trail-Blatt ist offen
     expect(await tester.binding.handlePopRoute(), isTrue);

@@ -1249,8 +1249,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Anpassungen im Kopfkommentar zeigt (Marke statt Waldgrün, Blase auf
   `surface`/`line`, Zähler in Mono, `reduceMotion`, Hand-Kontur `onBrand`)
   plus EINE Erweiterung: `CoachStep.illustration`. Die Tour steht in
-  `lib/features/help/map_tour.dart` (`kMapTourScript`, neun Schritte,
-  Start nur aus der Kurzanleitung — der erste Start kommt mit #133). Sieben
+  `lib/features/help/map_tour.dart` (`kMapTourScript`, neun Schritte;
+  beim ersten Start siehe nächster Abschnitt). Sieben
   Dinge, die man wissen muss:
   - **Die Maschine liegt über allem, aber UNTER dem Splash**
     (`app.dart`: `StartSplash` → `Stack[CoachSemanticsGate(…), CoachOverlay]`).
@@ -1289,9 +1289,40 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Element statt der Blase; Tests suchen deshalb in `coach-bubble`.
     Nach jedem Schritt `settle()`: 400 ms Tippsperre. Merker
     `mapTourSeen` (`map_tour_seen`, ohne Suffix, Reset-Konvention wie
-    beim Hinweis); `FakeSettings.mapTourSeen` steht auf `true`. In dieser
-    Stufe startet die Tour nie von selbst, die Gegenprobe (Vorgabe
-    `false`) bricht deshalb noch keinen Test — #133 misst sie.
+    beim Hinweis); `FakeSettings.mapTourSeen` steht auf `true` (Gegenprobe
+    siehe nächster Abschnitt).
+- **Die Karten-Tour beim ersten Start** (#133, seit 0.61.0, Plan
+  `docs/konzept-onboarding.md` 3.3). Beim ersten Start liegt über der
+  Karte erst der Sicherheitshinweis, dann — im SELBEN Start — die
+  Willkommensseite (`kWelcomeIntro`, Bild `welcomeArt`) mit der
+  Karten-Tour dahinter (`kWelcomeTourScript`, `startWelcomeTour`). Aus der
+  Kurzanleitung beginnt dieselbe Tour mit ihrer eigenen Startseite „Die
+  Karte" (`kMapIntro`, Bild `mapArt`). Fünf Dinge, die man wissen muss:
+  - **Hinweis und Tour im selben Start** — Abweichung von PilzBuddy (dort
+    liegt ein Start dazwischen); der Betreiber will „Hinweis vor der
+    ersten Tour". Der Auslöser ist `_firstStart` im Post-Frame von
+    `MapScreen`: erst `await showSafetyNoteDialog`, dann die Tour, und die
+    nur, wenn die Maschine frei ist (`busy`).
+  - **„Nicht jetzt" ist kein Gesehen**: Die Startseite fragt beim
+    nächsten Start wieder, jedes Mal; Zurück auf der Startseite heißt
+    „Nicht jetzt", ein Tipp daneben tut nichts. Gemerkt wird erst am Ende
+    (durchgesehen ODER übersprungen).
+  - **Die Willkommens-Tour hat keinen Weg in die Kurzanleitung am Ende**
+    — ab #136 hängt `startWelcomeTour` die Reiter-Touren an, die Kette
+    liefe sonst gleichzeitig in die Kurzanleitung.
+  - **Keine Rückkehrer-Startseite** (anders als PilzBuddy): TrailBuddy hat
+    noch keinen Merker-Reset. Kommt einer (`map_tour_seen_2`), braucht es
+    PilzBuddys `legacyMapTourSeen` und `kReturningIntro`.
+  - **Die Bilder sind gezeichnet** (`tour_intro_art.dart`): Serpentine aus
+    `logoPath()` auf dem Grund des Modus, ein Punkt fährt sie ab
+    (`introDriftAt`, rein und ohne Pixel geprüft); ohne Takt
+    (`TickerMode` aus bei „Animationen entfernen") steht das Endbild —
+    der Punkt am Ziel, nicht am Start. `mapArt` steht still auf dem
+    Landton der Karte, mit den Pistenfarben und dem echten `GradeShield`.
+  `FakeSettings.mapTourSeen` steht auf `true`; in der Gegenprobe (Vorgabe
+  `false`) brechen 180 Tests. Tests für die Tour setzen den Merker
+  ausdrücklich (`map_tour_flow_test` setzt ihn NACH dem Start zurück,
+  sonst liefe die Willkommens-Tour vor der aus der Kurzanleitung).
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

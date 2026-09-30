@@ -121,19 +121,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
   }
 
-  /// Was beim ersten Start über der Karte liegt (#131): der
-  /// Sicherheitshinweis, einmal je Installation. Hier und nicht in der
+  /// Was beim ersten Start über der Karte liegt: erst der
+  /// Sicherheitshinweis (#131), dann — IM SELBEN Start — die
+  /// Willkommensseite mit der Karten-Tour (#133). PilzBuddy legt einen
+  /// Start dazwischen; der Betreiber will „Hinweis vor der ersten Tour",
+  /// nicht „einen Start dazwischen" (Plan 3.3). Hier und nicht in der
   /// App-Hülle, weil die Karte nur angemeldet gebaut wird und hinter
-  /// einer Update-Sperre gar nicht — ein Hinweis vor dem Login wäre einer
-  /// ohne App dahinter.
+  /// einer Update-Sperre gar nicht.
   ///
-  /// Gemerkt wird VOR dem Zeigen: Der Dialog ist nicht wegtippbar, der
-  /// einzige Ausgang ist „Verstanden"; stirbt die App mit offenem
-  /// Dialog, kommt er nicht bei jedem Start wieder.
+  /// Gemerkt wird der Hinweis VOR dem Zeigen: Der Dialog ist nicht
+  /// wegtippbar, der einzige Ausgang ist „Verstanden"; stirbt die App mit
+  /// offenem Dialog, kommt er nicht bei jedem Start wieder. Die Tour
+  /// dagegen erst an ihrem Ende — „Nicht jetzt" ist kein Gesehen.
   Future<void> _firstStart() async {
-    if (ref.read(safetyNoteSeenProvider)) return;
-    ref.read(safetyNoteSeenProvider.notifier).set(true);
-    await showSafetyNoteDialog(context);
+    if (!ref.read(safetyNoteSeenProvider)) {
+      ref.read(safetyNoteSeenProvider.notifier).set(true);
+      await showSafetyNoteDialog(context);
+      if (!mounted) return;
+    }
+    // Läuft schon etwas (aus der Kurzanleitung gestartet), nicht
+    // dazwischenfahren.
+    if (!ref.read(mapTourSeenProvider) && !ref.read(coachProvider.notifier).busy) {
+      startWelcomeTour(ref);
+    }
   }
 
   /// Die Szenen der Karten-Tour (#132): Das Skript sagt WAS geöffnet
