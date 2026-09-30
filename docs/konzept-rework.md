@@ -6,7 +6,8 @@ GPX-Dateien importiert hat und einen Trail neu aufzeichnen will. Das
 Dokument ergänzt `docs/konzept-trails.md`, es ersetzt es nicht: Jeder
 Punkt, der gebaut wird, zieht im selben PR die betroffene Stelle dort
 nach (Regel aus `CLAUDE.md`). Offene Entscheidungen stehen in
-Abschnitt 9, der Plan in Abschnitt 10; verfolgt in #109.*
+Abschnitt 9, der Plan in Abschnitt 10, der Abgleich mit dem Code in
+Abschnitt 11; verfolgt in #109.*
 
 ## 0. Kurzfassung
 
@@ -162,6 +163,14 @@ PR per Test gegen den lokalen Stack belegt, nicht angenommen.
   `<metadata>` (GPX 1.1), **ohne Query und Fragment**: Freigabelinks von
   Tourenportalen tragen dort Tokens und Nutzerkennungen. Der Nutzer
   kann den Link vor dem Speichern ändern oder leeren.
+- **Gebaut in #113 (0.48.0), mit drei Abweichungen:** (1) Der Import
+  übernimmt den Link wie den Namen ohne eigenes Feld — auch den Namen
+  kann man dort nicht ändern; geändert wird danach in „Mein Beitrag".
+  (2) Links von Geräteherstellern und Tourenportalen fallen beim
+  Vorschlag weg (`kLinkIgnoredHosts`): `<metadata><link>` ist meist die
+  Seite des Exporteurs, und der Link zur eigenen Strava- oder
+  Komoot-Aktivität verriete Buddys das eigene Konto dort. (3) Kein
+  „auch: …" für weitere Links — das Blatt zeigt einen (E11).
 - **Abgrenzung:** Die offizielle Ebene (#13) bleibt der Weg für
   Vereins-Trails mit Erlaubnis. Ein Link in einem Beitrag ist die
   Aussage eines Nutzers, keine Quelle der App.
@@ -183,6 +192,11 @@ bleiben im Konzept: Das Stück kommt aus eigenen Daten und ist gefahren.
    Zerlege-Blatt macht aus jedem Paar Marken einen Kandidaten,
    zusätzlich zur Heuristik, vorangehakt. Eine offene Marke am Ende der
    Fahrt gilt bis zum letzten Punkt.
+
+**Weg 1 gebaut in #112 (0.47.0)**, wie oben, dazu: Vorgewählt ist die
+Fahrt ohne ihre ersten und letzten 300 m (Heimzone) — eine Fahrt beginnt
+an der Haustür; der Heimzonen-Hinweis folgt seither den Griffen, bei
+jedem Kandidaten.
 
 **Nie ein Merkmal „neu“ oder „selbst gebaut“** — die App fragt nicht,
 seit wann es einen Trail gibt (Konzept 7).
@@ -275,6 +289,20 @@ Jeder PR aus Abschnitt 10 zieht seine Zeile nach.
 | E5 | Zusammenführen: nur persönlich oder auch globale Umleitung? | nur persönlich |
 | E6 | Zustand nur mit eigenem Beleg? | ja |
 
+**Dazu aus dem Abgleich mit dem Stand 0.46.0 (Abschnitt 11) — fast alles
+Design:**
+
+| | Frage | Empfehlung |
+|---|---|---|
+| E7 | **„Zustand" ist schon vergeben:** Der Dialog „Mein Beitrag" und die Datenschutzerklärung nennen den STATUS (offen/gesperrt/zerstört/verändert) „Zustand". Wie heißen die beiden künftig? | Status → „Meldung" (passt zu „gemeldet vor …" und dem Filter „Gemeldet"), die neue Skala → „Zustand" |
+| E8 | Wo stehen Spaß und Zustand im Blatt? Heute drei Kacheln LÄNGE / HÖHE / S-GRAD (1i). | eine zweite Kachelreihe SPASS („4,2 · 3×") und ZUSTAND („ausgefahren · vor 3 Wochen"); darunter wie beim S-Grad die Einzelstimmen auf Tipp |
+| E9 | Hat der Zustand eine Farbe? Farbe heißt seit 0.42.0 Schwierigkeit, der orange Rand Warnung, der gelbe neuer Hinweis. | keine Farbe, kein Rand auf der Karte; in der Liste bei 1–2 ein Zustandswort („ABGEROCKT") nach den bestehenden Wörtern, in der Warnfarbe als Text |
+| E10 | „GEPLANT" als Wort in der Liste (`trailRowTags`)? | ja, gedämpft, hinter allen anderen Zuständen |
+| E11 | Link im Blatt: Platz (heute Textknopf unter der Beschreibung), weitere Links als „auch: …", Ausschlussliste | so lassen; „auch" erst, wenn es jemand vermisst |
+| E12 | Marken-Knopf während der Aufnahme (#105): Platz und Form in der rechten Knopfspalte (Design 3e) | 44 dp über dem Aufnahmeknopf, nur während einer Fahrt; Fahne; läuft ein Trail, trägt er den Rand der Marke; Symbole NICHT wie die Start-/Ende-Marken aus #96 |
+| E13 | Übernehmen im Zerlege-Blatt (#102): wie klappt eine bekannte Zeile auf, und gibt es den Filter „Bewertung offen" als Chip neben „Gemeldet"? | aufklappen wie die Kandidatenkarte, dieselben Bausteine; Filter-Chip ja |
+| E14 | Wo steht „Sind das dieselben?" (#107): im Trail-Blatt beider Trails, auf der Karte „Mit … verbunden" (1k), oder beides? | im Blatt (dort sieht man beide Linien); die Verbinden-Karte nennt nur die Anzahl |
+
 ## 10. Plan
 
 Reihenfolge nach Nutzen je Aufwand und nach Abhängigkeit. Jeder Schritt
@@ -284,17 +312,25 @@ Saat-Liste und einen Block in `matcher_check.sql` mit. Die Patch-Nummern
 in der Tabelle gelten für diese Reihenfolge; wer vorzieht, nimmt die
 nächste freie.
 
-| # | Schritt | Issue | Typ | Schema | Hängt ab von |
-|---|---|---|---|---|---|
-| 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | fix | Patch 011 | — |
-| 2 | Spaß und Zustand: Schema, Anzeige, „Mein Beitrag“ (3) | #101 | feat | Patch 012 | E4, E6 |
-| 3 | Übernehmen beim ersten Wiederfahren, Zustand je Fahrt (1, 3.2) | #102 | feat | — | #101, E1, E2 |
-| 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | feat | Patch 013 | — |
-| 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | feat | — | — |
-| 6 | Marken während der Aufnahme (5.2) | #105 | feat | — | #104 |
-| 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | feat | Patch 014 | Messung |
-| 8 | Zusammenführen im Netz (7) | #107 | feat | Patch 015 | #106, E5 |
-| 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | feat | — | — |
+**Die PRs sind gestapelt** (#111 ← #112 ← #113), weil jeder die Version
+hebt; nach dem Squash-Merge des unteren wird der nächste auf `main`
+umgesetzt. **Ein Patch geht live, sobald sein PR den Schema Check
+durchläuft** (`db_migrate.sh` spielt je PR neue Patches ein, nicht erst
+nach dem Merge) — Patch 011 ist deshalb schon live, Patch 012 mit #113.
+Schritte, deren Schema noch an einer Entscheidung hängt (2, 7, 8),
+bekommen ihren PR erst danach.
+
+| # | Schritt | Issue | PR | Typ | Schema | Hängt ab von |
+|---|---|---|---|---|---|---|
+| 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | #111 | fix 0.46.1 | Patch 011 (live) | — |
+| 2 | Spaß und Zustand: Schema, Anzeige, „Mein Beitrag“ (3) | #101 | — | feat | Patch 013 | E4, E6–E9 |
+| 3 | Übernehmen beim ersten Wiederfahren, Zustand je Fahrt (1, 3.2) | #102 | — | feat | — | #101, E1, E2, E13 |
+| 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 | feat 0.48.0 | Patch 012 | (E11) |
+| 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 | feat 0.47.0 | — | — |
+| 6 | Marken während der Aufnahme (5.2) | #105 | — | feat | — | #104, E12 |
+| 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | — | feat | Patch 014 | Messung |
+| 8 | Zusammenführen im Netz (7) | #107 | — | feat | Patch 015 | #106, E5, E14 |
+| 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
 
 ### Schritt 1 — Geplant
 
@@ -309,7 +345,7 @@ nächste freie.
 
 ### Schritt 2 — Spaß und Zustand
 
-- Patch 012: drei Spalten, Checks (1–5; `condition_at` genau dann,
+- Patch 013: drei Spalten, Checks (1–5; `condition_at` genau dann,
   wenn `condition`). Grants unverändert (Spalten erben).
 - `TrailDetails`: Felder, `fromJson`/`toRow`/Cache-Encoder (Rundlauf-
   Test), `copyWith`. `Trail`: `funAverage`, `funCount`,
@@ -339,7 +375,7 @@ nächste freie.
 
 ### Schritt 4 — Link
 
-- Patch 013: `trail_details.link text` mit Check (`^https://`, ≤ 500).
+- Patch 012: `trail_details.link text` mit Check (`^https://`, ≤ 500).
 - `gpx.dart`: `<link href>` aus `<trk>`, sonst `<metadata>`; Query und
   Fragment weg. Import schlägt ihn vor.
 - Blatt: Host mit ↗, öffnet extern; „Mein Beitrag“: Feld.
@@ -382,3 +418,30 @@ nächste freie.
 - `fake_trails.dart` spiegelt die neuen Regeln; `matcher_check.sql`
   prüft, dass die RPC für nicht sichtbare Paare nichts sagt.
 - #33 schließen.
+
+## 11. Abgleich mit dem Stand 0.46.0 (2026-09-30)
+
+Nach dem Rebase auf `main` (0.38.0 bis 0.46.0: neue Liste, neues Blatt,
+Farbe = Schwierigkeit, Bewegung, „Löschen") gegen den Code geprüft:
+
+- **Hält:** Der Name hängt am Beitrag (`Trail.displayName`), das
+  Zerlege-Blatt steuert „wieder gefahren" ohne Namen bei
+  (`_contribute`, Name `''`), `contribute_recording` setzte den Status
+  auch bei `planned` zurück, das Blatt zeigte „geplant" nirgends, der
+  Abgleich vergleicht nur mit der besten Aufzeichnung (`limit 1`). Alle
+  Lücken aus Abschnitt 0 bestanden.
+- **Neu seit dem Entwurf:** „Löschen" im Blatt (#99, Patch 010) macht
+  Lücke 1 häufiger. Die Patch-Nummern haben sich um eins verschoben.
+- **Stellt Fragen, die der Entwurf nicht kannte** (E7–E14): Die
+  Farbregel (Farbe = Schwierigkeit, Ränder = Warnung/Hinweis) lässt dem
+  Zustand keine Farbe; „Zustand" ist im Dialog und in der
+  Datenschutzerklärung schon das Wort für den Status; das Blatt hat drei
+  feste Kacheln; die Liste zeigt Zustände als Wort (`trailRowTags`).
+- **Hilft:** `adoptDetails` schreibt Name, Grad und Merkmale schon in
+  EINEM Vorgang und überschreibt keinen eigenen Namen — Schritt 3 baut
+  darauf; `OwnGradePicker` im Blatt ist das Vorbild fürs Übernehmen im
+  Bestand. Der Dialog „Mein Beitrag" baut `TrailDetails` neu: Jedes neue
+  Feld muss er mitgeben, sonst löscht Speichern es (in #113 für den Link
+  so gebaut, gilt für Spaß und Zustand genauso).
+- **Prozess:** Der Schema Check spielt Patches je PR live ein
+  (Abschnitt 10).
