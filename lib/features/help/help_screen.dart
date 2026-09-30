@@ -61,9 +61,9 @@ const kHelpSteps = <HelpStep>[
     text: 'GPX- oder Zip-Dateien aus anderen Apps holst du über das Symbol '
         'oben rechts im Reiter „Trails" oder im Profil unter „Trails '
         'importieren". Eine kurze Spur, die überwiegend bergab führt, wird '
-        'ein Trail; eine ganze Runde ist eine Fahrt — die zerlegst du mit der '
-        'Schere auf der Karte in Trails. Nur Trails gehen zu deinen Buddys, '
-        'nie die ganze Fahrt.',
+        'ein Trail; eine ganze Runde ist eine Fahrt — die zerlegst du über die '
+        'Schere im Import in Trails. Nur Trails gehen zu deinen Buddys, nie '
+        'die ganze Fahrt.',
   ),
   HelpStep(
     icon: GradeShield(2),
