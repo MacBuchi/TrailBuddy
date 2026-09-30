@@ -79,6 +79,14 @@ abstract interface class Settings {
   String? get appearance;
 
   Future<void> setAppearance(String value);
+
+  /// Hat dieses Gerät den Sicherheitshinweis (#131) schon einmal
+  /// bestätigt? Einmal je Installation — ein Hinweis, den man täglich
+  /// wegklickt, wird zur Tapete. Nachlesbar bleibt er in der
+  /// Kurzanleitung und unter „Über TrailBuddy".
+  bool get safetyNoteSeen;
+
+  Future<void> setSafetyNoteSeen(bool value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -161,6 +169,17 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setAppearance(String value) =>
       _prefs.setString(_appearanceKey, value);
+
+  // Ohne Suffix (#126, Plan Abschnitt 5): Sollen alle den Hinweis noch
+  // einmal sehen, bekommt der Schlüssel `_2` — siehe CLAUDE.md.
+  static const _safetyNoteSeenKey = 'safety_note_seen';
+
+  @override
+  bool get safetyNoteSeen => _prefs.getBool(_safetyNoteSeenKey) ?? false;
+
+  @override
+  Future<void> setSafetyNoteSeen(bool value) =>
+      _prefs.setBool(_safetyNoteSeenKey, value);
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

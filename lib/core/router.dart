@@ -10,6 +10,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/changelog/changelog_screen.dart';
 import '../features/friends/friends_screen.dart';
+import '../features/help/help_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/offline_areas/areas_screen.dart';
@@ -131,6 +132,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'about',
                       builder: (context, state) => const AboutScreen()),
+                  // Die Kurzanleitung (#131). Unter dem Profil, weil sie
+                  // dort als Zeile steht; die Leerzustände der anderen
+                  // Reiter springen mit `push` hierher.
+                  GoRoute(
+                      path: 'help',
+                      builder: (context, state) => const HelpScreen()),
                 ]),
           ]),
         ],

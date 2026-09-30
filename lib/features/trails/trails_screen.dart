@@ -8,6 +8,7 @@ import '../../core/errors.dart';
 import '../../core/widgets/motion.dart';
 import '../../models/trail.dart';
 import '../friends/buddy_alias.dart' show buddyNamesViewProvider;
+import '../help/help_link.dart';
 import '../map/map_screen.dart' show formatCachedAt;
 import 'trail_filter_chips.dart';
 import 'rating_stars.dart';
@@ -76,15 +77,17 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
           ]),
           data: (trails) {
             if (trails.isEmpty) {
-              return ListView(children: const [
-                Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
+              return ListView(
+                padding: const EdgeInsets.all(24),
+                children: const [
+                  Text(
                     'Noch keine Trails. Importiere deine GPX-Dateien (Symbol '
                     'oben rechts) oder verbinde dich mit Buddys.',
                   ),
-                ),
-              ]);
+                  SizedBox(height: 8),
+                  HelpLinkButton(),
+                ],
+              );
             }
             final seen = ref.watch(seenNotesProvider);
             final cachedAt = ref.watch(trailsCachedAtProvider);

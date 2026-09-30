@@ -359,6 +359,18 @@ Schwierigkeit (E9) —, eine unbestätigte Meldung gedämpft mit „?"
   auf dem Gerät; was nicht geladen ist, fällt weg statt als 0
   dazustehen, im Web gibt es keine Fahrten.
 
+- **Kurzanleitung** (#131, seit 0.59.0, `help_screen.dart`): kein
+  Entwurf im Turn; gebaut im Stil der Profil-Unterseiten. Oben die
+  Kachel des Sicherheitshinweises (Warnton 10 % auf der Fläche, Rand
+  `line`, Symbol `warning_amber_outlined` in `warningText` — kein Emoji),
+  darunter sechs Abschnitte mit dem ECHTEN Symbol links in einem
+  40-dp-Rahmen (Material-Symbole in `accentText`, für die Karte das
+  `GradeShield`), Titel `titleMedium`, Text `bodyMedium`. Der
+  Sicherheitshinweis beim ersten Start ist ein `AlertDialog` „Kurz vorweg"
+  mit einem gefüllten „Verstanden". Der leere Kartenzustand trägt rechts
+  ein `help_outline` und ist als Ganzes tippbar; die übrigen Leerzustände
+  bekommen einen Textknopf „Kurzanleitung".
+
 ## 9. Bewegung (Turn 1p–1t)
 
 Jede Animation ist aus, wenn das System es will
@@ -420,3 +432,4 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | 6b | Schild mit Charakter am Trailanfang auf der Karte | 0.43.0 |
 | 6c | Glatte Linien, Name entlang der Linie (Betreiber-Wunsch) | 0.44.0 |
 | 7 | Animationen (Turn 1p–1t) | 0.45.0 |
+| E1 | Einführung: Kurzanleitung, Sicherheitshinweis (#131) | 0.59.0 |

@@ -142,6 +142,9 @@ Startseite und Kette kommen in PR 3.
      gelb. „Meldung“ ist seit #118 die Beschriftung des Dialogs;
      `help_texts_test` prüft das Wort gegen dessen Konstante, damit der
      Test bricht, nicht der Text, wenn es sich noch einmal ändert.
+     **Gebaut abweichend:** Die Konstante heißt `kReportFieldLabel` und
+     liegt in `trail_report.dart` — die Meldung steht seit 0.49.0 nicht
+     mehr im Beitrags-Dialog, sondern in „Melden“.
   6. **Ohne Empfang** — Zwischenspeicher, Ausgangskorb, Bereiche unter
      „Ebenen“, „Meine Bereiche“.
 - `lib/core/widgets/safety_note.dart`: Kopie von PilzBuddy mit neuem

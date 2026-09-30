@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Kurzanleitung und Sicherheitshinweis
+
+*Version 0.59.0, 2026-09-30*
+
+- **Kurzanleitung**: Im Profil steht jetzt „Kurzanleitung" — das
+  Wichtigste in sechs Schritten, mit denselben Symbolen wie auf der
+  Karte: Trails importieren, die Karte lesen (was Farbe und Art einer
+  Linie bedeuten), Fahrten aufzeichnen und zerlegen, Buddys und wer was
+  sieht, dein Beitrag zu einem Trail, und was ohne Empfang geht.
+- **Sicherheitshinweis**: Beim ersten Start sagt die App einmal, was sie
+  dir nicht abnehmen kann — ob ein Weg befahren werden darf oder gerade
+  sicher ist. Nachlesen kannst du ihn jederzeit in der Kurzanleitung und
+  unter „Über TrailBuddy".
+- **Hilfe, wo noch nichts ist**: Eine leere Karte, eine leere
+  Trail-Liste, noch keine Buddys oder noch keine Fahrt — überall führt
+  jetzt ein Tipp in die Kurzanleitung.
+
 ## Meldungen aktuell halten
 
 *Version 0.58.0, 2026-09-30*
