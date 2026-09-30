@@ -191,7 +191,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Blendet der Filter (#66) genau diesen Trail aus, fällt er — sonst
     // führte eine Push-Meldung auf eine leere Stelle. Und die App sagt es.
     final filter = ref.read(trailListFilterProvider);
-    if (!passesTrailFilter(t, filter, seenNotes: ref.read(seenNotesProvider))) {
+    if (!passesTrailFilter(t, filter,
+        seenNotes: ref.read(seenNotesProvider), snoozed: ref.read(stillValidSnoozesProvider))) {
       ref.read(trailListFilterProvider.notifier).state = const TrailListFilter();
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
           key: ValueKey('filter-reset-for-focus'),
@@ -381,12 +382,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final trailsAsync = ref.watch(trailsProvider);
     final trails = trailsAsync.valueOrNull ?? const <Trail>[];
     final seenNotes = ref.watch(seenNotesProvider);
+    final snoozed = ref.watch(stillValidSnoozesProvider);
     // Derselbe Filter wie in der Liste (#66, seit 0.33.0). Er wirkt NUR
     // auf das, was gezeichnet und getroffen wird — „Entlang meiner
     // Trails", Einpassen und Fokus rechnen weiter mit allen.
     final trailFilter = ref.watch(trailListFilterProvider);
     final shownTrails = trailFilter.isActive
-        ? [for (final t in trails) if (passesTrailFilter(t, trailFilter, seenNotes: seenNotes)) t]
+        ? [
+            for (final t in trails)
+              if (passesTrailFilter(t, trailFilter, seenNotes: seenNotes, snoozed: snoozed)) t
+          ]
         : trails;
     final groups = ref.watch(poiGroupsProvider);
     final hidden = ref.watch(poiHiddenKindsProvider);

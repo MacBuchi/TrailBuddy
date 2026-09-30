@@ -104,6 +104,9 @@ void main() {
     expect(find.textContaining('geplant (keine Fahrzeiten)'), findsOneWidget);
 
     trails.failNextContribute = Exception('Datenbank nicht erreichbar');
+    // Die Zeile „Gefahren am …" (#120) schiebt den Knopf nach unten.
+    await tester.ensureVisible(find.text('2 beisteuern'));
+    await settle(tester);
     await tester.tap(find.text('2 beisteuern'));
     await settle(tester, frames: 20);
 
@@ -112,6 +115,46 @@ void main() {
     expect(trails.recordings.single.source, RecordingSource.import);
     // Der gescheiterte Kandidat bleibt in der Liste, der andere ist weg.
     expect(find.byType(CheckboxListTile), findsOneWidget);
+  });
+
+  testWidgets('Fahrdatum für eine Datei ohne Zeiten (#120): bleibt geplant, zählt als gefahren',
+      (tester) async {
+    final backend = FakeBackend();
+    final anna = backend.addUser(username: 'anna');
+    backend.signInAs(anna.id);
+    final trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '');
+    final files = [PickedFile.text('plan.gpx', gpx('Vereinslinie', 900, timed: false))];
+    await pumpApp(tester, backend, trails: trails, extraOverrides: [
+      gpxPickerProvider.overrideWithValue(() async => files),
+    ]);
+    await openTab(tester, 'Trails');
+    await tester.tap(find.byTooltip('GPX importieren'));
+    await settle(tester);
+    await tester.tap(find.text('GPX- oder Zip-Dateien wählen'));
+    await settle(tester);
+    expect(find.textContaining('geplant (keine Fahrzeiten)'), findsOneWidget);
+    expect(find.text('Gefahren am …'), findsOneWidget);
+
+    // Der Wähler steht auf heute, später geht nicht; „OK" nimmt heute.
+    await tester.tap(find.text('Gefahren am …'));
+    await settle(tester);
+    expect(find.text('Wann bist du ihn gefahren?'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await settle(tester);
+    final today = DateTime.now();
+    expect(find.textContaining('gezeichnet, gefahren am ${formatRideDate(today)}'), findsOneWidget);
+    expect(find.textContaining('Gefahren am ${formatRideDate(today)} · ändern'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('1 beisteuern'));
+    await settle(tester);
+    await tester.tap(find.text('1 beisteuern'));
+    await settle(tester, frames: 20);
+    final rec = trails.recordings.single;
+    expect(rec.source, RecordingSource.planned, reason: 'die Linie bleibt gezeichnet');
+    expect(rec.quality, 0.1);
+    expect(rec.recordedAt, DateTime(today.year, today.month, today.day, 12).toUtc(),
+        reason: 'der Tag, 12 Uhr Ortszeit');
+    expect(rec.ridden, isTrue);
   });
 
   testWidgets('ein Locus-Zip wird ausgepackt, ein Foto daneben benannt', (tester) async {

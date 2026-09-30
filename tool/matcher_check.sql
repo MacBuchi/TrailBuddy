@@ -1080,4 +1080,34 @@ begin
   perform tb_test.check(code = '42501', 'anon darf report_trail nicht ausführen');
 end $$;
 
+\echo -- 24. Fahrdatum für eine geplante Datei (Patch 015, #120)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  t uuid;
+  rep text := 'select public.report_trail(%L::uuid, %L::text, %L::integer, %L::boolean, %L::timestamptz, %L::uuid)';
+begin
+  -- Geplant ohne Datum: kein Beleg einer Fahrt, Meldungen unbestätigt.
+  t := tb_test.contribute(ua, tb_test.line(400, y0 => 90000), 'planned');
+  perform tb_test.check(not app_internal.has_ridden(ua, t), 'geplant ohne Datum: nicht gefahren');
+  perform tb_test.exec_as(ua, format(rep, t, 'closed', null, false, now() - interval '3 minutes', null));
+  perform tb_test.check(not (select confirmed from public.trail_reports where trail_id = t and user_id = ua),
+                        'geplant ohne Datum: Meldung unbestätigt');
+
+  -- Dieselbe Linie noch einmal geplant, jetzt MIT eingetragenem Datum.
+  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(400, y0 => 90000), 3.0, 0.45), 'planned',
+                                           at => now() - interval '1 minute') = t,
+                        'geplant mit Datum ⇒ derselbe Trail');
+  perform tb_test.check(app_internal.has_ridden(ua, t), 'geplant mit Datum: gefahren');
+  perform tb_test.check((select max(quality) from public.trail_recordings where trail_id = t) < 0.2,
+                        'die Linie bleibt gezeichnet: Qualität 0,1');
+  perform tb_test.check(exists (select 1 from public.trail_reports
+                                 where trail_id = t and user_id = ua and status = 'open' and confirmed
+                                   and reported_at = now() - interval '1 minute'),
+                        'Schritt 8: die eigene Meldung steht zum Fahrdatum auf offen');
+  perform tb_test.exec_as(ua, format(rep, t, null, 2, false, null, null));
+  perform tb_test.check((select confirmed from public.trail_reports where trail_id = t and user_id = ua and kind = 'condition'),
+                        'wer mit Datum gefahren ist, meldet bestätigt');
+end $$;
+
 \echo -- Alle Prüfungen bestanden.

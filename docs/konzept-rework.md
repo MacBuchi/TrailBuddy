@@ -325,6 +325,15 @@ länger. Offen und nicht in #101: Meldungen nicht still wegräumen,
 sondern den Meldenden in einer Übersicht fragen, ob sie noch gelten
 („Ja / Nein / Weiß nicht"; „Weiß nicht" lässt alles, wie es ist) — das
 Schema trägt es schon, eine Antwort ist eine neue Meldung (#119); das Fahrdatum für eine Datei ohne Zeiten eintragen: #120.
+**Beides gebaut in #130 (0.58.0).** #119: Seite „Noch gültig?" im Profil mit
+Zähler und derselbe Satz als Filter in Liste und Karte; gefragt wird
+nach der EIGENEN jüngsten Angabe je Art, wenn sie noch angezeigt wird,
+bei einer Meldung nur, wenn sie warnt, ab 30 Tagen; „Weiß nicht" ruht
+14 Tage (Betreiber, 2026-09-30), gemerkt auf dem Gerät. #120 (Patch
+015): Eine geplante Datei mit eingetragenem Datum bleibt `planned`
+(Qualität 0,1), `recorded_at` trägt das Datum, und genau das zählt als
+gefahren (`has_ridden`, Schritt 8) — Betreiber-OK zur Skizze am
+2026-09-30. Keine neue Quelle: Ältere Clients kennen keinen neuen Wert.
 Bestätigen durch Fahren samt lokaler Benachrichtigung: #116.
 
 **Bestätigt oder zu bestätigen (E6).** Für Meldung UND Zustand:
@@ -453,8 +462,8 @@ bekommen ihren PR erst danach.
 | 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
 | 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | #123 Benachrichtigung, (b) Zerlege-Blatt | feat 0.52.0–0.53.0 | keins | #101 |
-| 11 | Übersicht „Noch gültig? Ja / Nein / Weiß nicht“ für eigene Meldungen (9) | #119 | — | feat | — | #101 |
-| 12 | Fahrdatum für eine Datei ohne Zeiten eintragen | #120 | — | feat | Skizze nötig | #101 |
+| 11 | Übersicht „Noch gültig? Ja / Nein / Weiß nicht“ für eigene Meldungen (9) | #119 | #130 | feat 0.58.0 | — | #101 |
+| 12 | Fahrdatum für eine Datei ohne Zeiten eintragen | #120 | #130 | feat 0.58.0 | Patch 015 | #101 |
 
 ### Schritt 1 — Geplant
 

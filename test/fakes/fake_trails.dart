@@ -150,8 +150,9 @@ class FakeTrailRepository implements TrailRepository {
     }
     // Wie Schritt 8 (Patch 013): Die eigene Meldung zum FAHRDATUM auf
     // „offen" — nur wenn es eine gibt, sie älter ist und nicht schon ein
-    // bestätigtes „offen"; nie bei `planned` (Patch 011).
-    if (source != RecordingSource.planned) {
+    // bestätigtes „offen"; nie bei `planned` (Patch 011) — außer mit
+    // eingetragenem Fahrdatum (Patch 015).
+    if (source != RecordingSource.planned || recordedAt != null) {
       final now = DateTime.now();
       final rideAt = recordedAt == null || recordedAt.isAfter(now) ? now : recordedAt;
       final own = reports
@@ -316,7 +317,7 @@ class FakeTrailRepository implements TrailRepository {
     }
     final confirmed = onSite ||
         recordings.any((r) =>
-            r.trailId == trailId && r.userId == me && r.source != RecordingSource.planned);
+            r.trailId == trailId && r.userId == me && r.ridden);
     final now = DateTime.now();
     final at = reportedAt.isAfter(now) ? now : reportedAt;
     for (final kind in [if (status != null) ReportKind.status, if (condition != null) ReportKind.condition]) {

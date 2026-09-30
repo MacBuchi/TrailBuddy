@@ -50,6 +50,13 @@ abstract interface class Settings {
 
   Future<void> setSeenNoteIds(List<String> ids);
 
+  /// Angaben, zu denen „Noch gültig?" (#119) nach „Weiß nicht" eine Weile
+  /// nicht fragt: je Eintrag `<Kennung>|<bis>`. Gerätelokal wie die
+  /// gelesenen Hinweise — der Server erfährt nicht, wer was offen ließ.
+  List<String>? get stillValidSnoozes;
+
+  Future<void> setStillValidSnoozes(List<String> entries);
+
   /// Ist die Ebene „Offizielle Trails" an (#13)? Vorgabe: an
   /// (Entscheidung des Betreibers, Konzept offizielle Trails 2.5).
   bool get officialTrailsEnabled;
@@ -116,6 +123,15 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setSeenNoteIds(List<String> ids) =>
       _prefs.setStringList(_seenNoteIdsKey, ids);
+
+  static const _stillValidSnoozesKey = 'still_valid_snoozes';
+
+  @override
+  List<String>? get stillValidSnoozes => _prefs.getStringList(_stillValidSnoozesKey);
+
+  @override
+  Future<void> setStillValidSnoozes(List<String> entries) =>
+      _prefs.setStringList(_stillValidSnoozesKey, entries);
 
   static const _officialTrailsEnabledKey = 'official_trails_enabled';
 
