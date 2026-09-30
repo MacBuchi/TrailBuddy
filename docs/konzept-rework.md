@@ -5,7 +5,7 @@ Schwachstellen des Konzepts aus Sicht eines Nutzers, der viele
 GPX-Dateien importiert hat und einen Trail neu aufzeichnen will. Das
 Dokument ergänzt `docs/konzept-trails.md`, es ersetzt es nicht: Jeder
 Punkt, der gebaut wird, zieht im selben PR die betroffene Stelle dort
-nach (Regel aus `CLAUDE.md`). Offene Entscheidungen stehen in
+nach (Regel aus `CLAUDE.md`). Die Entscheidungen des Betreibers stehen in
 Abschnitt 9, der Plan in Abschnitt 10, der Abgleich mit dem Code in
 Abschnitt 11; verfolgt in #109.*
 
@@ -278,30 +278,121 @@ Eingriff am Trail.** Niemand verändert die Daten eines anderen.
 
 Jeder PR aus Abschnitt 10 zieht seine Zeile nach.
 
-## 9. Offene Entscheidungen des Betreibers
+## 9. Entscheidungen des Betreibers (2026-09-30)
 
-| | Frage | Empfehlung |
-|---|---|---|
-| E1 | S-Grad beim Übernehmen: vorgewählt (Wunsch des Betreibers) oder nur als Frage? | vorgewählt, als „Vorschlag aus dem Netz“ markiert |
-| E2 | Wie hart ist die Pflicht? Speichern blockiert, oder nur „Bewertung offen“? | im Zerlege-Blatt Pflicht mit „Alle übernehmen“; im Bestand nur der Filter |
-| E3 | Geplante Importe erst privat, bis gefahren? | nein (Entscheidung 2 bleibt), aber deutlich „geplant“ im Blatt |
-| E4 | Symbol für Spaß | Design-Datei; Vorschlag Serpentinen |
-| E5 | Zusammenführen: nur persönlich oder auch globale Umleitung? | nur persönlich |
-| E6 | Zustand nur mit eigenem Beleg? | ja |
+Alle Fragen aus dem Entwurf und aus dem Abgleich (Abschnitt 11) sind
+entschieden. **Wo die Abschnitte 1 bis 7 davon abweichen, gilt dieser
+Abschnitt**; jeder Schritt aus Abschnitt 10 zieht seinen Abschnitt beim
+Bauen nach.
 
-**Dazu aus dem Abgleich mit dem Stand 0.46.0 (Abschnitt 11) — fast alles
-Design:**
+**Bewertung statt Spaß (E4, E8).** Die Skala aus 3.1 heißt
+**„Bewertung"** und zeigt **Sterne** (1–5): Es geht ums Gefallen, nicht
+nur um Spaß. In Übersichten (Liste, Karte, Kachel) reichen die Sterne;
+dazu **Median** und Anzahl, wo Platz ist (wie beim S-Grad, bei
+Gleichstand der höhere). Ein Trail,
+den ich belegt, aber noch nicht bewertet habe, zeigt **verblasste
+Sterne** — das IST „Bewertung offen", kein eigenes Wort (Nachtrag des
+Betreibers). Der Filter-Chip „Bewertung offen" in der Liste kommt dazu
+(E13).
 
-| | Frage | Empfehlung |
-|---|---|---|
-| E7 | **„Zustand" ist schon vergeben:** Der Dialog „Mein Beitrag" und die Datenschutzerklärung nennen den STATUS (offen/gesperrt/zerstört/verändert) „Zustand". Wie heißen die beiden künftig? | Status → „Meldung" (passt zu „gemeldet vor …" und dem Filter „Gemeldet"), die neue Skala → „Zustand" |
-| E8 | Wo stehen Spaß und Zustand im Blatt? Heute drei Kacheln LÄNGE / HÖHE / S-GRAD (1i). | eine zweite Kachelreihe SPASS („4,2 · 3×") und ZUSTAND („ausgefahren · vor 3 Wochen"); darunter wie beim S-Grad die Einzelstimmen auf Tipp |
-| E9 | Hat der Zustand eine Farbe? Farbe heißt seit 0.42.0 Schwierigkeit, der orange Rand Warnung, der gelbe neuer Hinweis. | keine Farbe, kein Rand auf der Karte; in der Liste bei 1–2 ein Zustandswort („ABGEROCKT") nach den bestehenden Wörtern, in der Warnfarbe als Text |
-| E10 | „GEPLANT" als Wort in der Liste (`trailRowTags`)? | ja, gedämpft, hinter allen anderen Zuständen |
-| E11 | Link im Blatt: Platz (heute Textknopf unter der Beschreibung), weitere Links als „auch: …", Ausschlussliste | so lassen; „auch" erst, wenn es jemand vermisst |
-| E12 | Marken-Knopf während der Aufnahme (#105): Platz und Form in der rechten Knopfspalte (Design 3e) | 44 dp über dem Aufnahmeknopf, nur während einer Fahrt; Fahne; läuft ein Trail, trägt er den Rand der Marke; Symbole NICHT wie die Start-/Ende-Marken aus #96 |
-| E13 | Übernehmen im Zerlege-Blatt (#102): wie klappt eine bekannte Zeile auf, und gibt es den Filter „Bewertung offen" als Chip neben „Gemeldet"? | aufklappen wie die Kandidatenkarte, dieselben Bausteine; Filter-Chip ja |
-| E14 | Wo steht „Sind das dieselben?" (#107): im Trail-Blatt beider Trails, auf der Karte „Mit … verbunden" (1k), oder beides? | im Blatt (dort sieht man beide Linien); die Verbinden-Karte nennt nur die Anzahl |
+**Meldung und Zustand (E7).** Der bisherige „Status" (offen, gesperrt,
+zerstört, verändert) heißt in der App und in der Datenschutzerklärung
+**„Meldung"** (passt zu „gemeldet vor …" und zum Filter „Gemeldet").
+Die neue Skala 1–5 aus 3.2 heißt **„Zustand"**.
+
+**Bestätigt oder zu bestätigen (E6).** Für Meldung UND Zustand:
+- **Bestätigt** ist eine Angabe, wenn der Meldende den Trail belegt hat
+  (eigene Aufzeichnung) ODER beim Melden **vor Ort** war: innerhalb
+  **200 m** der Trail-Linie, geprüft auf dem Gerät mit der aktuellen
+  Position. Zum Server geht nur das Merkmal „vor Ort" (ja/nein), nie
+  die Position (wie beim Positionspunkt der Karte).
+- **Ohne Beleg und nicht vor Ort** geht es trotzdem — wer die Hausrunde
+  nicht aufgezeichnet hat und zu Hause an die Meldung denkt —, dann aber
+  **verblasst, „zu bestätigen"**. Schreiben darf, wer den Trail sieht
+  (die Regel der Hinweise, `can_see_trail`), nicht nur, wer ihn belegt
+  hat — das weicht von Konzept 3 („ohne Beleg kein Beitrag") ab.
+- **Ein Buddy bestätigt** eine solche Angabe, indem er den Trail fährt
+  (eine Aufzeichnung darauf beisteuert, auch „wieder gefahren" im
+  Zerlege-Blatt) oder vor Ort dieselbe Angabe macht. Wie die
+  Bestätigung gespeichert wird (eigene Tabelle je Bestätigung oder
+  Merkmal am Beitrag), entscheidet der Schritt mit seiner
+  Schemaskizze; sichtbar ist sie nur im Netz (Konzept 12).
+
+**Welche Meldung steht da (Betreiber, 2026-09-30).** Die **jüngste
+bestätigte** Meldung, und dazu — verblasst, „zu bestätigen" — die
+**jüngste unbestätigte, wenn sie jünger ist**; eine ältere unbestätigte
+ist überholt und fällt weg. Ersetzt „der jüngste gewinnt" aus Konzept 3
+für die Meldung.
+
+**Zum Bestätigen auffordern.** Wer gerade aufzeichnet und auf einen Trail
+mit unbestätigter Meldung oder unbestätigtem Zustand kommt, wird
+**sofort gefragt**: Der Aufnahme-Dienst prüft je Takt im
+Service-Isolate die Position gegen die Trails aus dem Zwischenspeicher
+(Korridor wie „vor Ort", 200 m, genauer: auf der Linie im
+Abgleich-Korridor) und zeigt eine **lokale Benachrichtigung** — geht
+ohne Netz, und die Position verlässt das Gerät nicht. Eine Push-Meldung
+vom Server geht dafür NICHT: Der Server müsste wissen, wo jemand fährt.
+Wer die Frage übergeht, bekommt sie beim Beenden im Zerlege-Blatt an der
+Zeile des Trails noch einmal. Die Bestätigung geht über den
+Ausgangskorb raus, sobald Netz da ist. Je Trail und Fahrt höchstens eine
+Benachrichtigung.
+
+**Zustand auf der Karte (E9).** Keine Farbe (Farbe heißt Schwierigkeit).
+Den Zustand trägt die **innere Hauptlinie**: durchgezogen (gut) →
+bröckelig → gestrichelt → gestrichelt und verblasst (kaum fahrbar).
+**S4/S5 wandern auf die Umrahmung**: Sie erkennt man künftig an der Art
+des Saums, nicht mehr an der gestrichelten Linie (heute
+`docs/design/README.md` Abschnitt 2; die Datei ändert sich im selben
+PR). Technisch trägt beides: Der Saum ist auf beiden Engines eine eigene,
+breitere Ebene unter der Linie und kann ein eigenes Muster haben. In der
+Liste erscheint der Zustand bei 1–2 als Wort („ABGEROCKT", „KAUM
+FAHRBAR") hinter Meldung und Hinweis; im Blatt als Kachel (E8).
+
+**Anzeige und Voreinstellung = das Netz (Betreiber, 2026-09-30).** Was
+die App zeigt, ist der **Median der sichtbaren Beiträge** — eigene plus
+direkte Buddys, auf dem Gerät gerechnet, deshalb für jeden anders (nicht
+jeder hat dieselben Buddys) und nie über alle Nutzer (Konzept 12). Der
+Zwischenspeicher (`trail_cache/network.json`) trägt die Beiträge roh,
+also rechnet die App den Median auch im Wald ohne Netz; neue Felder
+kommen über `toRow` von selbst hinein. **Genau diese Werte sind die
+Voreinstellung beim Bewerten** — für S-Grad, Charakter UND Sterne
+(ersetzt „Sterne nie vorbelegt" aus 3.1), jeweils sichtbar als
+„Vorschlag aus dem Netz". So entsteht gemeinsamer Inhalt aus der
+Buddy-Gemeinschaft. **Ausnahme Zustand:** Er veraltet; angezeigt und
+vorbelegt wird der **jüngste bestätigte der letzten 90 Tage** mit
+seinem Alter, sonst nichts — ein Median mischte alte und neue Angaben.
+
+**Blatt (E8).** Eine zweite Kachelreihe unter LÄNGE / HÖHE / S-GRAD:
+BEWERTUNG (Sterne, Median, Anzahl) und ZUSTAND (Wort, Alter,
+„zu bestätigen", wenn unbestätigt); ein Tipp zeigt die Einzelstimmen wie
+beim S-Grad.
+
+**Übernehmen beim ersten Befahren (E1, E2).** Wer den Trail eines Buddys
+zum ersten Mal fährt, **muss ihn bewerten, um ihn selbst zu haben und
+weitergeben zu können**; danach wird nicht mehr gefragt. Ohne Bewertung
+wird das Stück nicht beigesteuert. Der S-Grad ist vorbelegt (Median),
+als „Vorschlag aus dem Netz" markiert; Name, Charakter und Sterne
+ebenso (Median des Netzes, siehe oben); der Zustand mit dem jüngsten
+bestätigten. „Alle übernehmen" nimmt die Vorbelegung.
+
+**Geplante Importe (E3, E10).** Werden weiter an Buddys gegeben
+(Entscheidung 2 vom 2026-09-27 bleibt); in der Liste steht gedämpft das
+Wort „GEPLANT", hinter allen anderen.
+
+**Link (E11).** Bleibt wie in #113 gebaut: ein Link, der Host als
+Textknopf, Hersteller und Tourenportale beim Import ignoriert.
+
+**Marken beim Aufnehmen (E12).** Ein Knopf (44 dp, Fahne) über der
+Aufnahme, nur während einer Fahrt: erster Tipp „Trail beginnt", zweiter
+„Trail endet"; läuft ein Trail, trägt der Knopf einen Rand. Nicht
+verwechselbar mit den Start-/Ende-Marken der Trails (#96).
+
+**Zusammenführen (E5, E14).** Nur für mich (Abschnitt 7), kein
+Umleiten für alle. **Vorgeschlagen wird es allen, die einen der beiden
+Trails gefahren sind — sofern sie BEIDE sehen.** Die Einschränkung ist
+nicht verhandelbar: Wer nur Trail A sieht, erführe über den Vorschlag,
+dass es B gibt und wo er liegt (Konzept 12). Der Vorschlag steht im
+Trail-Blatt; die Karte „Mit … verbunden" nennt nur die Anzahl.
 
 ## 10. Plan
 
@@ -322,14 +413,14 @@ bekommen ihren PR erst danach.
 
 | # | Schritt | Issue | PR | Typ | Schema | Hängt ab von |
 |---|---|---|---|---|---|---|
-| 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | #111 | fix 0.46.1 | Patch 011 (live) | — |
-| 2 | Spaß und Zustand: Schema, Anzeige, „Mein Beitrag“ (3) | #101 | — | feat | Patch 013 | E4, E6–E9 |
-| 3 | Übernehmen beim ersten Wiederfahren, Zustand je Fahrt (1, 3.2) | #102 | — | feat | — | #101, E1, E2, E13 |
-| 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 | feat 0.48.0 | Patch 012 | (E11) |
-| 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 | feat 0.47.0 | — | — |
-| 6 | Marken während der Aufnahme (5.2) | #105 | — | feat | — | #104, E12 |
-| 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | — | feat | Patch 014 | Messung |
-| 8 | Zusammenführen im Netz (7) | #107 | — | feat | Patch 015 | #106, E5, E14 |
+| 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | #111 ✓ | fix 0.46.1 | Patch 011 | — |
+| 2 | Bewertung (Sterne) und Zustand samt „zu bestätigen“, Meldung umbenannt (3, 9) | #101 | — | feat | Patch 013 | — |
+| 3 | Übernehmen beim ersten Befahren (Pflicht), Zustand je Fahrt, Filter (1, 9) | #102 | — | feat | — | #101 |
+| 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 ✓ | feat 0.48.0 | Patch 012 | — |
+| 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 ✓ | feat 0.47.0 | — | — |
+| 6 | Marken während der Aufnahme (5.2, 9) | #105 | — | feat | — | — |
+| 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | #114 (Messung) | — | vorerst keins | Daten mehrerer Nutzer |
+| 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
 
 ### Schritt 1 — Geplant
