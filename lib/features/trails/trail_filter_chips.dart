@@ -78,6 +78,14 @@ class TrailFilterChips extends ConsumerWidget {
               selected: filter.reportedOnly,
               onSelected: (v) => set(filter.copyWith(reportedOnly: v)),
             ),
+            // Rework E13: eigene Trails ohne eigene Sterne — dieselben, die
+            // verblasste Sterne zeigen.
+            FilterChip(
+              key: ValueKey('$keyPrefix-filter-rating-open'),
+              label: const Text('Bewertung offen'),
+              selected: filter.ratingOpenOnly,
+              onSelected: (v) => set(filter.copyWith(ratingOpenOnly: v)),
+            ),
           ],
         ),
       ],

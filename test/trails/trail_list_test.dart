@@ -132,6 +132,20 @@ void main() {
       expect(names(trailListOf(list, filter: const TrailListFilter(reportedOnly: true))), ['Gesperrt']);
     });
 
+    test('Bewertung offen (#102, E13): eigene Trails ohne eigene Sterne', () {
+      final rated = Trail(
+        id: 's',
+        myId: 'me',
+        recordings: [rec('s', 'me')],
+        details: const [TrailDetails(trailId: 's', userId: 'me', name: 'Bewertet', rating: 4)],
+      );
+      const f = TrailListFilter(ratingOpenOnly: true);
+      expect(names(trailListOf([...list, rated], filter: f)).toSet(), {'Mein Flow', 'Ungeschätzt'},
+          reason: 'Buddy-Trails und bewertete fallen weg');
+      expect(f.isActive, isTrue);
+      expect(f.describe(), 'Bewertung offen');
+    });
+
     test('geraten wird nur unter dem, was die Filter übrig lassen', () {
       final r = trailListOf(list, query: 'Buddy Stel', filter: const TrailListFilter(owner: TrailOwnerFilter.mine));
       expect(r.trails, isEmpty);

@@ -593,8 +593,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Trail (`report`, `on_site`, Zeit der Fahrt dort) — nur mit
     Zeitstempeln.
   - **Kein Rückfüllen auf dem Server** — es kopierte Namen von außerhalb
-    des Netzes (Konzept 12). Für den Bestand: Import-Ergebnis, Filter
-    „Bewertung offen" und „Übernehmen" im Blatt (#102 Teil 2).
+    des Netzes (Konzept 12). Für den Bestand (seit 0.56.0): „Übernehmen"
+    im Blatt, solange der eigene Beitrag keinen Namen hat
+    (`offersTakeOver`; `showTrailDetailsDialog(takeOver: true)`, leere
+    Felder aus `takeOverDetails`, Speichern erst mit Sternen), dieselbe
+    Zeile im Import-Ergebnis für Kennungen, die vorher nur über Buddys
+    sichtbar waren (erst NACH der RPC bekannt), und der Filter
+    „Bewertung offen" (`ratingOpenOnly` = `Trail.ratingOpen`, dieselbe
+    Regel wie die verblassten Sterne).
 - **Das Zerlege-Blatt** (#29, Konzept 5.1, `ride_split.dart` pur,
   `road_index.dart`, `ride_split_sheet.dart`, seit 0.20.0): nach der
   Aufzeichnung, aus „Meine Fahrten" (Schere) und aus dem GPX-Import für

@@ -4,7 +4,7 @@
 
 ## Bewerten und melden
 
-*Versionen 0.49.0 bis 0.55.0, 2026-09-30*
+*Versionen 0.49.0 bis 0.56.0, 2026-09-30*
 
 - **Einen Buddy-Trail zu deinem machen**: Fährst du einen Trail zum
   ersten Mal, den du bisher nur über einen Buddy kennst, klappt seine
@@ -15,6 +15,12 @@
   Stück nicht beigesteuert. Danach ist es dein eigener Beitrag: Löscht
   der Buddy seinen oder entfreundet ihr euch, bleibt der Trail mit Namen
   bei dir.
+- Für Trails, die du schon früher gefahren bist: Im Trail-Blatt steht
+  „Übernehmen", solange dein Beitrag keinen eigenen Namen hat — mit
+  derselben Vorbelegung. Nach einem GPX-Import bietet das Ergebnis es
+  für Trails an, die du schon über Buddys kanntest. Und in der Liste
+  gibt es den Filter **„Bewertung offen"** für eigene Trails ohne
+  deine Sterne.
 
 - **Unterwegs bestätigen**: Fährst du mit laufender Aufzeichnung auf
   einem Trail, zu dem eine Meldung oder ein Zustand noch bestätigt

@@ -519,7 +519,9 @@ Zustand mit dem jüngsten bestätigten der letzten 90 Tage. Ohne
 Bestätigung — und ohne Sterne — wird das Stück nicht beigesteuert
 (Rework E1/E2). Danach ist es ein vollständiger eigener Beitrag: Er
 hängt nicht mehr am Beitrag eines Buddys, der gelöscht oder entfreundet
-werden kann.
+werden kann. Für den Bestand (seit 0.56.0) ohne Rückfüllen auf dem
+Server: „Übernehmen" im Trail-Blatt, dieselbe Zeile im Import-Ergebnis
+und der Filter „Bewertung offen".
 
 ### 5.2 GPX-Import (der Bestand)
 

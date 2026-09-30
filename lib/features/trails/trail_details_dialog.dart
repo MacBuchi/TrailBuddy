@@ -7,6 +7,7 @@ import '../../models/trail.dart';
 import 'singletrail_scale.dart';
 import 'trail_link.dart';
 import 'trail_providers.dart';
+import 'trail_takeover.dart';
 import 'trail_traits.dart';
 
 /// Der eigene Beitrag zu einem Trail: Name, Schwierigkeit, Charakter,
@@ -14,13 +15,19 @@ import 'trail_traits.dart';
 /// selbst belegt hat — ohne Beleg gibt es keinen Beitrag (Konzept 3). Die
 /// Meldung steht seit 0.49.0 NICHT mehr hier („Melden" im Blatt, #101):
 /// Melden darf auch, wer keinen Beitrag hat.
+///
+/// Mit [takeOver] (#102) ist es „Übernehmen": leere Felder vorbelegt mit
+/// dem, was das Netz zeigt („Vorschlag aus dem Netz"), Speichern erst mit
+/// Sternen — derselbe Weg wie im Zerlege-Blatt, für Trails, deren Beitrag
+/// noch am Namen eines Buddys hängt.
 Future<void> showTrailDetailsDialog(
-    BuildContext context, WidgetRef ref, Trail trail) async {
-  final current = trail.myDetails ??
-      TrailDetails(trailId: trail.id, userId: trail.myId);
+    BuildContext context, WidgetRef ref, Trail trail, {bool takeOver = false}) async {
+  final current = takeOver
+      ? takeOverDetails(trail)
+      : trail.myDetails ?? TrailDetails(trailId: trail.id, userId: trail.myId);
   final result = await showDialog<TrailDetails>(
     context: context,
-    builder: (_) => _DetailsDialog(initial: current),
+    builder: (_) => _DetailsDialog(initial: current, takeOver: takeOver),
   );
   if (result == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
@@ -41,8 +48,9 @@ Future<void> showTrailDetailsDialog(
 }
 
 class _DetailsDialog extends StatefulWidget {
-  const _DetailsDialog({required this.initial});
+  const _DetailsDialog({required this.initial, this.takeOver = false});
   final TrailDetails initial;
+  final bool takeOver;
 
   @override
   State<_DetailsDialog> createState() => _DetailsDialogState();
@@ -70,11 +78,22 @@ class _DetailsDialogState extends State<_DetailsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Mein Beitrag'),
+      title: Text(widget.takeOver ? 'Übernehmen' : 'Mein Beitrag'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (widget.takeOver)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  key: const ValueKey('details-takeover-intro'),
+                  'Vorschlag aus dem Netz: vorbelegt mit dem, was deine Buddys '
+                  'sagen. Mit deinen Sternen wird der Trail ganz deiner — er '
+                  'bleibt, auch wenn ein Buddy seinen Beitrag löscht.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
             TextField(
               controller: _name,
               maxLength: kTrailNameMaxLength,
@@ -189,7 +208,9 @@ class _DetailsDialogState extends State<_DetailsDialog> {
           child: const Text('Abbrechen'),
         ),
         FilledButton(
-          onPressed: () {
+          key: const ValueKey('details-save'),
+          // Übernehmen heißt bewerten (Rework E2).
+          onPressed: widget.takeOver && _rating == null ? null : () {
             final linkText = _link.text.trim();
             final link = sanitizeLink(linkText);
             if (linkText.isNotEmpty && link == null) {
