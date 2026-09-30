@@ -440,6 +440,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | E3 | Karten-Tour beim ersten Start mit Startseite (#133) | 0.61.0 |
 | E4 | Tour im Zerlege-Blatt (#134) | 0.62.0 |
 | E5 | Touren für Trails und Buddys, Beispiele (#136) | 0.63.0 |
+| E6 | Neuheiten-Blatt, „Entdecken", „Zeig es mir" (#135) | 0.64.0 |
 
 ## 12. Einführung: Hinweis-Maschine und Touren (#126)
 
@@ -490,6 +491,18 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
   auf dem Grund des Modus. `buddysArt`: zwei Spuren (`mine`, `buddy`)
   laufen zu einer in der Marke zusammen, dann der Punkt — das Motiv von
   1s, stehend.
+- **Neuheiten und „Entdecken"** (seit 0.64.0, `lib/features/highlights/`):
+  Bild je Eintrag (`HighlightArt`) — das echte Symbol der Funktion in
+  `accentText` auf einer Scheibe `surface2` mit Rand `line`, unten rechts
+  das Logo auf `surface`; steht still, kein Screenshot, kein Lottie. Das
+  Blatt nach einem Update ist EINE Seite: Titel `headlineSmall` („Neu in
+  TrailBuddy" / „Das kann TrailBuddy inzwischen"), die Einträge als Zeilen
+  untereinander, unten „N weitere entdecken", „Alle Änderungen" und „Fertig"
+  (gefüllt in Lime). „Entdecken" gruppiert nach Reiter in der Reihenfolge
+  der Leiste (Karte, Trails, Buddys, Profil), je Eintrag Bild, Titel,
+  zwei, drei Sätze in `bodySmall`, Schilder „Neu" (Lime auf `onBrand`) und
+  „Tipp" (gedämpft auf `surface2`), Radius 8; darunter „Zeig es mir" und
+  „Ausprobieren". Der Neu-Punkt an der Profilzeile ist die Zahl in Lime.
 - **Beispiel-Schild** (seit 0.63.0, `TourExampleBadge`): „Beispiel" in
   `labelSmall` auf `tertiaryContainer`, Radius 8, an Beispiel-Zeile,
   -Blatt und -Buddy; dazu steht „Beispiel:" im Namen, damit es auch der

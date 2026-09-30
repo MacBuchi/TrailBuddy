@@ -18,7 +18,11 @@ class FakeSettings implements Settings {
       // Tests für Hinweis und Tour geben ihre Einstellungen ausdrücklich mit.
       this.safetyNoteSeen = true,
       this.mapTourSeen = true,
-      this.seenCoachTours = const {'split', 'trails', 'buddys'}});
+      this.seenCoachTours = const {'split', 'trails', 'buddys'},
+      // Ein Stand weit in der Zukunft: sonst läge über jedem Flow-Test
+      // das Blatt „Neu in TrailBuddy" (#135).
+      this.highlightsSeenVersion = '9999.0.0',
+      this.seenHighlightIds = const {}});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -62,6 +66,22 @@ class FakeSettings implements Settings {
 
   @override
   Set<String> seenCoachTours;
+
+  @override
+  String? highlightsSeenVersion;
+
+  @override
+  Future<void> setHighlightsSeenVersion(String value) async {
+    highlightsSeenVersion = value;
+  }
+
+  @override
+  Set<String> seenHighlightIds;
+
+  @override
+  Future<void> setSeenHighlightIds(Set<String> value) async {
+    seenHighlightIds = value;
+  }
 
   @override
   Future<void> setSeenCoachTours(Set<String> value) async {

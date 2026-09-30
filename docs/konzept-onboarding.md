@@ -420,6 +420,18 @@ Startseite und Kette kommen in PR 3.
   `highlight_demos_flow_test` (JEDE Vorführung: mindestens ein
   Schritt, jedes Ziel gefunden, Blase im Bild, danach nichts offen;
   360×740).
+- **Gebaut abweichend** (0.64.0): Die Einträge sind 13 Highlights und
+  13 Tipps. `condition` steht nicht allein, sondern in `reports` — Meldung
+  und Zustand sind ein Dialog, zwei Einträge führten zum selben Knopf.
+  Dazu kamen, was seit dem Plan gebaut wurde: `still-valid` (0.58.0),
+  `marks` (0.57.0), `takeover` (0.55.0), `kurzanleitung` (0.59.0) und
+  `tours` (0.63.0). **`prerelease` fehlt mit Absicht**: Der Schalter
+  steht nur im GitHub-Build (`updateChecksApply`), ein Eintrag, den im
+  Web und im Play-Build niemand findet, wäre ein Versprechen, das nicht
+  hält. Das Bild steht still (kein Pilz-Buddy, der schaukeln könnte;
+  zwanzig bewegte Bilder in einer Liste wären Unruhe). Neue Anker für die
+  Vorführungen: `profile.list`/`profile.<id>`, `help.list`/`help.tabTours`
+  und `sheet.report` am Melde-Knopf des Blatts.
 
 ## 4. Die Skripte
 

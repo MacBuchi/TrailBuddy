@@ -335,13 +335,15 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: CoachAnchor(
+                      id: SheetCoach.report,
+                      child: OutlinedButton.icon(
                       key: const ValueKey('trail-report'),
                       style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                       onPressed: () => reportTrail(context, ref, trail),
                       icon: const Icon(Icons.flag_outlined),
                       label: const Text('Melden'),
-                    ),
+                    )),
                   ),
                 ],
               ),

@@ -65,6 +65,23 @@ abstract final class BuddysCoach {
   static const alias = 'buddys.alias';
 }
 
+/// Die Anker der Kurzanleitung — für die Vorführungen aus „Entdecken"
+/// (#135): Die Knöpfe der Reiter-Touren stehen weit unten und werden erst
+/// beim Scrollen gebaut.
+abstract final class HelpCoach {
+  static const list = 'help.list';
+  static const tabTours = 'help.tabTours';
+}
+
+/// Die Anker des Profils — für die Vorführungen aus „Entdecken" (#135).
+abstract final class ProfileCoach {
+  /// Die Liste; untere Zeilen werden erst beim Scrollen gebaut.
+  static const list = 'profile.list';
+
+  /// Eine Zeile, je `_ProfileRow.id`.
+  static String row(String id) => 'profile.$id';
+}
+
 const kTrailsTourScript = CoachScript(
   id: 'trails',
   examples: true,

@@ -16,6 +16,7 @@ import '../coach/coach.dart';
 import '../feedback/feedback_dialog.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart' show startWelcomeTour;
+import '../highlights/highlight_sheet.dart' show maybeShowHighlights;
 import '../rides/ride_providers.dart';
 import '../rides/ride_split_sheet.dart';
 import '../rides/ride_task_handler.dart';
@@ -135,16 +136,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// offenem Dialog, kommt er nicht bei jedem Start wieder. Die Tour
   /// dagegen erst an ihrem Ende — „Nicht jetzt" ist kein Gesehen.
   Future<void> _firstStart() async {
+    var shownNote = false;
     if (!ref.read(safetyNoteSeenProvider)) {
+      shownNote = true;
       ref.read(safetyNoteSeenProvider.notifier).set(true);
       await showSafetyNoteDialog(context);
       if (!mounted) return;
     }
     // Läuft schon etwas (aus der Kurzanleitung gestartet), nicht
     // dazwischenfahren.
+    var overlayShown = shownNote;
     if (!ref.read(mapTourSeenProvider) && !ref.read(coachProvider.notifier).busy) {
       startWelcomeTour(ref, GoRouter.of(context));
+      overlayShown = true;
     }
+    // Die Neuheiten (#135): gerechnet wird immer — eine frische Installation
+    // merkt ihre Version schon jetzt —, gezeigt nur in einem ruhigen Start.
+    await maybeShowHighlights(context, ref, mayShow: !overlayShown);
   }
 
   /// Die Szenen der Karten-Tour (#132): Das Skript sagt WAS geöffnet

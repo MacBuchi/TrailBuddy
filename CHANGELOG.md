@@ -2,6 +2,27 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Entdecken und Neuheiten
+
+*Version 0.64.0, 2026-09-30*
+
+- **Was ist neu, gleich nach dem Update**: Bringt eine neue Version etwas
+  Sichtbares mit, zeigt die App beim nächsten Start ein kurzes Blatt
+  „Neu in TrailBuddy" mit höchstens drei Neuheiten. Weggewischt ist
+  weggewischt — verpasst hast du nichts, alles steht auch in „Entdecken".
+- **Wer TrailBuddy schon länger hat**, bekommt einmal einen Rückblick:
+  „Das kann TrailBuddy inzwischen" mit den wichtigsten Funktionen der
+  letzten Wochen. Nach einer frischen Installation erklärt stattdessen die
+  Tour.
+- **„Entdecken" im Profil** listet alles, was TrailBuddy kann — nach
+  Karte, Trails, Buddys und Profil, mit den Symbolen, die du auf den
+  Knöpfen wiederfindest. Neues trägt einen Punkt, bis du die Seite
+  geöffnet hast.
+- **„Zeig es mir"** führt jede Funktion kurz vor und endet genau dort,
+  wo sie wohnt — im Blatt eines Trails, in der Werkzeugleiste, im Profil.
+  Dabei wird nichts ausgelöst; wo dir noch etwas fehlt (ein Trail, ein
+  Buddy), sagt die Vorführung, wie du dahin kommst.
+
 ## Touren für Trails und Buddys
 
 *Version 0.63.0, 2026-09-30*
