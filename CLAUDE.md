@@ -400,6 +400,12 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     auseinander. Die App schreibt `status` nicht mehr (`toRow`), liest
     es nicht mehr. Entfernt wird es in einem eigenen Patch, wenn
     `minimum_supported_version` über 0.48.0 steht.
+  - **Liste** (seit 0.50.0): Sterne in der Zeile, `TrailSort.rating`;
+    Wörter aus `trailRowTags` — eine abweichende jüngere unbestätigte
+    Meldung als „GESPERRT?" (gedämpft), der BESTÄTIGTE Zustand ab
+    `kConditionWordMax` (2) als Wort hinter Meldung und Hinweis.
+    `trail_condition.dart` bleibt ohne Widgets (die Liste rechnet damit),
+    die Sterne stehen in `rating_stars.dart`.
   - **Ausgangskorb**: `ReportJob` trägt die Zeit des Meldens
     (`createdAt` → `reported_at`) und die `client_id` (eindeutig je
     Nutzer, Kennung und Art). Ein `DetailsJob` von vor 0.49.0 bringt

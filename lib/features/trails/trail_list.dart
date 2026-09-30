@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/search_text.dart';
 import '../../models/trail.dart';
+import 'trail_condition.dart' show trailConditionLabel;
 
 /// Wessen Trails.
 enum TrailOwnerFilter {
@@ -32,7 +33,12 @@ enum TrailSort {
   descent('Abfahrt (Hm)'),
 
   /// Leicht zuerst; ohne Einschätzung ans Ende.
-  grade('Schwierigkeit');
+  grade('Schwierigkeit'),
+
+  /// Beste Bewertung zuerst (#101, Rework 3.1: „Sortieren nach … in der
+  /// eigenen Liste: ja"); ohne Bewertung ans Ende. Nur die Sicht aus
+  /// dem eigenen Netz — eine Rangliste darüber hinaus gibt es nie.
+  rating('Bewertung');
 
   const TrailSort(this.label);
   final String label;
@@ -266,6 +272,7 @@ List<Trail> sortTrails(List<Trail> trails, TrailSort sort) {
     TrailSort.descent => (a, b) =>
         nullsLast(a.elevation?.lossM, b.elevation?.lossM, descending: true),
     TrailSort.grade => (a, b) => nullsLast(a.grade, b.grade),
+    TrailSort.rating => (a, b) => nullsLast(a.rating, b.rating, descending: true),
   };
   return List.of(trails)
     ..sort((a, b) {
@@ -275,7 +282,14 @@ List<Trail> sortTrails(List<Trail> trails, TrailSort sort) {
 }
 
 /// Welche Art Wort eine Zeile trägt — die Farbe wählt die Oberfläche.
-enum TrailRowTagKind { pending, failure, warning, note, mine, buddy }
+/// [unconfirmed] ist eine Meldung „zu bestätigen" (#101), gedämpft;
+/// [condition] der Zustand 1–2 als Wort — ohne eigene Farbe, die gehört
+/// der Schwierigkeit (Rework E9).
+enum TrailRowTagKind { pending, failure, warning, unconfirmed, note, condition, mine, buddy }
+
+/// Ab diesem Zustand (und schlechter) steht er als Wort in der Liste
+/// (Rework E9: „ABGEROCKT", „KAUM FAHRBAR").
+const kConditionWordMax = 2;
 
 /// Die Wörter einer Zeile der Liste (Design 1j): rechts vom Farbstreifen
 /// sagt ein Wort in der Farbe, was los ist. **Ein Zustand schlägt die
@@ -300,10 +314,20 @@ List<({String text, TrailRowTagKind kind})> trailRowTags(
           : (text: failure, kind: TrailRowTagKind.failure),
     ];
   }
+  final unconfirmed = t.shownStatus.unconfirmed?.status;
+  final condition = t.shownCondition.confirmed?.condition;
   final tags = <({String text, TrailRowTagKind kind})>[
     if (t.pendingDetails) (text: 'BEITRAG WARTET AUF ÜBERTRAGUNG', kind: TrailRowTagKind.pending),
     if (t.status.warns) (text: t.status.label.toUpperCase(), kind: TrailRowTagKind.warning),
+    // Eine jüngere unbestätigte Meldung, die etwas anderes sagt als die
+    // bestätigte: gedämpft, mit Fragezeichen („GESPERRT?").
+    if (unconfirmed != null && unconfirmed != t.status)
+      (text: '${unconfirmed.label.toUpperCase()}?', kind: TrailRowTagKind.unconfirmed),
     if (freshNote) (text: 'NEUER HINWEIS', kind: TrailRowTagKind.note),
+    // Der Zustand hinter Meldung und Hinweis, nur wenn er schlecht ist —
+    // „Gut" in jeder Zeile wäre Lärm.
+    if (condition != null && condition <= kConditionWordMax)
+      (text: trailConditionLabel(condition).toUpperCase(), kind: TrailRowTagKind.condition),
   ];
   if (tags.isNotEmpty) return tags;
 

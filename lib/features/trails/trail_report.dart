@@ -22,6 +22,7 @@ import '../../core/read_after_write.dart';
 import '../../models/trail.dart';
 import '../friends/buddy_alias.dart';
 import '../map/position_provider.dart';
+import 'rating_stars.dart';
 import 'trail_condition.dart';
 import 'trail_notes.dart';
 import 'trail_providers.dart';
