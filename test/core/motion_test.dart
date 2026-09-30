@@ -104,16 +104,18 @@ void main() {
   });
 
   group('1p Splash', () {
-    test('das Endbild ist vollständig: Linie ganz, Punkt normal, Wortmarke da', () {
+    test('das Endbild ist vollständig: Linie ganz, Endstriche da, Wortmarke da', () {
       final end = splashAt(1);
       expect(end.line, closeTo(1, 1e-5));
       expect(end.lineOpacity, 1);
-      expect(end.dot, closeTo(1, 1e-5));
+      expect(end.tail, closeTo(1, 1e-5));
       expect(end.word, closeTo(1, 1e-5));
       final start = splashAt(0);
-      expect((start.line, start.dot, start.word), (0.0, 0.0, 0.0));
+      expect((start.line, start.tail, start.word), (0.0, 0.0, 0.0));
       expect(splashAt(0.6).line, closeTo(1, 1e-5), reason: 'die Linie ist bei 60 % fertig');
-      expect(splashAt(0.7).dot, closeTo(1.3, 1e-5), reason: 'der Punkt springt über');
+      expect(splashAt(0.55).tail, 0, reason: 'die Endstriche warten auf die Linie');
+      expect(splashAt(0.65).tail, inExclusiveRange(0, 1), reason: 'und wachsen dann');
+      expect(splashAt(0.8).tail, closeTo(1, 1e-5), reason: 'stehen bei 80 %');
     });
 
     // Das Kind trägt KEINEN GlobalKey (anders als der Navigator unter

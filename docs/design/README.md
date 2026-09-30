@@ -21,7 +21,7 @@ Das Design-Projekt, so unverändert wie möglich (Stand des letzten Syncs
 | `support.js` | die Laufzeit von Claude Design, die die Datei rendert | unverändert |
 | `github.md` | die Sync-Notiz von Claude Design (welche Repo-Dateien es gelesen hat) | unverändert |
 | `web/favicon.png`, `web/icons/Icon-512.png`, `web/icons/Icon-maskable-512.png` | die damaligen App-Symbole, die Claude Design aus dem Repo kopiert hatte (noch das Flutter-Standardsymbol) | byte-gleich aus Commit `8e10007` |
-| `notification_icon_512.png`, `notification_icon_96.png` | das Statusleisten-Symbol (1f): weiß, Alpha, 12 % Rand | **neu gerendert** aus dem Logo-Pfad mit `tool/brand_icons.py` — das Original kam nur als Text über die Schnittstelle, byte-genau war es nicht zu übernehmen; dieselbe Form, ohne die Herkunftsdaten (C2PA) des Originals |
+| `notification_icon_512.png`, `notification_icon_96.png` | das Statusleisten-Symbol (1f): weiß, Alpha, 12 % Rand | **neu gerendert** aus dem Logo-Pfad mit `tool/brand_icons.py` (`symbol_svg(px, 0.76, None, 0, color="#FFFFFF")`) — das Original kam nur als Text über die Schnittstelle, byte-genau war es nicht zu übernehmen; seit Turn 1h die neue Form, ohne die Herkunftsdaten (C2PA) des Originals |
 
 Nicht übernommen: `.thumbnail`, das Vorschaubild, das Claude Design selbst
 für die Projektübersicht erzeugt.
@@ -146,29 +146,52 @@ dunklen Flächen der App.
 Als Assets gebündelt (SIL OFL), nie `google_fonts` — die App muss offline
 gleich aussehen.
 
-## 4. Logo (Turn 1b) — `lib/core/widgets/trailbuddy_logo.dart`, `tool/brand_icons.py`
+## 4. Logo (Turn 1b, Form seit 1h) — `lib/core/widgets/trailbuddy_logo.dart`, `tool/brand_icons.py`
 
-Die **Serpentine — zwei Kehren, ein Ziel**, viewBox 100:
+Die **Serpentine — zwei ungleiche Kehren, der Schenkel läuft aus**,
+viewBox 100:
 
 ```
-Pfad   M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72
-Strich 14, runde Enden und Ecken
-Punkt  Kreis (82, 72), r 7
+Pfad        M26 20H52a11 11 0 0 1 0 22H32a15 15 0 0 0 0 30H40
+Strich      14, runde Enden und Ecken
+Endstriche  M55.5 72H65.5 (Strich 9), M76.5 72H83.5 (Strich 5)
+Hülle       x 10…86, y 13…79 — Mitte (48, 46), 76 breit
 ```
 
-- App-Symbol: dunkles Zeichen (`#0E1411`) auf Lime.
-- Zweifarbig auf Dunkel (Login 1g): Linie Lime, Punkt hell.
+- App-Symbol: dunkles Zeichen (`#0E1411`) auf Lime. Adaptiv mit 0,54
+  der Kante: Der fernste Punkt (Ende des letzten Strichs) bleibt im
+  Kreis einer runden Maske (Radius 36 dp) — mit 0,62 (bis 0.64) schnitt
+  die Maske beiden Enden rund 6 dp ab.
+- Zweifarbig auf Dunkel (Login 1g): Linie Lime, Endstriche hell.
 - Statusleiste: weiß, nur Alphakanal, 12 % Rand (`ic_notification`, für
   Push UND die Dauerbenachrichtigung der Fahrt).
 - Wortmarke: „TRAIL" in Textfarbe + „BUDDY" in der Marke, Barlow
   Condensed 800.
 
-Das runde Ende der Linie (bis x = 79) berührt den Punkt (ab x = 75) — so
-steht es im Entwurf. Einfarbig verschmelzen beide leicht, zweifarbig
-trennt die Farbe sie.
+**Turn 1h (Betreiber, 2026-09-30):** Die Form aus 1b — zwei gleiche,
+waagerechte Kehren mit Punkt in Strichdicke am Linienende — las sich als
+„2.", nicht als Trail; der Punkt klebte an der Linie und wirkte wie ein
+Satzzeichen. Vier Varianten wurden als Blatt verglichen (App-Symbol,
+Statusleiste in echten 24 dp, Loader, Login), gewählt ist B:
+
+- **Ungleiche Kehren** (oben eng, r 11; unten weit, r 15; der obere
+  Schenkel kurz, der untere lang): Die Symmetrie eines Buchstabens ist
+  weg, das war der Kern.
+- **Kein Punkt, das Ende läuft aus**: zwei kürzer und dünner werdende
+  Striche (sichtbar 19 und 12 Einheiten, 4 Einheiten Luft) — „da geht's
+  weiter", wie eine Linie, die aus dem Kartenausschnitt läuft. Kürzere
+  Striche in Strichdicke wurden zu Punkten, und zwei Punkte hinter der
+  Form lasen sich wieder als Satzzeichen; in 24 dp trennen die beiden
+  noch (auf xxhdpi 4 px Luft). Echte Fransen wären in der Statusleiste
+  Brei.
+- Nicht genommen: A (nur das Ende geändert — die Symmetrie blieb), C
+  (drei Kehren — in 24 dp zu dicht), D (B um 12° geneigt — am stärksten
+  „Weg", kostet im adaptiven Kreis Größe).
 
 Die Richtungen 1c (zwei Spuren), 1d (Monogramm TB) und 1e (Stollen) sind
-verworfen; 1e bleibt eine Idee für Hintergründe.
+verworfen (1d noch einmal bestätigt am 2026-09-30: gutes App-Symbol,
+schlechtes Zeichen — in der Statusleiste zu eng, und zwei Zeichen wären
+eine halbe Marke); 1e bleibt eine Idee für Hintergründe.
 
 **Alle Symbole kommen aus EINEM Skript**: `python3 tool/brand_icons.py`
 (braucht `rsvg-convert`) schreibt Android adaptiv + Altformat, Web,
@@ -378,8 +401,8 @@ Jede Animation ist aus, wenn das System es will
 
 | | Was | Dauer (Entwurf) |
 |---|---|---|
-| 1p Splash | Linie zeichnet sich (dashoffset 300 → 0 bis 60 %), Punkt springt (0 → 1,3 → 1 ab 55 %), Wortmarke blendet von 8 px unten ein (50–80 %) | einmal, ~1,2 s |
-| 1q Loader | die Serpentine läuft (dashoffset 300 → −300, linear) | 1,6 s, Schleife |
+| 1p Splash | Linie zeichnet sich (dashoffset 300 → 0 bis 60 %), die Endstriche wachsen nacheinander (55–80 %; bis 0.64 sprang hier der Punkt), Wortmarke blendet von 8 px unten ein (50–80 %) | einmal, ~1,2 s |
+| 1q Loader | die Serpentine läuft (dashoffset 300 → −300, linear), die Endstriche stehen in der Spurfarbe | 1,6 s, Schleife |
 | 1r Fahrt läuft | Ring um den Positionspunkt skaliert 1 → 3,2 und blendet von 0,7 aus; die Spur wächst | 1,6 s, Schleife |
 | 1s Buddy verbunden | zwei Spuren laufen zu einer zusammen, dann der Punkt | 3 s |
 | 1t Neuer Hinweis | der gelbe Leuchtrand atmet (2 → 6/14 px Schein) | 1,8 s, nur solange ungesehen |
@@ -478,7 +501,7 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
   „Tour starten" (aus der Kurzanleitung „Zeig's mir"; in der Kette ab
   #136 „Später" / „Weiter"). Nur der Inhalt scrollt, die Wahl bleibt im
   Bild. Bilder: `welcomeArt` — die Serpentine in `brandMark` auf dem
-  Grund des Modus, der Zielpunkt halb durchsichtig, ein Punkt in
+  Grund des Modus, die Endstriche halb durchsichtig, ein Punkt in
   Textfarbe mit Kern in der Marke fährt sie ab; `mapArt` — drei
   Linienstücke S0/S1/S2 mit weißem Saum auf dem Landton der Karte und
   ein S1-Schild. Kein Foto, kein Lottie, keine Emojis.

@@ -34,8 +34,9 @@ List<(double, double)> loaderSegments(double t, double length) {
 }
 
 /// Der Loader (1q): Die Serpentine des Logos als Spur, darauf läuft ein
-/// Stück in der Marke. Ersetzt die ganzseitigen Kreisel; in Knöpfen
-/// bleibt der kleine Kreisel — 16 px Serpentine liest niemand.
+/// Stück in der Marke; die Endstriche stehen in der Spurfarbe. Ersetzt
+/// die ganzseitigen Kreisel; in Knöpfen bleibt der kleine Kreisel —
+/// 16 px Serpentine liest niemand.
 class TrailLoader extends StatefulWidget {
   const TrailLoader({super.key, this.size = 56});
 
@@ -97,14 +98,17 @@ class _LoaderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.scale(size.width / 100, size.height / 100);
+    centerLogo(canvas);
+    const width = 12.0;
     Paint stroke(Color c) => Paint()
       ..color = c
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
+      ..strokeWidth = width
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final path = logoPath();
     canvas.drawPath(path, stroke(track));
+    drawLogoTail(canvas, track, strokeScale: width / kLogoStroke);
     final metric = path.computeMetrics().first;
     for (final (a, b) in loaderSegments(animation.value, metric.length)) {
       canvas.drawPath(metric.extractPath(a, b), stroke(color));

@@ -99,23 +99,23 @@ class _SerpentinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Der Logo-Pfad liegt in einer viewBox 100 zwischen 20 und 72 (dazu
-    // der Zielpunkt bei 82) — auf die Bühne gesetzt, mittig.
+    // Der Logo-Pfad in seiner viewBox 100, mittig auf die Bühne gesetzt.
     const scale = 1.7;
-    canvas.translate(size.width / 2 - 51 * scale, size.height / 2 - 46 * scale);
+    canvas.translate(size.width / 2 - kLogoCenter.x * scale, size.height / 2 - kLogoCenter.y * scale);
     canvas.scale(scale);
     final path = logoPath();
+    const width = 7.0;
     canvas.drawPath(
         path,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 7
+          ..strokeWidth = width
           ..strokeCap = StrokeCap.round
           ..strokeJoin = StrokeJoin.round
           ..color = road);
-    // Das Ziel wie im Logo.
-    canvas.drawCircle(Offset(kLogoDot.x, kLogoDot.y), kLogoDot.r * 0.8,
-        Paint()..color = road.withValues(alpha: 0.5));
+    // Das auslaufende Ende wie im Logo, halb durchsichtig — dort fährt
+    // niemand mehr.
+    drawLogoTail(canvas, road.withValues(alpha: 0.5), strokeScale: width / kLogoStroke);
     final metric = path.computeMetrics().first;
     final at = metric.getTangentForOffset(metric.length * progress)!.position;
     canvas.drawCircle(at, 6.5, Paint()..color = rider);

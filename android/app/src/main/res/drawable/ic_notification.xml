@@ -12,16 +12,25 @@
     android:viewportWidth="100"
     android:viewportHeight="100">
     <group
-        android:translateX="-1"
+        android:translateX="2"
         android:translateY="4">
         <path
-            android:pathData="M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72"
+            android:pathData="M26 20H52a11 11 0 0 1 0 22H32a15 15 0 0 0 0 30H40"
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="14"
             android:strokeLineCap="round"
             android:strokeLineJoin="round" />
         <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M75,72a7,7 0 1,0 14,0a7,7 0 1,0 -14,0" />
+            android:pathData="M55.5 72H65.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M76.5 72H83.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
     </group>
 </vector>

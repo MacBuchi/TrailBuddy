@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Das Logo, zweiter Anlauf
+
+*Version 0.65.0, 2026-09-30*
+
+- **Die Serpentine hat eine neue Form**: zwei ungleiche Kehren, oben eng
+  und unten weit, und der lange Schenkel läuft in zwei kürzer werdende
+  Striche aus — wie ein Trail, der aus dem Kartenausschnitt führt. Der
+  Punkt am Ende ist weg: Zwei gleiche Kehren mit Punkt lasen sich als
+  „2.", nicht als Trail. Neu auf dem Homescreen, in der Statusleiste,
+  im Loader, im Splash, im Login und auf der Startseite der Tour.
+- Auf runden Homescreen-Masken wird nichts mehr abgeschnitten — bisher
+  fehlten beiden Enden rund 6 dp.
+
 ## Kleine Korrekturen an der Einführung
 
 *Version 0.64.1, 2026-09-30*

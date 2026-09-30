@@ -33,8 +33,9 @@ liegen nur öffentliche Daten Dritter, keine Nutzerdaten.
 Schriften, Logo, Offline-Kachel-Regel, Kartenleisten, S-Grad als Form,
 Bewegung, Reihenfolge der Umsetzung). Wie beim Konzept: Wer im Code davon
 abweicht, ändert die Datei im selben PR. Alle App-Symbole erzeugt
-`tool/brand_icons.py` aus EINEM Pfad (Logo „Serpentine"); nie ein Symbol
-von Hand tauschen.
+`tool/brand_icons.py` aus EINER Geometrie (Logo „Serpentine": Pfad plus
+zwei Endstriche, seit 0.65.0 ohne Punkt — Design-README Abschnitt 4,
+Turn 1h); nie ein Symbol von Hand tauschen.
 
 **Nichts Privates in dieses Repo — es ist öffentlich.** Keine absoluten
 Pfade des Betreiber-Rechners, keine privaten Mailadressen, keine GPX- oder

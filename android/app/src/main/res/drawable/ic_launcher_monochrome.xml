@@ -1,25 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ERZEUGT von tool/brand_icons.py — nicht von Hand ändern.
-     Themen-Variante (nur Alpha) des adaptiven App-Symbols: die Serpentine, mittig im
-     sichtbaren Kreis (66 von 108 dp). -->
+     Themen-Variante (nur Alpha) des adaptiven App-Symbols: die Serpentine, mittig in den
+     sichtbaren 72 von 108 dp, ganz im Kreis einer runden Maske. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:scaleX="0.8811"
-        android:scaleY="0.8811"
-        android:translateX="9.0663"
-        android:translateY="13.4716">
+        android:scaleX="0.7674"
+        android:scaleY="0.7674"
+        android:translateX="17.1663"
+        android:translateY="18.7011">
         <path
-            android:pathData="M20 20H62a13 13 0 0 1 0 26H38a13 13 0 0 0 0 26H72"
+            android:pathData="M26 20H52a11 11 0 0 1 0 22H32a15 15 0 0 0 0 30H40"
             android:strokeColor="#FFFFFFFF"
             android:strokeWidth="14"
             android:strokeLineCap="round"
             android:strokeLineJoin="round" />
         <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M75,72a7,7 0 1,0 14,0a7,7 0 1,0 -14,0" />
+            android:pathData="M55.5 72H65.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M76.5 72H83.5"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
     </group>
 </vector>

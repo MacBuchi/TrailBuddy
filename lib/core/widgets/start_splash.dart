@@ -1,5 +1,6 @@
-// Der Splash (Design Turn 1p): Die Serpentine zeichnet sich, der Punkt
-// springt, die Wortmarke steigt ein — einmal je App-Start, ~1,2 s.
+// Der Splash (Design Turn 1p): Die Serpentine zeichnet sich, die
+// Endstriche erscheinen nacheinander, die Wortmarke steigt ein — einmal
+// je App-Start, ~1,2 s.
 //
 // Er liegt ÜBER der App, statt vor ihr zu stehen: Anmeldung, Karte und
 // Trails laden darunter schon, der Splash kostet also keine Wartezeit,
@@ -21,26 +22,20 @@ final startSplashEnabledProvider = Provider<bool>((ref) => true);
 const kSplashDuration = Duration(milliseconds: 1200);
 const kSplashFade = Duration(milliseconds: 250);
 
-/// Stand des Splashs bei [t] (0…1), Keyframes aus dem Entwurf
-/// (`tbDraw`, `tbDot`, `tbWord`). Pur, damit der Test ohne Pixel prüfen
-/// kann, dass das Endbild vollständig ist.
-({double line, double lineOpacity, double dot, double word}) splashAt(double t) {
+/// Stand des Splashs bei [t] (0…1), Keyframes aus dem Entwurf (`tbDraw`,
+/// `tbWord`; `tbDot` ist seit Turn 1h das Wachsen der Endstriche von 55
+/// bis 80 %). Pur, damit der Test ohne Pixel prüfen kann, dass das Endbild
+/// vollständig ist.
+({double line, double lineOpacity, double tail, double word}) splashAt(double t) {
   final x = t.clamp(0.0, 1.0);
   const draw = Cubic(0.6, 0, 0.2, 1);
   final line = draw.transform((x / 0.6).clamp(0.0, 1.0));
   final lineOpacity = (x / 0.1).clamp(0.0, 1.0);
-  final double dot;
-  if (x <= 0.55) {
-    dot = 0;
-  } else if (x <= 0.7) {
-    dot = 1.3 * Curves.easeOut.transform(((x - 0.55) / 0.15).clamp(0.0, 1.0));
-  } else {
-    // Geklemmt: (1 − 0,7) / 0,3 ist in Gleitkomma 1,0000000000000002,
-    // und die Kurve lehnt das ab (im Test gefunden).
-    dot = 1.3 - 0.3 * Curves.easeOut.transform(((x - 0.7) / 0.3).clamp(0.0, 1.0));
-  }
+  // Kurveneingänge klemmen: (1 − 0,55) / 0,25 kann in Gleitkomma knapp
+  // über 1 liegen, und die Kurve lehnt das ab (im Test gefunden).
+  final tail = Curves.easeOut.transform(((x - 0.55) / 0.25).clamp(0.0, 1.0));
   final word = Curves.easeOut.transform(((x - 0.5) / 0.3).clamp(0.0, 1.0));
-  return (line: line, lineOpacity: lineOpacity, dot: dot, word: word);
+  return (line: line, lineOpacity: lineOpacity, tail: tail, word: word);
 }
 
 class StartSplash extends ConsumerStatefulWidget {
@@ -120,10 +115,10 @@ class _StartSplashState extends ConsumerState<StartSplash> with TickerProviderSt
                             child: CustomPaint(
                               painter: LogoPainter(
                                 color: p.brandMark,
-                                dotColor: p.text,
+                                tailColor: p.text,
                                 progress: s.line,
                                 opacity: s.lineOpacity,
-                                dotScale: s.dot,
+                                tailProgress: s.tail,
                               ),
                             ),
                           ),
