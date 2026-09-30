@@ -278,8 +278,20 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             ],
             if (trail.isOwn && !trail.pending) ...[
               const SizedBox(height: 12),
-              CoachAnchor(id: SheetCoach.ownGrade, child: OwnGradePicker(trail: trail)),
-              OwnRatingPicker(trail: trail),
+              // EIN Anker um Grad UND Sterne: Die Trails-Tour sagt „deinen
+              // S-Grad und deine Sterne tippst du hier an" — bis 0.64.0 lagen
+              // die Sterne außerhalb der Aussparung.
+              CoachAnchor(
+                id: SheetCoach.ownGrade,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    OwnGradePicker(trail: trail),
+                    OwnRatingPicker(trail: trail),
+                  ],
+                ),
+              ),
               // Der ganze Beitrag (Name, Charakter, Bewertung, Sichtbarkeit)
               // — gleich unter der Einschätzung, die ein Teil davon ist.
               Wrap(
