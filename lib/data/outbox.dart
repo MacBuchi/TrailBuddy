@@ -76,6 +76,7 @@ sealed class OutboxJob {
                 .firstWhere((s) => s.name == json['source'], orElse: () => RecordingSource.import),
             recordedAt: DateTime.tryParse(json['recorded_at'] as String? ?? '')?.toUtc(),
             name: json['name'] as String?,
+            link: json['link'] as String?,
             grade: json['grade'] as int?,
             traits: {
               for (final t in json['traits'] as List? ?? const []) ?TrailTrait.fromDb(t as String?),
@@ -113,6 +114,7 @@ class ContributeJob extends OutboxJob {
     required this.source,
     this.recordedAt,
     this.name,
+    this.link,
     this.grade,
     this.traits = const {},
     super.attempts,
@@ -125,6 +127,10 @@ class ContributeJob extends OutboxJob {
   final RecordingSource source;
   final DateTime? recordedAt;
   final String? name;
+
+  /// Der Link zur Quelle aus der Datei (#103) — geht wie der Name nur in
+  /// einen Beitrag, der noch keinen hat. Fehlt bei Aufträgen vor 0.48.0.
+  final String? link;
 
   /// Der S-Grad aus dem Zerlege-Blatt (#29), der mit dem Namen in den
   /// eigenen Beitrag geht — null, wenn keiner gewählt war.
@@ -146,6 +152,7 @@ class ContributeJob extends OutboxJob {
         'source': source.name,
         'recorded_at': recordedAt?.toUtc().toIso8601String(),
         'name': name,
+        'link': link,
         'grade': grade,
         'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
       };
@@ -160,6 +167,7 @@ class ContributeJob extends OutboxJob {
         source: source,
         recordedAt: recordedAt,
         name: name,
+        link: link,
         grade: grade,
         traits: traits,
         attempts: attempts ?? this.attempts,

@@ -131,6 +131,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       source: source,
       recordedAt: recordedAt,
       name: track.name,
+      link: track.link,
       grade: grade,
       traits: traits,
     );
@@ -142,7 +143,8 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         recordedAt: job.recordedAt,
         clientId: job.id,
       );
-      await adoptDetails(trailId, track.name, grade: grade, traits: traits);
+      await adoptDetails(trailId, track.name,
+          grade: grade, traits: traits, link: track.link);
       return (trailId: trailId, queued: false);
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
@@ -190,9 +192,10 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// weggenommen: Das Blatt zeigt den bisherigen eigenen Charakter nicht,
   /// und legt der Server die Spur auf einen Trail, den ich schon
   /// beschrieben habe, soll eine Abfahrt nicht still meine Angabe
-  /// ersetzen. EIN Schreibvorgang für alles.
+  /// ersetzen. EIN Schreibvorgang für alles. Der [link] aus der Datei
+  /// (#103) kommt wie der Name nur, wenn noch keiner steht.
   Future<bool> adoptDetails(String trailId, String fileName,
-      {int? grade, Set<TrailTrait> traits = const {}}) async {
+      {int? grade, Set<TrailTrait> traits = const {}, String? link}) async {
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
     final name = clampTrailName(fileName);
@@ -203,9 +206,11 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     final keepName = existing != null && (existing.name ?? '').trim().isNotEmpty;
     final writesName = name.isNotEmpty && !keepName;
     final addsTraits = !(existing?.traits ?? const {}).containsAll(traits);
-    if (!writesName && grade == null && !addsTraits) return false;
+    final writesLink = link != null && (existing?.link ?? '').isEmpty;
+    if (!writesName && grade == null && !addsTraits && !writesLink) return false;
     var details = existing ?? TrailDetails(trailId: trailId, userId: myId);
     if (writesName) details = details.copyWith(name: name);
+    if (writesLink) details = details.copyWith(link: link);
     if (grade != null) details = details.copyWith(grade: grade);
     if (addsTraits) details = details.copyWith(traits: {...details.traits, ...traits});
     await ref.read(trailRepositoryProvider).saveDetails(details);
@@ -298,9 +303,9 @@ final trailsCachedAtProvider =
 final outboxRunnerProvider = Provider<OutboxRunner>((ref) => OutboxRunner(
       repository: ref.watch(trailRepositoryProvider),
       outbox: ref.watch(outboxProvider),
-      adoptDetails: (trailId, name, grade, traits) => ref
+      adoptDetails: (trailId, name, grade, traits, link) => ref
           .read(trailsProvider.notifier)
-          .adoptDetails(trailId, name, grade: grade, traits: traits),
+          .adoptDetails(trailId, name, grade: grade, traits: traits, link: link),
     ));
 
 final trailByIdProvider = Provider.family<Trail?, String>((ref, id) =>

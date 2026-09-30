@@ -883,4 +883,30 @@ begin
   perform tb_test.check(ok, 'anon darf withdraw_contribution nicht ausführen');
 end $$;
 
+\echo -- 22. Link zur Quelle im Beitrag (Patch 012, #103)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  t uuid := tb_test.t('half');
+  bad text;
+  code text;
+  upd text := 'update public.trail_details set link = %L where trail_id = %L and user_id = %L';
+begin
+  perform tb_test.exec_as(ua, format(upd, 'https://verein.example/strecken/roots', t, ua));
+  perform tb_test.check((select link from public.trail_details where trail_id = t and user_id = ua)
+                          = 'https://verein.example/strecken/roots', 'https-Link ohne Query wird gespeichert');
+  foreach bad in array array['http://verein.example', 'https://verein.example/a?token=x',
+                             'https://verein.example/#karte', 'https://verein.example/mit leer',
+                             'https://verein.example/' || repeat('a', 500)] loop
+    code := null;
+    begin
+      perform tb_test.exec_as(ua, format(upd, bad, t, ua));
+    exception when others then
+      get stacked diagnostics code = returned_sqlstate;
+    end;
+    perform tb_test.check(code = '23514', format('abgelehnt: %s… (%s)', left(bad, 40), code));
+  end loop;
+  perform tb_test.exec_as(ua, format('update public.trail_details set link = null where trail_id = %L and user_id = %L', t, ua));
+end $$;
+
 \echo -- Alle Prüfungen bestanden.

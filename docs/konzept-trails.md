@@ -201,6 +201,15 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   **Ausnahme seit 0.46.1 (#100, Patch 011):** eine geplante Aufzeichnung
   (`planned`, Datei ohne Fahrzeiten) — sie belegt nicht, dass jemand
   den Trail befahrbar vorgefunden hat.
+- **Link zur Quelle** (#103, Patch 012, seit 0.48.0) = eigener Link,
+  sonst der des ältesten sichtbaren Beitrags, der einen hat — wie der
+  Name, nur ohne „auch: …". Nur https, ohne Query und Fragment (Check in
+  der Datenbank; Freigabelinks tragen dort Tokens). Der Import schlägt
+  ihn aus dem `<link>` der GPX-Datei vor (Spur vor `<metadata>`), außer
+  von Geräteherstellern und Tourenportalen (`kLinkIgnoredHosts`: der
+  eigene Aktivitätslink verriete Buddys das eigene Konto dort), und
+  übernimmt ihn wie den Namen nur in einen Beitrag ohne Link. Die App
+  ruft ihn nie selbst ab.
 - **Hinweise** (#7, entschieden am 2026-09-28) = freier Text zum
   Trail, der das Warum trägt, das der Status nicht sagen kann („Baum
   liegt quer nach der zweiten Kehre"). Eine eigene Liste, neueste
