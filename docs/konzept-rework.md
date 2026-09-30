@@ -441,7 +441,7 @@ bekommen ihren PR erst danach.
 | 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | #114 (Messung) | — | vorerst keins | Daten mehrerer Nutzer |
 | 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
-| 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | (a) Benachrichtigung, (b) Zerlege-Blatt | feat 0.52.0– | keins | #101 |
+| 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | #123 Benachrichtigung, (b) Zerlege-Blatt | feat 0.52.0–0.53.0 | keins | #101 |
 | 11 | Übersicht „Noch gültig? Ja / Nein / Weiß nicht“ für eigene Meldungen (9) | #119 | — | feat | — | #101 |
 | 12 | Fahrdatum für eine Datei ohne Zeiten eintragen | #120 | — | feat | Skizze nötig | #101 |
 

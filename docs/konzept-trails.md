@@ -241,6 +241,9 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   eigene, bestätigte Meldung des Fahrers („vor Ort") — kein eigenes
   Merkmal, sichtbar nur in seinem Netz. Eine Fahrt ohne Antwort
   bestätigt keine fremde Meldung.
+  Übergangene Fragen stehen nach der Fahrt im Zerlege-Blatt an der
+  Zeile des Trails (seit 0.53.0) — nur für das, was vor der Fahrt
+  gemeldet war.
   **Aufbewahrt 90 Tage** (`sweep_old_reports`), damit man nachsehen
   kann, wer was gemeldet hat (Name bzw. Alias im Blatt); die jüngste
   bestätigte und die jüngste unbestätigte je Person, Trail und Art
