@@ -20,12 +20,14 @@ import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_link.dart';
 import 'trail_notes.dart';
+import 'trail_condition.dart';
 import 'trail_providers.dart';
+import 'trail_report.dart';
 import 'trail_traits.dart';
 
 /// Das Blatt zu einem Trail: Name (und die anderen Namen), Länge, S-Grad,
-/// Status mit Alter, wer ihn belegt hat, Hinweise für Buddys und der
-/// eigene Beitrag.
+/// Bewertung und Zustand, die Meldung mit Alter, wer ihn belegt hat,
+/// Hinweise und Meldungen der Buddys und der eigene Beitrag.
 Future<void> showTrailSheet(BuildContext context, Trail trail,
     {bool showOnMapButton = false}) {
   return showModalBottomSheet<void>(
@@ -36,15 +38,10 @@ Future<void> showTrailSheet(BuildContext context, Trail trail,
   );
 }
 
-String statusAge(DateTime? at, {DateTime? now}) {
-  if (at == null) return 'ohne Datum';
-  final days = (now ?? DateTime.now()).difference(at).inDays;
-  if (days <= 0) return 'heute gemeldet';
-  if (days == 1) return 'gestern gemeldet';
-  if (days < 60) return 'gemeldet vor $days Tagen';
-  final months = (days / 30.4).round();
-  if (months < 24) return 'gemeldet vor $months Monaten';
-  return 'gemeldet vor ${(days / 365).floor()} Jahren';
+/// „gemeldet vor 3 Tagen" — das Alter einer Meldung im Blatt.
+String statusAge(DateTime at, {DateTime? now}) {
+  final age = reportAgeLabel(at, now: now);
+  return age == 'heute' || age == 'gestern' ? '$age gemeldet' : 'gemeldet $age';
 }
 
 /// „3,4 km" bzw. „850 m" — [formatMeters], die EINE Schreibweise der App
@@ -107,7 +104,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
     _markSeen(trail);
     final theme = Theme.of(context);
     final palette = AppPalette.of(context);
-    final status = trail.latestStatus;
+    final shownStatus = trail.shownStatus;
     final mine = trail.myDetails;
     final buddies = trail.buddyIds.length;
     final elevation = trail.elevation;
@@ -181,18 +178,32 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             // gerechnet, aus der Linie, die die Karte zeichnet.
             OfficialSignposts(line: trail.points),
             // Charakter (#72) und Meldung als Chips — die Kennzahlen stehen
-            // darunter in Kacheln.
-            if (trail.topTraits.isNotEmpty || trail.status.warns) ...[
+            // darunter in Kacheln. Die Meldung (#101): die bestätigte, wenn
+            // sie warnt, und verblasst eine jüngere unbestätigte — „zu
+            // bestätigen", bis jemand vor Ort ist.
+            if (trail.topTraits.isNotEmpty ||
+                trail.status.warns ||
+                shownStatus.unconfirmed != null) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  if (trail.status.warns)
+                  if (shownStatus.confirmed case final c? when c.status!.warns)
                     Chip(
+                      key: const ValueKey('status-chip'),
                       avatar: const Icon(Icons.warning_amber, size: 18),
                       backgroundColor: palette.map.warning.withValues(alpha: 0.25),
-                      label: Text('${trail.status.label} · ${statusAge(status?.statusAt)}'),
+                      label: Text('${c.status!.label} · ${statusAge(c.reportedAt)}'),
+                    ),
+                  if (shownStatus.unconfirmed case final u?)
+                    Opacity(
+                      opacity: 0.6,
+                      child: Chip(
+                        key: const ValueKey('status-chip-unconfirmed'),
+                        avatar: Icon(u.status!.warns ? Icons.warning_amber : Icons.help_outline, size: 18),
+                        label: Text('${u.status!.label}? · zu bestätigen'),
+                      ),
                     ),
                   // Die höchstens zwei häufigsten, mit der Zahl der Beiträge,
                   // die sie nennen.
@@ -210,6 +221,8 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             ],
             const SizedBox(height: 12),
             _MetricTiles(trail: trail),
+            const SizedBox(height: 8),
+            _OpinionTiles(trail: trail),
             const SizedBox(height: 8),
             if (elevation != null)
               _Panel(
@@ -253,12 +266,15 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             if (!trail.pending) ...[
               const SizedBox(height: 12),
               TrailNotesSection(trail: trail, seenBefore: _seenBefore, showAdd: false),
+              const SizedBox(height: 8),
+              TrailReportsSection(trail: trail),
             ],
             if (trail.isOwn && !trail.pending) ...[
               const SizedBox(height: 12),
               OwnGradePicker(trail: trail),
-              // Der ganze Beitrag (Name, Charakter, Status, Sichtbarkeit) —
-              // gleich unter der Einschätzung, die ein Teil davon ist.
+              OwnRatingPicker(trail: trail),
+              // Der ganze Beitrag (Name, Charakter, Bewertung, Sichtbarkeit)
+              // — gleich unter der Einschätzung, die ein Teil davon ist.
               Wrap(
                 spacing: 8,
                 children: [
@@ -280,11 +296,12 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               ),
             ],
             const SizedBox(height: 12),
-            // Unten die beiden Wege aus dem Blatt (Design 1i): schreiben
-            // (Lime, die Hauptaktion) und zur Karte.
-            Row(
-              children: [
-                if (!trail.pending)
+            // Unten die Wege aus dem Blatt (Design 1i): schreiben (Lime,
+            // die Hauptaktion), melden (#101 — jeder, der den Trail sieht)
+            // und zur Karte.
+            if (!trail.pending)
+              Row(
+                children: [
                   Expanded(
                     child: FilledButton.icon(
                       key: const ValueKey('add-note'),
@@ -294,23 +311,36 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                       label: const Text('Hinweis schreiben'),
                     ),
                   ),
-                if (!trail.pending && widget.showOnMapButton) const SizedBox(width: 8),
-                if (widget.showOnMapButton)
-                  OutlinedButton.icon(
-                    key: const ValueKey('trail-show-on-map'),
-                    style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                    onPressed: () {
-                      // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
-                      Navigator.of(context).pop();
-                      StatefulNavigationShell.maybeOf(context)
-                          ?.goBranch(kMapBranchIndex);
-                      ref.read(mapFocusTrailProvider.notifier).state = trail.id;
-                    },
-                    icon: const Icon(Icons.map),
-                    label: const Text('Karte'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('trail-report'),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: () => reportTrail(context, ref, trail),
+                      icon: const Icon(Icons.flag_outlined),
+                      label: const Text('Melden'),
+                    ),
                   ),
-              ],
-            ),
+                ],
+              ),
+            // Zur Karte in einer eigenen Zeile: Drei Knöpfe nebeneinander
+            // passen auf ein kleines Telefon nicht.
+            if (widget.showOnMapButton) ...[
+              if (!trail.pending) const SizedBox(height: 8),
+              OutlinedButton.icon(
+                key: const ValueKey('trail-show-on-map'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                onPressed: () {
+                  // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
+                  Navigator.of(context).pop();
+                  StatefulNavigationShell.maybeOf(context)
+                      ?.goBranch(kMapBranchIndex);
+                  ref.read(mapFocusTrailProvider.notifier).state = trail.id;
+                },
+                icon: const Icon(Icons.map),
+                label: const Text('Karte'),
+              ),
+            ],
           ],
         ),
       ),
@@ -345,14 +375,15 @@ String withdrawConsequence(Trail trail) =>
         : 'Der Trail verschwindet von deiner Karte.';
 
 /// „Löschen" im Blatt: eigene Aufzeichnungen, Einschätzung, Charakter,
-/// Status und Hinweise zu diesem Trail (Konzept 4, „Löschen und DSGVO").
+/// Bewertung, Meldungen und Hinweise zu diesem Trail (Konzept 4, „Löschen
+/// und DSGVO").
 Future<void> withdrawContribution(BuildContext context, WidgetRef ref, Trail trail) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: const Text('Meinen Beitrag löschen?'),
-      content: Text('Deine Aufzeichnungen, deine Einschätzung und deine '
-          'Hinweise zu diesem Trail werden gelöscht. '
+      content: Text('Deine Aufzeichnungen, deine Einschätzung, deine '
+          'Meldungen und deine Hinweise zu diesem Trail werden gelöscht. '
           '${withdrawConsequence(trail)}'),
       actions: [
         TextButton(
@@ -686,6 +717,100 @@ class _MetricTiles extends StatelessWidget {
             // Der Schlüssel des früheren Chips bleibt: Die Kachel tut dasselbe.
             key: const ValueKey('grade-chip'),
             onTap: grade == null ? null : () => showGradeVotesSheet(context, trail),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Die zweite Kachelreihe (Rework E8): BEWERTUNG und ZUSTAND. Ein Tipp
+/// zeigt die Einzelstimmen wie beim S-Grad.
+class _OpinionTiles extends ConsumerWidget {
+  const _OpinionTiles({required this.trail});
+  final Trail trail;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    final big = AppFonts.numbers(theme.textTheme.titleLarge).copyWith(fontSize: 20);
+    final small = AppFonts.numbers(theme.textTheme.bodySmall).copyWith(color: palette.muted);
+    final rating = trail.rating;
+    final votes = trail.ratingVotes.length;
+    final condition = trail.shownCondition;
+    final shown = condition.unconfirmed ?? condition.confirmed;
+
+    final ratingSemantics = rating == null
+        ? (trail.ratingOpen ? 'Noch nicht bewertet, auch nicht von dir' : 'Noch keine Bewertung')
+        : 'Bewertung $rating von $kRatingMax Sternen, $votes ${votes == 1 ? 'Stimme' : 'Stimmen'}';
+    final conditionSemantics = [
+      if (condition.confirmed case final c?)
+        '${trailCondition(c.condition!).label}, ${reportAgeLabel(c.reportedAt)}',
+      if (condition.unconfirmed case final u?)
+        '${trailCondition(u.condition!).label}, ${reportAgeLabel(u.reportedAt)}, zu bestätigen',
+    ].join('; ');
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Semantics(
+              label: ratingSemantics,
+              button: votes > 0,
+              excludeSemantics: true,
+              child: _Panel(
+                panelKey: const ValueKey('metric-rating'),
+                label: 'BEWERTUNG',
+                onTap: votes == 0 ? null : () => showRatingVotesSheet(context, ref, trail),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Eigener Trail ohne eigene Bewertung: verblasste Sterne
+                    // — das IST „Bewertung offen" (Rework E4).
+                    RatingStars(rating, size: 20, faded: rating == null || trail.ratingOpen),
+                    Text(rating == null ? '—' : '$rating von $kRatingMax · $votes×', style: small),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Semantics(
+              label: conditionSemantics.isEmpty ? 'Kein Zustand gemeldet' : 'Zustand: $conditionSemantics',
+              button: shown != null,
+              excludeSemantics: true,
+              child: _Panel(
+                panelKey: const ValueKey('metric-condition'),
+                label: 'ZUSTAND',
+                onTap: shown == null ? null : () => showConditionVotesSheet(context, ref, trail),
+                child: shown == null
+                    ? Text('—', style: big.copyWith(color: palette.muted))
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (condition.confirmed case final c?)
+                            Text.rich(
+                              TextSpan(children: [
+                                TextSpan(text: trailCondition(c.condition!).label),
+                                TextSpan(text: ' · ${reportAgeLabel(c.reportedAt)}', style: small),
+                              ]),
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          if (condition.unconfirmed case final u?)
+                            Opacity(
+                              opacity: 0.6,
+                              child: Text(
+                                  '${trailCondition(u.condition!).label}? · ${reportAgeLabel(u.reportedAt)} · zu bestätigen',
+                                  key: const ValueKey('condition-unconfirmed'),
+                                  style: theme.textTheme.bodySmall),
+                            ),
+                        ],
+                      ),
+              ),
+            ),
           ),
         ],
       ),

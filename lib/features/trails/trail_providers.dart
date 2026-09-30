@@ -67,12 +67,17 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     // bei `looksOffline`.
     final result = await fetchWithCache(
       fetch: () async {
-        final results = await Future.wait(
-            [repo.fetchRecordings(), repo.fetchDetails(), repo.fetchNotes()]);
+        final results = await Future.wait([
+          repo.fetchRecordings(),
+          repo.fetchDetails(),
+          repo.fetchNotes(),
+          repo.fetchReports(),
+        ]);
         return (
           recordings: results[0] as List<TrailRecording>,
           details: results[1] as List<TrailDetails>,
           notes: results[2] as List<TrailNote>,
+          reports: results[3] as List<TrailReport>,
         );
       },
       cache: ref.read(trailCacheProvider),
@@ -84,6 +89,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       recordings: result.snapshot.recordings,
       details: result.snapshot.details,
       notes: result.snapshot.notes,
+      reports: result.snapshot.reports,
       myId: myId,
     );
     final cached = ref.read(outboxJobsProvider).valueOrNull;
@@ -217,17 +223,48 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     return true;
   }
 
-  /// Speichert den eigenen Beitrag; ein [note] (etwa zum geänderten
-  /// Status) geht als Hinweis mit — ein Neuladen für beides. Ohne Netz
-  /// wartet beides zusammen im Ausgangskorb (#30).
-  Future<WriteOutcome> saveDetails(TrailDetails details, {String? note}) async {
+  /// Meldet [status] und/oder [condition] (#101, `report_trail`). Ein
+  /// [note] geht als Hinweis mit — der Hinweis sagt WARUM. Ohne Netz
+  /// wartet beides im Ausgangskorb, mit der Zeit des Meldens; [onSite]
+  /// ist dann schon geprüft (die Position von damals zählt, nicht die beim
+  /// Senden).
+  Future<WriteOutcome> report(String trailId,
+      {TrailStatus? status, int? condition, required bool onSite, String? note}) async {
     final repo = ref.read(trailRepositoryProvider);
     final text = note?.trim() ?? '';
+    final job = ReportJob(
+      id: newClientId(),
+      createdAt: DateTime.now().toUtc(),
+      trailId: trailId,
+      status: status,
+      condition: condition,
+      onSite: onSite,
+      note: text.isEmpty ? null : text,
+    );
+    try {
+      await repo.report(
+          trailId: trailId,
+          status: status,
+          condition: condition,
+          onSite: onSite,
+          reportedAt: job.createdAt,
+          clientId: job.id);
+      if (text.isNotEmpty) await repo.addNote(trailId: trailId, body: text);
+    } catch (error, stackTrace) {
+      await _queueIfOffline(error, stackTrace, job);
+      return WriteOutcome.queued;
+    }
+    return await reloadAfterWrite('Melden')
+        ? WriteOutcome.done
+        : WriteOutcome.doneStale;
+  }
+
+  /// Speichert den eigenen Beitrag. Ohne Netz wartet er im Ausgangskorb
+  /// (#30).
+  Future<WriteOutcome> saveDetails(TrailDetails details) async {
+    final repo = ref.read(trailRepositoryProvider);
     try {
       await repo.saveDetails(details);
-      if (text.isNotEmpty) {
-        await repo.addNote(trailId: details.trailId, body: text);
-      }
     } catch (error, stackTrace) {
       await _queueIfOffline(
           error,
@@ -235,8 +272,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
           DetailsJob(
               id: newClientId(),
               createdAt: DateTime.now().toUtc(),
-              details: details,
-              note: text.isEmpty ? null : text));
+              details: details));
       return WriteOutcome.queued;
     }
     return await reloadAfterWrite('Trail-Beitrag speichern')

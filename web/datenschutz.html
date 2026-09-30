@@ -76,12 +76,25 @@
           bekannten Trails, damit derselbe Trail nur einmal existiert</td>
         <td>Vertrag; die Auswahl, was beigesteuert wird, triffst du je
           Datei</td></tr>
-    <tr><td>Beiträge zu Trails: Name, Beschreibung, Schwierigkeit, Art,
-          Zustand, Sichtbarkeit und ein Link zur Quelle, wenn du einen
+    <tr><td>Beiträge zu Trails: Name, Beschreibung, Schwierigkeit,
+          Charakter, Bewertung (1–5 Sterne), Sichtbarkeit und ein Link zur
+          Quelle, wenn du einen
           angibst oder deine GPX-Datei einen trägt (etwa die Seite eines
           Vereins). Die App ruft den Link nie selbst ab; er öffnet sich
           erst, wenn du oder ein Buddy darauf tippt, im Browser.</td>
         <td>Anzeige im eigenen Netz</td>
+        <td>Vertrag</td></tr>
+    <tr><td>Meldungen zu Trails: die Meldung (offen, gesperrt, zerstört,
+          verändert) und/oder der Zustand (1–5, von „kaum fahrbar" bis
+          „top gepflegt"), wann du sie gemacht hast und ob sie bestätigt
+          ist. Bestätigt ist sie, wenn du den Trail gefahren bist oder
+          beim Melden vor Ort warst. Ob du vor Ort bist, prüft die App auf
+          deinem Gerät, nur wenn du auf „Ich bin vor Ort" tippst; an uns
+          geht nur ja oder nein, nie deine Position, und gespeichert wird
+          nur, ob die Meldung bestätigt ist.</td>
+        <td>Deinen Buddys sagen, wie es um den Trail steht — sichtbar für
+          deine Buddys, die den Trail auch sehen, mit deinem Namen; nicht,
+          wenn dein Beitrag zu diesem Trail auf „Nur für mich" steht</td>
         <td>Vertrag</td></tr>
     <tr><td>Hinweise zu Trails: dein Text und wann du ihn geschrieben
           hast</td>
@@ -171,7 +184,7 @@
     Google kann dabei die IP-Adresse deines Geräts verarbeiten, und die
     Zustellung kann über Server außerhalb der Europäischen Union
     laufen. Gemeldet wird dir nur, was du in der App ohnehin sehen
-    darfst: Statusmeldungen und Hinweise deiner direkten Buddys zu
+    darfst: bestätigte Meldungen und Hinweise deiner direkten Buddys zu
     Trails, die du siehst.</p>
   <p><strong>Im Browser kommt ein Baustein von Google dazu.</strong>
     Schaltest du die Benachrichtigungen in der Browser-Fassung ein, lädt
@@ -237,13 +250,14 @@
     aus.</p>
 
   <h3>Ausgangskorb</h3>
-  <p>Steuerst du ohne Netz eine Aufzeichnung bei oder änderst deinen
-    Beitrag zu einem Trail, wartet der Auftrag in einem Ausgangskorb auf
+  <p>Steuerst du ohne Netz eine Aufzeichnung bei, änderst deinen
+    Beitrag zu einem Trail oder meldest etwas, wartet der Auftrag in einem Ausgangskorb auf
     deinem Gerät (nur Android) und wird gesendet, sobald wieder Verbindung
     besteht. Darin steht genau das, was sonst sofort an Supabase gegangen
-    wäre: die vereinfachte Linie mit Höhen, Zeitpunkt und Quelle bzw. Name,
-    Schwierigkeit, Zustand, Sichtbarkeit, Beschreibung und Link deines
-    Beitrags.
+    wäre: die vereinfachte Linie mit Höhen, Zeitpunkt und Quelle; Name,
+    Schwierigkeit, Charakter, Bewertung, Sichtbarkeit, Beschreibung und
+    Link deines Beitrags; bzw. Meldung, Zustand, Zeitpunkt und ob du vor
+    Ort warst (ja/nein, keine Position).
     Der Korb ist vom Android-Backup ausgeschlossen; du kannst jeden
     wartenden Auftrag in der Trail-Liste wieder entfernen.</p>
 
@@ -273,8 +287,13 @@
   <ul>
     <li>Konto, Buddys, Aufzeichnungen und Beiträge: bis du sie löschst
       (je Trail im Trail-Blatt unter „Löschen": deine Aufzeichnungen,
-      deine Einschätzung und deine Hinweise zu diesem Trail) oder das
-      Konto löschst.</li>
+      deine Einschätzung, deine Meldungen und deine Hinweise zu diesem
+      Trail) oder das Konto löschst.</li>
+    <li>Meldungen zu Trails: 90 Tage. Deine jüngste bestätigte und deine
+      jüngste unbestätigte Meldung und Zustandsangabe zu einem Trail
+      bleiben länger stehen — die angezeigte Meldung ist die jüngste
+      bestätigte, wie alt sie auch ist —, bis du deinen Beitrag löschst
+      oder das Konto löschst.</li>
     <li>Hinweise zu Trails: 90 Tage. Dein jüngster Hinweis zu einem Trail
       bleibt länger stehen, bis du oder ein Buddy, der ihn sieht, ihn
       entfernt oder du das Konto löschst. Welche Hinweise du schon gelesen
@@ -290,7 +309,7 @@
   <p>In der App unter Profil → <strong>Konto löschen</strong>, oder ohne
     App nach der Anleitung unter <a href="konto-loeschen.html">Konto
     löschen</a>. Die Löschung wirkt sofort und entfernt Profil,
-    Aufzeichnungen, Beiträge, Hinweise und Verbindungen.</p>
+    Aufzeichnungen, Beiträge, Meldungen, Hinweise und Verbindungen.</p>
 
   <h2>Deine Rechte</h2>
   <p>Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit

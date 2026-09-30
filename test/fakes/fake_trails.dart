@@ -8,8 +8,8 @@ import 'package:trailbuddy/models/trail.dart';
 
 /// Spiegelt die RLS der Trail-Tabellen (Konzept 3): sichtbar ist ein
 /// Beleg, wenn er mir gehört oder einem Buddy, dessen Beitrag zu diesem
-/// Trail nicht `private` ist; ein Hinweis (Patch 005) zusätzlich nur,
-/// wenn ich den Trail sehe. Den Abgleich ersetzt eine Vorgabe
+/// Trail nicht `private` ist; ein Hinweis (Patch 005) und eine Meldung
+/// (Patch 013) zusätzlich nur, wenn ich den Trail sehe. Den Abgleich ersetzt eine Vorgabe
 /// ([matcher]) — die Geometrie prüft `tool/matcher_check.sql` gegen die
 /// echte Datenbank, hier geht es um die App drumherum.
 class FakeTrailRepository implements TrailRepository {
@@ -78,10 +78,9 @@ class FakeTrailRepository implements TrailRepository {
             description: d.description,
             grade: d.grade,
             traits: d.traits,
+            rating: d.rating,
             link: d.link,
             visibility: d.visibility,
-            status: d.status,
-            statusAt: d.statusAt,
             updatedAt: d.updatedAt,
           ),
     ];
@@ -145,15 +144,34 @@ class FakeTrailRepository implements TrailRepository {
       lengthM: length,
       ele: eles,
     ));
-    // Wie Schritt 7 der RPC: Beitrag anlegen, sonst den Status auf
-    // „offen" — außer bei `planned` (Patch 011, #100).
-    final own = details.indexWhere((d) => d.trailId == trailId && d.userId == me);
-    if (own < 0) {
+    // Wie Schritt 7 der RPC: Beitrag anlegen, falls er fehlt.
+    if (!details.any((d) => d.trailId == trailId && d.userId == me)) {
       details.add(TrailDetails(trailId: trailId, userId: me));
-    } else if (source != RecordingSource.planned &&
-        details[own].status != TrailStatus.open) {
-      details[own] =
-          details[own].copyWith(status: TrailStatus.open, statusAt: DateTime.now());
+    }
+    // Wie Schritt 8 (Patch 013): Die eigene Meldung zum FAHRDATUM auf
+    // „offen" — nur wenn es eine gibt, sie älter ist und nicht schon ein
+    // bestätigtes „offen"; nie bei `planned` (Patch 011).
+    if (source != RecordingSource.planned) {
+      final now = DateTime.now();
+      final rideAt = recordedAt == null || recordedAt.isAfter(now) ? now : recordedAt;
+      final own = reports
+          .where((r) => r.trailId == trailId && r.userId == me && r.kind == ReportKind.status)
+          .toList()
+        ..sort((a, b) => b.reportedAt.compareTo(a.reportedAt));
+      final last = own.firstOrNull;
+      if (last != null &&
+          rideAt.isAfter(last.reportedAt) &&
+          !(last.status == TrailStatus.open && last.confirmed)) {
+        reports.add(TrailReport(
+          id: 'report-${newClientId()}',
+          trailId: trailId,
+          userId: me,
+          kind: ReportKind.status,
+          status: TrailStatus.open,
+          confirmed: true,
+          reportedAt: rideAt,
+        ));
+      }
     }
     return trailId;
   }
@@ -221,6 +239,11 @@ class FakeTrailRepository implements TrailRepository {
     if (link != null && sanitizeLink(link) != link) {
       throw StateError('23514: Link $link');
     }
+    // Spiegelt trail_details_rating_check (Patch 013).
+    final rating = d.rating;
+    if (rating != null && (rating < kRatingMin || rating > kRatingMax)) {
+      throw StateError('23514: Bewertung $rating');
+    }
     details.removeWhere((x) => x.trailId == d.trailId && x.userId == me);
     details.add(TrailDetails(
       trailId: d.trailId,
@@ -229,11 +252,100 @@ class FakeTrailRepository implements TrailRepository {
       description: d.description,
       grade: d.grade,
       traits: d.traits,
+      rating: d.rating,
       link: d.link,
       visibility: d.visibility,
-      status: d.status,
-      statusAt: d.statusAt,
       updatedAt: DateTime.now(),
+    ));
+  }
+
+  final reports = <TrailReport>[];
+  int reportCalls = 0;
+  Object? failNextReport;
+
+  /// Spiegelt `reports_select`: wie die Hinweise.
+  bool _reportVisible(TrailReport r) =>
+      r.userId == myId() || (_visible(r.userId, r.trailId) && _canSeeTrail(r.trailId));
+
+  @override
+  Future<List<TrailReport>> fetchReports() async {
+    if (failFetch != null) throw failFetch!;
+    return [
+      for (final r in reports)
+        if (_reportVisible(r))
+          TrailReport(
+            id: r.id,
+            trailId: r.trailId,
+            userId: r.userId,
+            kind: r.kind,
+            status: r.status,
+            condition: r.condition,
+            confirmed: r.confirmed,
+            reportedAt: r.reportedAt,
+            username: usernames[r.userId],
+          ),
+    ];
+  }
+
+  /// Die `client_id` je Art, wie der eindeutige Index in `trail_reports`.
+  final _reportClientIds = <String>{};
+
+  /// Spiegelt `report_trail` (Patch 013): nur, wer den Trail sieht; der
+  /// Server legt `confirmed` fest (gefahren oder vor Ort) und kappt die
+  /// Zeit auf jetzt; dieselbe `client_id` legt nichts an.
+  @override
+  Future<void> report({
+    required String trailId,
+    TrailStatus? status,
+    int? condition,
+    required bool onSite,
+    required DateTime reportedAt,
+    required String clientId,
+  }) async {
+    reportCalls++;
+    if (failNextReport != null) {
+      final e = failNextReport!;
+      failNextReport = null;
+      throw e;
+    }
+    final me = myId();
+    if (status == null && condition == null) throw StateError('22023: nichts gemeldet');
+    if (!_canSeeTrail(trailId)) throw StateError('42501: Trail nicht sichtbar');
+    if (condition != null && (condition < kConditionMin || condition > kConditionMax)) {
+      throw StateError('23514: Zustand $condition');
+    }
+    final confirmed = onSite ||
+        recordings.any((r) =>
+            r.trailId == trailId && r.userId == me && r.source != RecordingSource.planned);
+    final now = DateTime.now();
+    final at = reportedAt.isAfter(now) ? now : reportedAt;
+    for (final kind in [if (status != null) ReportKind.status, if (condition != null) ReportKind.condition]) {
+      if (!_reportClientIds.add('$me/$clientId/${kind.db}')) continue;
+      reports.add(TrailReport(
+        id: 'report-${newClientId()}',
+        trailId: trailId,
+        userId: me,
+        kind: kind,
+        status: kind == ReportKind.status ? status : null,
+        condition: kind == ReportKind.condition ? condition : null,
+        confirmed: confirmed,
+        reportedAt: at.toLocal(),
+      ));
+    }
+  }
+
+  /// Eine Meldung von [userId], ohne Prüfung — für Ausgangslagen in Tests.
+  void seedReport(String userId, String trailId,
+      {TrailStatus? status, int? condition, bool confirmed = true, DateTime? at}) {
+    reports.add(TrailReport(
+      id: 'report-${newClientId()}',
+      trailId: trailId,
+      userId: userId,
+      kind: status != null ? ReportKind.status : ReportKind.condition,
+      status: status,
+      condition: status != null ? null : condition,
+      confirmed: confirmed,
+      reportedAt: at ?? DateTime.now(),
     ));
   }
 
@@ -306,6 +418,7 @@ class FakeTrailRepository implements TrailRepository {
     final n = recordings.where((r) => r.trailId == trailId && r.userId == me).length;
     recordings.removeWhere((r) => r.trailId == trailId && r.userId == me);
     notes.removeWhere((x) => x.trailId == trailId && x.userId == me);
+    reports.removeWhere((x) => x.trailId == trailId && x.userId == me);
     details.removeWhere((d) => d.trailId == trailId && d.userId == me);
     return n;
   }
@@ -328,7 +441,7 @@ class FakeTrailRepository implements TrailRepository {
       TrailStatus status = TrailStatus.open, DateTime? statusAt,
       TrailVisibility visibility = TrailVisibility.buddies, String? trailId,
       List<double>? ele, bool reversed = false, int? grade,
-      Set<TrailTrait> traits = const {},
+      Set<TrailTrait> traits = const {}, int? rating,
       RecordingSource source = RecordingSource.import, String? link}) {
     final id = trailId ?? 'trail-${newClientId()}';
     recordings.add(TrailRecording(
@@ -350,11 +463,18 @@ class FakeTrailRepository implements TrailRepository {
       name: name,
       grade: grade,
       traits: traits,
+      rating: rating,
       link: link,
-      status: status,
-      statusAt: statusAt,
       visibility: visibility,
     ));
+    // Eine Meldung ungleich „offen" steht seit Patch 013 im Verlauf —
+    // bestätigt, wenn der Beleg keine geplante Datei ist.
+    if (status != TrailStatus.open || statusAt != null) {
+      seedReport(userId, id,
+          status: status,
+          confirmed: source != RecordingSource.planned,
+          at: statusAt ?? DateTime(2026, 1, 1));
+    }
     return id;
   }
 }

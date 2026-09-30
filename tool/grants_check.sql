@@ -46,3 +46,20 @@ begin
   end if;
   raise notice 'grants_check push: ok';
 end $$;
+
+-- Meldungen (patch_013): `confirmed` legt der Server fest. Ein
+-- insert- oder update-Grant ließe jeden Client sich selbst bestätigen.
+do $$
+begin
+  if has_table_privilege('authenticated', 'public.trail_reports', 'insert')
+     or has_table_privilege('authenticated', 'public.trail_reports', 'update') then
+    raise exception 'authenticated darf trail_reports direkt schreiben — „bestätigt" wäre frei wählbar';
+  end if;
+  if has_table_privilege('anon', 'public.trail_reports', 'select') then
+    raise exception 'anon darf trail_reports lesen';
+  end if;
+  if not has_table_privilege('authenticated', 'public.trail_reports', 'select') then
+    raise exception 'authenticated fehlt select auf trail_reports';
+  end if;
+  raise notice 'grants_check reports: ok';
+end $$;

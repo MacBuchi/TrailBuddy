@@ -106,23 +106,52 @@ List<Trail> withPendingJobs(List<Trail> server, List<OutboxJob> jobs, {required 
     for (final j in jobs)
       if (j is DetailsJob) j.details.trailId: j,
   };
-  final result = <Trail>[
-    for (final t in server)
-      detailsByTrail.containsKey(t.id)
-          ? Trail(
-              id: t.id,
-              recordings: t.recordings,
-              details: [
-                for (final d in t.details)
-                  if (d.userId != myId) d,
-                detailsByTrail[t.id]!.details,
-              ],
-              myId: myId,
-              notes: t.notes,
-              pendingDetails: true,
-            )
-          : t,
-  ];
+  final reportsByTrail = <String, List<ReportJob>>{};
+  for (final j in jobs) {
+    if (j is ReportJob) reportsByTrail.putIfAbsent(j.trailId, () => []).add(j);
+  }
+  Trail overlay(Trail t) {
+    final details = detailsByTrail[t.id];
+    final reports = reportsByTrail[t.id];
+    if (details == null && reports == null) return t;
+    return Trail(
+      id: t.id,
+      recordings: t.recordings,
+      details: details == null
+          ? t.details
+          : [
+              for (final d in t.details)
+                if (d.userId != myId) d,
+              details.details,
+            ],
+      myId: myId,
+      notes: t.notes,
+      reports: [
+        ...t.reports,
+        // Eine wartende Meldung steht schon da, mit der Vorhersage des
+        // Geräts für „bestätigt" — der Server rechnet beim Senden nach.
+        for (final j in reports ?? const <ReportJob>[])
+          for (final kind in [
+            if (j.status != null) ReportKind.status,
+            if (j.condition != null) ReportKind.condition,
+          ])
+            TrailReport(
+              id: 'pending-${j.id}-${kind.db}',
+              trailId: t.id,
+              userId: myId,
+              kind: kind,
+              status: kind == ReportKind.status ? j.status : null,
+              condition: kind == ReportKind.condition ? j.condition : null,
+              confirmed: j.onSite || t.hasRidden(myId),
+              reportedAt: j.createdAt.toLocal(),
+              pending: true,
+            ),
+      ],
+      pendingDetails: details != null || t.pendingDetails,
+    );
+  }
+
+  final result = <Trail>[for (final t in server) overlay(t)];
   for (final j in jobs) {
     if (j is! ContributeJob) continue;
     final points = <LatLng>[

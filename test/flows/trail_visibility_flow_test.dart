@@ -74,27 +74,26 @@ void main() {
     expect(lines.map((p) => (p.hitValue as Trail).id).toSet(), hasLength(2));
   });
 
-  testWidgets('Status melden: jüngste Meldung gewinnt und trägt ihr Datum', (tester) async {
+  testWidgets('Melden: die Meldung steht im Verlauf, der Beitrag bleibt', (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await openTab(tester, 'Trails');
     await settle(tester, frames: 20);
     await tester.tap(find.text('Hexentanz'));
     await settle(tester);
-    await tester.tap(find.text('Mein Beitrag'));
+    await tester.ensureVisible(find.byKey(const ValueKey('trail-report')));
+    await tester.tap(find.byKey(const ValueKey('trail-report')));
     await settle(tester);
-
-    await tester.tap(find.widgetWithText(DropdownButtonFormField<TrailStatus>, 'Offen'));
+    await tester.tap(find.byKey(const ValueKey('report-status-destroyed')));
     await settle(tester);
-    await tester.tap(find.text('Zerstört').last);
-    await settle(tester);
-    await tester.tap(find.text('Speichern'));
+    await tester.tap(find.byKey(const ValueKey('report-submit')));
     await settle(tester, frames: 20);
 
-    final mine = trails.details.where((d) => d.userId == annaId).single;
-    expect(mine.status, TrailStatus.destroyed);
-    expect(mine.statusAt, isNotNull);
-    expect(mine.name, 'Hexentanz', reason: 'der Name bleibt beim Statuswechsel');
-    expect(find.textContaining('Beitrag gespeichert'), findsOneWidget);
+    final r = trails.reports.where((r) => r.userId == annaId).single;
+    expect(r.status, TrailStatus.destroyed);
+    expect(trails.details.where((d) => d.userId == annaId).single.name, 'Hexentanz',
+        reason: 'Melden fasst den Beitrag nicht an');
+    expect(find.descendant(of: find.byType(SnackBar), matching: find.text('Gemeldet')), findsOneWidget);
+    expect(find.byKey(const ValueKey('status-chip')), findsOneWidget);
   });
 
   testWidgets('privater Beitrag des Buddys: sein Beleg verschwindet', (tester) async {

@@ -33,14 +33,24 @@ void main() {
   final details = TrailDetails(
     trailId: 'trail-1', userId: 'bob', username: 'bob', name: 'Roots',
     description: 'wurzelig', grade: 3, traits: const {TrailTrait.rocky, TrailTrait.steep},
-    link: 'https://verein.example/roots',
-    visibility: TrailVisibility.buddies, status: TrailStatus.closed,
-    statusAt: at.toLocal(), updatedAt: at.toLocal(),
+    rating: 4, link: 'https://verein.example/roots',
+    visibility: TrailVisibility.buddies, updatedAt: at.toLocal(),
   );
   final note = TrailNote(
       id: 'note-1', trailId: 'trail-1', userId: 'bob', body: 'Baum quer',
       createdAt: at.toLocal(), username: 'bob');
-  final snapshot = (recordings: [recording, noEle], details: [details], notes: [note]);
+  final statusReport = TrailReport(
+      id: 'rep-1', trailId: 'trail-1', userId: 'bob', kind: ReportKind.status,
+      status: TrailStatus.closed, confirmed: true, reportedAt: at.toLocal(), username: 'bob');
+  final conditionReport = TrailReport(
+      id: 'rep-2', trailId: 'trail-1', userId: 'carla', kind: ReportKind.condition,
+      condition: 2, confirmed: false, reportedAt: at.toLocal());
+  final snapshot = (
+    recordings: [recording, noEle],
+    details: [details],
+    notes: [note],
+    reports: [statusReport, conditionReport],
+  );
 
   test('Rundlauf: die Kopie liest sich wie das Netz', () {
     final back = decodeTrailCache(encodeTrailCache(uid: 'me', snapshot: snapshot, savedAt: at), uid: 'me')!;
@@ -68,13 +78,33 @@ void main() {
     expect(d.grade, 3);
     expect(d.traits, {TrailTrait.rocky, TrailTrait.steep});
     expect(d.link, 'https://verein.example/roots');
-    expect(d.status, TrailStatus.closed);
-    expect(d.statusAt, details.statusAt);
+    expect(d.rating, 4);
     expect(d.updatedAt, details.updatedAt);
+    final s1 = back.snapshot.reports[0];
+    expect(s1.id, 'rep-1');
+    expect(s1.kind, ReportKind.status);
+    expect(s1.status, TrailStatus.closed);
+    expect(s1.confirmed, isTrue);
+    expect(s1.reportedAt, statusReport.reportedAt);
+    expect(s1.username, 'bob');
+    final s2 = back.snapshot.reports[1];
+    expect(s2.kind, ReportKind.condition);
+    expect(s2.condition, 2);
+    expect(s2.confirmed, isFalse);
+    expect(s2.username, isNull);
     final n = back.snapshot.notes.single;
     expect(n.body, 'Baum quer');
     expect(n.username, 'bob');
     expect(n.createdAt, note.createdAt);
+  });
+
+  test('eine Kopie von vor 0.49.0 (ohne Meldungen) liest sich ohne Meldungen', () {
+    final text = encodeTrailCache(uid: 'me', snapshot: snapshot, savedAt: at)
+        .replaceAll(RegExp(r',"reports":\[.*\]\}$'), '}');
+    expect(text, isNot(contains('reports')));
+    final back = decodeTrailCache(text, uid: 'me')!;
+    expect(back.snapshot.reports, isEmpty);
+    expect(back.snapshot.details.single.name, 'Roots');
   });
 
   test('fremdes Konto und Unlesbares ergeben keine Kopie', () {

@@ -655,8 +655,9 @@ class _PushSection extends ConsumerWidget {
           secondary: const Icon(Icons.notifications_outlined),
           title: const Text('Benachrichtigungen'),
           subtitle: const Text(
-              'Wenn ein Buddy einen Trail meldet, den du siehst — Status '
-              'oder Hinweis. Gilt nur für dieses Gerät. In der Meldung '
+              'Wenn ein Buddy zu einem Trail, den du siehst, etwas meldet '
+              '(bestätigt, also vor Ort oder gefahren) oder einen Hinweis '
+              'schreibt. Gilt nur für dieses Gerät. In der Benachrichtigung '
               'steht nie ein Trailname, kein Name und kein Hinweistext; '
               'die holt die App erst beim Öffnen.'),
           value: enabled,

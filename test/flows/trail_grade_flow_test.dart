@@ -76,6 +76,7 @@ void main() {
   testWidgets('beim Angeben im Beitrag: Kurzfassung in der Auswahl, „?" öffnet die Skala',
       (tester) async {
     await openTrail(tester, 'Roots');
+    await tester.ensureVisible(find.text('Mein Beitrag'));
     await tester.tap(find.text('Mein Beitrag'));
     await settle(tester);
     final dialog = find.byType(AlertDialog);

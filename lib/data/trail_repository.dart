@@ -46,6 +46,23 @@ abstract class TrailRepository {
 
   Future<void> deleteNote(String id);
 
+  /// Die Meldungen und Zustände, die ich sehen darf (Patch 013): eigene
+  /// und die von Buddys, deren Beitrag nicht privat ist.
+  Future<List<TrailReport>> fetchReports();
+
+  /// Meldet [status] und/oder [condition] zu einem Trail, den ich sehe
+  /// (`report_trail`, Patch 013). [onSite] heißt: Die App hat mich eben
+  /// höchstens 200 m von der Linie gesehen — nur das Ja/Nein geht raus,
+  /// nie die Position. [clientId] macht die Wiedervorlage idempotent.
+  Future<void> report({
+    required String trailId,
+    TrailStatus? status,
+    int? condition,
+    required bool onSite,
+    required DateTime reportedAt,
+    required String clientId,
+  });
+
   /// Zieht den EIGENEN Beitrag zu [trailId] zurück (Patch 010,
   /// `withdraw_contribution`): Aufzeichnungen, Hinweise und Beitrag in
   /// einer Transaktion. Der Trail bleibt, solange ein anderer ihn belegt.
@@ -61,8 +78,13 @@ const kRecordingColumns =
 /// Der Embed heißt nach dem Fremdschlüssel; wird er in einem Patch
 /// umbenannt, muss diese Zeile mitziehen (der Schema Check fällt sonst).
 const kDetailsColumns =
-    'trail_id, user_id, name, description, grade, traits, link, visibility, status, status_at, updated_at, '
+    'trail_id, user_id, name, description, grade, traits, rating, link, visibility, updated_at, '
     'contributor:profiles!trail_details_user_id_fkey(username)';
+
+/// Wie [kDetailsColumns]: `tool/schema_check.sh` fragt genau diese Liste ab.
+const kReportColumns =
+    'id, trail_id, user_id, kind, status, condition, confirmed, reported_at, '
+    'reporter:profiles!trail_reports_user_id_fkey(username)';
 
 /// Wie [kDetailsColumns]: Der Embed heißt nach dem Fremdschlüssel, und
 /// `tool/schema_check.sh` fragt genau diese Liste ab.
@@ -153,6 +175,33 @@ class SupabaseTrailRepository implements TrailRepository {
   Future<void> deleteNote(String id) async {
     _client.requireUid;
     await _client.from('trail_notes').delete().eq('id', id);
+  }
+
+  @override
+  Future<List<TrailReport>> fetchReports() async {
+    _client.requireUid;
+    final rows = await _client.from('trail_reports').select(kReportColumns);
+    return [for (final r in rows) ?TrailReport.fromJson(r)];
+  }
+
+  @override
+  Future<void> report({
+    required String trailId,
+    TrailStatus? status,
+    int? condition,
+    required bool onSite,
+    required DateTime reportedAt,
+    required String clientId,
+  }) async {
+    _client.requireUid;
+    await _client.rpc<dynamic>('report_trail', params: {
+      'trail_id': trailId,
+      'status': status?.db,
+      'condition': condition,
+      'on_site': onSite,
+      'reported_at': reportedAt.toUtc().toIso8601String(),
+      'client_id': clientId,
+    });
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 // Der Ausgangskorb (#30): Aufträge überstehen die Ablage, fremde Konten
 // sehen nichts, Unlesbares fällt einzeln weg — und die Datei schreibt
 // über `.part` + `rename`.
@@ -25,21 +27,28 @@ void main() {
   final details = DetailsJob(
     id: 'job-2',
     createdAt: at,
-    details: TrailDetails(
+    details: const TrailDetails(
         trailId: 'trail-9',
         userId: 'me',
         name: 'Roots',
         grade: 3,
-        traits: const {TrailTrait.rocky, TrailTrait.steep},
-        link: 'https://verein.example/roots',
-        status: TrailStatus.closed,
-        statusAt: at),
+        traits: {TrailTrait.rocky, TrailTrait.steep},
+        rating: 4,
+        link: 'https://verein.example/roots'),
+  );
+  final report = ReportJob(
+    id: 'job-3',
+    createdAt: at,
+    trailId: 'trail-9',
+    status: TrailStatus.closed,
+    condition: 2,
+    onSite: true,
     note: 'Baum liegt quer',
   );
 
-  test('beide Auftragsarten überstehen die Ablage unverändert', () {
-    final back = decodeOutbox(encodeOutbox([contribute, details], uid: 'me'), uid: 'me');
-    expect(back, hasLength(2));
+  test('alle drei Auftragsarten überstehen die Ablage unverändert', () {
+    final back = decodeOutbox(encodeOutbox([contribute, details, report], uid: 'me'), uid: 'me');
+    expect(back, hasLength(3));
     final c = back[0] as ContributeJob;
     expect(c.id, 'job-1');
     expect(c.coords, contribute.coords);
@@ -57,9 +66,44 @@ void main() {
     expect(d.details.grade, 3);
     expect(d.details.traits, {TrailTrait.rocky, TrailTrait.steep});
     expect(d.details.link, 'https://verein.example/roots');
-    expect(d.details.status, TrailStatus.closed);
-    expect(d.details.statusAt!.toUtc(), at);
-    expect(d.note, 'Baum liegt quer');
+    expect(d.details.rating, 4);
+    expect(d.legacyStatus, isNull, reason: 'ein neuer Beitrag trägt keine Meldung mehr');
+    final r = back[2] as ReportJob;
+    expect(r.trailId, 'trail-9');
+    expect(r.status, TrailStatus.closed);
+    expect(r.condition, 2);
+    expect(r.onSite, isTrue);
+    expect(r.createdAt, at, reason: 'die Zeit des Meldens geht mit');
+    expect(r.note, 'Baum liegt quer');
+    expect(r.copyWith(attempts: 1).condition, 2, reason: 'copyWith verliert den Zustand nicht');
+  });
+
+  test('ein Beitrag von vor 0.49.0 bringt seinen Status als Meldung mit', () {
+    final raw = jsonEncode({
+      'uid': 'me',
+      'jobs': [
+        {
+          'kind': 'details',
+          'id': 'old',
+          'created_at': at.toIso8601String(),
+          'details': {
+            'trail_id': 'trail-9',
+            'user_id': 'me',
+            'visibility': 'buddies',
+            'status': 'closed',
+            'status_at': at.toIso8601String(),
+          },
+          'note': 'Baum quer',
+        },
+      ],
+    });
+    final back = decodeOutbox(raw, uid: 'me').single as DetailsJob;
+    expect(back.legacyStatus, TrailStatus.closed);
+    expect(back.legacyStatusAt, at);
+    expect(back.note, 'Baum quer');
+    // Und so bleibt es auch nach einem weiteren Ablegen.
+    final again = decodeOutbox(encodeOutbox([back], uid: 'me'), uid: 'me').single as DetailsJob;
+    expect(again.legacyStatus, TrailStatus.closed);
   });
 
   test('ein Auftrag von vor 0.35.0 (ohne traits) liest sich mit leerem Charakter', () {

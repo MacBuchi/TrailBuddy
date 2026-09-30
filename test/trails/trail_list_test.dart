@@ -32,9 +32,15 @@ Trail trail(String id, String name,
       myId: 'me',
       recordings: [rec(id, user, day: day, lengthM: lengthM, ele: ele)],
       details: [
-        TrailDetails(trailId: id, userId: user, username: username, name: name, grade: grade, status: status),
+        TrailDetails(trailId: id, userId: user, username: username, name: name, grade: grade),
       ],
       notes: notes,
+      reports: [
+        if (status != TrailStatus.open)
+          TrailReport(
+              id: 'r-$id', trailId: id, userId: user, kind: ReportKind.status,
+              status: status, confirmed: true, reportedAt: DateTime(2026, 1, day)),
+      ],
     );
 
 List<String> names(TrailListResult r) => [for (final t in r.trails) t.displayName];

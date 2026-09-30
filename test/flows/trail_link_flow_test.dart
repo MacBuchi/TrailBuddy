@@ -49,6 +49,7 @@ void main() {
     expect(find.byKey(const ValueKey('trail-link')), findsOneWidget);
     expect(find.text('verein.example'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Mein Beitrag'));
     await tester.tap(find.text('Mein Beitrag'));
     await settle(tester);
     final field = find.byKey(const ValueKey('details-link'));
