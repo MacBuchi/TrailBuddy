@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/settings.dart';
 import '../coach/coach.dart';
+import 'tour_intro_art.dart';
 import 'tour_legend.dart';
 
 /// Die Leiste unten — die Karten-Tour nennt ihre Bereiche zum Schluss.
@@ -77,6 +78,27 @@ abstract final class SheetCoach {
   static const showOnMap = 'sheet.showOnMap';
 }
 
+/// Die Startseite beim ERSTEN Start (#133). Sie nennt die drei Wege, auf
+/// denen Trails hierher kommen — die Karte ist am Anfang leer, anders als
+/// bei PilzBuddy. „Nicht jetzt" fragt beim nächsten Start wieder.
+const kWelcomeIntro = CoachStep(
+  title: 'Willkommen bei TrailBuddy',
+  text: 'Hier liegen die Trails, die du gefahren bist, und die deiner Buddys '
+      '— sonst niemandes. Drei Wege bringen Trails hierher: GPX importieren, '
+      'eine Fahrt aufzeichnen, Buddys verbinden.',
+  art: welcomeArt,
+  startLabel: 'Tour starten',
+);
+
+/// Die Startseite, wenn die Karten-Tour aus der Kurzanleitung kommt.
+const kMapIntro = CoachStep(
+  title: 'Die Karte',
+  text: 'Hier liegen deine Trails und die deiner Buddys, jede Linie in der '
+      'Farbe ihrer Schwierigkeit. Die Tour zeigt, was die Karte sagt — und was '
+      'hinter den Knöpfen liegt.',
+  art: mapArt,
+);
+
 /// Zum Schluss der Karten-Tour die Bereiche unten, je ein Halbsatz.
 const kNavStep = CoachStep(
   title: 'Unten die Bereiche',
@@ -91,6 +113,7 @@ const kMapTourScript = CoachScript(
   id: 'map',
   endLink: ('Kurzanleitung', '/profile/help'),
   steps: [
+    kMapIntro,
     CoachStep(
       title: 'Das Schild am Anfang',
       text: 'Am Anfang jedes Trails steht sein Schild mit Grad und Charakter. '
@@ -163,6 +186,23 @@ const kMapTourScript = CoachScript(
     kNavStep,
   ],
 );
+
+/// Die Karten-Tour beim ersten Start: mit der Willkommensseite statt der
+/// Karten-Startseite und OHNE den Weg in die Kurzanleitung am Ende — ab
+/// #136 hängt `startWelcomeTour` die Reiter-Touren an, und die Kette
+/// liefe sonst gleichzeitig in die Kurzanleitung.
+final kWelcomeTourScript = CoachScript(
+  id: 'map',
+  steps: [kWelcomeIntro, ...kMapTourScript.tourSteps],
+);
+
+/// Die Tour beim ersten Start. Durchgesehen oder übersprungen ⇒ gesehen;
+/// „Nicht jetzt" auf der Startseite ist KEIN Gesehen — sie fragt beim
+/// nächsten Start wieder (PilzBuddy: „jedes Mal").
+void startWelcomeTour(WidgetRef ref) {
+  final seen = ref.read(mapTourSeenProvider.notifier);
+  ref.read(coachProvider.notifier).start(kWelcomeTourScript, onDone: () => seen.set(true));
+}
 
 /// Startet die Tour und merkt sich danach, dass sie gesehen wurde —
 /// durchgesehen ODER übersprungen: Wer abbricht, hat entschieden.

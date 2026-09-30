@@ -271,6 +271,11 @@ Startseite und Kette kommen in PR 3.
   „Tour starten“), `kWelcomeTourScript = [kWelcomeIntro,
   ...kMapTourScript.tourSteps]` ohne `endLink` (die Kette geht ab PR 5
   weiter), `startWelcomeTour(ref, router)`.
+  **Gebaut:** `kMapTourScript` bekommt dafür seine eigene Startseite
+  `kMapIntro` („Die Karte“, `mapArt`) für den Start aus der
+  Kurzanleitung — erst damit ist `tourSteps` etwas anderes als `steps`.
+  `startWelcomeTour(ref)` ohne Router: Den braucht erst die Kette in
+  PR 5. Die Tour startet nur, wenn die Maschine frei ist (`busy`).
 - **Hinweis und Tour im selben Start** (Abweichung von PilzBuddy, dort
   liegt ein Start dazwischen — der Betreiber will „Hinweis vor der
   ersten Tour“, nicht „einen Start dazwischen“):

@@ -2,6 +2,21 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Willkommen
+
+*Version 0.61.0, 2026-09-30*
+
+- **Beim ersten Start**: Nach dem Sicherheitshinweis begrüßt dich die
+  App mit einer Startseite — was TrailBuddy ist und auf welchen drei
+  Wegen Trails auf deine Karte kommen: GPX importieren, eine Fahrt
+  aufzeichnen, Buddys verbinden. „Tour starten" zeigt danach die Karte
+  Schritt für Schritt. „Nicht jetzt" ist in Ordnung — dann fragt die App
+  beim nächsten Start noch einmal. Wer die Tour gesehen oder
+  übersprungen hat, bekommt sie nicht wieder; in der Kurzanleitung
+  startet sie jederzeit neu.
+- **Alle, die TrailBuddy schon benutzen**, sehen die Startseite nach
+  diesem Update einmal.
+
 ## Tour über die Karte
 
 *Version 0.60.0, 2026-09-30*
