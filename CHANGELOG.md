@@ -4,7 +4,17 @@
 
 ## Bewerten und melden
 
-*Versionen 0.49.0 bis 0.54.0, 2026-09-30*
+*Versionen 0.49.0 bis 0.55.0, 2026-09-30*
+
+- **Einen Buddy-Trail zu deinem machen**: Fährst du einen Trail zum
+  ersten Mal, den du bisher nur über einen Buddy kennst, klappt seine
+  Zeile im Zerlege-Blatt auf — Name, Schwierigkeit, Charakter und Sterne
+  sind vorbelegt mit dem, was dein Netz sagt („Vorschlag aus dem Netz"),
+  dazu der zuletzt bestätigte Zustand. Ein Tipp auf „Übernehmen" (oder
+  „Alle übernehmen") genügt; Sterne musst du vergeben, sonst wird das
+  Stück nicht beigesteuert. Danach ist es dein eigener Beitrag: Löscht
+  der Buddy seinen oder entfreundet ihr euch, bleibt der Trail mit Namen
+  bei dir.
 
 - **Unterwegs bestätigen**: Fährst du mit laufender Aufzeichnung auf
   einem Trail, zu dem eine Meldung oder ein Zustand noch bestätigt

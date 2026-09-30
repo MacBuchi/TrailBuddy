@@ -23,6 +23,7 @@ void main() {
     link: 'https://verein.example/trails/wurzel',
     grade: 2,
     traits: const {TrailTrait.steep, TrailTrait.flowy},
+    rating: 5,
   );
   final details = DetailsJob(
     id: 'job-2',
@@ -61,6 +62,8 @@ void main() {
     expect(c.copyWith(attempts: 1).traits, c.traits, reason: 'copyWith verliert den Charakter nicht');
     expect(c.link, 'https://verein.example/trails/wurzel');
     expect(c.copyWith(attempts: 1).link, c.link, reason: 'copyWith verliert den Link nicht');
+    expect(c.rating, 5);
+    expect(c.copyWith(attempts: 1).rating, 5, reason: 'copyWith verliert die Sterne nicht (#102)');
     final d = back[1] as DetailsJob;
     expect(d.details.trailId, 'trail-9');
     expect(d.details.grade, 3);
@@ -112,6 +115,15 @@ void main() {
     final back = decodeOutbox(raw, uid: 'me').single as ContributeJob;
     expect(back.traits, isEmpty);
     expect(back.grade, 2);
+  });
+
+  test('ein Auftrag von vor 0.55.0 (ohne rating) liest sich ohne Sterne, eine fremde Zahl auch', () {
+    final raw = encodeOutbox([contribute], uid: 'me');
+    expect((decodeOutbox(raw.replaceAll(',"rating":5', ''), uid: 'me').single as ContributeJob).rating,
+        isNull);
+    expect((decodeOutbox(raw.replaceAll('"rating":5', '"rating":9'), uid: 'me').single as ContributeJob)
+            .rating,
+        isNull);
   });
 
   test('ein Auftrag von vor 0.48.0 (ohne link) liest sich ohne Link', () {

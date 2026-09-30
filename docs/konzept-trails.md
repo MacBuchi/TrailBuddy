@@ -511,6 +511,16 @@ Höhen. Vorgewählt ist die Fahrt ohne ihre ersten und letzten 300 m
 (Heimzone): Eine Fahrt beginnt an der Haustür. Der Heimzonen-Hinweis
 gilt seither für die aktuellen Griffe, nicht für das gefundene Stück.
 
+**Seit 0.55.0 (#102): Übernehmen beim ersten Befahren.** Wer einen
+bekannten Trail fährt, zu dem er noch KEINEN eigenen Beitrag hat, macht
+ihn sich im Zerlege-Blatt zu eigen: Name, S-Grad, Charakter und Sterne
+vorbelegt mit dem, was sein Netz zeigt („Vorschlag aus dem Netz"), der
+Zustand mit dem jüngsten bestätigten der letzten 90 Tage. Ohne
+Bestätigung — und ohne Sterne — wird das Stück nicht beigesteuert
+(Rework E1/E2). Danach ist es ein vollständiger eigener Beitrag: Er
+hängt nicht mehr am Beitrag eines Buddys, der gelöscht oder entfreundet
+werden kann.
+
 ### 5.2 GPX-Import (der Bestand)
 
 Der Grund, warum das Konzept vor dem Code stehen muss: Die ersten

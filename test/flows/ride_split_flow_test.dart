@@ -122,6 +122,10 @@ void main() {
       lengthM: 960,
     ));
     trails.details.add(TrailDetails(trailId: 'trail-roots', userId: ben.id, name: 'Roots'));
+    // Anna hat Roots schon beschrieben (ohne Namen): „wieder gefahren" ist
+    // dann ein Beleg ohne Übernahme. Die Übernahme beim ERSTEN Befahren
+    // (#102) prüft ihre eigene Gruppe, dort fehlt diese Zeile.
+    trails.details.add(TrailDetails(trailId: 'trail-roots', userId: anna.id));
     store = FakeRideStore()..uid = anna.id;
     store.rides.add(ride());
   });
@@ -364,6 +368,97 @@ void main() {
       await sheetScrollTo(tester, find.text('Kandidaten für neue Trails'));
       expect(find.text('Roots'), findsOneWidget);
       expect(find.byKey(const ValueKey('split-confirm-0-question')), findsNothing);
+    });
+  });
+
+  group('zum ersten Mal gefahren: übernehmen (#102)', () {
+    late String benId;
+    setUp(() {
+      benId = trails.recordings.single.userId;
+      // Anna hat Roots noch nie beschrieben — sie kennt ihn nur über Ben.
+      trails.details.removeWhere((d) => d.userId == annaId);
+      trails.details
+        ..removeWhere((d) => d.userId == benId)
+        ..add(TrailDetails(
+            trailId: 'trail-roots', userId: benId, name: 'Roots', grade: 2,
+            traits: const {TrailTrait.flowy}));
+    });
+
+    testWidgets('die Zeile klappt auf, vorbelegt aus dem Netz — ohne Sterne kein Beisteuern',
+        (tester) async {
+      await pumpApp(tester, backend, trails: trails, rideStore: store);
+      await openFromRides(tester);
+      final name = find.byKey(const ValueKey('split-takeover-name-0'));
+      await sheetScrollTo(tester, name);
+      expect(tester.widget<TextField>(name).controller!.text, 'Roots');
+      expect(find.text('Vorschlag aus dem Netz'), findsOneWidget, reason: 'der Median-S-Grad');
+      final confirm = find.byKey(const ValueKey('split-takeover-confirm-0'));
+      await sheetScrollTo(tester, confirm);
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNull,
+          reason: 'Ben hat keine Sterne vergeben — Anna muss selbst bewerten');
+      expect(find.byKey(const ValueKey('split-takeover-needs-rating-0')), findsOneWidget);
+      expect(find.text('Schließen'), findsOneWidget, reason: 'unbestätigt zählt die Zeile nicht (E2)');
+
+      final star = find.byKey(const ValueKey('split-takeover-rating-0-4'));
+      await sheetScrollTo(tester, star);
+      await tester.tap(star);
+      await settle(tester);
+      await sheetScrollTo(tester, confirm);
+      expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
+      await tester.tap(confirm);
+      await settle(tester);
+      expect(find.byKey(const ValueKey('split-takeover-done-0')), findsOneWidget);
+      expect(find.text('1 beisteuern'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('split-submit')));
+      await settle(tester, frames: 30);
+      expect(trails.contributeCalls, 1);
+      final mine = trails.details.singleWhere((d) => d.userId == annaId);
+      expect(mine.name, 'Roots', reason: 'der Name des Buddys wird ihr eigener');
+      expect(mine.grade, 2);
+      expect(mine.traits, {TrailTrait.flowy});
+      expect(mine.rating, 4);
+
+      // Ben entfreundet und löscht seinen Beitrag: Annas Beitrag trägt
+      // den Namen weiter, er hängt an nichts Fremdem mehr.
+      trails.details.removeWhere((d) => d.userId == benId);
+      final t = buildTrails(
+              recordings: trails.recordings.where((r) => r.userId == annaId).toList(),
+              details: trails.details,
+              myId: annaId)
+          .single;
+      expect(t.displayName, 'Roots');
+    });
+
+    testWidgets('„Alle übernehmen" nimmt Sterne und Zustand aus dem Netz; der Zustand geht als Meldung raus',
+        (tester) async {
+      trails.details
+        ..removeWhere((d) => d.userId == benId)
+        ..add(TrailDetails(trailId: 'trail-roots', userId: benId, name: 'Roots', rating: 4));
+      trails.seedReport(benId, 'trail-roots',
+          condition: 3, confirmed: true, at: DateTime.now().subtract(const Duration(days: 5)));
+      await pumpApp(tester, backend, trails: trails, rideStore: store);
+      await openFromRides(tester);
+      await sheetScrollTo(tester, find.byKey(const ValueKey('split-takeover-all')));
+      await tester.tap(find.byKey(const ValueKey('split-takeover-all')));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('split-takeover-done-0')), findsOneWidget);
+      expect(find.textContaining('Ausgefahren'), findsWidgets);
+      await tester.tap(find.byKey(const ValueKey('split-submit')));
+      await settle(tester, frames: 30);
+      final mine = trails.details.singleWhere((d) => d.userId == annaId);
+      expect(mine.rating, 4);
+      final report = trails.reports.singleWhere((r) => r.userId == annaId);
+      expect(report.condition, 3);
+      expect(report.confirmed, isTrue);
+      expect(report.reportedAt.toUtc(), t0, reason: 'die Zeit der Fahrt am Trail');
+    });
+
+    testWidgets('wer ihn schon beschrieben hat, wird nicht gefragt', (tester) async {
+      trails.details.add(TrailDetails(trailId: 'trail-roots', userId: annaId, rating: 3));
+      await pumpApp(tester, backend, trails: trails, rideStore: store);
+      await openFromRides(tester);
+      expect(find.byKey(const ValueKey('split-takeover-0')), findsNothing);
+      expect(find.text('1 beisteuern'), findsOneWidget);
     });
   });
 }
