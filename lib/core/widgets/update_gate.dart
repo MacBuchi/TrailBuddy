@@ -76,7 +76,7 @@ class _UpdateRequiredScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const TrailBuddyLogo(size: 88),
+                  const TrailBuddyMark(size: 88),
                   const SizedBox(height: 24),
                   Text('Update erforderlich',
                       style: textTheme.headlineSmall

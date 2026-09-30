@@ -1,95 +1,175 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../app_colors.dart';
 import '../app_theme.dart';
 
-/// Der Pfad des Logos (Design Turn 1b, Form seit Turn 1h: „Serpentine —
-/// zwei ungleiche Kehren, der Schenkel läuft aus") in SVG-Schreibweise,
-/// viewBox 100. Dieselbe Zeichenkette steht in `tool/brand_icons.py`, das
-/// daraus alle App-Symbole erzeugt; `test/brand_icons_test.dart` hält
-/// beide zusammen.
-const kLogoSvgPath = 'M26 20H52a11 11 0 0 1 0 22H32a15 15 0 0 0 0 30H40';
+part 'trailbuddy_logo_geometry.dart';
 
-/// Strichbreite in derselben viewBox.
-const kLogoStroke = 14.0;
+/// Optische Größe des Logos „Serpentine C3" (docs/design/trailbuddy-logo):
+/// L ab 32 px mit zwei Endstrichen, M für 20–28 px mit einem, S bis 18 px
+/// ohne Endstrich und mit längerem Auslauf. Kleiner gezeichnet würden die
+/// Striche zu Krümeln, deshalb hat jede Größe ihre eigene Form.
+enum LogoSize { l, m, s }
 
-/// Die Endstriche: Der lange Schenkel löst sich in zwei kürzer und dünner
-/// werdende Striche auf — „da geht's weiter", wie eine Linie, die aus dem
-/// Kartenausschnitt läuft. Kein Punkt mehr: Zwei gleiche Kehren mit Punkt
-/// lasen sich als „2." (Betreiber, 2026-09-30). Waagerechte Stücke
-/// (x1…x2 bei y) mit eigener Strichbreite; sichtbar 19 und 12 Einheiten
-/// lang, 4 Einheiten Luft zwischen den runden Enden.
-const kLogoTail = [
-  (x1: 55.5, x2: 65.5, y: 72.0, w: 9.0),
-  (x1: 76.5, x2: 83.5, y: 72.0, w: 5.0),
-];
+/// Die optische Größe für eine Kantenlänge in logischen Pixeln — die
+/// Schwellen aus dem Handoff (`markSizeFor`).
+LogoSize logoSizeFor(double px) => px >= 30
+    ? LogoSize.l
+    : px >= 19
+        ? LogoSize.m
+        : LogoSize.s;
 
-/// Die Mitte der Form MIT Strich und Endstrichen (x 10…86, y 13…79) und
-/// ihre längere Seite — die Maler legen die Form damit mittig in ihr
-/// Quadrat.
-const kLogoCenter = (x: 48.0, y: 46.0);
-const kLogoExtent = 76.0;
+/// Ein Endstrich: beginnt bei [c0] auf der Strecke (hinter der Mittellinie,
+/// Lücke eingerechnet), [len] lang, waagerecht ab [x1] bei [y], Breite [w].
+typedef LogoDash = ({double c0, double len, double x1, double y, double w});
 
-/// Der Pfad aus [kLogoSvgPath], von Hand nachgebaut (Flutter liest kein
-/// SVG): SVG-Bogen mit sweep 1 ist im Uhrzeigersinn, weil y nach unten
-/// zeigt — in Flutter ebenso.
-Path logoPath() => Path()
-  ..moveTo(26, 20)
-  ..lineTo(52, 20)
-  ..arcToPoint(const Offset(52, 42), radius: const Radius.circular(11))
-  ..lineTo(32, 42)
-  ..arcToPoint(const Offset(32, 72),
-      radius: const Radius.circular(15), clockwise: false)
-  ..lineTo(40, 72);
+/// Die Form des Logos als gefüllte FLÄCHE, keine Linie mit Strichstärke:
+/// Stichproben der Mittellinie `[x, y, nx, ny, halbeBreiteLinks,
+/// halbeBreiteRechts]` im 100er-Raster, gleicher Abstand, dazu die
+/// Endstriche. Die Zahlen erzeugt `tool/brand_icons.py` aus
+/// `tool/brand/logo_c3.json` — derselben Datei, aus der auch alle
+/// App-Symbole entstehen.
+class LogoGeometry {
+  const LogoGeometry._({
+    required this.length,
+    required this.total,
+    required this.dashes,
+    required this.samples,
+  });
 
-/// Die Endstriche als Pfade, in der Reihenfolge von [kLogoTail].
-List<Path> logoTailPaths() => [
-      for (final t in kLogoTail)
-        Path()
-          ..moveTo(t.x1, t.y)
-          ..lineTo(t.x2, t.y),
-    ];
+  /// Länge der Mittellinie.
+  final double length;
 
-/// Rückt den Ursprung so, dass die Form mittig in der viewBox 100 liegt.
-void centerLogo(Canvas canvas) =>
-    canvas.translate(50 - kLogoCenter.x, 50 - kLogoCenter.y);
+  /// Länge der ganzen Strecke, mit Lücken und Endstrichen.
+  final double total;
 
-/// Zeichnet die Endstriche, [progress] 0…1: einer nach dem anderen wächst
-/// aus seinem Anfang. Die Breiten werden mit [strokeScale] skaliert, wenn
-/// die Linie nicht in Logo-Stärke gezeichnet wird (Loader: 12 statt 14).
-void drawLogoTail(Canvas canvas, Color color,
-    {double progress = 1, double strokeScale = 1}) {
-  final n = kLogoTail.length;
-  for (var i = 0; i < n; i++) {
-    final local = (progress * n - i).clamp(0.0, 1.0);
-    if (local <= 0) continue;
-    final t = kLogoTail[i];
-    canvas.drawLine(
-      Offset(t.x1, t.y),
-      Offset(t.x1 + (t.x2 - t.x1) * local, t.y),
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = t.w * strokeScale
-        ..strokeCap = StrokeCap.round,
-    );
+  final List<LogoDash> dashes;
+  final List<double> samples;
+
+  static LogoGeometry of(LogoSize size) => switch (size) {
+        LogoSize.l => _logoL,
+        LogoSize.m => _logoM,
+        LogoSize.s => _logoS,
+      };
+
+  /// Die Form, die für [px] logische Pixel Kantenlänge gemacht ist.
+  static LogoGeometry forPixels(double px) => of(logoSizeFor(px));
+
+  int get _n => samples.length ~/ 6 - 1;
+
+  Offset _left(int i) {
+    final o = i * 6;
+    return Offset(samples[o] + samples[o + 2] * samples[o + 4], samples[o + 1] + samples[o + 3] * samples[o + 4]);
+  }
+
+  Offset _right(int i) {
+    final o = i * 6;
+    return Offset(samples[o] - samples[o + 2] * samples[o + 5], samples[o + 1] - samples[o + 3] * samples[o + 5]);
+  }
+
+  double _halfWidth(int i) => (samples[i * 6 + 4] + samples[i * 6 + 5]) / 2;
+
+  /// Die Fläche des Abschnitts [a]…[b] der Strecke (0…[total]) mit runden
+  /// Kappen in der Streckenbreite dort — daraus entstehen Logo
+  /// (`range(0, total)`), der Läufer des Loaders und das Zeichnen im
+  /// Splash. Spiegel von `outline()` in `tool/brand_icons.py`.
+  Path range(double a, double b) {
+    final path = Path();
+    final n = _n, ds = length / n;
+    if (b > 0 && a < length) {
+      final i0 = (math.max(0.0, a) / ds).round().clamp(0, n - 1);
+      final i1 = math.max(i0 + 1, (math.min(length, b) / ds).round().clamp(0, n));
+      final start = _left(i0);
+      path.moveTo(start.dx, start.dy);
+      for (var i = i0 + 1; i <= i1; i++) {
+        final p = _left(i);
+        path.lineTo(p.dx, p.dy);
+      }
+      path.arcToPoint(_right(i1), radius: Radius.circular(_halfWidth(i1)), clockwise: false);
+      for (var i = i1 - 1; i >= i0; i--) {
+        final p = _right(i);
+        path.lineTo(p.dx, p.dy);
+      }
+      path.arcToPoint(start, radius: Radius.circular(_halfWidth(i0)), clockwise: false);
+      path.close();
+    }
+    for (final d in dashes) {
+      final lo = math.max(a, d.c0), hi = math.min(b, d.c0 + d.len);
+      if (hi < lo) continue;
+      final r = d.w / 2;
+      path.addRRect(RRect.fromLTRBR(
+          d.x1 + lo - d.c0 - r, d.y - r, d.x1 + hi - d.c0 + r, d.y + r, Radius.circular(r)));
+    }
+    return path;
+  }
+
+  /// Der Punkt der Mittellinie bei [d] (0…[length]), zwischen den
+  /// Stichproben gerade verbunden.
+  Offset pointAt(double d) {
+    final n = _n;
+    final u = (d.clamp(0.0, length) / length) * n;
+    final i = u.floor().clamp(0, n - 1);
+    final f = u - i;
+    final o = i * 6, q = o + 6;
+    return Offset(samples[o] + (samples[q] - samples[o]) * f, samples[o + 1] + (samples[q + 1] - samples[o + 1]) * f);
   }
 }
 
-/// Das Logo als Zeichen. Ohne Farben: die Marke dieses Modus
-/// ([AppPalette.brandMark]) für die Linie, die Textfarbe für die
-/// Endstriche — wie im Login-Entwurf (1g), wo die zweite Farbe das Ende
-/// absetzt.
-class TrailBuddyLogo extends StatelessWidget {
-  const TrailBuddyLogo({super.key, this.size = 64, this.color, this.tailColor});
+/// Malt das Logo im 100er-Raster auf seine Fläche: den Abschnitt
+/// [from]…[to] der Strecke in [color], darunter auf Wunsch die ganze Form
+/// in [track]. Ohne [geometry] die optische Größe zur Kantenlänge.
+class LogoPainter extends CustomPainter {
+  const LogoPainter({
+    required this.color,
+    this.geometry,
+    this.from = 0,
+    this.to,
+    this.track,
+  });
+
+  final Color color;
+  final LogoGeometry? geometry;
+  final double from;
+
+  /// Ende des Abschnitts; ohne Wert das ganze Logo.
+  final double? to;
+
+  final Color? track;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final geo = geometry ?? LogoGeometry.forPixels(size.shortestSide);
+    canvas.save();
+    canvas.scale(size.width / 100, size.height / 100);
+    if (track != null) canvas.drawPath(geo.range(0, geo.total), Paint()..color = track!);
+    final end = to ?? geo.total;
+    if (end > from) canvas.drawPath(geo.range(from, end), Paint()..color = color);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(LogoPainter old) =>
+      old.color != color ||
+      old.geometry != geometry ||
+      old.from != from ||
+      old.to != to ||
+      old.track != track;
+}
+
+/// Das Logo als Zeichen, eine Farbe. Ohne Farbe die Marke dieses Modus
+/// ([AppPalette.brandMark]: Lime im Dunklen, Moos im Hellen). Die optische
+/// Größe folgt [size], [logoSize] erzwingt eine.
+class TrailBuddyMark extends StatelessWidget {
+  const TrailBuddyMark({super.key, this.size = 64, this.color, this.logoSize});
 
   final double size;
   final Color? color;
-  final Color? tailColor;
+  final LogoSize? logoSize;
 
   @override
   Widget build(BuildContext context) {
-    final p = AppPalette.of(context);
     return Semantics(
       label: 'TrailBuddy',
       image: true,
@@ -97,65 +177,13 @@ class TrailBuddyLogo extends StatelessWidget {
         dimension: size,
         child: CustomPaint(
           painter: LogoPainter(
-            color: color ?? p.brandMark,
-            tailColor: tailColor ?? p.text,
+            color: color ?? AppPalette.of(context).brandMark,
+            geometry: LogoGeometry.of(logoSize ?? logoSizeFor(size)),
           ),
         ),
       ),
     );
   }
-}
-
-class LogoPainter extends CustomPainter {
-  const LogoPainter(
-      {required this.color,
-      required this.tailColor,
-      this.progress = 1,
-      this.tailProgress,
-      this.opacity = 1});
-
-  final Color color;
-  final Color tailColor;
-
-  /// Wie viel der Linie schon gezeichnet ist (0…1) — für den Splash
-  /// (Turn 1p). Die Endstriche erscheinen erst am Ende.
-  final double progress;
-
-  /// Wie viel der Endstriche steht (0…1); gesetzt vom Splash, der sie
-  /// nacheinander erscheinen lässt, während die Linie noch läuft. Ohne
-  /// Wert: alle, sobald die Linie fertig ist.
-  final double? tailProgress;
-
-  /// Deckkraft der Linie — der Splash blendet sie am Anfang ein.
-  final double opacity;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 100, size.height / 100);
-    centerLogo(canvas);
-    final stroke = Paint()
-      ..color = color.withValues(alpha: color.a * opacity.clamp(0, 1))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = kLogoStroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    var path = logoPath();
-    if (progress < 1) {
-      final metric = path.computeMetrics().first;
-      path = metric.extractPath(0, metric.length * progress.clamp(0, 1));
-    }
-    if (progress > 0) canvas.drawPath(path, stroke);
-    final tail = tailProgress ?? (progress >= 1 ? 1.0 : 0.0);
-    if (tail > 0) drawLogoTail(canvas, tailColor, progress: tail);
-  }
-
-  @override
-  bool shouldRepaint(LogoPainter old) =>
-      old.color != color ||
-      old.tailColor != tailColor ||
-      old.progress != progress ||
-      old.tailProgress != tailProgress ||
-      old.opacity != opacity;
 }
 
 /// Die Wortmarke „TRAIL" + „BUDDY", die zweite Hälfte in der Marke.

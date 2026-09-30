@@ -1,6 +1,7 @@
-// Der Splash (Design Turn 1p): Die Serpentine zeichnet sich, die
-// Endstriche erscheinen nacheinander, die Wortmarke steigt ein — einmal
-// je App-Start, ~1,2 s.
+// Der Splash („Splash B" aus docs/design/trailbuddy-logo): Das Zeichen
+// zeichnet sich in 1,3 s ein, und sobald die Spitze den letzten Endstrich
+// erreicht, baut sich die Wortmarke daneben von links nach rechts auf —
+// als Fortsetzung des Trails. Einmal je App-Start, 1,78 s.
 //
 // Er liegt ÜBER der App, statt vor ihr zu stehen: Anmeldung, Karte und
 // Trails laden darunter schon, der Splash kostet also keine Wartezeit,
@@ -19,23 +20,30 @@ import 'trailbuddy_logo.dart';
 final startSplashEnabledProvider = Provider<bool>((ref) => true);
 
 /// Dauer der Animation selbst und des Ausblendens danach.
-const kSplashDuration = Duration(milliseconds: 1200);
+const kSplashDuration = Duration(milliseconds: 1780);
 const kSplashFade = Duration(milliseconds: 250);
 
-/// Stand des Splashs bei [t] (0…1), Keyframes aus dem Entwurf (`tbDraw`,
-/// `tbWord`; `tbDot` ist seit Turn 1h das Wachsen der Endstriche von 55
-/// bis 80 %). Pur, damit der Test ohne Pixel prüfen kann, dass das Endbild
-/// vollständig ist.
-({double line, double lineOpacity, double tail, double word}) splashAt(double t) {
-  final x = t.clamp(0.0, 1.0);
-  const draw = Cubic(0.6, 0, 0.2, 1);
-  final line = draw.transform((x / 0.6).clamp(0.0, 1.0));
-  final lineOpacity = (x / 0.1).clamp(0.0, 1.0);
-  // Kurveneingänge klemmen: (1 − 0,55) / 0,25 kann in Gleitkomma knapp
-  // über 1 liegen, und die Kurve lehnt das ab (im Test gefunden).
-  final tail = Curves.easeOut.transform(((x - 0.55) / 0.25).clamp(0.0, 1.0));
-  final word = Curves.easeOut.transform(((x - 0.5) / 0.3).clamp(0.0, 1.0));
-  return (line: line, lineOpacity: lineOpacity, tail: tail, word: word);
+/// Zeitpunkte aus dem Entwurf: Zeichnen 0…1,3 s linear, die Wortmarke ab
+/// 1,26 s in 0,52 s (`easeOutQuad`) mit weicher Kante.
+const _drawMs = 1300.0;
+const _wipeStartMs = 1260.0;
+const _wipeMs = 520.0;
+
+/// Breite der weichen Kante der Wortmarke, Anteil ihrer Breite.
+const kSplashWipeEdge = 0.14;
+
+/// Stand des Splashs bei [t] (0…1 über [kSplashDuration]): wie viel des
+/// Zeichens steht (`draw`, 0…1) und wo die Kante der Wortmarke ist
+/// (`wipe`, 0…1 + [kSplashWipeEdge] — erst dann ist auch das letzte
+/// Zeichen ganz da). Pur, damit der Test ohne Pixel prüfen kann, dass das
+/// Endbild vollständig ist.
+({double draw, double wipe}) splashAt(double t) {
+  final ms = t.clamp(0.0, 1.0) * kSplashDuration.inMilliseconds;
+  final draw = (ms / _drawMs).clamp(0.0, 1.0);
+  // Kurveneingänge klemmen: Gleitkomma liegt sonst knapp über 1, und die
+  // Kurve lehnt das ab.
+  final w = ((ms - _wipeStartMs) / _wipeMs).clamp(0.0, 1.0);
+  return (draw: draw, wipe: Curves.easeOutQuad.transform(w) * (1 + kSplashWipeEdge));
 }
 
 class StartSplash extends ConsumerStatefulWidget {
@@ -102,37 +110,44 @@ class _StartSplashState extends ConsumerState<StartSplash> with TickerProviderSt
               // Flutter Text mit dem Warnstil (gelb, doppelt unterstrichen).
               child: Material(
                 color: p.ground,
-                child: Center(
-                  child: AnimatedBuilder(
-                    animation: _draw,
-                    builder: (context, _) {
-                      final s = splashAt(_draw.value);
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox.square(
-                            dimension: 96,
-                            child: CustomPaint(
-                              painter: LogoPainter(
-                                color: p.brandMark,
-                                tailColor: p.text,
-                                progress: s.line,
-                                opacity: s.lineOpacity,
-                                tailProgress: s.tail,
+                // Das Bild sagt nichts, was „TrailBuddy" nicht schon sagt —
+                // die Wortmarke brächte den Namen ein zweites Mal.
+                child: ExcludeSemantics(
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: _draw,
+                      builder: (context, _) {
+                        final s = splashAt(_draw.value);
+                        final geo = LogoGeometry.of(LogoSize.l);
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox.square(
+                              dimension: 72,
+                              child: CustomPaint(
+                                painter: LogoPainter(
+                                  geometry: geo,
+                                  color: p.brandMark,
+                                  to: s.draw * geo.total,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          Opacity(
-                            opacity: s.word,
-                            child: Transform.translate(
-                              offset: Offset(0, 8 * (1 - s.word)),
+                            const SizedBox(width: 12),
+                            ShaderMask(
+                              blendMode: BlendMode.dstIn,
+                              shaderCallback: (r) => LinearGradient(
+                                colors: const [Color(0xFF000000), Color(0x00000000)],
+                                stops: [
+                                  (s.wipe - kSplashWipeEdge).clamp(0.0, 1.0),
+                                  s.wipe.clamp(0.0, 1.0),
+                                ],
+                              ).createShader(r),
                               child: const TrailBuddyWordmark(fontSize: 30),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),

@@ -44,7 +44,7 @@ class HighlightArt extends StatelessWidget {
               child: Container(
                 padding: EdgeInsets.all(s * 0.04),
                 decoration: BoxDecoration(color: p.surface, shape: BoxShape.circle, border: Border.all(color: p.line)),
-                child: TrailBuddyLogo(size: s * 0.3),
+                child: TrailBuddyMark(size: s * 0.3),
               ),
             ),
           ),

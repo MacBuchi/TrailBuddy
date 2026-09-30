@@ -8,4 +8,7 @@
     <!-- Grund der App (AppColors.light.ground / .dark.ground): das
          Startfenster, bevor Flutter das erste Bild zeichnet. -->
     <color name="ground">#F3F2EC</color>
+    <!-- Das Zeichen auf dem Startschirm ab Android 12 (drawable/ic_splash.xml):
+         die Marke des Modus (AppPalette.brandMark) — Moos im Hellen. -->
+    <color name="brand_mark">#4F8A10</color>
 </resources>

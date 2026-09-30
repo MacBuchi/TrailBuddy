@@ -29,18 +29,18 @@ int _tickers() => SchedulerBinding.instance.transientCallbackCount;
 
 void main() {
   group('1q Loader', () {
-    final length = logoPath().computeMetrics().first.length;
+    final total = LogoGeometry.of(LogoSize.l).total;
 
-    test('das Stück läuft vorwärts über die Serpentine und bleibt auf ihr', () {
-      double head(double t) => loaderSegments(t, length).map((s) => s.$1).reduce((a, b) => a > b ? a : b);
-      expect(loaderSegments(0, length), [(0.0, kLoaderDash)], reason: 'Offset 300: das Stück am Anfang');
-      expect(head(0.1), greaterThan(head(0.02)));
-      for (var t = 0.0; t < 1; t += 0.01) {
-        for (final (a, b) in loaderSegments(t, length)) {
-          expect(a, greaterThanOrEqualTo(0));
-          expect(b, lessThanOrEqualTo(length));
-          expect(b - a, lessThanOrEqualTo(kLoaderDash + 1e-9));
-        }
+    test('der Läufer läuft ganz hinein und hinaus, dann Pause', () {
+      expect(loaderRunAt(0, total), (-kLoaderRun, 0.0), reason: 'am Anfang noch vor der Strecke');
+      final end = loaderRunAt(kLoaderMoving - 1e-9, total)!;
+      expect(end.$1, closeTo(total, 1e-6), reason: 'am Ende ganz hinter dem letzten Strich');
+      expect(loaderRunAt(0.3, total)!.$1, greaterThan(loaderRunAt(0.2, total)!.$1));
+      expect(loaderRunAt(kLoaderMoving, total), isNull, reason: '0,5 s Pause');
+      expect(loaderRunAt(0.99, total), isNull);
+      for (var t = 0.0; t < kLoaderMoving; t += 0.01) {
+        final (a, b) = loaderRunAt(t, total)!;
+        expect(b - a, closeTo(kLoaderRun, 1e-9));
       }
     });
 
@@ -104,18 +104,16 @@ void main() {
   });
 
   group('1p Splash', () {
-    test('das Endbild ist vollständig: Linie ganz, Endstriche da, Wortmarke da', () {
+    test('das Endbild ist vollständig: Zeichen ganz, Wortmarke ganz', () {
       final end = splashAt(1);
-      expect(end.line, closeTo(1, 1e-5));
-      expect(end.lineOpacity, 1);
-      expect(end.tail, closeTo(1, 1e-5));
-      expect(end.word, closeTo(1, 1e-5));
-      final start = splashAt(0);
-      expect((start.line, start.tail, start.word), (0.0, 0.0, 0.0));
-      expect(splashAt(0.6).line, closeTo(1, 1e-5), reason: 'die Linie ist bei 60 % fertig');
-      expect(splashAt(0.55).tail, 0, reason: 'die Endstriche warten auf die Linie');
-      expect(splashAt(0.65).tail, inExclusiveRange(0, 1), reason: 'und wachsen dann');
-      expect(splashAt(0.8).tail, closeTo(1, 1e-5), reason: 'stehen bei 80 %');
+      expect(end.draw, 1);
+      expect(end.wipe, closeTo(1 + kSplashWipeEdge, 1e-9), reason: 'auch das letzte Zeichen ohne Kante');
+      expect(splashAt(0), (draw: 0.0, wipe: 0.0));
+      // 1,3 s von 1,78 s: das Zeichen steht, die Wortmarke hat begonnen.
+      expect(splashAt(1300 / 1780).draw, closeTo(1, 1e-9));
+      expect(splashAt(1300 / 1780).wipe, inExclusiveRange(0, 0.5));
+      expect(splashAt(1200 / 1780).wipe, 0, reason: 'die Wortmarke wartet auf die Spitze');
+      expect(splashAt(0.5).draw, closeTo(890 / 1300, 1e-9), reason: 'linear gezeichnet');
     });
 
     // Das Kind trägt KEINEN GlobalKey (anders als der Navigator unter
@@ -142,12 +140,12 @@ void main() {
       expect(find.bySemanticsLabel('TrailBuddy'), findsWidgets);
       // Die App darunter ist schon gebaut und hat ihren Zustand.
       tester.state<_CounterState>(find.byType(_Counter)).bump();
-      // Bildweise weiter, bis Zeichnen (1,2 s) und Ausblenden (0,25 s)
+      // Bildweise weiter, bis Zeichnen (1,78 s) und Ausblenden (0,25 s)
       // durch sind — jede Animation beginnt erst im Bild nach ihrem Start.
-      for (var i = 0; i < 10; i++) {
+      for (var i = 0; i < 16; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
-      expect(splash, findsOneWidget, reason: 'nach 1 s läuft er noch');
+      expect(splash, findsOneWidget, reason: 'nach 1,6 s läuft er noch');
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }

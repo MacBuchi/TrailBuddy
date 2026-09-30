@@ -40,6 +40,7 @@ const SHELL = [
   'flutter_bootstrap.js',
   'main.dart.js',
   'manifest.json',
+  'favicon.svg',
   'favicon.png',
   'icons/Icon-192.png',
 ];

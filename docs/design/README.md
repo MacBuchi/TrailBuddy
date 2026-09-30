@@ -21,7 +21,17 @@ Das Design-Projekt, so unverändert wie möglich (Stand des letzten Syncs
 | `support.js` | die Laufzeit von Claude Design, die die Datei rendert | unverändert |
 | `github.md` | die Sync-Notiz von Claude Design (welche Repo-Dateien es gelesen hat) | unverändert |
 | `web/favicon.png`, `web/icons/Icon-512.png`, `web/icons/Icon-maskable-512.png` | die damaligen App-Symbole, die Claude Design aus dem Repo kopiert hatte (noch das Flutter-Standardsymbol) | byte-gleich aus Commit `8e10007` |
-| `notification_icon_512.png`, `notification_icon_96.png` | das Statusleisten-Symbol (1f): weiß, Alpha, 12 % Rand | **neu gerendert** aus dem Logo-Pfad mit `tool/brand_icons.py` (`symbol_svg(px, 0.76, None, 0, color="#FFFFFF")`) — das Original kam nur als Text über die Schnittstelle, byte-genau war es nicht zu übernehmen; seit Turn 1h die neue Form, ohne die Herkunftsdaten (C2PA) des Originals |
+| `notification_icon_512.png`, `notification_icon_96.png` | das Statusleisten-Symbol (1f): weiß, Alpha, 12 % Rand | **neu gerendert** mit `tool/brand_icons.py` (`symbol_svg(px, NOTIFICATION_SCALE, None, 0, color="#FFFFFF", size="M")`) — das Original kam nur als Text über die Schnittstelle, byte-genau war es nicht zu übernehmen; seit Turn 1h bzw. C3 die neue Form, ohne die Herkunftsdaten (C2PA) des Originals |
+
+**`trailbuddy-logo/`** ist der Handoff des Logos „Serpentine C3"
+(2026-10-01), so abgelegt, wie er aus Claude Design kam: `README.md`
+(Anweisungen), `reference/TrailBuddy Logo C3.dc.html` (die Leinwand mit
+der parametrischen Form, `build()`), `flutter/trailbuddy_logo.dart`
+(Widgets mit den abgetasteten Stichproben), fertige PNGs und SVGs. Die
+App nimmt davon NUR die Stichproben — sie stehen in
+`tool/brand/logo_c3.json`, und `tool/brand_icons.py` erzeugt daraus alle
+Symbole und `lib/core/widgets/trailbuddy_logo_geometry.dart`. Die
+fertigen Bilder des Handoffs sind Vergleich, nicht Quelle (Abschnitt 4).
 
 Nicht übernommen: `.thumbnail`, das Vorschaubild, das Claude Design selbst
 für die Projektübersicht erzeugt.
@@ -146,47 +156,77 @@ dunklen Flächen der App.
 Als Assets gebündelt (SIL OFL), nie `google_fonts` — die App muss offline
 gleich aussehen.
 
-## 4. Logo (Turn 1b, Form seit 1h) — `lib/core/widgets/trailbuddy_logo.dart`, `tool/brand_icons.py`
+## 4. Logo (Turn 1b, Form seit C3) — `lib/core/widgets/trailbuddy_logo.dart`, `tool/brand_icons.py`
 
-Die **Serpentine — zwei ungleiche Kehren, der Schenkel läuft aus**,
-viewBox 100:
+Die **Serpentine C3 — zwei Kehren mit Anliegern, am Ende auslaufende
+Striche**, als gefüllte FLÄCHE im 100er-Raster (keine Linie mit
+Strichstärke):
 
 ```
-Pfad        M26 20H52a11 11 0 0 1 0 22H32a15 15 0 0 0 0 30H40
-Strich      14, runde Enden und Ecken
-Endstriche  M55.5 72H65.5 (Strich 9), M76.5 72H83.5 (Strich 5)
-Hülle       x 10…86, y 13…79 — Mitte (48, 46), 76 breit
+Kehren      r 13 (oben) und r 16 (unten), über eine gemeinsame Tangente
+Breite      11 → 8 entlang der Strecke; die Anlieger nur nach außen breiter
+L ≥ 32 px   zwei Endstriche (Breite 6 / 4)       — App-Symbole, Login, Splash, Loader
+M 20–28 px  ein Endstrich (Breite 8)             — Statusleiste, Knopf, Kopfzeile
+S ≤ 18 px   keiner, längerer Auslauf             — Favicon, kleine Bilder
+Hülle (L)   x 14…86, y 17…83 — Mitte des Rasters, fernster Punkt 48,5
 ```
 
-- App-Symbol: dunkles Zeichen (`#0E1411`) auf Lime. Adaptiv mit 0,54
-  der Kante: Der fernste Punkt (Ende des letzten Strichs) bleibt im
-  Kreis einer runden Maske (Radius 36 dp) — mit 0,62 (bis 0.64) schnitt
-  die Maske beiden Enden rund 6 dp ab.
-- Zweifarbig auf Dunkel (Login 1g): Linie Lime, Endstriche hell.
-- Statusleiste: weiß, nur Alphakanal, 12 % Rand (`ic_notification`, für
-  Push UND die Dauerbenachrichtigung der Fahrt).
+Die Form steht als Stichproben der Mittellinie in
+`tool/brand/logo_c3.json` (je Größe 241 Stück `[x, y, nx, ny,
+halbeBreiteLinks, halbeBreiteRechts]` plus Endstriche). **Ein Abschnitt
+a…b der Strecke ist eine Fläche** (`LogoGeometry.range` in Dart,
+`outline()` im Skript, dieselbe Rechnung): linker Rand, runde Kappe in
+der Streckenbreite, rechter Rand zurück, Kappe — dazu die Endstriche im
+Abschnitt als Pillen. Daraus kommen Logo (`range(0, total)`), der Läufer
+des Loaders und das Zeichnen im Splash. Die optische Größe wählt
+`logoSizeFor` nach der Kantenlänge (≥ 30 px L, ≥ 19 px M, sonst S).
+
+- App-Symbol: dunkles Zeichen (`#0E1411`) auf Lime. Adaptiv mit 0,66
+  der Kante (fernster Punkt 34,6 dp, im Kreis einer runden Maske mit
+  36 dp), Altformat 0,80, Web 0,90, maskable 0,80 (Kreis mit 40 %).
+- Zeichen in der App: EINE Farbe, die Marke des Modus (`brandMark`:
+  Lime auf Dunkel, Moos auf Hell). Die zweite Farbe der Endstriche aus
+  1g/1h ist weg — C3 ist eine Fläche.
+- Statusleiste: Größe M, weiß, nur Alphakanal, 0,88 der Kante
+  (`ic_notification`, für Push UND die Dauerbenachrichtigung der Fahrt).
+- Startschirm ab Android 12: das Zeichen in `@color/brand_mark` (Moos
+  hell, Lime dunkel) ohne Lime-Scheibe, 0,60 von 288 dp
+  (`ic_splash`) — danach zeichnet der Splash der App dasselbe Zeichen.
+- Favicon: Größe S; `favicon.svg` Moos im Hellen, Lime im Dunklen
+  (`prefers-color-scheme`), `favicon.png` Moos als Rückfall.
 - Wortmarke: „TRAIL" in Textfarbe + „BUDDY" in der Marke, Barlow
   Condensed 800.
 
-**Turn 1h (Betreiber, 2026-09-30):** Die Form aus 1b — zwei gleiche,
-waagerechte Kehren mit Punkt in Strichdicke am Linienende — las sich als
-„2.", nicht als Trail; der Punkt klebte an der Linie und wirkte wie ein
-Satzzeichen. Vier Varianten wurden als Blatt verglichen (App-Symbol,
-Statusleiste in echten 24 dp, Loader, Login), gewählt ist B:
+**Abweichungen vom Handoff** (`trailbuddy-logo/README.md`):
 
-- **Ungleiche Kehren** (oben eng, r 11; unten weit, r 15; der obere
-  Schenkel kurz, der untere lang): Die Symmetrie eines Buchstabens ist
-  weg, das war der Kern.
-- **Kein Punkt, das Ende läuft aus**: zwei kürzer und dünner werdende
-  Striche (sichtbar 19 und 12 Einheiten, 4 Einheiten Luft) — „da geht's
-  weiter", wie eine Linie, die aus dem Kartenausschnitt läuft. Kürzere
-  Striche in Strichdicke wurden zu Punkten, und zwei Punkte hinter der
-  Form lasen sich wieder als Satzzeichen; in 24 dp trennen die beiden
-  noch (auf xxhdpi 4 px Luft). Echte Fransen wären in der Statusleiste
-  Brei.
-- Nicht genommen: A (nur das Ende geändert — die Symmetrie blieb), C
-  (drei Kehren — in 24 dp zu dicht), D (B um 12° geneigt — am stärksten
-  „Weg", kostet im adaptiven Kreis Größe).
+- **Kein `flutter_launcher_icons`, kein `flutter_native_splash`**, keine
+  kopierten PNGs: Alle Symbole erzeugt weiter `tool/brand_icons.py` aus
+  der einen Geometrie (Regel dieses Repos). Die Maßstäbe sind aus den
+  Bildern des Handoffs abgelesen; maskable ist pixelgleich, die übrigen
+  unterscheiden sich nur in den abgerundeten Ecken.
+- **Statusleiste als Vektor** (`ic_notification.xml`) statt
+  `ic_stat_trailbuddy.png` je Dichte — dieselbe Form auf jedem Gerät.
+- **`theme_color` bleibt `#0E1411`**, nicht Lime: Die PWA färbt ihre
+  Systemleisten danach, und auf Lime wären helle Statussymbole
+  unlesbar (siehe `web/index.html`).
+- **Vor Android 12** bleibt das Startfenster der Grund des Modus ohne
+  Zeichen; der Splash der App folgt sofort.
+- Die Widgets des Handoffs sind nicht wörtlich übernommen:
+  `TrailBuddyMark`, `LogoPainter` und die Geometrie ja (API wie dort,
+  Farben aus der Palette), Loader und Splash bleiben `TrailLoader` und
+  `StartSplash` mit reduzierter Bewegung und Tippen zum Überspringen
+  (Abschnitt 9).
+
+**C3 (Betreiber, 2026-10-01)** folgt auf Turn 1h, bevor 1h ausgeliefert
+war: 1h (Strich 14, zwei ungleiche Kehren, zwei dünner werdende
+Endstriche) behielt die gleichmäßige Strichstärke, und die Striche in
+Strichdicke blieben in kleinen Größen Krümel. C3 zeichnet den Weg als
+Fläche — Anlieger in den Kehren, schmaler werdende Strecke — und gibt
+jeder Größe ihre eigene Form, statt eine Form zu skalieren. Davor
+(Turn 1h, 2026-09-30): Die Form aus 1b — zwei gleiche, waagerechte
+Kehren mit Punkt in Strichdicke am Linienende — las sich als „2.",
+nicht als Trail; nicht genommen wurden dort A (nur das Ende geändert),
+C (drei Kehren — in 24 dp zu dicht) und D (um 12° geneigt).
 
 Die Richtungen 1c (zwei Spuren), 1d (Monogramm TB) und 1e (Stollen) sind
 verworfen (1d noch einmal bestätigt am 2026-09-30: gutes App-Symbol,
@@ -195,10 +235,11 @@ eine halbe Marke); 1e bleibt eine Idee für Hintergründe.
 
 **Alle Symbole kommen aus EINEM Skript**: `python3 tool/brand_icons.py`
 (braucht `rsvg-convert`) schreibt Android adaptiv + Altformat, Web,
-maskable, Favicon und das Statusleisten-Symbol;
-`python3 tool/generated_assets.py --update` danach. In CI:
-`brand_icons.py --check` (Vektoren sind Fixpunkt) und die Prüfsummen der
-PNGs; `test/brand_icons_test.dart` hält Dart und Skript zusammen.
+maskable, beide Favicons, das Statusleisten-Symbol, das Zeichen des
+Startschirms und die Dart-Geometrie; `python3 tool/generated_assets.py
+--update` danach. In CI: `brand_icons.py --check` (Textdateien sind
+Fixpunkt), `--self-test` und die Prüfsummen der PNGs;
+`test/brand_icons_test.dart` hält Dart und JSON zusammen.
 
 ## 5. Offline-Kacheln (Turn 2) — eine Regel statt neuer Farbe
 
@@ -401,8 +442,8 @@ Jede Animation ist aus, wenn das System es will
 
 | | Was | Dauer (Entwurf) |
 |---|---|---|
-| 1p Splash | Linie zeichnet sich (dashoffset 300 → 0 bis 60 %), die Endstriche wachsen nacheinander (55–80 %; bis 0.64 sprang hier der Punkt), Wortmarke blendet von 8 px unten ein (50–80 %) | einmal, ~1,2 s |
-| 1q Loader | die Serpentine läuft (dashoffset 300 → −300, linear), die Endstriche stehen in der Spurfarbe | 1,6 s, Schleife |
+| 1p Splash („Splash B", C3) | das Zeichen zeichnet sich in 1,3 s linear ein, Spitze in Streckenbreite; ab 1,26 s baut sich die Wortmarke daneben von links nach rechts auf, weiche Kante 14 % der Breite, 0,52 s `easeOutQuad` | einmal, 1,78 s |
+| 1q Loader (C3) | das Logo als Spur (`line`), ein Läufer von 40 Einheiten in Streckenbreite läuft ganz hinein und hinaus und springt über die Lücken in die Endstriche | 1,5 s Lauf + 0,5 s Pause, Schleife |
 | 1r Fahrt läuft | Ring um den Positionspunkt skaliert 1 → 3,2 und blendet von 0,7 aus; die Spur wächst | 1,6 s, Schleife |
 | 1s Buddy verbunden | zwei Spuren laufen zu einer zusammen, dann der Punkt | 3 s |
 | 1t Neuer Hinweis | der gelbe Leuchtrand atmet (2 → 6/14 px Schein) | 1,8 s, nur solange ungesehen |
@@ -412,13 +453,13 @@ Jede Animation ist aus, wenn das System es will
 
 Gebaut in 0.45.0 (`lib/core/widgets/motion.dart`, `start_splash.dart`;
 die Keyframes stehen je als pure Funktion daneben — `splashAt`,
-`loaderSegments`, `ridePulseAt`, `connectMergeAt`, `glowAt` — und sind
+`loaderRunAt` (seit C3, vorher `loaderSegments`), `ridePulseAt`, `connectMergeAt`, `glowAt` — und sind
 ohne Pixel geprüft, `test/core/motion_test.dart`). Bei reduzierter
 Bewegung steht überall das Endbild, kein Takt läuft. Fünf Abweichungen:
 
 - **1p liegt ÜBER der App, nicht vor ihr**: Anmeldung, Karte und Trails
   laden darunter schon, der Splash kostet also keine eigene Wartezeit
-  (1,2 s, dann 0,25 s Ausblenden, einmal je Start). Ein Tipp überspringt
+  (1,78 s, dann 0,25 s Ausblenden, einmal je Start). Ein Tipp überspringt
   ihn; bei reduzierter Bewegung gibt es ihn gar nicht — ein stehendes
   Logo vor der App wäre nur eine Pause. Grund ist der des Modus, nicht
   immer das Dunkel des Entwurfs. Der Test-Harness schaltet ihn ab
@@ -500,7 +541,7 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
   `headlineSmall`, zwei Sätze `bodyLarge`, die Wahl „Nicht jetzt" /
   „Tour starten" (aus der Kurzanleitung „Zeig's mir"; in der Kette ab
   #136 „Später" / „Weiter"). Nur der Inhalt scrollt, die Wahl bleibt im
-  Bild. Bilder: `welcomeArt` — die Serpentine in `brandMark` auf dem
+  Bild. Bilder: `welcomeArt` — das Logo (L) in `brandMark` auf dem
   Grund des Modus, die Endstriche halb durchsichtig, ein Punkt in
   Textfarbe mit Kern in der Marke fährt sie ab; `mapArt` — drei
   Linienstücke S0/S1/S2 mit weißem Saum auf dem Landton der Karte und
