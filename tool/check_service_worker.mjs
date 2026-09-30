@@ -71,7 +71,8 @@ let notModified = 0;
 let topUpFull = 0;
 const SHELL_PATHS = new Set([
   '/index.html', '/flutter_bootstrap.js', '/main.dart.js',
-  '/manifest.json', '/favicon.png', '/icons/Icon-192.png', '/sw.js',
+  '/manifest.json', '/favicon.svg', '/favicon.png', '/icons/Icon-192.png',
+  '/sw.js',
 ]);
 
 const handler = async (req, res) => {

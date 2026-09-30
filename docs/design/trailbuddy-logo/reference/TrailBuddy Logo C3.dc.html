@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet"><style>body{margin:0;background:#E7E6DF;font-family:Barlow,sans-serif;color:#131A16}a{color:#4F8A10}a:hover{color:#131A16}</style></helmet>
+
+<div style="max-width:1280px;margin:0 auto;padding:40px 32px 64px;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font:500 12px 'JetBrains Mono',monospace;letter-spacing:.08em;color:#55615A">TRAILBUDDY · LOGO C3 L · ALLE FORMATE</div>
+    <h1 style="margin:0;font:700 44px/1 'Barlow Condensed',sans-serif">Serpentine C3</h1>
+    <p style="margin:0;max-width:78ch;font-size:15px;line-height:1.5;color:#2D3A32;text-wrap:pretty">Die Kehren haben r 13 und r 16 und sind über eine gemeinsame Tangente verbunden. Die Anlieger werden nur nach außen breiter. Die Strecke wird von 11 auf 8 schmaler, die Endstriche sind 6 und 4 breit. Drei optische Größen: <b>L</b> ab 32 px mit zwei Endstrichen, <b>M</b> für 20–28 px mit einem Endstrich, <b>S</b> bis 18 px ohne Endstrich und mit längerem Auslauf. Bei den Animationen hat der laufende Strich überall genau die Breite der Strecke, und seine runden Enden passen sich an diese Breite an.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font:700 22px/1 'Barlow Condensed',sans-serif">Optische Größen</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6;width:260px"><div style="height:140px;border-radius:8px;background:#1A231E;display:flex;align-items:center;justify-content:center;gap:16px"><svg viewBox="0 0 100 100" width="112" height="112"><path d="{{ logo }}" fill="#fff"></path></svg><div style="display:flex;flex-direction:column;align-items:center;gap:10px"><svg viewBox="0 0 100 100" width="24" height="24"><path d="{{ logo }}" fill="#fff"></path></svg><svg viewBox="0 0 100 100" width="16" height="16"><path d="{{ logo }}" fill="#fff"></path></svg></div></div><b style="font-size:14px">L · ab 32 px</b><span style="font-size:12px;color:#55615A">App-Icons, Login, Splash, Loader · Strecke 11 → 8, Endstriche 6 / 4</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6;width:260px"><div style="height:140px;border-radius:8px;background:#1A231E;display:flex;align-items:center;justify-content:center;gap:16px"><svg viewBox="0 0 100 100" width="112" height="112"><path d="{{ logoM }}" fill="#fff"></path></svg><div style="display:flex;flex-direction:column;align-items:center;gap:10px"><svg viewBox="0 0 100 100" width="24" height="24"><path d="{{ logoM }}" fill="#fff"></path></svg><svg viewBox="0 0 100 100" width="16" height="16"><path d="{{ logoM }}" fill="#fff"></path></svg></div></div><b style="font-size:14px">M · 20–28 px</b><span style="font-size:12px;color:#55615A">Statusleiste, Benachrichtigungs-Datei, Knopf, Kopfzeile · Strecke 12 → 9, ein Endstrich 8, Lücke 6</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6;width:260px"><div style="height:140px;border-radius:8px;background:#1A231E;display:flex;align-items:center;justify-content:center;gap:16px"><svg viewBox="0 0 100 100" width="112" height="112"><path d="{{ logoS }}" fill="#fff"></path></svg><div style="display:flex;flex-direction:column;align-items:center;gap:10px"><svg viewBox="0 0 100 100" width="24" height="24"><path d="{{ logoS }}" fill="#fff"></path></svg><svg viewBox="0 0 100 100" width="16" height="16"><path d="{{ logoS }}" fill="#fff"></path></svg></div></div><b style="font-size:14px">S · bis 18 px</b><span style="font-size:12px;color:#55615A">Favicon, Header der Benachrichtigung · Strecke 13 → 10, kein Endstrich, Auslauf bis x 53</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font:700 22px/1 'Barlow Condensed',sans-serif">Animation</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#0E1411;color:#F2F4EF;width:260px"><div style="height:200px;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="180" height="180"><path d="{{ logo }}" fill="#26312B"></path><path data-tb-run="1" fill="#B6F04A"></path></svg></div><b style="font-size:14px">Loader · groß 180 px</b><span style="font-size:12px;color:#9AA89F">Läufer 40 Einheiten lang, Enden mit dem Radius der halben Streckenbreite</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#0E1411;color:#F2F4EF;width:180px"><div style="height:200px;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="56" height="56"><path d="{{ logo }}" fill="#2A3630"></path><path data-tb-run="1" fill="#B6F04A"></path></svg></div><b style="font-size:14px">Loader dunkel · 56 px</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FFFFFF;width:180px"><div style="height:200px;display:grid;place-items:center"><svg viewBox="0 0 100 100" width="56" height="56"><path d="{{ logo }}" fill="#E4E3DB"></path><path data-tb-run="1" fill="#4F8A10"></path></svg></div><b style="font-size:14px">Loader hell · 56 px</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#0E1411;color:#F2F4EF;width:300px"><div style="height:200px;display:flex;align-items:center;justify-content:center;gap:12px"><svg viewBox="0 0 100 100" width="72" height="72"><path data-tb-draw="1" fill="#B6F04A"></path></svg><div data-tb-word="1" style="font:700 30px/1 'Barlow Condensed',sans-serif;opacity:0">TRAIL<span style="color:#B6F04A">BUDDY</span></div></div><b style="font-size:14px">Splash A · Text blendet ein</b><span style="font-size:12px;color:#9AA89F">Die Spitze ist so breit wie die Strecke an dieser Stelle, danach blendet die Wortmarke ein</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#0E1411;color:#F2F4EF;width:300px;outline:2px solid #B6F04A;outline-offset:-2px"><div style="height:200px;display:flex;align-items:center;justify-content:center;gap:12px"><svg viewBox="0 0 100 100" width="72" height="72"><path data-tb-draw="1" fill="#B6F04A"></path></svg><div data-tb-wipe="1" style="font:700 30px/1 'Barlow Condensed',sans-serif">TRAIL<span style="color:#B6F04A">BUDDY</span></div></div><b style="font-size:14px">Splash B · Text läuft weiter ✓ gewählt</b><span style="font-size:12px;color:#9AA89F">Die Wortmarke baut sich direkt nach dem letzten Endstrich von links nach rechts auf, im selben Tempo und mit weicher Kante</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FFFFFF;width:300px"><div style="height:200px;display:flex;align-items:center;justify-content:center;gap:12px"><svg viewBox="0 0 100 100" width="72" height="72"><path data-tb-draw="1" fill="#4F8A10"></path></svg><div data-tb-wipe="1" style="font:700 30px/1 'Barlow Condensed',sans-serif;color:#131A16">TRAIL<span style="color:#4F8A10">BUDDY</span></div></div><b style="font-size:14px">Splash B · hell</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#0E1411;color:#F2F4EF;width:200px"><div style="height:200px;display:grid;place-items:center"><div style="display:flex;align-items:center;gap:8px;height:44px;padding:0 18px 0 12px;border-radius:22px;background:#B6F04A;color:#0E1411;font-weight:700;font-size:14px"><svg viewBox="0 0 100 100" width="24" height="24"><path d="{{ logoM }}" fill="#0E1411" opacity=".25"></path><path data-tb-run-m="1" fill="#0E1411"></path></svg>Lädt …</div></div><b style="font-size:14px">Inline · 24 px im Knopf</b><span style="font-size:12px;color:#9AA89F">M-Fassung, Läufer springt in den einen Endstrich</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font:700 22px/1 'Barlow Condensed',sans-serif">App-Symbole</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6"><div style="width:120px;height:120px;border-radius:27px;background:#B6F04A"><svg viewBox="0 0 100 100" width="120" height="120"><path d="{{ logo }}" fill="#0E1411"></path></svg></div><b style="font-size:14px">iOS · 1024</b><span style="font-size:12px;color:#55615A">gezeigt 120 px</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6"><div style="position:relative;width:120px;height:120px;border-radius:50%;background:#B6F04A"><svg viewBox="0 0 100 100" width="120" height="120"><g transform="translate(50 50) scale(0.66) translate(-50 -50)"><path d="{{ logo }}" fill="#0E1411"></path></g></svg><span style="position:absolute;inset:23.3px;border:1.5px dashed #0E1411;opacity:.3;border-radius:50%"></span></div><b style="font-size:14px">Android Adaptive</b><span style="font-size:12px;color:#55615A">108 dp, Schutzkreis 66 dp</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6"><div style="width:120px;height:120px;border-radius:50%;background:#D6E3C8"><svg viewBox="0 0 100 100" width="120" height="120"><g transform="translate(50 50) scale(0.66) translate(-50 -50)"><path d="{{ logo }}" fill="#2E4A14"></path></g></svg></div><b style="font-size:14px">Android Themed</b><span style="font-size:12px;color:#55615A">Monochrom, System färbt</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#1A231E;color:#F2F4EF"><div style="height:120px;display:flex;align-items:center;gap:18px"><div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:52px;height:52px;border-radius:50%;background:#B6F04A"><svg viewBox="0 0 100 100" width="52" height="52"><g transform="translate(50 50) scale(0.8) translate(-50 -50)"><path d="{{ logo }}" fill="#0E1411"></path></g></svg></div><span style="font-size:11px;color:#C9D2CB">TrailBuddy</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:52px;height:52px;border-radius:13px;background:#B6F04A"><svg viewBox="0 0 100 100" width="52" height="52"><path d="{{ logo }}" fill="#0E1411"></path></svg></div><span style="font-size:11px;color:#C9D2CB">iOS</span></div></div><b style="font-size:14px">Homescreen · 48 px</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6"><div style="width:120px;height:120px;border-radius:12px;background:#0E1411"><svg viewBox="0 0 100 100" width="120" height="120"><g transform="translate(50 50) scale(0.8) translate(-50 -50)"><path d="{{ logo }}" fill="#B6F04A"></path></g></svg></div><b style="font-size:14px">Play Store / PWA</b><span style="font-size:12px;color:#55615A">512, dunkle Variante</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font:700 22px/1 'Barlow Condensed',sans-serif">System · klein</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6;width:280px"><div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:6px;background:#000;color:#fff;font-size:12px"><svg viewBox="0 0 100 100" width="24" height="24"><g transform="translate(50 50) scale(0.88) translate(-50 -50)"><path d="{{ logoM }}" fill="#fff"></path></g></svg><span style="flex:1"></span><span>14:05</span></div><div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:6px;background:#E9E9E2;color:#1D1D1D;font-size:12px"><svg viewBox="0 0 100 100" width="24" height="24"><g transform="translate(50 50) scale(0.88) translate(-50 -50)"><path d="{{ logoM }}" fill="#1D1D1D"></path></g></svg><span style="flex:1"></span><span>14:05</span></div><b style="font-size:14px">Statusleiste · 24 dp</b><span style="font-size:12px;color:#55615A">Weiß mit Alpha, 12 % Rand</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6;width:320px"><div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:16px;background:#1F2621;color:#F2F4EF"><div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9AA89F"><svg viewBox="0 0 100 100" width="18" height="18"><path d="{{ logoS }}" fill="#B6F04A"></path></svg><span>TrailBuddy · jetzt</span></div><div style="font-size:13.5px;font-weight:600">Mara hat einen Trail geteilt</div><div style="font-size:12.5px;color:#C9D2CB">Kehrenrausch · S2 · 6,4 km</div></div><div style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:16px;background:#FFFFFF;color:#131A16"><div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#55615A"><svg viewBox="0 0 100 100" width="18" height="18"><path d="{{ logoS }}" fill="#4F8A10"></path></svg><span>TrailBuddy · 5 Min.</span></div><div style="font-size:13.5px;font-weight:600">Jonas ist in der Nähe</div></div><b style="font-size:14px">Benachrichtigung</b><span style="font-size:12px;color:#55615A">Small Icon 18 dp, vom System eingefärbt</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6"><div style="display:flex;gap:12px;align-items:flex-end"><div style="width:96px;height:96px;border-radius:6px;background-color:#3A4640;background-image:linear-gradient(#56645C 1px,transparent 1px),linear-gradient(90deg,#56645C 1px,transparent 1px);background-size:4px 4px"><svg viewBox="0 0 100 100" width="96" height="96"><g transform="translate(50 50) scale(0.88) translate(-50 -50)"><path d="{{ logoM }}" fill="#fff"></path></g></svg></div><div style="width:24px;height:24px;background:#3A4640"><svg viewBox="0 0 100 100" width="24" height="24"><g transform="translate(50 50) scale(0.88) translate(-50 -50)"><path d="{{ logoM }}" fill="#fff"></path></g></svg></div></div><b style="font-size:14px">Benachrichtigungs-Datei</b><span style="font-size:12px;color:#55615A">PNG weiß + Alpha · 96 / 24 px</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;background:#FBFAF6;width:260px"><div style="display:flex;align-items:flex-end;height:32px;padding:0 8px;border-radius:6px 6px 0 0;background:#DEE1E6;gap:4px"><span style="display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px 6px 0 0;background:#fff;font-size:12px;color:#1D1D1D"><svg viewBox="0 0 100 100" width="16" height="16"><path d="{{ logoS }}" fill="#4F8A10"></path></svg>TrailBuddy</span></div><div style="display:flex;align-items:flex-end;height:32px;padding:0 8px;border-radius:6px 6px 0 0;background:#202124;gap:4px"><span style="display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px 6px 0 0;background:#35363A;font-size:12px;color:#E8EAED"><svg viewBox="0 0 100 100" width="16" height="16"><path d="{{ logoS }}" fill="#B6F04A"></path></svg>TrailBuddy</span></div><b style="font-size:14px">Favicon · 16 / 32 px</b></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font:700 22px/1 'Barlow Condensed',sans-serif">Marke</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:10px;padding:24px;border-radius:12px;background:#0E1411;color:#F2F4EF;width:340px"><div style="display:flex;align-items:center;gap:14px"><svg viewBox="0 0 100 100" width="64" height="64" style="flex:none"><path d="{{ logo }}" fill="#B6F04A"></path></svg><div style="display:flex;flex-direction:column;gap:6px"><div style="font:700 32px/1 'Barlow Condensed',sans-serif">TRAIL<span style="color:#B6F04A">BUDDY</span></div><div style="font-size:13px;color:#9AA89F">Trails teilen, nur mit deinen Buddys.</div></div></div><b style="font-size:14px;margin-top:8px">Login · dunkel</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:24px;border-radius:12px;background:#FFFFFF;width:340px"><div style="display:flex;align-items:center;gap:14px"><svg viewBox="0 0 100 100" width="64" height="64" style="flex:none"><path d="{{ logo }}" fill="#4F8A10"></path></svg><div style="display:flex;flex-direction:column;gap:6px"><div style="font:700 32px/1 'Barlow Condensed',sans-serif">TRAIL<span style="color:#4F8A10">BUDDY</span></div><div style="font-size:13px;color:#55615A">Trails teilen, nur mit deinen Buddys.</div></div></div><b style="font-size:14px;margin-top:8px">Light Mode</b></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px;border-radius:12px;background:#B6F04A;color:#0E1411;width:200px"><svg viewBox="0 0 100 100" width="88" height="88"><path d="{{ logo }}" fill="#0E1411"></path></svg><div style="font:700 28px/1 'Barlow Condensed',sans-serif">TRAILBUDDY</div><b style="font-size:13px">Gestapelt · auf Lime</b></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding:24px;border-radius:12px;background:#FBFAF6;width:260px"><div style="display:flex;align-items:center;gap:8px"><svg viewBox="0 0 100 100" width="28" height="28" style="flex:none"><path d="{{ logoM }}" fill="#131A16"></path></svg><div style="font:700 18px/1 'Barlow Condensed',sans-serif">TRAIL<span style="color:#4F8A10">BUDDY</span></div></div><div style="display:flex;align-items:center;gap:6px"><svg viewBox="0 0 100 100" width="20" height="20" style="flex:none"><path d="{{ logoM }}" fill="#131A16"></path></svg><div style="font:700 14px/1 'Barlow Condensed',sans-serif">TRAILBUDDY</div></div><b style="font-size:14px;margin-top:8px">Kopfzeile · 28 / 20 px</b></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font:700 22px/1 'Barlow Condensed',sans-serif">Konstruktion</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+      <div style="padding:16px;border-radius:12px;background:#1A231E"><svg viewBox="0 0 100 100" width="280" height="280"><path d="{{ logo }}" fill="#fff" opacity=".3"></path><g transform="translate(8.75 3.25)" fill="none" stroke="#FF8A3D" stroke-width=".5"><circle cx="52" cy="32" r="13"></circle><circle cx="33" cy="59" r="16"></circle><path d="M26 20C34 22 41.86 20.59 49.74 19.2A13 13 0 1 1 50.53 44.92L34.81 43.1A16 16 0 1 0 35.78 74.76C38.74 74.24 42 73.6 45 74" stroke="#fff" stroke-dasharray="1.5 1.5"></path><circle cx="52" cy="32" r=".8" fill="#FF8A3D"></circle><circle cx="33" cy="59" r=".8" fill="#FF8A3D"></circle></g></svg></div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:520px;font-size:13px;line-height:1.55;color:#2D3A32">
+        <div style="font:500 11.5px/1.7 'JetBrains Mono',monospace;color:#2D3A32;word-break:break-all">Mittellinie (viewBox 100, Versatz 8.75 / 3.25):<br>M26 20C34 22 41.86 20.59 49.74 19.2<br>A13 13 0 1 1 50.53 44.92 L34.81 43.1<br>A16 16 0 1 0 35.78 74.76 C38.74 74.24 42 73.6 45 74</div>
+        <div><b>Breite:</b> linear von 11 auf 8. In den Kehren kommen bis zu 7 dazu, nur nach außen, im Verlauf sin². Das Zeichen ist eine gefüllte Fläche, keine Linie mit Strichstärke.</div>
+        <div><b>Endstriche L:</b> Mitte x 56–61 bei y 74,8 (Breite 6), x 70–73 bei y 75,8 (Breite 4).<br><b>M:</b> Strecke 12 → 9, ein Strich x 59–62 bei y 74,9 (Breite 8).<br><b>S:</b> Strecke 13 → 10, Auslauf C40.2 73.98 46 73.4 53 74.4, kein Strich.</div>
+        <div><b>Läufer:</b> Das ist dieselbe Fläche, nur zwischen s und s+40 der Mittellinie ausgeschnitten, mit halbrunden Kappen in der halben Streckenbreite. Die Lücken zwischen den Endstrichen zählen als Strecke, der Läufer springt darüber.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { logo: '' };
+  componentDidMount() {
+    const ns = 'http://www.w3.org/2000/svg', DX = 8.75, DY = 3.25;
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('style', 'position:absolute;width:0;height:0');
+    document.body.appendChild(svg);
+    const head = [['M26 20C34 22 41.86 20.59 49.74 19.2', 0], ['M49.74 19.2A13 13 0 1 1 50.53 44.92', 1], ['M50.53 44.92L34.81 43.1', 0], ['M34.81 43.1A16 16 0 1 0 35.78 74.76', -1]];
+    const mk = d => { const q = document.createElementNS(ns, 'path'); q.setAttribute('d', d); svg.appendChild(q); return q; };
+    const f = (x, y) => x.toFixed(2) + ' ' + y.toFixed(2);
+    const bar = (x1, x2, y, w) => { const r = w / 2; x1 += DX; x2 += DX; y += DY; return `M${x1} ${y - r}H${x2}a${r} ${r} 0 0 1 0 ${w}H${x1}a${r} ${r} 0 0 1 0 ${-w}Z`; };
+    // Variante bauen: Mittellinie, Breiten, Endstriche [{gap, len, x1, y, w}]
+    const build = (tail, w0, w1, amp, dashDefs) => {
+      const parts = [...head, [tail, 0]];
+      const segs = parts.map(([d, sg]) => [mk(d).getTotalLength(), sg]);
+      const p = mk(parts.map(([d], i) => i ? d.replace(/^M[\d.\s-]+?(?=[A-Za-z])/, '') : d).join(''));
+      const L = p.getTotalLength();
+      const hw = s => {
+        const b0 = (w0 + (w1 - w0) * s / L) / 2; let acc = 0, l = b0, r = b0;
+        for (const [len, sg] of segs) { if (sg && s >= acc && s <= acc + len) { const b = amp * Math.sin(Math.PI * (s - acc) / len) ** 2; if (sg > 0) r += b; else l += b; } acc += len; }
+        return [l, r];
+      };
+      const N = 800, ds = L / N, S = [];
+      for (let i = 0; i <= N; i++) {
+        const s = i * ds, a = p.getPointAtLength(Math.max(0, s - .3)), b = p.getPointAtLength(Math.min(L, s + .3)), c = p.getPointAtLength(s);
+        const tx = b.x - a.x, ty = b.y - a.y, ln = Math.hypot(tx, ty) || 1, [wl, wr] = hw(s);
+        S.push({ x: c.x + DX, y: c.y + DY, nx: -ty / ln, ny: tx / ln, wl, wr });
+      }
+      const seg = (s0, s1) => {
+        const i0 = Math.max(0, Math.min(N - 1, Math.round(s0 / ds))), i1 = Math.max(i0 + 1, Math.min(N, Math.round(s1 / ds)));
+        const Lf = [], Rt = [];
+        for (let i = i0; i <= i1; i++) { const q = S[i]; Lf.push(f(q.x + q.nx * q.wl, q.y + q.ny * q.wl)); Rt.push(f(q.x - q.nx * q.wr, q.y - q.ny * q.wr)); }
+        const rE = ((S[i1].wl + S[i1].wr) / 2).toFixed(2), rS = ((S[i0].wl + S[i0].wr) / 2).toFixed(2);
+        return 'M' + Lf.join('L') + 'A' + rE + ' ' + rE + ' 0 0 0 ' + Rt[Rt.length - 1] + 'L' + Rt.slice(0, -1).reverse().join('L') + 'A' + rS + ' ' + rS + ' 0 0 0 ' + Lf[0] + 'Z';
+      };
+      let c = L; const dashes = dashDefs.map(q => { c += q.gap; const o = { ...q, c0: c }; c += q.len; return o; });
+      const T = c;
+      const range = (a, b) => {
+        let d = (b > 0 && a < L) ? seg(Math.max(0, a), Math.min(L, b)) : '';
+        for (const q of dashes) { const lo = Math.max(a, q.c0), hi = Math.min(b, q.c0 + q.len); if (hi >= lo) d += bar(q.x1 + lo - q.c0, q.x1 + hi - q.c0, q.y, q.w); }
+        return d;
+      };
+      return { T, range, full: range(0, T) };
+    };
+    const tailL = 'M35.78 74.76C38.74 74.24 42 73.6 45 74';
+    const vL = build(tailL, 11, 8, 7, [{ gap: 11, len: 5, x1: 56, y: 74.8, w: 6 }, { gap: 9, len: 3, x1: 70, y: 75.8, w: 4 }]);
+    const vM = build(tailL, 12, 9, 7, [{ gap: 14, len: 3, x1: 59, y: 74.9, w: 8 }]);
+    const vS = build('M35.78 74.76C40.2 73.98 46 73.4 53 74.4', 13, 10, 6, []);
+    svg.remove();
+    this.setState({ logo: vL.full, logoM: vM.full, logoS: vS.full });
+    const L = 0; const T = vL.T; const range = vL.range;
+    const R = 40, runMove = 1500, runPer = 2000, drawMove = 1300, drawPer = 3600;
+    const tick = t => {
+      const u = t % runPer, head = Math.min(1, u / runMove) * (T + R);
+      const dRun = u < runMove ? range(head - R, head) : '';
+      document.querySelectorAll('[data-tb-run]').forEach(el => el.setAttribute('d', dRun));
+      const hM = Math.min(1, u / runMove) * (vM.T + R);
+      const dRunM = u < runMove ? vM.range(hM - R, hM) : '';
+      document.querySelectorAll('[data-tb-run-m]').forEach(el => el.setAttribute('d', dRunM));
+      const v = t % drawPer, h2 = Math.min(1, v / drawMove) * T;
+      const fade = v > drawPer - 300 ? (drawPer - v) / 300 : 1;
+      document.querySelectorAll('[data-tb-draw]').forEach(el => { el.setAttribute('d', h2 > 0.5 ? range(0, h2) : ''); el.style.opacity = fade; });
+      const wo = Math.max(0, Math.min(1, (v - drawMove + 100) / 400)) * fade;
+      document.querySelectorAll('[data-tb-word]').forEach(el => { el.style.opacity = wo; el.style.transform = `translateY(${(1 - wo) * 6}px)`; });
+      // B: Wisch-Aufbau, beginnt wenn die Spitze den letzten Endstrich erreicht, gleiches Tempo (≈ 0,5 s für die Wortmarke)
+      const wStart = drawMove - 40, wDur = 520, wt = Math.max(0, Math.min(1, (v - wStart) / wDur));
+      const we = 1 - Math.pow(1 - wt, 2), edge = 14, pos = we * (100 + edge);
+      const m = `linear-gradient(90deg,#000 ${pos - edge}%,transparent ${pos}%)`;
+      document.querySelectorAll('[data-tb-wipe]').forEach(el => { el.style.webkitMaskImage = m; el.style.maskImage = m; el.style.opacity = fade; });
+      this.raf = requestAnimationFrame(tick);
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  renderVals() { const s = this.state; return { logo: s.logo, logoM: s.logoM, logoS: s.logoS }; }
+}
+</script>
+</body>
+</html>

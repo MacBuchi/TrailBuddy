@@ -2,7 +2,7 @@
 // 3.3 und 6; Form nach PilzBuddys `tour_intro_art.dart`, #596).
 //
 // **Neu gezeichnet, nicht kopiert** — PilzBuddy zeichnet Pilze. Hier ist
-// das Motiv die Serpentine aus dem Logo (`logoPath()`), und die Farben
+// das Motiv die Serpentine aus dem Logo (`LogoGeometry`), und die Farben
 // sind die der App: die Marke für den Weg, die Pistenfarben für die
 // Linien. Kein Foto, kein Lottie, keine Emojis (Design 6): Screenshots
 // veralteten mit jeder Oberflächenänderung.
@@ -99,27 +99,18 @@ class _SerpentinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Der Logo-Pfad liegt in einer viewBox 100 zwischen 20 und 72 (dazu
-    // der Zielpunkt bei 82) — auf die Bühne gesetzt, mittig.
-    const scale = 1.7;
-    canvas.translate(size.width / 2 - 51 * scale, size.height / 2 - 46 * scale);
+    // Das Logo in seinem 100er-Raster, mittig auf die Bühne gesetzt.
+    const scale = 1.4;
+    final geo = LogoGeometry.of(LogoSize.l);
+    canvas.translate(size.width / 2 - 50 * scale, size.height / 2 - 50 * scale);
     canvas.scale(scale);
-    final path = logoPath();
-    canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 7
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..color = road);
-    // Das Ziel wie im Logo.
-    canvas.drawCircle(Offset(kLogoDot.x, kLogoDot.y), kLogoDot.r * 0.8,
-        Paint()..color = road.withValues(alpha: 0.5));
-    final metric = path.computeMetrics().first;
-    final at = metric.getTangentForOffset(metric.length * progress)!.position;
-    canvas.drawCircle(at, 6.5, Paint()..color = rider);
-    canvas.drawCircle(at, 3, Paint()..color = road);
+    canvas.drawPath(geo.range(0, geo.length), Paint()..color = road);
+    // Die auslaufenden Striche wie im Logo, halb durchsichtig — dort fährt
+    // niemand mehr.
+    canvas.drawPath(geo.range(geo.length, geo.total), Paint()..color = road.withValues(alpha: 0.5));
+    final at = geo.pointAt(geo.length * progress);
+    canvas.drawCircle(at, 5.5, Paint()..color = rider);
+    canvas.drawCircle(at, 2.5, Paint()..color = road);
   }
 
   @override

@@ -19,43 +19,43 @@
       "regenerate": "pmtiles extract <Protomaps-Daily-Build> assets/offline_maps/overview_dach.pmtiles --bbox=5.5,45.5,17.5,55.5 --maxzoom=7"
     },
     "android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
-      "sha256": "5c267d625dab331c485fe91aae5a33b481ee69c6c4f903ee2cc97e11d31dc245",
+      "sha256": "a978d5c709aa3ad4b480986b9d820ba5204305835978544fd5a7d398a2ca220f",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
-      "sha256": "b88376c5080a2ec0732f0c70542897be4f145cbb143b094d992163cb766a3e1d",
+      "sha256": "dedc81c252ff345751775c9e93e01e2dfa2f2a9fe50c112eea4c71c24925f1f1",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
-      "sha256": "b44eaade41ee90b372d7846d403981d151b4f4a43295b60cd75217ec55aa9b17",
+      "sha256": "420d6ffc91d2933d74167cc532037012eaa878dbc559b0f6bcc5dc193526fbab",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
-      "sha256": "f66802aaf74f38e92ec94b3b6e62025a3b1e9c548a12d9a233b05e57884a4202",
+      "sha256": "6fe8fe92b0bf91c61688df217d8f984663287015713c60e28e702c0df02c9ae3",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
-      "sha256": "2da1115e721a46136dd35ce293de8a2ca6f35e885c6fd224ede38a3eec39189c",
+      "sha256": "136d12d3fd362f559582e6d56ee2225f4702b79d18ce30b9c849acfd19ee8e4d",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "web/icons/Icon-192.png": {
-      "sha256": "2da1115e721a46136dd35ce293de8a2ca6f35e885c6fd224ede38a3eec39189c",
+      "sha256": "b9e28783bb49f755b7a61faa1022c2a6c50090b460e1fd9649297cb695da2efb",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "web/icons/Icon-maskable-192.png": {
-      "sha256": "550cab583780c05d0520a0835c3c4ef804d0a5ff49f98101f69b746ec238c3c6",
+      "sha256": "c126a2df89949308236c7f728a578d4d6839552f57019ac07bc510fc2f68e330",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "web/icons/Icon-512.png": {
-      "sha256": "6b2b873bb09258be3d6e271b62c32b0930de3358a5d31019afb2350a664d1be3",
+      "sha256": "669b272e5db972148efcd359787f232b5cf0d36b768c1e540b51ecd73a6834b1",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "web/icons/Icon-maskable-512.png": {
-      "sha256": "0f7d624300f1c1d0cd84dd6b1f684888ffc276434724e39f0e06b31331a2048c",
+      "sha256": "731cac07c75a52fd1296f217c9f68cceb5a347dc70f083d1bd94d3a9f6419631",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     },
     "web/favicon.png": {
-      "sha256": "d51e8113face070737d31c5f3e3c37e757ffe450fff8663da53d7ef9b697b38b",
+      "sha256": "1dfc65b52aceeeadfc6d8bd1eb24dd7e097b5a58ba164210e35324f4fb92ea71",
       "regenerate": "python3 tool/brand_icons.py (braucht rsvg-convert aus librsvg)"
     }
   }

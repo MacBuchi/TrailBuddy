@@ -33,8 +33,13 @@ liegen nur öffentliche Daten Dritter, keine Nutzerdaten.
 Schriften, Logo, Offline-Kachel-Regel, Kartenleisten, S-Grad als Form,
 Bewegung, Reihenfolge der Umsetzung). Wie beim Konzept: Wer im Code davon
 abweicht, ändert die Datei im selben PR. Alle App-Symbole erzeugt
-`tool/brand_icons.py` aus EINEM Pfad (Logo „Serpentine"); nie ein Symbol
-von Hand tauschen.
+`tool/brand_icons.py` aus EINER Geometrie (Logo „Serpentine C3" seit
+0.65.0: gefüllte Fläche mit Anliegern, drei optische Größen L/M/S, die
+Stichproben in `tool/brand/logo_c3.json`, Handoff in
+`docs/design/trailbuddy-logo/` — Design-README Abschnitt 4); das Skript
+schreibt auch die Dart-Geometrie
+(`lib/core/widgets/trailbuddy_logo_geometry.dart`). Nie ein Symbol von
+Hand tauschen, auch nicht gegen die fertigen Bilder des Handoffs.
 
 **Nichts Privates in dieses Repo — es ist öffentlich.** Keine absoluten
 Pfade des Betreiber-Rechners, keine privaten Mailadressen, keine GPX- oder
@@ -1313,8 +1318,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Keine Rückkehrer-Startseite** (anders als PilzBuddy): TrailBuddy hat
     noch keinen Merker-Reset. Kommt einer (`map_tour_seen_2`), braucht es
     PilzBuddys `legacyMapTourSeen` und `kReturningIntro`.
-  - **Die Bilder sind gezeichnet** (`tour_intro_art.dart`): Serpentine aus
-    `logoPath()` auf dem Grund des Modus, ein Punkt fährt sie ab
+  - **Die Bilder sind gezeichnet** (`tour_intro_art.dart`): das Logo
+    (`LogoGeometry`, Größe L) auf dem Grund des Modus, ein Punkt fährt
+    die Mittellinie ab (`pointAt`)
     (`introDriftAt`, rein und ohne Pixel geprüft); ohne Takt
     (`TickerMode` aus bei „Animationen entfernen") steht das Endbild —
     der Punkt am Ziel, nicht am Start. `mapArt` steht still auf dem

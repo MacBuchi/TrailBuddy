@@ -248,7 +248,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Logo, Wortmarke und ein Satz, linksbündig (Design 1g).
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: TrailBuddyLogo(size: 64),
+                  child: TrailBuddyMark(size: 64),
                 ),
                 const SizedBox(height: 20),
                 const Align(

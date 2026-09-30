@@ -38,6 +38,9 @@ analyzer:
     - build/**
     - android/**
     - web/**
+    # Die Handoff-Dateien des Logos (docs/design/trailbuddy-logo) liegen
+    # als Vorlage im Repo, nicht als Code; gebaut wird aus tool/brand/.
+    - docs/**
 
 linter:
   rules:
