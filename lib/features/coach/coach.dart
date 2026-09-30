@@ -13,6 +13,10 @@
 // - `reduceMotion(context)` aus `motion.dart` statt
 //   `MediaQuery.disableAnimationsOf` — dieselbe Regel wie jede andere
 //   Animation der App, und ohne `MediaQuery` wirft sie nicht.
+// - `_revealOffscreen` prüft zusätzlich das Fenster der Liste, nicht nur
+//   den Bildschirm (#134): Im Zerlege-Blatt endet die Liste über festen
+//   Knöpfen, eine Zeile knapp darunter blieb sonst verdeckt.
+// - `minRoom` 260 statt 240: Der größere Titel braucht die 20 px.
 // - EINE Erweiterung: `CoachStep.illustration`, ein Widget unter dem
 //   Blasentext. Trail-Linien sind Engine-Polylinien, keine Widgets; der
 //   Schritt „Farbe heißt Schwierigkeit" kann nichts aussparen und zeigt
@@ -695,19 +699,33 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
   /// Fundliste. Einmal je Schritt; danach misst jedes Bild nach, und die
   /// Aussparung fährt mit.
   void _revealOffscreen(List<String> ids, List<Rect> rects) {
-    final bounds = Offset.zero & (_box.currentContext?.size ?? Size.zero);
+    final screen = Offset.zero & (_box.currentContext?.size ?? Size.zero);
     final registry = ref.read(coachRegistryProvider);
     for (var i = 0; i < rects.length && i < ids.length; i++) {
+      final context = registry.anchor(ids[i])?.currentContext;
+      final scrollable = context == null ? null : Scrollable.maybeOf(context);
+      // TrailBuddy: sichtbar heißt im Bild UND im Fenster seiner Liste.
+      // Eine Liste über festen Knöpfen (das Zerlege-Blatt) endet über dem
+      // Bildrand; eine Zeile knapp darunter läge im Bild, aber unter den
+      // Knöpfen — und bliebe verdeckt.
+      final bounds = screen.intersect(_viewportOf(scrollable) ?? screen);
       if (bounds.contains(rects[i].topLeft) &&
           bounds.contains(rects[i].bottomRight - const Offset(1, 1))) {
         continue;
       }
-      final context = registry.anchor(ids[i])?.currentContext;
-      if (context == null || Scrollable.maybeOf(context) == null) continue;
+      if (context == null || scrollable == null) continue;
       // Weit oben, damit darunter Platz für die Blase bleibt.
       unawaited(Scrollable.ensureVisible(context,
           alignment: 0.15, duration: const Duration(milliseconds: 300)));
     }
+  }
+
+  /// Das Fenster einer Liste in Koordinaten der Überlagerung (TrailBuddy).
+  Rect? _viewportOf(ScrollableState? scrollable) {
+    final box = scrollable?.context.findRenderObject();
+    final overlay = _box.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize || overlay is! RenderBox) return null;
+    return MatrixUtils.transformRect(box.getTransformTo(overlay), Offset.zero & box.size);
   }
 
   static bool _same(List<Rect> a, List<Rect> b) {
@@ -928,7 +946,9 @@ class _CoachOverlayState extends ConsumerState<CoachOverlay>
     // Text scrollt, die Knöpfe nie (bei 360×640 waren 157 und 210 zu
     // wenig: Im Test ist die Schrift breit, die Knöpfe brechen in zwei
     // Zeilen um).
-    const minRoom = 240.0;
+    // TrailBuddy: 260 statt 240 — der Titel steht in `titleLarge` (22 statt
+    // 16 px), und im Zerlege-Blatt fehlten auf 360×740 sonst 2 px (#134).
+    const minRoom = 260.0;
     final free = (below ? spaceBelow : spaceAbove) - pad - 24;
     // Passt sie weder darüber noch darunter — ein hohes, schmales Ziel
     // wie die Knopfleiste auf einem kleinen Schirm —, steht sie DANEBEN.

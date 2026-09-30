@@ -320,6 +320,15 @@ Startseite und Kette kommen in PR 3.
 - Test `split_tour_flow_test` mit `FakeRideStore` und einer Fahrt
   (`ride_split_flow_test` als Vorlage; `sheetScrollTo` vor dem
   Kandidaten).
+- **Gebaut (0.62.0), mit Abweichungen:** Die Tour startet im Blatt JEDER
+  eigenen Aufzeichnung (`rideId`), also auch aus „Meine Fahrten", nicht
+  nur direkt nach dem Beenden — beides ist „nach einer Aufzeichnung“.
+  `SeenCoachTours` liegt in `seen_tours.dart` (PR 5 benutzt es mit).
+  Beim Kandidaten sind nur die Griffe ausgespart, nicht die ganze Karte
+  (zu hoch für 360×740). Damit `requires` Zeilen unter dem Rand sieht,
+  baut die Liste während der Tour alles; die Maschine prüft beim
+  Hinscrollen seither auch das Fenster der Liste (Abweichung von
+  PilzBuddys `coach.dart`, im Dateikopf genannt).
 
 ### 3.5 Touren für Trails und Buddys mit Beispielen (PR 5)
 

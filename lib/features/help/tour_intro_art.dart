@@ -181,3 +181,55 @@ class _MapLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(_MapLinesPainter old) => false;
 }
+
+/// Die Startseite „Deine erste Fahrt zerlegen" (#134): eine Fahrt als
+/// blasse Linie, darin ein bekanntes Stück in Grün und ein Kandidat in
+/// seiner Farbe mit den beiden Griffen — dieselben Farben wie die
+/// Vorschau auf der Karte (`ride_split_sheet.dart`). Steht still.
+Widget splitArt(BuildContext context) => SizedBox(
+      width: 240,
+      height: 150,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: const ColoredBox(
+          color: AppColors.mapBackground,
+          child: CustomPaint(painter: _SplitPainter()),
+        ),
+      ),
+    );
+
+class _SplitPainter extends CustomPainter {
+  const _SplitPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const m = AppColors.mapLines;
+    final ride = Path()
+      ..moveTo(20, 120)
+      ..cubicTo(60, 40, 90, 140, 125, 80)
+      ..cubicTo(150, 35, 190, 110, 222, 32);
+    final metric = ride.computeMetrics().first;
+    Paint stroke(Color c, double w) => Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w
+      ..strokeCap = StrokeCap.round
+      ..color = c;
+    Path part(double a, double b) => metric.extractPath(metric.length * a, metric.length * b);
+
+    canvas.drawPath(ride, stroke(m.halo!, 8));
+    canvas.drawPath(ride, stroke(m.ride.withValues(alpha: 0.45), 4));
+    for (final (a, b, color) in [(0.12, 0.42, m.mine), (0.58, 0.88, m.candidate)]) {
+      canvas.drawPath(part(a, b), stroke(m.halo!, 10));
+      canvas.drawPath(part(a, b), stroke(color, 6));
+    }
+    // Die Griffe des Kandidaten.
+    for (final t in [0.58, 0.88]) {
+      final at = metric.getTangentForOffset(metric.length * t)!.position;
+      canvas.drawCircle(at, 7, Paint()..color = Colors.white);
+      canvas.drawCircle(at, 7, stroke(m.candidate, 3));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SplitPainter old) => false;
+}

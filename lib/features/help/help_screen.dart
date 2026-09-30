@@ -25,7 +25,10 @@ import '../../core/app_colors.dart';
 import '../../core/widgets/safety_note.dart';
 import '../trails/grade_shield.dart';
 import '../trails/trail_report.dart' show kReportFieldLabel;
+import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
+import '../rides/ride_split_sheet.dart' show SplitRequest, mapSplitRequestProvider;
 import 'map_tour.dart';
+import 'split_tour.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein paar Sätze.
 class HelpStep {
@@ -158,6 +161,12 @@ class HelpScreen extends ConsumerWidget {
             icon: const Icon(Icons.play_circle_outline),
             label: const Text('Tour auf der Karte zeigen'),
           ),
+          // Die Zerlege-Tour (#134), nur wo man aufzeichnen kann: Sie
+          // öffnet die jüngste Fahrt, und dort läuft die Tour.
+          if (ref.watch(rideRecordingAvailableProvider)) ...[
+            const SizedBox(height: 8),
+            const _SplitTourButton(),
+          ],
         ],
       ),
     );
@@ -209,6 +218,49 @@ class _StepTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// „Tour: Fahrt zerlegen" (#134): öffnet die jüngste Fahrt im
+/// Zerlege-Blatt und bestellt dort die Tour. Ohne Fahrt deaktiviert, mit
+/// einem Satz, wie eine entsteht.
+class _SplitTourButton extends ConsumerWidget {
+  const _SplitTourButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rides = ref.watch(ridesProvider).valueOrNull ?? const [];
+    final latest = rides.isEmpty
+        ? null
+        : rides.reduce((a, b) => a.startedAt.isAfter(b.startedAt) ? a : b);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          key: const ValueKey('help-split-tour'),
+          onPressed: latest == null
+              ? null
+              : () {
+                  // Erst der Reiter, dann der Wunsch — wie „Meine Fahrten".
+                  ref.read(requestedSplitTourProvider.notifier).state = true;
+                  context.go('/');
+                  ref.read(mapSplitRequestProvider.notifier).state = SplitRequest.fromRide(latest);
+                },
+          icon: const Icon(Icons.content_cut),
+          label: const Text('Tour: Fahrt zerlegen'),
+        ),
+        if (latest == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Zeichne erst eine Fahrt auf — der große Knopf auf der Karte. '
+              'Danach zeigt die Tour an ihr, wie aus einer Fahrt Trails werden.',
+              key: const ValueKey('help-split-tour-hint'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppPalette.of(context).muted),
+            ),
+          ),
+      ],
     );
   }
 }

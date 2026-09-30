@@ -17,7 +17,8 @@ class FakeSettings implements Settings {
       // App auf die Karte, und mit `false` läge über jedem der Hinweis.
       // Tests für Hinweis und Tour geben ihre Einstellungen ausdrücklich mit.
       this.safetyNoteSeen = true,
-      this.mapTourSeen = true});
+      this.mapTourSeen = true,
+      this.seenCoachTours = const {'split', 'trails', 'buddys'}});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -58,6 +59,14 @@ class FakeSettings implements Settings {
 
   @override
   bool mapTourSeen;
+
+  @override
+  Set<String> seenCoachTours;
+
+  @override
+  Future<void> setSeenCoachTours(Set<String> value) async {
+    seenCoachTours = value;
+  }
 
   @override
   Future<void> setMapTourSeen(bool value) async {

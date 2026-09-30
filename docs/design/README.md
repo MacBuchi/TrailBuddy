@@ -438,6 +438,7 @@ und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
 | E1 | Einführung: Kurzanleitung, Sicherheitshinweis (#131) | 0.59.0 |
 | E2 | Hinweis-Maschine, Karten-Tour aus der Kurzanleitung (#132) | 0.60.0 |
 | E3 | Karten-Tour beim ersten Start mit Startseite (#133) | 0.61.0 |
+| E4 | Tour im Zerlege-Blatt (#134) | 0.62.0 |
 
 ## 12. Einführung: Hinweis-Maschine und Touren (#126)
 
@@ -479,3 +480,7 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
   Textfarbe mit Kern in der Marke fährt sie ab; `mapArt` — drei
   Linienstücke S0/S1/S2 mit weißem Saum auf dem Landton der Karte und
   ein S1-Schild. Kein Foto, kein Lottie, keine Emojis.
+  `splitArt` (seit 0.62.0, Zerlege-Tour): eine Fahrt als blasse Linie in
+  `ride` mit weißem Saum auf dem Landton, darin ein bekanntes Stück in
+  `mine` und ein Kandidat in `candidate` mit zwei weißen Griffen —
+  dieselben Farben wie die Vorschau auf der Karte. Steht still.
