@@ -290,9 +290,11 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   bestätigte Meldungen und neue Hinweise — an die direkten Buddys des Autors,
   die den Trail und seinen Beitrag sehen (dieselben Regeln wie die
   Sichtbarkeit, je Buddy-Beziehung eine Zeile, keine Rechnung über alle;
-  Abschnitt 12), ohne Inhalt: kein Trailname, kein Name, kein
-  Hinweistext, nur Art, Statuswort, Anzahl und die opake Trail-Kennung
-  als Ziel.
+  Abschnitt 12). **Seit 0.54.0 (Patch 014) mit Inhalt** (Betreiber,
+  2026-09-30: „anonym genug"): Trailname und Name des Buddys so, wie der
+  Empfänger sie sieht (sein Name für den Trail, sein Alias für den
+  Buddy), das Statuswort, beim Hinweis der Text (140 Zeichen); nie eine
+  Koordinate, nie der Zustand. Ziel bleibt die opake Trail-Kennung.
 
 Eine zentrale Sicht (`trails_visible`) rechnet das serverseitig, damit
 Karte, Liste und Blatt dieselbe Antwort geben — dieselbe Regel wie in

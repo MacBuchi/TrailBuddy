@@ -100,7 +100,7 @@ class ProfileScreen extends ConsumerWidget {
             id: 'notifications',
             icon: Icons.notifications_outlined,
             title: 'Benachrichtigungen',
-            value: push ? 'Ein · ohne Inhalt in der Meldung' : 'Aus',
+            value: push ? 'Ein' : 'Aus',
             onTap: () => context.push('/profile/notifications'),
           ),
           _ProfileRow(
@@ -658,8 +658,8 @@ class _PushSection extends ConsumerWidget {
               'Wenn ein Buddy zu einem Trail, den du siehst, etwas meldet '
               '(bestätigt, also vor Ort oder gefahren) oder einen Hinweis '
               'schreibt. Gilt nur für dieses Gerät. In der Benachrichtigung '
-              'steht nie ein Trailname, kein Name und kein Hinweistext; '
-              'die holt die App erst beim Öffnen.'),
+              'stehen der Trailname, der Name des Buddys und was er meldet '
+              '(beim Hinweis der Text) — nie ein Ort. Sie läuft über Google.'),
           value: enabled,
           onChanged: (value) async {
             final problem =
