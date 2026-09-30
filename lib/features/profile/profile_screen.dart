@@ -12,9 +12,11 @@ import '../../core/app_theme.dart';
 import '../../core/errors.dart';
 import '../../core/update_check.dart';
 import '../../core/widgets/form_notice.dart';
+import '../../core/widgets/info_button.dart';
 import '../../core/widgets/letter_avatar.dart';
 import '../../core/widgets/motion.dart';
 import '../../core/widgets/password_field.dart';
+import '../../core/widgets/safety_note.dart';
 import '../../data/providers.dart';
 import '../feedback/feedback_dialog.dart';
 import '../friends/friend_providers.dart';
@@ -133,6 +135,15 @@ class ProfileScreen extends ConsumerWidget {
             title: 'Konto',
             value: 'Name, E-Mail, Passwort, Geräte',
             onTap: () => context.push('/profile/account'),
+          ),
+          // Über „Über TrailBuddy" (#131): Wer eine Erklärung sucht, landet
+          // hier eher als in den Rechtstexten darunter.
+          _ProfileRow(
+            id: 'help',
+            icon: Icons.help_outline,
+            title: 'Kurzanleitung',
+            value: 'Das Wichtigste in sechs Schritten',
+            onTap: () => context.push('/profile/help'),
           ),
           _ProfileRow(
             id: 'about',
@@ -793,6 +804,17 @@ class _AboutSection extends ConsumerWidget {
           title: const Text('Was ist neu'),
           subtitle: const Text('Was sich in welcher Version geändert hat'),
           onTap: () => context.push('/profile/changelog'),
+        ),
+        // Der Hinweis vom ersten Start, dauerhaft nachlesbar (#131) — als
+        // Dialog über `showInfoText`, nicht als eigene Seite: ein Absatz.
+        ListTile(
+          key: const ValueKey('about-safety-note'),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.warning_amber_outlined),
+          title: const Text(kSafetyNoteTitle),
+          subtitle: const Text('Was TrailBuddy dir nicht abnehmen kann'),
+          onTap: () => showInfoText(context, title: kSafetyNoteTitle, text: kSafetyNote),
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,

@@ -10,6 +10,7 @@ import '../../core/app_colors.dart';
 import '../../core/connectivity.dart';
 import '../../core/geo.dart';
 import '../../core/widgets/motion.dart';
+import '../../core/widgets/safety_note.dart';
 import '../../models/trail.dart';
 import '../feedback/feedback_dialog.dart';
 import '../rides/ride_providers.dart';
@@ -103,8 +104,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Ein Fokus-Wunsch, der VOR dem Aufbau gestellt wurde (Route
     // `/trail/<id>` aus einer Push): `ref.listen` sieht nur Änderungen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _takeFocusWish();
+      if (!mounted) return;
+      _takeFocusWish();
+      unawaited(_firstStart());
     });
+  }
+
+  /// Was beim ersten Start über der Karte liegt (#131): der
+  /// Sicherheitshinweis, einmal je Installation. Hier und nicht in der
+  /// App-Hülle, weil die Karte nur angemeldet gebaut wird und hinter
+  /// einer Update-Sperre gar nicht — ein Hinweis vor dem Login wäre einer
+  /// ohne App dahinter.
+  ///
+  /// Gemerkt wird VOR dem Zeigen: Der Dialog ist nicht wegtippbar, der
+  /// einzige Ausgang ist „Verstanden"; stirbt die App mit offenem
+  /// Dialog, kommt er nicht bei jedem Start wieder.
+  Future<void> _firstStart() async {
+    if (ref.read(safetyNoteSeenProvider)) return;
+    ref.read(safetyNoteSeenProvider.notifier).set(true);
+    await showSafetyNoteDialog(context);
   }
 
   void _takeFocusWish() {
@@ -1000,24 +1018,44 @@ class _PulsePainter extends CustomPainter {
   bool shouldRepaint(_PulsePainter old) => false;
 }
 
+/// Der leere Kartenzustand (#131): sagt, wie Trails hierher kommen, und
+/// führt auf Tipp in die Kurzanleitung. Er verschwindet mit dem ersten
+/// Trail von selbst — das Verschwinden IST die Rückmeldung.
 class _EmptyHint extends StatelessWidget {
   const _EmptyHint();
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Card(
-            margin: const EdgeInsets.all(16),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Card(
+          key: const ValueKey('map-empty-hint'),
+          margin: const EdgeInsets.all(16),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => context.push('/profile/help'),
             child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                'Noch keine Trails. Importiere deine GPX-Dateien im Profil '
-                'oder verbinde dich mit Buddys — du siehst, was sie gefahren sind.',
-                style: Theme.of(context).textTheme.bodyMedium,
+              padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Noch keine Trails. Importiere deine GPX-Dateien im Profil '
+                      'oder verbinde dich mit Buddys — du siehst, was sie gefahren sind.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.help_outline, color: AppPalette.of(context).accentText,
+                      semanticLabel: 'Kurzanleitung'),
+                ],
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }

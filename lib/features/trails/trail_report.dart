@@ -30,6 +30,12 @@ import 'trail_providers.dart';
 /// (Betreiber, 2026-09-30).
 const kOnSiteMaxM = 200.0;
 
+/// Die Beschriftung der Meldung im Dialog (bis 0.48.0 „Status", Rework
+/// E7). Offen, weil die Kurzanleitung dasselbe Wort benutzt und
+/// `help_texts_test.dart` beide zusammenhält — ändert sich die
+/// Beschriftung, bricht der Test, nicht still der Text.
+const kReportFieldLabel = 'Meldung';
+
 /// „heute", „gestern", „vor 3 Tagen", „vor 4 Monaten" — das Alter einer
 /// Meldung, ohne das Verb (das sagt die Zeile).
 String reportAgeLabel(DateTime at, {DateTime? now}) {
@@ -147,7 +153,7 @@ class _ReportDialogState extends ConsumerState<_ReportDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Meldung', style: theme.textTheme.bodySmall),
+            Text(kReportFieldLabel, style: theme.textTheme.bodySmall),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,

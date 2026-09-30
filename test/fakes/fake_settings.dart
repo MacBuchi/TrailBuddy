@@ -12,7 +12,11 @@ class FakeSettings implements Settings {
       this.stillValidSnoozes,
       this.officialTrailsEnabled = true,
       this.pushToken,
-      this.appearance});
+      this.appearance,
+      // „Schon gesehen" ist die Vorgabe (#126): Jeder Flow-Test pumpt die
+      // App auf die Karte, und mit `false` läge über jedem der Hinweis.
+      // Tests für Hinweis und Tour geben ihre Einstellungen ausdrücklich mit.
+      this.safetyNoteSeen = true});
 
   @override
   bool prereleaseUpdatesEnabled;
@@ -42,6 +46,14 @@ class FakeSettings implements Settings {
 
   @override
   String? appearance;
+
+  @override
+  bool safetyNoteSeen;
+
+  @override
+  Future<void> setSafetyNoteSeen(bool value) async {
+    safetyNoteSeen = value;
+  }
 
   @override
   Future<void> setAppearance(String value) async {

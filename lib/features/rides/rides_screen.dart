@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../../core/geo.dart';
 import '../../core/router_branches.dart';
 import '../../core/widgets/motion.dart';
+import '../help/help_link.dart';
 import 'ride_providers.dart';
 import 'ride_split_sheet.dart';
 import 'ride_track.dart';
@@ -30,12 +31,16 @@ class RidesScreen extends ConsumerWidget {
         ),
         data: (rides) {
           if (rides.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Noch keine Fahrt. Starte eine auf der Karte mit dem '
-                'Aufnahme-Knopf — sie bleibt auf deinem Gerät.',
-              ),
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              children: const [
+                Text(
+                  'Noch keine Fahrt. Starte eine auf der Karte mit dem '
+                  'Aufnahme-Knopf — sie bleibt auf deinem Gerät.',
+                ),
+                SizedBox(height: 8),
+                HelpLinkButton(),
+              ],
             );
           }
           return ListView(

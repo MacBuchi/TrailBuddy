@@ -11,6 +11,7 @@ import '../../core/widgets/letter_avatar.dart';
 import '../../core/widgets/motion.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
+import '../help/help_link.dart';
 import '../profile/profile_providers.dart';
 import '../trails/trail_providers.dart';
 import 'buddy_alias.dart';
@@ -301,6 +302,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                 label: const Text('Buddys zu TrailBuddy einladen'),
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
               ),
+              const SizedBox(height: 4),
+              const HelpLinkButton(),
             ] else
               for (final f in accepted)
                 _BuddyRow(

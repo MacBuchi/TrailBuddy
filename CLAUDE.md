@@ -1204,6 +1204,44 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `trailbuddy-push` (`kPushBridgeType`, ein Test hält beide zusammen).
     `tool/check_push_worker.mjs` prüft ihn im echten Chrome (Job „Build
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
+- **Einführung: Kurzanleitung, Sicherheitshinweis, Kontexthilfe**
+  (#131, seit 0.59.0, Plan `docs/konzept-onboarding.md` 3.1; Vorlage
+  PilzBuddy #350 Baustein A). `lib/features/help/help_screen.dart`
+  (Route `/profile/help`, Zeile „Kurzanleitung" im Profil) und
+  `lib/core/widgets/safety_note.dart`. Sechs Dinge, die man wissen muss:
+  - **Die Anleitung sind Widgets, kein `.md`-Asset**: nur so zeigt sie
+    die ECHTEN Symbole (das Schild ist `GradeShield`), und ein Asset unter
+    `assets/` wäre für den Version Guard `*.md`, also bump-frei, obwohl es
+    im Binary liegt. Keine `web/anleitung.html` (Betreiber: zwei Stellen,
+    und die PWA IST die App).
+  - **Sechs Abschnitte sind die Obergrenze**, offen als `kHelpSteps`,
+    damit `test/help_texts_test.dart` einen EINZELNEN Abschnitt prüft.
+    „Die Karte lesen" beschreibt die Regeln aus `docs/design/README.md`
+    Abschnitt 2 (Farbe = Schwierigkeit, Linienart = Zustand, S4/S5 auf dem
+    Saum) — ändert sich dort etwas, zieht der Satz im selben PR mit.
+  - **„Meldung" ist eine Konstante** (`kReportFieldLabel` in
+    `trail_report.dart`, die Beschriftung im Melde-Dialog) und steht so im
+    Text; der Test verbietet zusätzlich das alte „Status". Abweichung vom
+    Plan, der sie in `trail_details_dialog.dart` vermutete: Die Meldung
+    ist seit 0.49.0 nicht mehr im Beitrag, sondern im Melde-Dialog.
+  - **Der Hinweis steht an EINER Stelle** (`kSafetyNote`): Dialog beim
+    ersten Start, Kachel oben in der Kurzanleitung, Zeile unter „Über
+    TrailBuddy" (über `showInfoText`). Der Dialog ist weder wegtippbar noch
+    mit Zurück zu schließen (`PopScope`); gezeigt aus dem Post-Frame von
+    `MapScreen` (`_firstStart`), also nur angemeldet und nie hinter der
+    Update-Sperre. Gemerkt wird VOR dem Zeigen.
+  - **Merker `safetyNoteSeen` (`safety_note_seen`) ohne Suffix.** Sollen
+    alle ihn noch einmal sehen, bekommt der Schlüssel `_2`, der alte wird
+    weiter GELESEN (wie PilzBuddys `legacyMapTourSeen`), und ein
+    `settings_tour_reset_test` kommt mit. Dieselbe Regel gilt für die
+    Merker der Touren (ab #132).
+  - **`FakeSettings.safetyNoteSeen` steht auf `true`, die App auf
+    `false`.** Andersherum läge über jedem Flow-Test der Dialog — in der
+    Gegenprobe gemessen: 169 Tests brechen. Tests für den
+    Hinweis geben ihre `FakeSettings` ausdrücklich mit.
+  Die Leerzustände von Karte (die Karte selbst ist tippbar), Trails,
+  Buddys und „Meine Fahrten" führen in die Kurzanleitung
+  (`HelpLinkButton`, `push` — Zurück führt dahin, wo man herkam).
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und
