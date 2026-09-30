@@ -20,6 +20,7 @@ import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_link.dart';
 import 'trail_notes.dart';
+import 'rating_stars.dart';
 import 'trail_condition.dart';
 import 'trail_providers.dart';
 import 'trail_report.dart';

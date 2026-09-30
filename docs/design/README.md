@@ -267,8 +267,12 @@ Trail nicht bewertet ist) und ZUSTAND (Wort und Alter; eine jüngere
 unbestätigte Angabe verblasst mit „zu bestätigen"), je mit Tipp auf die
 Einzelstimmen. Eine unbestätigte Meldung steht als verblasster Chip
 neben der bestätigten; unten „Hinweis schreiben" (Lime) und „Melden"
-nebeneinander, „Karte" darunter. Linienart auf der Karte und die Wörter
-in der Liste kommen als eigener Schritt.
+nebeneinander, „Karte" darunter. **Liste seit 0.50.0:** die Sterne unter
+den Zahlen (13 px, blass bei „Bewertung offen"), Sortierung „Bewertung";
+hinter Meldung und Hinweis der Zustand 1–2 als Wort („ABGEROCKT",
+„KAUM FAHRBAR") in der Textfarbe — ohne eigene Farbe, die gehört der
+Schwierigkeit (E9) —, eine unbestätigte Meldung gedämpft mit „?"
+(„GESPERRT?"). Die Linienart auf der Karte kommt als eigener Schritt.
 
 ## 8. Screens (Turn 1g–1l)
 

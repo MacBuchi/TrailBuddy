@@ -175,6 +175,16 @@ void main() {
       expect(names(trailListOf(list, sort: TrailSort.grade)), ['Gamma', 'Alpha', 'beta']);
     });
 
+    test('Bewertung: die beste zuerst, ohne Bewertung ans Ende (#101)', () {
+      Trail rated(String id, String name, int? rating) => Trail(
+            id: id, myId: 'me', recordings: [rec(id, 'me')],
+            details: [TrailDetails(trailId: id, userId: 'me', name: name, rating: rating)]);
+      expect(
+          names(trailListOf([rated('a', 'Alpha', 3), rated('b', 'Beta', null), rated('c', 'Gamma', 5)],
+              sort: TrailSort.rating)),
+          ['Gamma', 'Alpha', 'Beta']);
+    });
+
     test('ein neuer Hinweis macht einen Trail „zuletzt aktiv"', () {
       final noted = trail('d', 'Delta', day: 1, notes: [
         TrailNote(id: 'd1', trailId: 'd', userId: 'jan', body: 'x', createdAt: DateTime(2026, 9, 12)),
@@ -211,6 +221,33 @@ void main() {
       expect(tags(trail('a', 'A', user: 'jan', username: 'jan'), fresh: true), ['NEUER HINWEIS']);
       expect(tags(trail('a', 'A', status: TrailStatus.destroyed), fresh: true),
           ['ZERSTÖRT', 'NEUER HINWEIS']);
+    });
+
+    Trail reported(List<TrailReport> reports) => Trail(
+        id: 't', myId: 'me', recordings: [rec('t', 'me')],
+        details: const [TrailDetails(trailId: 't', userId: 'me', name: 'X')], reports: reports);
+    TrailReport status(TrailStatus s, int day, {bool confirmed = true}) => TrailReport(
+        id: 's$day', trailId: 't', userId: 'jan', kind: ReportKind.status, status: s,
+        confirmed: confirmed, reportedAt: DateTime(2026, 9, day));
+    TrailReport condition(int c, int day, {bool confirmed = true}) => TrailReport(
+        id: 'c$day', trailId: 't', userId: 'jan', kind: ReportKind.condition, condition: c,
+        confirmed: confirmed, reportedAt: DateTime(2026, 9, day));
+
+    test('unbestätigt: gedämpft mit Fragezeichen, und nur, wenn es etwas anderes sagt (#101)', () {
+      final t = reported([status(TrailStatus.closed, 1), status(TrailStatus.open, 5, confirmed: false)]);
+      expect(trailRowTags(t, freshNote: false, nameOf: nameOf),
+          [(text: 'GESPERRT', kind: TrailRowTagKind.warning), (text: 'OFFEN?', kind: TrailRowTagKind.unconfirmed)]);
+      expect(tags(reported([status(TrailStatus.closed, 5, confirmed: false)])), ['GESPERRT?'],
+          reason: 'ohne bestätigte Meldung keine Warnung, nur die Frage');
+    });
+
+    test('Zustand 1–2 als Wort hinter Meldung und Hinweis, 3–5 nicht (Rework E9)', () {
+      expect(tags(reported([condition(2, 3)])), ['ABGEROCKT']);
+      expect(tags(reported([status(TrailStatus.changed, 2), condition(1, 3)]), fresh: true),
+          ['VERÄNDERT', 'NEUER HINWEIS', 'KAUM FAHRBAR']);
+      expect(tags(reported([condition(3, 3)])), ['MEIN']);
+      expect(tags(reported([condition(1, 3, confirmed: false)])), ['MEIN'],
+          reason: 'ein unbestätigter Zustand steht nur im Blatt');
     });
 
     test('wartend: nur das Warten — eine Ablehnung als Satz, nicht in Versalien', () {

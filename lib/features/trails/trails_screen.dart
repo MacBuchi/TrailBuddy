@@ -10,6 +10,7 @@ import '../../models/trail.dart';
 import '../friends/buddy_alias.dart' show buddyNamesViewProvider;
 import '../map/map_screen.dart' show formatCachedAt;
 import 'trail_filter_chips.dart';
+import 'rating_stars.dart';
 import 'trail_list.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
@@ -297,7 +298,9 @@ class _TrailTile extends ConsumerWidget {
           TrailRowTagKind.pending => palette.muted,
           TrailRowTagKind.failure => theme.colorScheme.error,
           TrailRowTagKind.warning => palette.warningText,
+          TrailRowTagKind.unconfirmed => palette.muted,
           TrailRowTagKind.note => palette.noteText,
+          TrailRowTagKind.condition => theme.colorScheme.onSurface,
           TrailRowTagKind.mine => palette.accentText,
           TrailRowTagKind.buddy => palette.buddyText,
         };
@@ -341,6 +344,22 @@ class _TrailTile extends ConsumerWidget {
             Text(numbers.join(' · '),
                 style: AppFonts.numbers(theme.textTheme.bodySmall)
                     .copyWith(color: palette.muted)),
+            // Die Sterne (#101, Rework E4): der Median des Netzes; blass,
+            // solange ich meinen eigenen Trail nicht bewertet habe.
+            if (trail.rating != null || trail.ratingOpen)
+              Semantics(
+                label: trail.rating == null
+                    ? 'Noch nicht bewertet'
+                    : 'Bewertung ${trail.rating} von $kRatingMax Sternen',
+                excludeSemantics: true,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: RatingStars(trail.rating,
+                      key: const ValueKey('row-rating'),
+                      size: 13,
+                      faded: trail.rating == null || trail.ratingOpen),
+                ),
+              ),
             if (tags.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),

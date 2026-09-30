@@ -4,7 +4,14 @@
 
 ## Bewerten und melden
 
-*Version 0.49.0, 2026-09-30*
+*Versionen 0.49.0 bis 0.50.0, 2026-09-30*
+
+- **In der Trail-Liste** stehen die Sterne jetzt unter den Zahlen — blass,
+  solange du einen eigenen Trail noch nicht bewertet hast. Sortieren
+  lässt sich nach „Bewertung", die besten zuerst.
+- Ist ein Trail „abgerockt" oder „kaum fahrbar", sagt es die Zeile als
+  Wort. Eine Meldung, die noch jemand vor Ort bestätigen muss, steht
+  gedämpft mit Fragezeichen da („GESPERRT?").
 
 - **Sterne**: Trails, die du selbst gefahren bist, bewertest du mit 1
   bis 5 Sternen — im Blatt unter „Deine Bewertung" oder in „Mein

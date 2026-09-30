@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/data/outbox.dart';
+import 'package:trailbuddy/features/trails/rating_stars.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 import '../fakes/fake_backend.dart';
@@ -78,6 +79,16 @@ void main() {
     expect(find.text('bob'), findsOneWidget);
   });
 
+  testWidgets('Liste: Sterne in der Zeile, blass beim eigenen unbewerteten Trail', (tester) async {
+    await openTrail(tester, 'Roots');
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester);
+    final stars = find.byKey(const ValueKey('row-rating'));
+    expect(stars, findsNWidgets(1), reason: 'nur Roots trägt eine Bewertung, Bobs Flow keine');
+    expect(tester.widget<RatingStars>(stars).faded, isTrue,
+        reason: 'Bob hat bewertet, ich noch nicht — das IST „Bewertung offen"');
+  });
+
   testWidgets('ein Buddy-Trail, den ich nicht gefahren bin: keine eigenen Sterne', (tester) async {
     await openTrail(tester, 'Bobs Flow');
     expect(find.text('Deine Bewertung'), findsNothing);
@@ -103,10 +114,12 @@ void main() {
     expect(find.byKey(const ValueKey('status-chip')), findsNothing);
     expect(find.textContaining('Du · heute · zu bestätigen'), findsOneWidget);
 
-    // Die Liste warnt nur bei einer bestätigten Meldung.
+    // Die Liste warnt nur bei einer bestätigten Meldung; die unbestätigte
+    // steht gedämpft mit Fragezeichen da.
     await tester.tapAt(const Offset(10, 10));
     await settle(tester);
-    expect(find.textContaining('GESPERRT'), findsNothing);
+    expect(find.textContaining('GESPERRT?'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'GESPERRT(?!\?)')), findsNothing);
   });
 
   testWidgets('vor Ort (≤ 200 m): bestätigt, Zustand in der Kachel, die Position bleibt hier',
