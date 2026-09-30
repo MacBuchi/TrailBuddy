@@ -137,7 +137,13 @@ void main() {
     }
     expect(privacy, contains('Firebase Cloud Messaging'),
         reason: 'Push (#34) läuft über Google — die Erklärung muss es nennen');
-    expect(privacy, contains('niemals einen Trailnamen'),
-        reason: 'die Zusage, dass kein Inhalt über Google läuft, steht in push_flush — hier ihr Spiegel');
+    // Seit Patch 014 trägt eine Meldung Trailname, Alias und Hinweistext
+    // (Betreiber, 2026-09-30) — nie eine Koordinate. push_flush_check.sh
+    // prüft die Nutzlast, hier steht ihr Spiegel.
+    expect(privacy, contains('niemals Koordinaten'),
+        reason: 'die Zusage, dass keine Position über Google läuft');
+    for (final what in ['Namen des Trails', 'Namen des Buddys', 'Text']) {
+      expect(privacy, contains(what), reason: 'die Erklärung muss sagen, was eine Meldung trägt');
+    }
   });
 }

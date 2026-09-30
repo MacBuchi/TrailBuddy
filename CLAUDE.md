@@ -1039,7 +1039,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   MB um, und 0 heißt „nicht gemessen", nicht „0 MB". Web und Android < 11
   liefern nichts. Tests: `test/exit_reporting_test.dart`,
   `test/tombstone_test.dart`.
-- **Push** (#34, seit 0.23.0, Patch 008; PilzBuddy #277/#564 als
+- **Push** (#34, seit 0.23.0, Patch 008 und 014; PilzBuddy #277/#564 als
   Vorlage): eine Meldung, wenn ein Buddy einen Trail meldet (nur
   BESTÄTIGTE Meldungen, seit Patch 013) oder einen Hinweis schreibt —
   an die direkten Buddys des Autors, die
@@ -1047,14 +1047,24 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Spiegel von `td_friend_select`/`notes_select`; je Buddy-Beziehung
   eine Zeile im Korb, keine Rechnung über alle, Konzept 12). Acht Dinge,
   die man wissen muss:
-  - **Die Meldung trägt KEINEN Inhalt**: kein Trailname, kein Name,
-    keine Koordinate, kein Hinweistext — nur Art, Statuswort, Anzahlen
-    und die opake Trail-Kennung als `route` (`/trail/<uuid>`, bei
-    mehreren `/trails`). Der Text steht an EINER Stelle, in
-    `push_flush`; `tool/push_flush_check.sh` prüft ihn Wort für Wort und
-    dass weder Name, Trailname noch Koordinate in der Nutzlast stehen.
-    Mehr Inhalt wäre eine Betreiber-Entscheidung samt Zeile in der
-    Datenschutzerklärung und im Profil-Schalter (PilzBuddy Patch 031).
+  - **Die Meldung trägt Inhalt, aber nie einen Ort** (seit 0.54.0,
+    Patch 014, Betreiber 2026-09-30: „anonym genug"): Trailname, Name
+    des Buddys, Statuswort und beim Hinweis dessen Text (140 Zeichen) —
+    jeweils so, wie der EMPFÄNGER es sieht: `trail_name_for` spiegelt
+    `Trail.displayName` (eigener Name, sonst der des ältesten sichtbaren
+    Beitrags), `push_name_for` nimmt den Alias des Empfängers
+    (`friend_aliases`, Besitzer = Empfänger), sonst den Benutzernamen.
+    Nie eine Koordinate, nie der Zustand. Einzelner Anlass: „Anni meldet
+    „Hang" als gesperrt" / „Anni zu „Hang"" + Text; mehrere an einem
+    Trail: „„Hang": 1 Meldung und 1 Hinweis" / „von Anni und Ben";
+    mehrere Trails: Anzahlen, „An 2 Trails · von …". Der Korb merkt sich
+    dafür `sender_ids`, `events` und den jüngsten `note_id` (ein
+    zurückgezogener Hinweis nimmt seine Zeile mit). Ziel bleibt die
+    opake Kennung als `route` (`/trail/<uuid>`, bei mehreren
+    `/trails`). Der Text steht an EINER Stelle, in `push_flush`;
+    `tool/push_flush_check.sh` prüft ihn Wort für Wort, dazu dass kein
+    fremder Alias und keine Koordinate in der Nutzlast steht.
+    Datenschutzerklärung und Profil-Schalter sagen dasselbe.
   - **Entprellt**: (Empfänger, Art, Trail) ist der Schlüssel in
     `app_internal.push_outbox`, fünf Minuten Ruhe, gedeckelt auf 30
     Minuten; je Empfänger EINE Meldung je Lauf. Ein erneutes Melden

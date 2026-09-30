@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Ruft app_internal.push_flush() auf dem Wegwerf-Stack des Schema Dry
 # Run WIRKLICH auf und prüft Auslöser, Empfänger und die Nutzlast, die an
-# `send-push` ginge (Patch 008, #34; Muster PilzBuddy #564).
+# `send-push` ginge (Patch 008, #34; Muster PilzBuddy #564). Seit Patch 014
+# Wort für Wort mit Inhalt: Alias des Empfängers (nie der Gegenseite),
+# sein Trailname, Hinweistext gekürzt — und nie eine Koordinate.
 #
 # **Warum es das braucht:** PL/pgSQL prüft den Rumpf einer Funktion beim
 # Anlegen kaum — ein falscher Spaltenname fällt erst beim AUFRUF auf.
@@ -55,7 +57,14 @@ insert into public.trail_recordings (trail_id, user_id, geom, source, quality) v
   ('$T2', '$A', 'SRID=4326;LINESTRING(9 48.1, 9.01 48.1)', 'app', 0.5);
 insert into public.trail_details (trail_id, user_id, name, visibility, status) values
   ('$T1', '$A', 'Hang', 'buddies', 'open'),
-  ('$T2', '$A', 'Kamm', 'buddies', 'open');
+  ('$T2', '$A', 'Kamm', 'buddies', 'open'),
+  -- Bert hat T1 selbst benannt: SEIN Name steht in seiner Meldung
+  -- (Patch 014, wie Trail.displayName in der App).
+  ('$T1', '$B', 'Mein Hang', 'buddies', 'open');
+-- Aliase (Patch 014): Bert nennt Anna „Anni", Carl nennt sie „Chefin".
+-- In Berts Meldung steht „Anni" — nie Carls Alias.
+insert into public.friend_aliases (owner_id, friend_id, alias) values
+  ('$B', '$A', 'Anni'), ('$C', '$A', 'Chefin');
 select 'OUTBOX_AFTER_SEED=' || count(*) from app_internal.push_outbox;
 
 -- 1. Anna meldet T1 gesperrt: Bert und Carl bekommen eine Zeile, Anna
@@ -92,6 +101,33 @@ insert into public.trail_notes (trail_id, user_id, body) values ('$T1', '$A', 'w
 update app_internal.push_outbox set due_at = now() - interval '1 minute';
 select 'SENT3=' || app_internal.push_flush();
 select 'BODY3=' || convert_from(body, 'utf8') from net.http_request_queue order by id desc limit 1;
+
+-- 3c. EIN Hinweis: Alias, Trailname (Annas, Bert hat T2 nicht benannt)
+--     und der Text, gekürzt auf 140 Zeichen.
+insert into public.trail_notes (trail_id, user_id, body) values
+  ('$T2', '$A', 'Kehre ausgewaschen ' || repeat('x', 200));
+update app_internal.push_outbox set due_at = now() - interval '1 minute';
+select 'SENT4=' || app_internal.push_flush();
+select 'BODY4=' || convert_from(body, 'utf8') from net.http_request_queue order by id desc limit 1;
+
+-- 3d. Ohne Alias steht der Benutzername.
+delete from public.friend_aliases where owner_id = '$B';
+update public.trail_details set status = 'destroyed', status_at = now()
+  where trail_id = '$T2' and user_id = '$A';
+update app_internal.push_outbox set due_at = now() - interval '1 minute';
+select 'SENT5=' || app_internal.push_flush();
+select 'BODY5=' || convert_from(body, 'utf8') from net.http_request_queue order by id desc limit 1;
+-- Zurück, damit Fall 4 von „zerstört" auf „zerstört" nichts auslöst.
+update public.trail_details set status = 'open', status_at = now()
+  where trail_id = '$T2' and user_id = '$A';
+delete from app_internal.push_outbox;
+
+-- 3e. Ein zurückgezogener Hinweis nimmt seine Meldung mit.
+insert into public.trail_notes (id, trail_id, user_id, body) values
+  ('22222222-0000-0000-0000-000000000001', '$T1', '$A', 'gleich wieder weg');
+select 'OUTBOX_NOTE=' || count(*) from app_internal.push_outbox;
+delete from public.trail_notes where id = '22222222-0000-0000-0000-000000000001';
+select 'OUTBOX_NOTE_WITHDRAWN=' || count(*) from app_internal.push_outbox;
 
 -- 3b. Meldungen über report_trail (Patch 013): Bert hat T1 nie gefahren.
 --     Von zu Hause gemeldet ist unbestätigt und bleibt still; vor Ort
@@ -153,27 +189,40 @@ expect "eine Meldung (Carl hat kein Gerät)" "$(value SENT1)" "1"
 body1=$(value BODY1)
 msg1=$(printf '%s' "$body1" | jq -c '.messages[0]')
 expect "an Berts Gerät" "$(jq -r .token <<<"$msg1")" "tok-bert"
-expect "Titel: Statuswort, kein Name" "$(jq -r .title <<<"$msg1")" "Ein Buddy meldet einen Trail als gesperrt"
+expect "Titel: Alias des Empfängers, SEIN Trailname, Statuswort" "$(jq -r .title <<<"$msg1")" "Anni meldet „Mein Hang“ als gesperrt"
 expect "Text: der Tipp" "$(jq -r .body <<<"$msg1")" "Tippen zeigt den Trail"
 expect "Ziel: der Trail" "$(jq -r .route <<<"$msg1")" "/trail/$T1"
 expect "genau eine Nachricht in der Nutzlast" "$(jq -r '.messages | length' <<<"$body1")" "1"
 expect "Korb nach dem Versand leer" "$(value OUTBOX_AFTER_FLUSH1)" "0"
-case "$body1" in *Hang*|*push_anna*|*48*) echo "::error::push_flush: Trailname, Nutzername oder Koordinate in der Nutzlast: $body1"; fail=1;;
-  *) echo "✓ kein Trailname, kein Nutzername, keine Koordinate in der Nutzlast";; esac
+case "$body1" in *Chefin*|*push_anna*|*LINESTRING*|*48.*|*9.01*) echo "::error::push_flush: fremder Alias, Nutzername statt Alias oder Koordinate in der Nutzlast: $body1"; fail=1;;
+  *) echo "✓ kein fremder Alias, kein Nutzername statt Alias, keine Koordinate in der Nutzlast";; esac
 
 expect "zwei Hinweise an zwei Trails: eine Meldung" "$(value SENT2)" "1"
 msg2=$(value BODY2 | jq -c '.messages[0]')
 expect "Titel: die Anzahl" "$(jq -r .title <<<"$msg2")" "2 neue Hinweise von deinen Buddys"
-expect "Text: die Trails" "$(jq -r .body <<<"$msg2")" "An 2 Trails"
+expect "Text: die Trails und wer" "$(jq -r .body <<<"$msg2")" "An 2 Trails · von Anni"
 expect "Ziel: die Liste" "$(jq -r .route <<<"$msg2")" "/trails"
-case "$msg2" in *Baum*|*Kehre*) echo "::error::push_flush: Hinweistext in der Nutzlast: $msg2"; fail=1;;
-  *) echo "✓ kein Hinweistext in der Nutzlast";; esac
 
 expect "Status und Hinweis zugleich: eine Meldung" "$(value SENT3)" "1"
 msg3=$(value BODY3 | jq -c '.messages[0]')
-expect "Titel: beides" "$(jq -r .title <<<"$msg3")" "Deine Buddys haben etwas gemeldet"
-expect "Text: die Zahlen" "$(jq -r .body <<<"$msg3")" "1 Meldung und 1 Hinweis"
+expect "Titel: der Trail und die Zahlen" "$(jq -r .title <<<"$msg3")" "„Mein Hang“: 1 Meldung und 1 Hinweis"
+expect "Text: wer" "$(jq -r .body <<<"$msg3")" "von Anni"
 expect "Ziel: der eine Trail" "$(jq -r .route <<<"$msg3")" "/trail/$T1"
+
+expect "ein Hinweis: eine Meldung" "$(value SENT4)" "1"
+msg4=$(value BODY4 | jq -c '.messages[0]')
+expect "Titel: Alias und Trailname" "$(jq -r .title <<<"$msg4")" "Anni zu „Kamm“"
+body4=$(jq -r .body <<<"$msg4")
+expect "Text: der Hinweis, auf 140 Zeichen gekürzt" "$(jq -r '.body | length' <<<"$msg4")" "140"
+case "$body4" in "Kehre ausgewaschen "*…) echo "✓ der Hinweistext steht vorn, das Ende trägt …";;
+  *) echo "::error::push_flush: Hinweistext fehlt oder ist falsch gekürzt: $body4"; fail=1;; esac
+
+expect "ohne Alias: eine Meldung" "$(value SENT5)" "1"
+msg5=$(value BODY5 | jq -c '.messages[0]')
+expect "Titel: der Benutzername" "$(jq -r .title <<<"$msg5")" "push_anna meldet „Kamm“ als zerstört"
+
+expect "ein Hinweis legt eine Zeile an" "$(value OUTBOX_NOTE)" "2"
+expect "zurückgezogen: keine Meldung mehr" "$(value OUTBOX_NOTE_WITHDRAWN)" "0"
 
 expect "unbestätigte Meldung (von zu Hause): keine Push" "$(value OUTBOX_UNCONFIRMED)" "0"
 expect "vor Ort bestätigt: Anna bekommt eine Zeile, der Zustand keine" "$(value OUTBOX_ONSITE)" "$A:trail_status:closed"
