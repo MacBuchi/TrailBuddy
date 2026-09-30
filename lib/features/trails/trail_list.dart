@@ -54,6 +54,7 @@ class TrailListFilter {
     this.easyOnly = false,
     this.freshNotesOnly = false,
     this.reportedOnly = false,
+    this.ratingOpenOnly = false,
     this.traits = const {},
   });
 
@@ -71,6 +72,10 @@ class TrailListFilter {
   /// Nur gemeldete (gesperrt, zerstört … — [TrailStatus.warns]).
   final bool reportedOnly;
 
+  /// Nur eigene Trails ohne eigene Bewertung (Rework E13) — dieselbe
+  /// Regel wie die verblassten Sterne ([Trail.ratingOpen]).
+  final bool ratingOpenOnly;
+
   /// Nur Trails, deren Charakter (#72) ALLE diese Merkmale zeigt — gezählt
   /// wird, was Liste und Blatt zeigen ([Trail.topTraits]), nicht jede
   /// einzelne Nennung: Sonst fände „Flowig" einen Trail, den neun von
@@ -78,7 +83,12 @@ class TrailListFilter {
   final Set<TrailTrait> traits;
 
   bool get isActive =>
-      owner != TrailOwnerFilter.all || easyOnly || freshNotesOnly || reportedOnly || traits.isNotEmpty;
+      owner != TrailOwnerFilter.all ||
+      easyOnly ||
+      freshNotesOnly ||
+      reportedOnly ||
+      ratingOpenOnly ||
+      traits.isNotEmpty;
 
   /// Was gefiltert ist, in Worten — für die Zeile auf der Karte.
   String describe() => [
@@ -86,6 +96,7 @@ class TrailListFilter {
         if (easyOnly) 'bis S$kEasyMaxGrade',
         if (freshNotesOnly) 'neuer Hinweis',
         if (reportedOnly) 'gemeldet',
+        if (ratingOpenOnly) 'Bewertung offen',
         for (final t in TrailTrait.values)
           if (traits.contains(t)) t.label,
       ].join(' · ');
@@ -95,6 +106,7 @@ class TrailListFilter {
     bool? easyOnly,
     bool? freshNotesOnly,
     bool? reportedOnly,
+    bool? ratingOpenOnly,
     Set<TrailTrait>? traits,
   }) =>
       TrailListFilter(
@@ -102,6 +114,7 @@ class TrailListFilter {
         easyOnly: easyOnly ?? this.easyOnly,
         freshNotesOnly: freshNotesOnly ?? this.freshNotesOnly,
         reportedOnly: reportedOnly ?? this.reportedOnly,
+        ratingOpenOnly: ratingOpenOnly ?? this.ratingOpenOnly,
         traits: traits ?? this.traits,
       );
 
@@ -112,11 +125,12 @@ class TrailListFilter {
       other.easyOnly == easyOnly &&
       other.freshNotesOnly == freshNotesOnly &&
       other.reportedOnly == reportedOnly &&
+      other.ratingOpenOnly == ratingOpenOnly &&
       setEquals(other.traits, traits);
 
   @override
   int get hashCode => Object.hash(owner, easyOnly, freshNotesOnly, reportedOnly,
-      Object.hashAllUnordered(traits));
+      ratingOpenOnly, Object.hashAllUnordered(traits));
 }
 
 /// Was die Liste zeigt.
@@ -175,6 +189,7 @@ bool passesTrailFilter(Trail t, TrailListFilter filter,
   if (filter.owner == TrailOwnerFilter.buddies && t.isOwn) return false;
   if (filter.freshNotesOnly && !t.hasFreshNote(now: now, seen: seenNotes)) return false;
   if (filter.reportedOnly && !t.status.warns) return false;
+  if (filter.ratingOpenOnly && !t.ratingOpen) return false;
   if (filter.traits.isNotEmpty && !t.topTraits.toSet().containsAll(filter.traits)) return false;
   if (filter.easyOnly) {
     final g = t.grade;

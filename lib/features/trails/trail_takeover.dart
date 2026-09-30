@@ -52,3 +52,23 @@ TakeOver takeOverOf(Trail t, {DateTime? now}) {
     condition: c != null && c.reportedAt.isAfter(since) ? c.condition : null,
   );
 }
+
+/// Im Blatt „Übernehmen" anbieten (Bestand, #102): Ich habe den Trail
+/// belegt, aber mein Beitrag trägt keinen Namen — er hängt also am Namen
+/// eines Buddys. Kein Rückfüllen auf dem Server (Konzept 12), der Nutzer
+/// übernimmt selbst.
+bool offersTakeOver(Trail t) =>
+    t.isOwn && !t.pending && !t.pendingDetails && (t.myDetails?.name ?? '').trim().isEmpty;
+
+/// Die eigene Zeile, aufgefüllt mit der Vorbelegung — nur, was dort noch
+/// leer ist; was ich schon gesagt habe, bleibt.
+TrailDetails takeOverDetails(Trail t, {DateTime? now}) {
+  final p = takeOverOf(t, now: now);
+  final own = t.myDetails ?? TrailDetails(trailId: t.id, userId: t.myId);
+  return own.copyWith(
+    name: (own.name ?? '').trim().isEmpty && p.name.isNotEmpty ? p.name : own.name,
+    grade: own.grade ?? p.grade,
+    traits: own.traits.isEmpty ? p.traits : own.traits,
+    rating: own.rating ?? p.rating,
+  );
+}

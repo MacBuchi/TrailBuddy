@@ -434,7 +434,7 @@ bekommen ihren PR erst danach.
 |---|---|---|---|---|---|---|
 | 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | #111 ✓ | fix 0.46.1 | Patch 011 | — |
 | 2 | Bewertung (Sterne) und Zustand samt „zu bestätigen“, Meldung umbenannt (3, 9) | #101 | #118 Schema + Blatt, #121 Liste, (c) Karte | feat 0.49.0–0.51.0 | Patch 013 | — |
-| 3 | Übernehmen beim ersten Befahren (Pflicht), Zustand je Fahrt, Filter (1, 9) | #102 | (a) Zerlege-Blatt, (b) Import, Filter, Blatt | feat 0.55.0– | — | #101 |
+| 3 | Übernehmen beim ersten Befahren (Pflicht), Zustand je Fahrt, Filter (1, 9) | #102 | #127 Zerlege-Blatt, (b) Import, Filter, Blatt | feat 0.55.0–0.56.0 | — | #101 |
 | 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 ✓ | feat 0.48.0 | Patch 012 | — |
 | 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 ✓ | feat 0.47.0 | — | — |
 | 6 | Marken während der Aufnahme (5.2, 9) | #105 | — | feat | — | — |

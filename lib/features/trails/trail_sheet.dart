@@ -24,6 +24,7 @@ import 'rating_stars.dart';
 import 'trail_condition.dart';
 import 'trail_providers.dart';
 import 'trail_report.dart';
+import 'trail_takeover.dart';
 import 'trail_traits.dart';
 
 /// Das Blatt zu einem Trail: Name (und die anderen Namen), Länge, S-Grad,
@@ -279,6 +280,15 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
               Wrap(
                 spacing: 8,
                 children: [
+                  // Mein Beitrag hängt noch am Namen eines Buddys (#102):
+                  // übernehmen, vorbelegt aus dem Netz.
+                  if (offersTakeOver(trail))
+                    FilledButton.tonalIcon(
+                      key: const ValueKey('trail-takeover'),
+                      onPressed: () => showTrailDetailsDialog(context, ref, trail, takeOver: true),
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                      label: const Text('Übernehmen'),
+                    ),
                   TextButton.icon(
                     onPressed: () => showTrailDetailsDialog(context, ref, trail),
                     icon: const Icon(Icons.edit),

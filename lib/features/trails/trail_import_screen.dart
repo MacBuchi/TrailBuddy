@@ -13,8 +13,10 @@ import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'gpx_files.dart';
 import 'trail_geometry.dart';
+import 'trail_details_dialog.dart';
 import 'trail_providers.dart';
 import 'trail_sheet.dart';
+import 'trail_takeover.dart';
 
 /// Dateiauswahl als Provider, damit Tests Dateien einhängen, ohne den
 /// System-Dialog zu öffnen.
@@ -100,6 +102,11 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   int _done = 0;
   ({int ok, int queued, int backfilled, int named, int failed})? _result;
 
+  /// Trails, die ich vor dem Import schon über Buddys sah und jetzt selbst
+  /// belegt habe (#102): Das Ergebnis bietet an, sie zu übernehmen. Erst
+  /// NACH der RPC weiß der Client, dass eine Kennung dazugehört.
+  final _takeOverIds = <String>[];
+
   Future<void> _pick() async {
     final List<PickedFile> picked;
     try {
@@ -178,6 +185,12 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     var limitHit = false;
     final succeeded = <ImportCandidate>{};
     final notifier = ref.read(trailsProvider.notifier);
+    // Was ich bisher nur über Buddys sehe — ohne eigenen Beitrag.
+    final onlyThroughBuddies = {
+      for (final t in ref.read(trailsProvider).valueOrNull ?? const <Trail>[])
+        if (needsTakeOver(t)) t.id,
+    };
+    _takeOverIds.clear();
     for (final c in chosen) {
       try {
         if (c.completesExisting) {
@@ -200,6 +213,9 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
             queued++;
           } else {
             ok++;
+            if (onlyThroughBuddies.contains(r.trailId) && !_takeOverIds.contains(r.trailId)) {
+              _takeOverIds.add(r.trailId);
+            }
           }
         }
         succeeded.add(c);
@@ -288,6 +304,26 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
                 style: theme.textTheme.titleSmall,
               ),
             ),
+          // Schon im Netz (#102): dieselbe Übernahme wie im Zerlege-Blatt,
+          // vorbelegt aus dem, was die Buddys sagen.
+          for (final id in _takeOverIds)
+            if (ref.watch(trailByIdProvider(id)) case final t?)
+              ListTile(
+                key: ValueKey('import-takeover-$id'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.group_outlined),
+                title: Text(t.displayName),
+                subtitle: Text(offersTakeOver(t) || t.ratingOpen
+                    ? 'Kanntest du schon über deine Buddys — übernimm ihn mit deinen Sternen.'
+                    : 'Übernommen.'),
+                trailing: offersTakeOver(t) || t.ratingOpen
+                    ? FilledButton.tonal(
+                        key: ValueKey('import-takeover-open-$id'),
+                        onPressed: () => showTrailDetailsDialog(context, ref, t, takeOver: true),
+                        child: const Text('Übernehmen'),
+                      )
+                    : null,
+              ),
           if (_candidates.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
