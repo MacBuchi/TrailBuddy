@@ -337,3 +337,50 @@ Wiederholen, gern mit echten Linien statt der synthetischen: auf einer
 Wegwerf-Datenbank `supabase/schema.sql` einspielen, dann
 `tool/limit_measure.sql` — es hebt das Limit dort auf.
 
+
+## Vertreter je Trail (Issue #106, 2026-09-30)
+
+Frage aus `docs/konzept-rework.md` (Abschnitt 6): Hilft es, einen
+Kandidaten gegen die besten DREI Aufzeichnungen eines Trails zu
+vergleichen statt nur gegen die beste (`limit 1` in
+`contribute_recording`)? „Gleich" ist nicht transitiv: X ~ Y und Y ~ C
+heißt nicht X ~ C. Ist X die beste Aufzeichnung (etwa die lange Version
+mit Anfahrt), legt C einen zweiten Trail an, obwohl Y schon am ersten
+hängt. Der Selbsttest des Werkzeugs zeigt genau das an drei Linien
+(900 m bzw. 850 m Überlappung, X zu C nur 750 m).
+
+Gemessen mit `tool/trail_match.py --simulate 1,3,all`: Die
+trail-artigen Dateien (Importregel der App, < 8 km und Abstieg > 2 ×
+Anstieg) werden der Reihe nach beigesteuert, wie es die RPC tut —
+Vergleich gegen die besten N Aufzeichnungen je Trail, nur „gleich"
+hängt an, bei mehreren Treffern die höchste beidseitige Deckung.
+Duplikate zählt die Tabelle über Namen: Dateien gleichen Namens meint
+der Betreiber als denselben Trail; landet eine davon auf einem anderen
+Trail als die erste, hat der Abgleich sie nicht erkannt (Obergrenze —
+gleiche Namen können Varianten sein).
+
+| Vertreter je Trail | beigesteuert | Trails | angehängt | Zwillings-Ereignisse | Zwillings-Paare | Namen mehrfach | davon auf anderem Trail |
+|---|---|---|---|---|---|---|---|
+| 1 | 458 | 453 | 5 | 0 | 0 | 5 | 2 |
+| 3 | 458 | 453 | 5 | 0 | 0 | 5 | 2 |
+| alle | 458 | 453 | 5 | 0 | 0 | 5 | 2 |
+
+Die zwei „auf anderem Trail" liegen weit auseinander (kein Vergleich
+innerhalb von 25 m): verschiedene Trails mit demselben Namen, keine
+übersehenen Duplikate.
+
+**Lesart: Mit einem einzelnen Bestand lässt sich die Frage nicht
+beantworten.** Fast jeder Trail hat hier genau eine Aufzeichnung (453
+Trails aus 458 Dateien), also gibt es keine zweite, gegen die ein
+Vergleich etwas ändern könnte — und kein Duplikat, das er verhindern
+müsste. Das Problem aus dem Rework entsteht erst mit MEHREREN Nutzern
+(jeder bringt seine Version desselben Trails) und mit wieder gefahrenen
+Stücken aus Fahrten (Zerlege-Blatt). Beides gibt es im Bestand nicht.
+
+**Folge: `contribute_recording` bleibt bei `limit 1`**, bis Daten mit
+mehreren Aufzeichnungen je Trail da sind — Schwellen und Verfahren sind
+gemessen, nicht geraten (`CLAUDE.md`). Wiederholen, sobald Buddys
+beigesteuert haben: Die Simulation braucht dann deren Linien, und die
+liegen nicht beim Betreiber — der Weg ist eine Auswertung auf einer
+Kopie der Datenbank (Aufzeichnungen je Trail, Anteil mit mehr als einer,
+Zwillingstreffer bei `limit 3`), nie eine Funktion der App.
