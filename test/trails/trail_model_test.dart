@@ -5,13 +5,13 @@ import 'package:trailbuddy/models/trail.dart';
 
 TrailRecording rec(String trail, String user,
         {double quality = 0.5, int day = 1, List<LatLng>? pts, List<double>? ele,
-        bool reversed = false, RecordingSource source = RecordingSource.import}) =>
+        bool reversed = false, RecordingSource source = RecordingSource.import, DateTime? rodeAt}) =>
     TrailRecording(
       id: '$trail-$user-$day',
       trailId: trail,
       userId: user,
       source: source,
-      recordedAt: null,
+      recordedAt: rodeAt,
       reversed: reversed,
       quality: quality,
       createdAt: DateTime(2026, 1, day),
@@ -59,6 +59,22 @@ void main() {
     final onlyPlans = Trail(
         id: 't', myId: 'me', recordings: [rec('t', 'me', source: planned)], details: const []);
     expect(onlyPlans.allPlanned, isTrue);
+  });
+
+  test('geplant MIT eingetragenem Fahrdatum ist gefahren (#120, Patch 015)', () {
+    const planned = RecordingSource.planned;
+    final t = Trail(
+      id: 't',
+      myId: 'me',
+      recordings: [rec('t', 'me', source: planned, rodeAt: DateTime.utc(2026, 9, 12, 10))],
+      details: const [],
+    );
+    expect(t.recordings.single.ridden, isTrue);
+    expect(t.onlyPlanned('me'), isFalse, reason: 'das Blatt sagt nicht mehr „nur geplant"');
+    expect(t.allPlanned, isFalse);
+    expect(t.hasRidden('me'), isTrue, reason: 'Meldungen dazu sind bestätigt — wie has_ridden');
+    expect(rec('t', 'x', source: planned).ridden, isFalse);
+    expect(rec('t', 'x').ridden, isTrue);
   });
 
   test('eigener Name vor dem des ältesten Beitrags, Rest als „auch"', () {

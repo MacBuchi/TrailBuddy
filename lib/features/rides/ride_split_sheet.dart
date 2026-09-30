@@ -47,6 +47,7 @@ class SplitRequest {
     this.accuracyM,
     this.rideId,
     this.marks = const [],
+    this.rodeAt,
   });
 
   /// Aus einer eigenen Fahrt. Die GPS-Höhe geht als Höhe hinein — für die
@@ -65,9 +66,11 @@ class SplitRequest {
         marks: ride.marks,
       );
 
-  /// Aus einer GPX-Datei, die eine Fahrt ist (Konzept 5.2).
-  factory SplitRequest.fromGpx(GpxTrack track) =>
-      SplitRequest(track: track, source: sourceOf(track.points));
+  /// Aus einer GPX-Datei, die eine Fahrt ist (Konzept 5.2). [rodeAt] ist
+  /// das Fahrdatum, das der Fahrer für eine Datei ohne Zeiten eingetragen
+  /// hat (#120) — jedes beigesteuerte Stück trägt es.
+  factory SplitRequest.fromGpx(GpxTrack track, {DateTime? rodeAt}) =>
+      SplitRequest(track: track, source: sourceOf(track.points), rodeAt: rodeAt);
 
   final GpxTrack track;
   final RecordingSource source;
@@ -77,6 +80,9 @@ class SplitRequest {
   /// Die Marken „Trail beginnt/endet" der Aufnahme (#105); eine Datei hat
   /// keine.
   final List<RideMark> marks;
+
+  /// Eingetragenes Fahrdatum einer geplanten Datei (#120), sonst null.
+  final DateTime? rodeAt;
 
   /// Höhen aus dem GPS werden nicht beigesteuert, Höhen aus der Datei schon.
   bool get stripElevation => source == RecordingSource.app;
@@ -407,6 +413,7 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
       try {
         final r = await notifier.contribute(job.track,
             source: widget.request.source,
+            rodeAt: widget.request.rodeAt,
             grade: job.grade,
             traits: job.traits,
             rating: job.rating);

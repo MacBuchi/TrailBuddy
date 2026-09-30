@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Meldungen aktuell halten
+
+*Version 0.58.0, 2026-09-30*
+
+- **Noch gültig?**: Im Profil steht, wie viele deiner Meldungen und
+  Zustände älter als 30 Tage sind. Auf der Seite dazu beantwortest du je
+  Trail „Ja" (gilt weiter), „Nein" (bei einer Meldung ist der Trail
+  wieder offen, beim Zustand wählst du den neuen) oder „Weiß nicht" —
+  dann bleibt alles, wie es ist, und die App fragt in 14 Tagen wieder.
+  Dieselben Trails findest du in der Liste und auf der Karte über den
+  Filter „Noch gültig?".
+- **Fahrdatum nachtragen**: Eine GPX-Datei ohne Fahrzeiten gilt als nur
+  geplant. Bist du den Trail gefahren, trägst du beim Import „Gefahren
+  am …" ein. Dann zählt er als gefahren — deine Meldungen dazu sind
+  bestätigt, und eine eigene Sperrmeldung von davor steht wieder auf
+  offen. Die Linie bleibt gezeichnet und wird nie die Linie des Trails.
+
 ## Unterwegs markieren
 
 *Version 0.57.0, 2026-09-30*

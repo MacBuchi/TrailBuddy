@@ -14,6 +14,7 @@ import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/offline_areas/areas_screen.dart';
 import '../features/rides/rides_screen.dart';
+import '../features/trails/still_valid_screen.dart';
 import '../features/trails/trail_import_screen.dart';
 import '../features/trails/trail_providers.dart' show mapFocusTrailProvider;
 import '../features/trails/trails_screen.dart';
@@ -109,6 +110,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'rides',
                       builder: (context, state) => const RidesScreen()),
+                  GoRoute(
+                      path: 'still-valid',
+                      builder: (context, state) => const StillValidScreen()),
                   GoRoute(
                       path: 'areas',
                       builder: (context, state) => const AreasScreen()),

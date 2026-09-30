@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/search_text.dart';
 import '../../models/trail.dart';
+import 'still_valid.dart';
 import 'trail_condition.dart' show trailConditionLabel;
 
 /// Wessen Trails.
@@ -55,6 +56,7 @@ class TrailListFilter {
     this.freshNotesOnly = false,
     this.reportedOnly = false,
     this.ratingOpenOnly = false,
+    this.stillValidOnly = false,
     this.traits = const {},
   });
 
@@ -76,6 +78,10 @@ class TrailListFilter {
   /// Regel wie die verblassten Sterne ([Trail.ratingOpen]).
   final bool ratingOpenOnly;
 
+  /// Nur Trails mit einer offenen Frage „Noch gültig?" (#119) — dieselbe
+  /// Regel wie die Seite im Profil ([stillValidQuestionsOf]).
+  final bool stillValidOnly;
+
   /// Nur Trails, deren Charakter (#72) ALLE diese Merkmale zeigt — gezählt
   /// wird, was Liste und Blatt zeigen ([Trail.topTraits]), nicht jede
   /// einzelne Nennung: Sonst fände „Flowig" einen Trail, den neun von
@@ -88,6 +94,7 @@ class TrailListFilter {
       freshNotesOnly ||
       reportedOnly ||
       ratingOpenOnly ||
+      stillValidOnly ||
       traits.isNotEmpty;
 
   /// Was gefiltert ist, in Worten — für die Zeile auf der Karte.
@@ -97,6 +104,7 @@ class TrailListFilter {
         if (freshNotesOnly) 'neuer Hinweis',
         if (reportedOnly) 'gemeldet',
         if (ratingOpenOnly) 'Bewertung offen',
+        if (stillValidOnly) 'noch gültig?',
         for (final t in TrailTrait.values)
           if (traits.contains(t)) t.label,
       ].join(' · ');
@@ -107,6 +115,7 @@ class TrailListFilter {
     bool? freshNotesOnly,
     bool? reportedOnly,
     bool? ratingOpenOnly,
+    bool? stillValidOnly,
     Set<TrailTrait>? traits,
   }) =>
       TrailListFilter(
@@ -115,6 +124,7 @@ class TrailListFilter {
         freshNotesOnly: freshNotesOnly ?? this.freshNotesOnly,
         reportedOnly: reportedOnly ?? this.reportedOnly,
         ratingOpenOnly: ratingOpenOnly ?? this.ratingOpenOnly,
+        stillValidOnly: stillValidOnly ?? this.stillValidOnly,
         traits: traits ?? this.traits,
       );
 
@@ -126,11 +136,12 @@ class TrailListFilter {
       other.freshNotesOnly == freshNotesOnly &&
       other.reportedOnly == reportedOnly &&
       other.ratingOpenOnly == ratingOpenOnly &&
+      other.stillValidOnly == stillValidOnly &&
       setEquals(other.traits, traits);
 
   @override
   int get hashCode => Object.hash(owner, easyOnly, freshNotesOnly, reportedOnly,
-      ratingOpenOnly, Object.hashAllUnordered(traits));
+      ratingOpenOnly, stillValidOnly, Object.hashAllUnordered(traits));
 }
 
 /// Was die Liste zeigt.
@@ -184,12 +195,16 @@ DateTime lastActivity(Trail t) {
 
 /// Lässt [filter] diesen Trail durch? Die EINE Regel für Liste und Karte.
 bool passesTrailFilter(Trail t, TrailListFilter filter,
-    {Set<String> seenNotes = const {}, DateTime? now}) {
+    {Set<String> seenNotes = const {}, DateTime? now, Map<String, DateTime> snoozed = const {}}) {
   if (filter.owner == TrailOwnerFilter.mine && !t.isOwn) return false;
   if (filter.owner == TrailOwnerFilter.buddies && t.isOwn) return false;
   if (filter.freshNotesOnly && !t.hasFreshNote(now: now, seen: seenNotes)) return false;
   if (filter.reportedOnly && !t.status.warns) return false;
   if (filter.ratingOpenOnly && !t.ratingOpen) return false;
+  if (filter.stillValidOnly &&
+      stillValidQuestionsOf(t, now: now ?? DateTime.now(), snoozed: snoozed).isEmpty) {
+    return false;
+  }
   if (filter.traits.isNotEmpty && !t.topTraits.toSet().containsAll(filter.traits)) return false;
   if (filter.easyOnly) {
     final g = t.grade;
@@ -202,10 +217,11 @@ bool passesTrailFilter(Trail t, TrailListFilter filter,
 /// eingeschätzt hat? Die Liste zählt diese, damit „bis S2" nicht stumm
 /// verschluckt, was die App bloß nicht weiß.
 bool hiddenOnlyForMissingGrade(Trail t, TrailListFilter filter,
-        {Set<String> seenNotes = const {}, DateTime? now}) =>
+        {Set<String> seenNotes = const {}, DateTime? now, Map<String, DateTime> snoozed = const {}}) =>
     filter.easyOnly &&
     t.grade == null &&
-    passesTrailFilter(t, filter.copyWith(easyOnly: false), seenNotes: seenNotes, now: now);
+    passesTrailFilter(t, filter.copyWith(easyOnly: false),
+        seenNotes: seenNotes, now: now, snoozed: snoozed);
 
 /// Filtern, suchen, sortieren — in dieser Reihenfolge. Die Suche läuft
 /// über das, was die Filter übrig lassen, damit „Meintest du …?" nie
@@ -217,13 +233,15 @@ TrailListResult trailListOf(
   TrailSort sort = TrailSort.recent,
   Set<String> seenNotes = const {},
   DateTime? now,
+  Map<String, DateTime> snoozed = const {},
 }) {
   var hiddenUngraded = 0;
   final candidates = <Trail>[];
   for (final t in trails) {
-    if (passesTrailFilter(t, filter, seenNotes: seenNotes, now: now)) {
+    if (passesTrailFilter(t, filter, seenNotes: seenNotes, now: now, snoozed: snoozed)) {
       candidates.add(t);
-    } else if (hiddenOnlyForMissingGrade(t, filter, seenNotes: seenNotes, now: now)) {
+    } else if (hiddenOnlyForMissingGrade(t, filter,
+        seenNotes: seenNotes, now: now, snoozed: snoozed)) {
       hiddenUngraded++;
     }
   }

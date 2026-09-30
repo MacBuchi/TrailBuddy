@@ -143,7 +143,10 @@ create table public.trail_recordings (
   trail_id uuid not null references public.trails(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   geom geography(LineString, 4326) not null,
-  recorded_at timestamptz,             -- null bei Import ohne Zeiten
+  -- Wann gefahren. Leer bei `planned` — außer der Fahrer hat das Datum
+  -- beim Import eingetragen (Patch 015, #120): Dann ist die Linie
+  -- gezeichnet (Qualität bleibt 0,1), die Fahrt aber belegt.
+  recorded_at timestamptz,
   -- 'planned': importierte Datei ohne Zeiten oder mit unplausiblen
   -- Geschwindigkeiten — eine geplante Route, keine Fahrt. Zählt als
   -- Beitrag (Entscheidung 2), mit Qualität nahe null.
@@ -422,12 +425,15 @@ $$;
 
 -- Hat [uid] den Trail selbst GEFAHREN? Eine eigene Aufzeichnung, die
 -- nicht `planned` ist — eine Datei ohne Fahrzeiten belegt keine Fahrt
--- (Patch 011, 013). Die Grundlage von „bestätigt" (trail_reports).
+-- (Patch 011, 013) —, oder eine geplante MIT eingetragenem Fahrdatum
+-- (Patch 015, #120: der Fahrer sagt ausdrücklich, dass er dort war). Die
+-- Grundlage von „bestätigt" (trail_reports).
 create or replace function app_internal.has_ridden(uid uuid, trail uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from trail_recordings r
-     where r.trail_id = trail and r.user_id = uid and r.source <> 'planned');
+     where r.trail_id = trail and r.user_id = uid
+       and (r.source <> 'planned' or r.recorded_at is not null));
 $$;
 revoke all on function app_internal.has_ridden(uuid, uuid) from public, anon, authenticated;
 
@@ -1185,7 +1191,8 @@ revoke all on function app_internal.push_flush() from public, anon, authenticate
 --      befahrbar vorgefunden (Abschnitt 3, Entscheidung 6), zum
 --      Fahrdatum (Patch 013). Nicht bei `planned` (Patch 011, #100):
 --      Eine Datei ohne Fahrzeiten belegt nicht, dass jemand den Trail
---      befahrbar vorgefunden hat.
+--      befahrbar vorgefunden hat — es sei denn, er hat das Fahrdatum
+--      eingetragen (`recorded_at`, Patch 015, #120).
 create or replace function public.contribute_recording(
   coords double precision[],
   source text,
@@ -1367,8 +1374,9 @@ begin
   -- und zwar AN DEM TAG, an dem er gefahren ist. Eine GPX-Datei von 2024
   -- verdrängt keine Meldung von gestern (Betreiber, 2026-09-30). Nur
   -- wenn der Aufrufer schon etwas gemeldet hat und das nicht schon ein
-  -- bestätigtes „offen" ist; nicht bei `planned` (Patch 011).
-  if contribute_recording.source <> 'planned' then
+  -- bestätigtes „offen" ist; nicht bei `planned` (Patch 011) — außer
+  -- mit eingetragenem Fahrdatum (Patch 015, #120).
+  if contribute_recording.source <> 'planned' or contribute_recording.recorded_at is not null then
     ride_at := least(coalesce(contribute_recording.recorded_at, now()), now());
     select r.status, r.confirmed, r.reported_at into last_report
       from trail_reports r
@@ -1864,5 +1872,6 @@ insert into public.applied_patches (filename) values
   ('patch_011_planned_keeps_status.sql'),
   ('patch_012_contribution_link.sql'),
   ('patch_013_rating_reports.sql'),
-  ('patch_014_push_content.sql')
+  ('patch_014_push_content.sql'),
+  ('patch_015_planned_ride_date.sql')
 on conflict do nothing;

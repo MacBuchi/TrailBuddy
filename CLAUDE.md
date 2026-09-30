@@ -156,7 +156,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 - **Importregel**: < 8 km und Verlust > 2 × Gewinn ⇒ Trail, sonst Fahrt.
   Eine Fahrt geht über die Schere im Import auf die Karte ins
   Zerlege-Blatt (#29, seit 0.20.0). Ohne Zeiten oder mit > 60 km/h
-  Median ⇒ `planned`.
+  Median ⇒ `planned`. **Fahrdatum** (#120, Patch 015, seit 0.58.0): Für
+  eine geplante Datei trägt man im Import „Gefahren am …" ein (12 Uhr
+  Ortszeit, höchstens heute; auch für die Schere, `SplitRequest.rodeAt`).
+  Sie bleibt `planned` (Qualität 0,1, die Linie ist gezeichnet), aber
+  `recorded_at` trägt das Datum — und „`planned` MIT Datum" IST
+  „gefahren": `has_ridden` und Schritt 8 von `contribute_recording`
+  zählen sie, auf dem Gerät `TrailRecording.ridden` (Spiegel für
+  `hasRidden`, `onlyPlanned`, `allPlanned` und den Fake). Keine neue
+  Quelle — ältere Clients kennen keinen neuen Wert; Patch 015 leert
+  vorsorglich jedes Datum an bestehenden `planned`-Zeilen.
+  `matcher_check.sql` Block 24.
 - **Höhen** (Patch 002, #14): `trail_recordings.ele` trägt eine Höhe je
   Punkt der Linie oder ist leer — ganz oder gar nicht, der Check
   `trail_recordings_ele_check` hält Anzahl und Bereich fest. Vier Dinge,
@@ -374,7 +384,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     wer ihn belegt hat — Abweichung von Konzept 3, vom Betreiber
     entschieden. Geschrieben wird NUR über `report_trail` (Definer, kein
     insert-Grant): **`confirmed` legt der Server fest** — gefahren
-    (`has_ridden`, nicht `planned`) oder `on_site`. `grants_check.sql`
+    (`has_ridden`: nicht `planned`, oder `planned` mit Fahrdatum) oder
+    `on_site`. `grants_check.sql`
     wacht darüber, dass kein Client-Grant `confirmed` frei wählbar macht.
   - **„Vor Ort" prüft nur das Gerät**: ≤ `kOnSiteMaxM` (200 m) zur
     angezeigten Linie, mit EINEM Fix nach Tipp auf „Ich bin vor Ort"
@@ -415,6 +426,20 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     seinen Status als `legacyStatus` mit und geht beim Nachholen als
     Meldung raus. `matcher_check.sql` Block 23, `push_flush_check.sh`
     Fall 3b.
+  - **Noch gültig?** (#119, seit 0.58.0, `still_valid.dart` pur,
+    `still_valid_screen.dart`, Profil-Zeile mit Zähler, Filter
+    `stillValidOnly` — Zeile und Chip nur, wenn es etwas zu prüfen gibt
+    bzw. der Filter an ist; sonst kostete der Chip eine Zeile): gefragt wird nach MEINER jüngsten Angabe je Art,
+    wenn sie noch angezeigt wird (`shownStatus`/`shownCondition` — eine
+    jüngere bestätigte eines Buddys überholt sie), bei einer Meldung nur,
+    wenn sie warnt, und erst ab `kStillValidAfter` (30 Tage). Ja =
+    derselbe Wert neu, Nein = „offen" bzw. die Skala, beides über
+    `report` (bestätigt wie immer, ohne Netz in den Korb). „Weiß nicht"
+    ruht `kStillValidSnooze` (14 Tage, Betreiber) und liegt NUR auf dem
+    Gerät (`Settings.stillValidSnoozes`, `<Kennung>|<bis>`, Abgelaufenes
+    fällt beim Schreiben weg) — eine Tabelle wäre eine Lesequittung.
+    Liste und Karte reichen die ruhenden Angaben an `passesTrailFilter`
+    (`snoozed`), damit Filter und Seite dasselbe sagen.
 - **Suche, Filter, Sortierung der Trail-Liste** (#66, seit 0.32.0,
   `trail_list.dart` pur, `lib/core/search_text.dart`): fehlertolerant wie
   PilzBuddy #395 — `foldSearchText` (klein, ä/ae → a, ohne Leer- und

@@ -9,6 +9,7 @@ class FakeSettings implements Settings {
       this.poiGroups,
       this.poiHiddenKinds,
       this.seenNoteIds,
+      this.stillValidSnoozes,
       this.officialTrailsEnabled = true,
       this.pushToken,
       this.appearance});
@@ -24,6 +25,14 @@ class FakeSettings implements Settings {
 
   @override
   List<String>? seenNoteIds;
+
+  @override
+  List<String>? stillValidSnoozes;
+
+  @override
+  Future<void> setStillValidSnoozes(List<String> entries) async {
+    stillValidSnoozes = entries;
+  }
 
   @override
   bool officialTrailsEnabled;

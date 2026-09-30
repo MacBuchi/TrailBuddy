@@ -92,7 +92,11 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
             final filter = ref.watch(trailListFilterProvider);
             final query = _search.text;
             final result = trailListOf(trails,
-                query: query, filter: filter, sort: sort, seenNotes: seen);
+                query: query,
+                filter: filter,
+                sort: sort,
+                seenNotes: seen,
+                snoozed: ref.watch(stillValidSnoozesProvider));
             final shown = result.trails;
             final pending = shown.where((t) => t.pending).toList();
             final own = shown.where((t) => t.isOwn && !t.pending).toList();

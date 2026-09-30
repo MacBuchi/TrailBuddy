@@ -38,6 +38,11 @@ class TrailRecording {
   /// null — eine verschobene Reihe wäre schlimmer als keine.
   final List<double>? ele;
 
+  /// Belegt eine Fahrt: nicht nur geplant — oder geplant MIT eingetragenem
+  /// Fahrdatum (Patch 015, #120). Dieselbe Regel wie `has_ridden` auf dem
+  /// Server; die Linie einer geplanten bleibt trotzdem gezeichnet.
+  bool get ridden => source != RecordingSource.planned || recordedAt != null;
+
   factory TrailRecording.fromJson(Map<String, dynamic> json) {
     // `st_asgeojson` liefert Text. Je nachdem, ob die Sicht ihn nach json
     // castet, kommt er als String oder als Map — beides wird angenommen,
@@ -513,17 +518,18 @@ class Trail {
   bool get isOwn => recordings.any((r) => r.userId == myId);
 
   /// [userId] hat den Trail nur GEPLANT: Jeder sichtbare Beleg von ihm
-  /// ist eine Datei ohne Fahrzeiten (`planned`, Konzept 4.6). Ohne Beleg
+  /// ist eine Datei ohne Fahrzeiten (`planned`, Konzept 4.6) und ohne
+  /// eingetragenes Fahrdatum ([TrailRecording.ridden]). Ohne Beleg
   /// von ihm false — dann hat er gar nichts belegt.
   bool onlyPlanned(String userId) {
     final own = recordings.where((r) => r.userId == userId);
-    return own.isNotEmpty && own.every((r) => r.source == RecordingSource.planned);
+    return own.isNotEmpty && own.every((r) => !r.ridden);
   }
 
   /// Alle sichtbaren Belege sind geplant — gefahren hat ihn hier
   /// nachweislich niemand.
   bool get allPlanned =>
-      recordings.every((r) => r.source == RecordingSource.planned);
+      recordings.every((r) => !r.ridden);
 
   /// Die beste sichtbare Aufzeichnung: höchste Qualität, bei Gleichstand
   /// die ältere (sie hat den Trail „angelegt").
@@ -693,7 +699,7 @@ class Trail {
   /// nicht nur geplant ist. Dieselbe Regel wie `has_ridden` auf dem
   /// Server; auf dem Gerät nur die Vorhersage für wartende Meldungen.
   bool hasRidden(String userId) => recordings
-      .any((r) => r.userId == userId && r.source != RecordingSource.planned);
+      .any((r) => r.userId == userId && r.ridden);
 
   /// Die sichtbaren Bewertungen, älteste Beiträge zuerst — „wer hat was
   /// gesagt" im Blatt.

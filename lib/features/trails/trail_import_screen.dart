@@ -40,6 +40,9 @@ final gpxPickerProvider = Provider<Future<List<PickedFile>> Function()>((ref) {
   };
 });
 
+/// „12.9.2026" — das eingetragene Fahrdatum (#120).
+String formatRideDate(DateTime d) => '${d.day}.${d.month}.${d.year}';
+
 /// Ein Kandidat aus einer Datei, mit der Einordnung nach Konzept 5.2.
 class ImportCandidate {
   ImportCandidate(this.file, this.track,
@@ -85,6 +88,16 @@ class ImportCandidate {
 
   bool get contributable =>
       existing == null ? kind == TrackKind.trail : completesExisting;
+
+  /// Das Fahrdatum, das der Fahrer für eine Datei ohne Zeiten einträgt
+  /// (#120). Mit ihm bleibt die Spur `planned` — die Linie ist gezeichnet
+  /// —, zählt aber als gefahren: Meldungen dazu sind bestätigt, und die
+  /// eigene Meldung steht zu diesem Tag wieder auf „offen".
+  DateTime? rodeAt;
+
+  /// Nur für neue, geplante Spuren, die beigesteuert oder zerlegt werden.
+  bool get asksRideDate =>
+      existing == null && source == RecordingSource.planned && kind != TrackKind.fragment;
 }
 
 class TrailImportScreen extends ConsumerStatefulWidget {
@@ -208,7 +221,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
         } else {
           // Ohne Netz landet der Auftrag im Ausgangskorb (#30) und der
           // Trail steht als wartender auf der Karte — kein Fehler.
-          final r = await notifier.contribute(c.track, clientId: c.clientId);
+          final r = await notifier.contribute(c.track, clientId: c.clientId, rodeAt: c.rodeAt);
           if (r.queued) {
             queued++;
           } else {
@@ -330,7 +343,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
                 '${_candidates.length} Spuren gefunden, $selectable davon als Trail'
                 '${backfills > 0 ? ', $backfills zum Nachtragen' : ''}',
                 style: theme.textTheme.titleSmall),
-            for (final c in _candidates)
+            for (final c in _candidates) ...[
               CheckboxListTile(
                 value: _selected.contains(c),
                 enabled: c.contributable && !_busy,
@@ -356,11 +369,29 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
                             : () {
                                 StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);
                                 ref.read(mapSplitRequestProvider.notifier).state =
-                                    SplitRequest.fromGpx(c.track);
+                                    SplitRequest.fromGpx(c.track, rodeAt: c.rodeAt);
                               },
                       )
                     : null,
               ),
+              // Eine Datei ohne Fahrzeiten (#120): Wer sie gefahren hat,
+              // trägt den Tag ein — sonst gilt sie als nur geplant.
+              if (c.asksRideDate)
+                Padding(
+                  padding: const EdgeInsets.only(left: 56),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: ValueKey('import-ride-date-${c.clientId}'),
+                      onPressed: _busy ? null : () => _pickRideDate(c),
+                      icon: const Icon(Icons.event_outlined, size: 18),
+                      label: Text(c.rodeAt == null
+                          ? 'Gefahren am …'
+                          : 'Gefahren am ${formatRideDate(c.rodeAt!)} · ändern'),
+                    ),
+                  ),
+                ),
+            ],
             const SizedBox(height: 12),
             if (_busy)
               Padding(
@@ -381,6 +412,21 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     );
   }
 
+  /// Der Tag der Fahrt, höchstens heute; gespeichert wird 12 Uhr
+  /// Ortszeit — ein Tag ohne Uhrzeit liegt so mitten in sich selbst.
+  Future<void> _pickRideDate(ImportCandidate c) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: c.rodeAt ?? now,
+      firstDate: DateTime(2000),
+      lastDate: now,
+      helpText: 'Wann bist du ihn gefahren?',
+    );
+    if (picked == null || !mounted) return;
+    setState(() => c.rodeAt = DateTime(picked.year, picked.month, picked.day, 12));
+  }
+
   String _describe(ImportCandidate c) {
     final parts = <String>[formatLength(c.lengthM)];
     final existing = c.existing;
@@ -399,7 +445,9 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     final el = c.elevation;
     if (el != null) parts.add(formatElevation(el));
     parts.add(switch (c.source) {
-      RecordingSource.planned => 'geplant (keine Fahrzeiten)',
+      RecordingSource.planned => c.rodeAt == null
+          ? 'geplant (keine Fahrzeiten)'
+          : 'gezeichnet, gefahren am ${formatRideDate(c.rodeAt!)}',
       RecordingSource.import => 'aufgezeichnet',
       RecordingSource.app => 'aufgezeichnet',
     });

@@ -86,6 +86,17 @@ class TrailFilterChips extends ConsumerWidget {
               selected: filter.ratingOpenOnly,
               onSelected: (v) => set(filter.copyWith(ratingOpenOnly: v)),
             ),
+            // #119: eigene Angaben, die älter als 30 Tage sind — dieselben,
+            // die die Seite „Noch gültig?" im Profil nennt. Nur, wenn es
+            // welche gibt (oder der Filter an ist): Ein Chip, der immer nur
+            // „keine Trails" liefert, kostet auf dem Telefon eine Zeile.
+            if (filter.stillValidOnly || ref.watch(stillValidQuestionsProvider).isNotEmpty)
+              FilterChip(
+                key: ValueKey('$keyPrefix-filter-still-valid'),
+                label: const Text('Noch gültig?'),
+                selected: filter.stillValidOnly,
+                onSelected: (v) => set(filter.copyWith(stillValidOnly: v)),
+              ),
           ],
         ),
       ],

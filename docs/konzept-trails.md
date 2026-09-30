@@ -234,6 +234,18 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   Abstimmung. **Ausnahme seit 0.46.1 (#100, Patch 011):** eine geplante
   Aufzeichnung (`planned`, Datei ohne Fahrzeiten) — sie belegt nicht,
   dass jemand den Trail befahrbar vorgefunden hat.
+  **Seit 0.58.0 (#120, Patch 015)** kann man für eine solche Datei beim
+  Import „Gefahren am …" eintragen: Sie bleibt `planned` (die Linie ist
+  gezeichnet, Qualität 0,1), trägt das Datum aber in `recorded_at` und
+  zählt damit als gefahren — für „bestätigt" (`has_ridden`) und für das
+  Zurücksetzen zum Fahrdatum.
+  **Noch gültig?** (#119, seit 0.58.0): Meldungen werden nicht still
+  weggeräumt. Wer gemeldet hat, sieht im Profil (und über den Filter
+  „Noch gültig?") seine warnenden Meldungen und Zustände, die älter als
+  30 Tage sind und noch angezeigt werden: Ja meldet denselben Wert
+  erneut, Nein meldet „offen" bzw. fragt den neuen Zustand, Weiß nicht
+  lässt alles und fragt nach 14 Tagen wieder — gemerkt nur auf dem
+  Gerät.
   **Bestätigen durch Fahren** (#116, seit 0.52.0): Wer aufzeichnet und
   auf einem Trail mit unbestätigter Meldung oder unbestätigtem Zustand
   fährt, wird per lokaler Benachrichtigung gefragt (geprüft auf dem
@@ -444,7 +456,8 @@ Prüfung der Angriffe:
   Aufzeichnung gewinnt in der Anzeige immer. Das Blatt nennt seit
   0.46.1 (#100), wer einen Trail nur geplant hat, und sagt es für den
   ganzen Trail, wenn jeder sichtbare Beleg geplant ist; einen Status
-  setzt ein geplanter Import nicht zurück (3).
+  setzt ein geplanter Import nicht zurück (3) — außer mit
+  eingetragenem Fahrdatum (seit 0.58.0, #120).
 
 Was DESHALB nie an den Client geht: Zähler über alle Beiträge, das
 Alter der Kennung, die Overlap-Tabelle, irgendeine Aggregation über

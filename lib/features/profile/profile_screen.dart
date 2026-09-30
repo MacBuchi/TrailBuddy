@@ -20,7 +20,7 @@ import '../feedback/feedback_dialog.dart';
 import '../friends/friend_providers.dart';
 import '../offline_areas/area_providers.dart' show storedAreasProvider;
 import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
-import '../trails/trail_providers.dart' show trailCacheProvider, trailsProvider;
+import '../trails/trail_providers.dart' show stillValidQuestionsProvider, trailCacheProvider, trailsProvider;
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
 import 'push_providers.dart';
@@ -38,6 +38,7 @@ class ProfileScreen extends ConsumerWidget {
     final areas = ref.watch(storedAreasProvider).valueOrNull;
     final push = ref.watch(pushEnabledProvider);
     final mode = ref.watch(appearanceProvider);
+    final stillValid = ref.watch(stillValidQuestionsProvider).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -86,6 +87,16 @@ class ProfileScreen extends ConsumerWidget {
             value: 'Liegen nur auf diesem Gerät',
             onTap: () => context.push('/profile/rides'),
           ),
+          // #119: eigene Angaben, die älter als 30 Tage sind — nur, wenn
+          // es welche gibt; dann sagt der Zähler, wie viele.
+          if (stillValid > 0)
+            _ProfileRow(
+              id: 'still-valid',
+              icon: Icons.fact_check_outlined,
+              title: 'Noch gültig?',
+              value: stillValid == 1 ? '1 Angabe zu prüfen' : '$stillValid Angaben zu prüfen',
+              onTap: () => context.push('/profile/still-valid'),
+            ),
           _ProfileRow(
             id: 'areas',
             icon: Icons.map_outlined,

@@ -16,6 +16,7 @@ import '../../models/trail.dart';
 import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'outbox_providers.dart';
+import 'still_valid.dart';
 import 'trail_geometry.dart';
 import 'trail_list.dart';
 
@@ -116,16 +117,20 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// kommt (`app`, Zerlege-Blatt #29); sonst entscheidet die Datei
   /// ([sourceOf]). [grade] und [traits] gehen mit dem Namen in den
   /// eigenen Beitrag.
+  ///
+  /// [rodeAt] ist das Fahrdatum, das der Fahrer für eine Datei ohne Zeiten
+  /// eingetragen hat (#120): Sie bleibt `planned` (die Linie ist
+  /// gezeichnet), zählt aber als gefahren — `recorded_at` trägt es.
   Future<ContributeResult> contribute(GpxTrack track,
       {String? clientId, RecordingSource? source, int? grade,
-      Set<TrailTrait> traits = const {}, int? rating}) async {
+      Set<TrailTrait> traits = const {}, int? rating, DateTime? rodeAt}) async {
     final repo = ref.read(trailRepositoryProvider);
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
     final pts = simplify(track.points);
     source ??= sourceOf(track.points);
     final recordedAt =
-        source == RecordingSource.planned ? null : track.points.first.time;
+        source == RecordingSource.planned ? rodeAt?.toUtc() : track.points.first.time;
     // Der Auftrag entsteht VOR dem Sendeversuch, mit seiner Kennung: So
     // trägt schon der erste Versuch die `client_id`, und ein Abriss nach
     // dem Insert legt beim Nachholen keine zweite Aufzeichnung an.
@@ -384,6 +389,34 @@ class SeenNotesNotifier extends Notifier<Set<String>> {
 
 final seenNotesProvider =
     NotifierProvider<SeenNotesNotifier, Set<String>>(SeenNotesNotifier.new);
+
+/// „Weiß nicht" bei „Noch gültig?" (#119): Kennung der Angabe → bis wann
+/// sie ruht. Gerätelokal wie [seenNotesProvider].
+class StillValidSnoozesNotifier extends Notifier<Map<String, DateTime>> {
+  @override
+  Map<String, DateTime> build() =>
+      decodeStillValidSnoozes(ref.read(settingsProvider).stillValidSnoozes);
+
+  void snooze(String reportId, {DateTime? now}) {
+    final at = (now ?? DateTime.now()).toUtc();
+    state = {...state, reportId: at.add(kStillValidSnooze)};
+    unawaited(ref
+        .read(settingsProvider)
+        .setStillValidSnoozes(encodeStillValidSnoozes(state, now: at))
+        .catchError((Object e, StackTrace s) => logError('„Weiß nicht" merken', e, s)));
+  }
+}
+
+final stillValidSnoozesProvider =
+    NotifierProvider<StillValidSnoozesNotifier, Map<String, DateTime>>(StillValidSnoozesNotifier.new);
+
+/// Die offenen Fragen „Noch gültig?" über alle geladenen Trails — für den
+/// Zähler im Profil und die Seite. Ohne geladene Trails keine.
+final stillValidQuestionsProvider = Provider<List<StillValidQuestion>>((ref) {
+  final trails = ref.watch(trailsProvider).valueOrNull ?? const <Trail>[];
+  return stillValidQuestions(trails,
+      now: DateTime.now(), snoozed: ref.watch(stillValidSnoozesProvider));
+});
 
 /// Wunsch der Liste an die Karte: diesen Trail zeigen (Muster PilzBuddy
 /// #345, erst Reiter wechseln, dann Wunsch stellen).
