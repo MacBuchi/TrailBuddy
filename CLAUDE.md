@@ -1355,8 +1355,42 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     „Meine Fahrten"; ohne Fahrt ist der Knopf aus und sagt, warum.
   Merker `seenCoachTours` (`seen_coach_tours`, Stringliste, sortiert
   geschrieben, ohne Suffix); `FakeSettings` setzt ab Werk alle Touren
-  (`split`, `trails`, `buddys`). In der Gegenprobe (leer) brechen
-  13 Tests.
+  (`split`, `trails`, `buddys`). Gegenprobe siehe nächster Abschnitt.
+- **Touren je Reiter, Kette und Beispiele** (#136, seit 0.63.0, Plan
+  `docs/konzept-onboarding.md` 3.5/4.2/4.3; `lib/features/help/tab_tours.dart`,
+  `tour_examples.dart`). Trails und Buddys bekommen je eine kurze Tour
+  beim ersten Besuch; keine Profil-Tour (Plan 3.5). Sieben Dinge, die man
+  wissen muss:
+  - **Nur wenn der Reiter SICHTBAR ist** (`TabTourStarter`, `TickerMode`,
+    den go_router für verdeckte Reiter abschaltet) und die Maschine frei;
+    Karten-Tour und Hinweis gehen vor. Eine bestellte Tour
+    (`requestedTabTourProvider`, aus der Kurzanleitung) wartet ebenfalls,
+    bis ihr Reiter zu sehen ist — Flow-Test mit Gegenprobe.
+  - **Die Kette** hängt `startWelcomeTour(ref, router)` (seit #136 in
+    `tab_tours.dart`) an die Karten-Tour: an jeder Grenze eine Startseite
+    als Frage („Weiter mit den Trails?", „Später"/„Weiter"). „Später"
+    beendet die Kette und ist kein Gesehen; in derselben Sitzung fragt der
+    Reiter dann nicht wieder (`declinedTabToursProvider`, nur im Speicher).
+  - **Beispiele: gezeichnet, nie gespeichert** — `ExampleTrailTile`,
+    `showExampleTrailSheet`, `ExampleBuddyTile` sind Widgets aus festen
+    Texten, kein `Trail`, keine `Friendship`, kein Provider. Immer
+    „Beispiel" (Schild UND Name), nur während einer Tour mit `examples`
+    (`coachExamplesProvider`) und nur, wo Echtes fehlt. Der Flow-Test
+    prüft, dass danach nichts im Fake liegt und keine Summe erscheint.
+  - **Dieselben Anker wie das Echte**: `trails.row` sitzt auf der Zeile
+    des Trails, dessen Blatt die Tour öffnet (der erste EIGENE, sonst der
+    erste), `trails.row.own` auf ihrem Streifen, nur wenn er mir gehört —
+    daran hängen „Deine Einschätzung" und „Was du beisteuerst", die im
+    Blatt eines Buddy-Trails fehlen. Die Blatt-Anker (`sheet.*`) teilt
+    die Trails-Tour mit der Karten-Tour.
+  - **Szene `trails.sheet`** meldet `TrailsScreen` an: das echte Blatt oder
+    das Beispiel-Blatt. Die offenen Anfragen (an mich UND von mir) sind
+    EIN Anker (`buddys.requests`), der Schritt fällt ohne sie weg.
+  - **Beispiele nur an Skripten MIT Startseite**: Sie erscheinen ein Bild
+    nach dem Start, und ein erster Schritt mit `requires` fiele sonst
+    sofort weg (PilzBuddy-Regel, Test).
+  - **`FakeSettings.seenCoachTours` enthält alle Touren**; in der
+    Gegenprobe (leer) brechen 87 Tests.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

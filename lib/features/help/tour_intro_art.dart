@@ -233,3 +233,79 @@ class _SplitPainter extends CustomPainter {
   @override
   bool shouldRepaint(_SplitPainter old) => false;
 }
+
+/// Die Startseite „Deine Trails" (#136): drei Zeilen wie in der Liste —
+/// Streifen in den Pistenfarben, ein Balken als Name, das Schild rechts.
+Widget trailsArt(BuildContext context) {
+  final p = AppPalette.of(context);
+  Widget row(Color stripe, double name, int grade) => Container(
+        height: 32,
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: p.line),
+        ),
+        child: Row(
+          children: [
+            Container(width: 4, height: 20, decoration: BoxDecoration(color: stripe, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(width: 8),
+            Container(width: name, height: 8, decoration: BoxDecoration(color: p.muted.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(4))),
+            const Spacer(),
+            GradeShield(grade, fontSize: 10),
+          ],
+        ),
+      );
+  return SizedBox(
+    width: 240,
+    height: 150,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: ColoredBox(
+        color: p.ground,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+          child: Column(
+            children: [
+              row(p.grade.s1, 90, 1),
+              row(p.grade.s2, 120, 2),
+              row(p.grade.s0, 70, 0),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Die Startseite „Deine Buddys" (#136): zwei Spuren laufen zu einer
+/// zusammen — das Motiv von 1s („Buddy verbunden"), hier stehend.
+Widget buddysArt(BuildContext context) => const _Stage(painter: _MergePainter());
+
+class _MergePainter extends CustomPainter {
+  const _MergePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint stroke(Color c) => Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round
+      ..color = c;
+    const m = AppColors.mapLines;
+    final left = Path()
+      ..moveTo(24, 30)
+      ..cubicTo(70, 30, 90, 75, 130, 75);
+    final right = Path()
+      ..moveTo(24, 120)
+      ..cubicTo(70, 120, 90, 75, 130, 75);
+    canvas.drawPath(left, stroke(m.mine));
+    canvas.drawPath(right, stroke(m.buddy));
+    canvas.drawLine(const Offset(130, 75), const Offset(206, 75), stroke(AppColors.brand));
+    canvas.drawCircle(const Offset(214, 75), 8, Paint()..color = AppColors.brand);
+  }
+
+  @override
+  bool shouldRepaint(_MergePainter old) => false;
+}

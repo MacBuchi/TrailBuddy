@@ -188,21 +188,13 @@ const kMapTourScript = CoachScript(
 );
 
 /// Die Karten-Tour beim ersten Start: mit der Willkommensseite statt der
-/// Karten-Startseite und OHNE den Weg in die Kurzanleitung am Ende — ab
-/// #136 hängt `startWelcomeTour` die Reiter-Touren an, und die Kette
-/// liefe sonst gleichzeitig in die Kurzanleitung.
+/// Karten-Startseite und OHNE den Weg in die Kurzanleitung am Ende —
+/// `startWelcomeTour` (`tab_tours.dart`) hängt die Reiter-Touren an, und
+/// die Kette liefe sonst gleichzeitig in die Kurzanleitung.
 final kWelcomeTourScript = CoachScript(
   id: 'map',
   steps: [kWelcomeIntro, ...kMapTourScript.tourSteps],
 );
-
-/// Die Tour beim ersten Start. Durchgesehen oder übersprungen ⇒ gesehen;
-/// „Nicht jetzt" auf der Startseite ist KEIN Gesehen — sie fragt beim
-/// nächsten Start wieder (PilzBuddy: „jedes Mal").
-void startWelcomeTour(WidgetRef ref) {
-  final seen = ref.read(mapTourSeenProvider.notifier);
-  ref.read(coachProvider.notifier).start(kWelcomeTourScript, onDone: () => seen.set(true));
-}
 
 /// Startet die Tour und merkt sich danach, dass sie gesehen wurde —
 /// durchgesehen ODER übersprungen: Wer abbricht, hat entschieden.

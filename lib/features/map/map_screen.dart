@@ -15,6 +15,7 @@ import '../../models/trail.dart';
 import '../coach/coach.dart';
 import '../feedback/feedback_dialog.dart';
 import '../help/map_tour.dart';
+import '../help/tab_tours.dart' show startWelcomeTour;
 import '../rides/ride_providers.dart';
 import '../rides/ride_split_sheet.dart';
 import '../rides/ride_task_handler.dart';
@@ -142,7 +143,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Läuft schon etwas (aus der Kurzanleitung gestartet), nicht
     // dazwischenfahren.
     if (!ref.read(mapTourSeenProvider) && !ref.read(coachProvider.notifier).busy) {
-      startWelcomeTour(ref);
+      startWelcomeTour(ref, GoRouter.of(context));
     }
   }
 

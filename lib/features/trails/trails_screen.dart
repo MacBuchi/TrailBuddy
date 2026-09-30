@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +10,10 @@ import '../../core/errors.dart';
 import '../../core/widgets/motion.dart';
 import '../../models/trail.dart';
 import '../friends/buddy_alias.dart' show buddyNamesViewProvider;
+import '../coach/coach.dart';
 import '../help/help_link.dart';
+import '../help/tab_tours.dart';
+import '../help/tour_examples.dart';
 import '../map/map_screen.dart' show formatCachedAt;
 import 'trail_filter_chips.dart';
 import 'rating_stars.dart';
@@ -31,8 +36,34 @@ class TrailsScreen extends ConsumerStatefulWidget {
 class _TrailsScreenState extends ConsumerState<TrailsScreen> {
   final _search = TextEditingController();
 
+  /// Der Trail, dessen Blatt die Trails-Tour (#136) öffnet: der erste
+  /// eigene der Liste, sonst der erste. Gesetzt bei jedem Aufbau.
+  Trail? _tourTrail;
+
+  /// Zeigt die Liste gerade das Beispiel? Dann öffnet die Tour das
+  /// Beispiel-Blatt.
+  bool _showsExample = false;
+  VoidCallback? _unregisterScene;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregisterScene = ref.read(coachRegistryProvider).registerScene(TrailsCoach.sheet, () async {
+      final trail = _tourTrail;
+      if (!mounted) return () {};
+      if (trail == null) return _showsExample ? showExampleTrailSheet(context) : () {};
+      final navigator = Navigator.of(context);
+      var open = true;
+      unawaited(showTrailSheet(context, trail, showOnMapButton: true).whenComplete(() => open = false));
+      return () {
+        if (open) navigator.pop();
+      };
+    });
+  }
+
   @override
   void dispose() {
+    _unregisterScene?.call();
     _search.dispose();
     super.dispose();
   }
@@ -40,7 +71,13 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
   @override
   Widget build(BuildContext context) {
     final trailsAsync = ref.watch(trailsProvider);
-    return Scaffold(
+    // Das Beispiel (#136) nur während der Tour und nur ohne JEDEN Trail —
+    // eine leere Suche ist kein leeres Konto.
+    _showsExample = ref.watch(coachExamplesProvider) && (trailsAsync.valueOrNull?.isEmpty ?? false);
+    if (_showsExample) _tourTrail = null;
+    return TabTourStarter(
+      script: kTrailsTourScript,
+      child: Scaffold(
       appBar: AppBar(
         // Der Reiter-Kopf aus dem Entwurf (1j): groß, in Versalien, rechts
         // der Bestand in Mono.
@@ -58,10 +95,14 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
                     .copyWith(color: AppPalette.of(context).muted),
               ),
             ),
-          IconButton(
-            tooltip: 'GPX importieren',
-            icon: const Icon(Icons.file_upload_outlined),
-            onPressed: () => context.push('/profile/import'),
+          CoachAnchor(
+            id: TrailsCoach.import,
+            child: IconButton(
+              key: const ValueKey('trail-import-button'),
+              tooltip: 'GPX importieren',
+              icon: const Icon(Icons.file_upload_outlined),
+              onPressed: () => context.push('/profile/import'),
+            ),
           ),
         ],
       ),
@@ -76,6 +117,21 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
             ),
           ]),
           data: (trails) {
+            if (_showsExample) {
+              return ListView(
+                children: [
+                  _Controls(
+                    search: _search,
+                    onSearch: () => setState(() {}),
+                    filter: ref.watch(trailListFilterProvider),
+                    showOwner: false,
+                    sort: ref.watch(trailSortProvider),
+                  ),
+                  const SizedBox(height: 8),
+                  const ExampleTrailTile(),
+                ],
+              );
+            }
             if (trails.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(24),
@@ -104,6 +160,7 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
             final pending = shown.where((t) => t.pending).toList();
             final own = shown.where((t) => t.isOwn && !t.pending).toList();
             final buddies = shown.where((t) => !t.isOwn).toList();
+            _tourTrail = own.firstOrNull ?? buddies.firstOrNull;
             // Der Dreier-Schalter nur, wenn es beides gibt — sonst hätte
             // eine Hälfte immer „keine Trails".
             final mixed = trails.any((t) => t.isOwn) && trails.any((t) => !t.isOwn);
@@ -138,15 +195,17 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
                 if (pending.isNotEmpty) _Header('Wartet auf Übertragung (${pending.length})'),
                 for (final t in pending) _TrailTile(t, fresh: false),
                 if (own.isNotEmpty) _Header('Meine Trails (${own.length})'),
-                for (final t in own) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
+                for (final t in own)
+                  _TrailTile(t, fresh: t.hasFreshNote(seen: seen), coach: t == _tourTrail),
                 if (buddies.isNotEmpty) _Header('Von Buddys (${buddies.length})'),
-                for (final t in buddies) _TrailTile(t, fresh: t.hasFreshNote(seen: seen)),
+                for (final t in buddies)
+                  _TrailTile(t, fresh: t.hasFreshNote(seen: seen), coach: t == _tourTrail),
               ],
             );
           },
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -178,7 +237,9 @@ class _Controls extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: TextField(
+                child: CoachAnchor(
+                  id: TrailsCoach.search,
+                  child: TextField(
                   key: const ValueKey('trail-search'),
                   controller: search,
                   onChanged: (_) => onSearch(),
@@ -199,9 +260,11 @@ class _Controls extends ConsumerWidget {
                             },
                           ),
                   ),
-                ),
+                )),
               ),
-              PopupMenuButton<TrailSort>(
+              CoachAnchor(
+                id: TrailsCoach.sort,
+                child: PopupMenuButton<TrailSort>(
                 key: const ValueKey('trail-sort'),
                 tooltip: 'Sortieren: ${sort.label}',
                 icon: const Icon(Icons.sort),
@@ -216,10 +279,10 @@ class _Controls extends ConsumerWidget {
                       child: Text(v.label),
                     ),
                 ],
-              ),
+              )),
             ],
           ),
-          TrailFilterChips(showOwner: showOwner),
+          CoachAnchor(id: TrailsCoach.chips, child: TrailFilterChips(showOwner: showOwner)),
         ],
       ),
     );
@@ -284,8 +347,11 @@ class _Header extends StatelessWidget {
 /// rechts der Charakter. Ein neuer Hinweis rahmt die Karte gelb — die
 /// Farbe des Leuchtrands auf der Karte.
 class _TrailTile extends ConsumerWidget {
-  const _TrailTile(this.trail, {required this.fresh});
+  const _TrailTile(this.trail, {required this.fresh, this.coach = false});
   final Trail trail;
+
+  /// Die Zeile, auf die die Trails-Tour (#136) zeigt.
+  final bool coach;
 
   /// Neuer, noch nicht gesehener Hinweis eines Buddys (#7).
   final bool fresh;
@@ -335,11 +401,15 @@ class _TrailTile extends ConsumerWidget {
         contentPadding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
         horizontalTitleGap: 12,
         minLeadingWidth: 4,
-        leading: Container(
-          key: const ValueKey('trail-stripe'),
-          width: 4,
-          height: 40,
-          decoration: BoxDecoration(color: stripe, borderRadius: BorderRadius.circular(2)),
+        leading: _anchorIf(
+          coach && trail.isOwn,
+          TrailsCoach.rowOwn,
+          Container(
+            key: const ValueKey('trail-stripe'),
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(color: stripe, borderRadius: BorderRadius.circular(2)),
+          ),
         ),
         title: Text(trail.displayName,
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
@@ -401,7 +471,10 @@ class _TrailTile extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       // Der gelbe Rand atmet, solange der Hinweis ungesehen ist (1t).
-      child: fresh ? BreathingGlow(color: palette.map.note, radius: 14, child: card) : card,
+      child: _anchorIf(coach, TrailsCoach.row,
+          fresh ? BreathingGlow(color: palette.map.note, radius: 14, child: card) : card),
     );
   }
 }
+
+Widget _anchorIf(bool yes, String id, Widget child) => yes ? CoachAnchor(id: id, child: child) : child;
