@@ -2,6 +2,20 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Hilfe beim Zerlegen
+
+*Version 0.62.0, 2026-09-30*
+
+- **Die erste Fahrt zerlegen**: Öffnest du nach einer Aufzeichnung zum
+  ersten Mal das Zerlege-Blatt, erklärt eine kurze Tour, was du dort
+  siehst — schon bekannte Trails, Vorschläge für neue mit ihren Griffen,
+  was ohne gespeicherten Kartenbereich fehlt und dass nur die gewählten
+  Stücke zu deinen Buddys gehen, nie die ganze Fahrt. Sie zeigt nur, was
+  deine Fahrt wirklich hat. In der Android-App startet „Tour: Fahrt
+  zerlegen" in der Kurzanleitung sie jederzeit an deiner jüngsten Fahrt.
+- In der Zeile „Stück selbst wählen" läuft auf schmalen Telefonen nichts
+  mehr über den Rand.
+
 ## Willkommen
 
 *Version 0.61.0, 2026-09-30*

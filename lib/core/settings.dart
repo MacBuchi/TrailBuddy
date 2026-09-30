@@ -94,6 +94,13 @@ abstract interface class Settings {
   bool get mapTourSeen;
 
   Future<void> setMapTourSeen(bool value);
+
+  /// Die Touren außerhalb der Karte, die dieses Gerät gesehen hat
+  /// (`split`, ab #136 `trails` und `buddys`). Durchgesehen oder
+  /// übersprungen — „Nicht jetzt" zählt nicht.
+  Set<String> get seenCoachTours;
+
+  Future<void> setSeenCoachTours(Set<String> value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -195,6 +202,16 @@ class PrefsSettings implements Settings {
 
   @override
   Future<void> setMapTourSeen(bool value) => _prefs.setBool(_mapTourSeenKey, value);
+
+  static const _seenCoachToursKey = 'seen_coach_tours';
+
+  @override
+  Set<String> get seenCoachTours => (_prefs.getStringList(_seenCoachToursKey) ?? const []).toSet();
+
+  // Sortiert geschrieben: dieselbe Menge ergibt dieselbe Liste.
+  @override
+  Future<void> setSeenCoachTours(Set<String> value) =>
+      _prefs.setStringList(_seenCoachToursKey, value.toList()..sort());
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

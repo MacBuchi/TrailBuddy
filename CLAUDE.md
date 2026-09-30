@@ -1323,6 +1323,40 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `false`) brechen 180 Tests. Tests für die Tour setzen den Merker
   ausdrücklich (`map_tour_flow_test` setzt ihn NACH dem Start zurück,
   sonst liefe die Willkommens-Tour vor der aus der Kurzanleitung).
+- **Die Tour im Zerlege-Blatt** (#134, seit 0.62.0, Plan
+  `docs/konzept-onboarding.md` 3.4/4.4; `lib/features/help/split_tour.dart`,
+  Merker `seen_tours.dart`). Sechs Dinge, die man wissen muss:
+  - **Nur im Blatt einer eigenen Aufzeichnung** (`SplitRequest.rideId`,
+    also nach dem Beenden ODER aus „Meine Fahrten"), nie aus dem
+    GPX-Import; einmal (`seenCoachTours` enthält `split`), „Nicht jetzt"
+    fragt beim nächsten Blatt wieder. Erwogen wird sie EINMAL je Blatt,
+    sobald die Zerlegung steht (`_considerTour`), und nur, wenn die
+    Maschine frei ist.
+  - **Jede Fahrt sieht anders aus**: Fast jeder Schritt hängt an
+    `requires` (bekannte Zeile, Übernahme, Nachfrage, Kandidat, Heimzone,
+    „Wege unbekannt", „Stück selbst wählen"). Die Anker sitzen nur an der
+    ERSTEN Zeile ihrer Art (`_anchorIf`).
+  - **Während dieser Tour baut die faule Liste ALLES**
+    (`scrollCacheExtent`, nur solange `split` läuft): Sonst gäbe es die
+    Zeilen unter dem Rand nicht, `requires` hielte sie für fehlend, und
+    der Schritt fiele still weg.
+  - **Die Maschine prüft seither auch das Fenster der Liste**
+    (`_revealOffscreen` in `coach.dart`, Abweichung von PilzBuddy): Die
+    Liste endet über festen Knöpfen, eine Zeile knapp darunter lag im
+    Bild, aber verdeckt, und wurde nie hergescrollt. Ebenso `minRoom`
+    260 statt 240 (größerer Titel). PilzBuddy hat denselben Fehler in
+    Blättern mit festen Knöpfen — beim nächsten Anfassen dort mitziehen.
+  - **Beim Kandidaten nur die Griffe aussparen**, nicht die Karte: Mit
+    Grad und Charakter ist sie so hoch, dass auf 360×740 keine Blase mehr
+    daneben passt.
+  - **Aus der Kurzanleitung** (nur Android): „Tour: Fahrt zerlegen"
+    bestellt die Tour (`requestedSplitTourProvider`, läuft auch, wenn sie
+    gesehen ist) und öffnet die jüngste Fahrt über denselben Weg wie
+    „Meine Fahrten"; ohne Fahrt ist der Knopf aus und sagt, warum.
+  Merker `seenCoachTours` (`seen_coach_tours`, Stringliste, sortiert
+  geschrieben, ohne Suffix); `FakeSettings` setzt ab Werk alle Touren
+  (`split`, `trails`, `buddys`). In der Gegenprobe (leer) brechen
+  13 Tests.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und
