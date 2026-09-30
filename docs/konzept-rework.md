@@ -318,6 +318,25 @@ Die neue Skala 1–5 aus 3.2 heißt **„Zustand"**.
   Merkmal am Beitrag), entscheidet der Schritt mit seiner
   Schemaskizze; sichtbar ist sie nur im Netz (Konzept 12).
 
+**Welche Meldung steht da (Betreiber, 2026-09-30).** Die **jüngste
+bestätigte** Meldung, und dazu — verblasst, „zu bestätigen" — die
+**jüngste unbestätigte, wenn sie jünger ist**; eine ältere unbestätigte
+ist überholt und fällt weg. Ersetzt „der jüngste gewinnt" aus Konzept 3
+für die Meldung.
+
+**Zum Bestätigen auffordern.** Wer gerade aufzeichnet und auf einen Trail
+mit unbestätigter Meldung oder unbestätigtem Zustand kommt, wird
+**sofort gefragt**: Der Aufnahme-Dienst prüft je Takt im
+Service-Isolate die Position gegen die Trails aus dem Zwischenspeicher
+(Korridor wie „vor Ort", 200 m, genauer: auf der Linie im
+Abgleich-Korridor) und zeigt eine **lokale Benachrichtigung** — geht
+ohne Netz, und die Position verlässt das Gerät nicht. Eine Push-Meldung
+vom Server geht dafür NICHT: Der Server müsste wissen, wo jemand fährt.
+Wer die Frage übergeht, bekommt sie beim Beenden im Zerlege-Blatt an der
+Zeile des Trails noch einmal. Die Bestätigung geht über den
+Ausgangskorb raus, sobald Netz da ist. Je Trail und Fahrt höchstens eine
+Benachrichtigung.
+
 **Zustand auf der Karte (E9).** Keine Farbe (Farbe heißt Schwierigkeit).
 Den Zustand trägt die **innere Hauptlinie**: durchgezogen (gut) →
 bröckelig → gestrichelt → gestrichelt und verblasst (kaum fahrbar).
