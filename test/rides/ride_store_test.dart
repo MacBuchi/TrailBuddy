@@ -132,4 +132,30 @@ void main() {
     final store = FileRideStore(baseDir: Directory('${dir.path}/blocked'));
     expect(store.begin(uid: 'me', startedAt: start), throwsA(isA<FileSystemException>()));
   });
+
+  test('Marken (#105) stehen in der Datei, überstehen den Neustart und das Beenden', () async {
+    final store = FileRideStore(baseDir: dir);
+    expect(await store.appendMark(RideMark(kind: RideMarkKind.start, at: start)), isFalse,
+        reason: 'ohne laufende Fahrt keine Marke');
+    await store.begin(uid: 'me', startedAt: start);
+    await store.appendPoint(point(0));
+    final begin = RideMark(kind: RideMarkKind.start, at: start.add(const Duration(seconds: 5)));
+    expect(await store.appendMark(begin), isTrue);
+    await store.appendPoint(point(1));
+    await store.appendPoint(point(2));
+
+    final restored = await FileRideStore(baseDir: dir).readActive(uid: 'me');
+    expect(restored!.points, hasLength(3), reason: 'die Marke ist kein Punkt');
+    expect(restored.marks, hasLength(1));
+    expect(restored.marks.single.kind, RideMarkKind.start);
+    expect(restored.marks.single.at, begin.at);
+    expect(markedTrailOpen(restored.marks), isTrue);
+
+    await store.appendMark(RideMark(kind: RideMarkKind.end, at: start.add(const Duration(seconds: 10))));
+    final ride = await store.finish(uid: 'me', endedAt: start.add(const Duration(minutes: 1)));
+    expect([for (final m in ride!.marks) m.kind], [RideMarkKind.start, RideMarkKind.end]);
+    final listed = await FileRideStore(baseDir: dir).list(uid: 'me');
+    expect(listed.single.marks, hasLength(2));
+    expect(markedTrailOpen(listed.single.marks), isFalse);
+  });
 }

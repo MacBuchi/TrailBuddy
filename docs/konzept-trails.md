@@ -511,6 +511,16 @@ Höhen. Vorgewählt ist die Fahrt ohne ihre ersten und letzten 300 m
 (Heimzone): Eine Fahrt beginnt an der Haustür. Der Heimzonen-Hinweis
 gilt seither für die aktuellen Griffe, nicht für das gefundene Stück.
 
+**Seit 0.57.0 (#105): Marken während der Aufnahme.** Über dem
+Aufnahmeknopf steht während einer Fahrt eine Fahne: erster Tipp „Trail
+beginnt", zweiter „Trail endet" (der Knopf trägt dazwischen einen Rand).
+Die Marke ist eine Zeile mit Zeit in der Fahrt-Datei und verlässt das
+Gerät nie. Jedes Paar wird im Zerlege-Blatt ein vorangehakter Kandidat
+— ohne gespeicherten Bereich und ohne Höhen, denn der Fahrer stand dort.
+Er schlägt die Heuristik, wo beide sich überschneiden, und weicht nur
+einem bekannten Trail, der ihn deckt; eine offene Marke gilt bis zum
+Ende der Fahrt.
+
 **Seit 0.55.0 (#102): Übernehmen beim ersten Befahren.** Wer einen
 bekannten Trail fährt, zu dem er noch KEINEN eigenen Beitrag hat, macht
 ihn sich im Zerlege-Blatt zu eigen: Name, S-Grad, Charakter und Sterne

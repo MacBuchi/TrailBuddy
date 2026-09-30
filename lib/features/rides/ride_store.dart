@@ -37,6 +37,13 @@ abstract interface class RideStore {
   /// wurde. **Wirft nie.**
   Future<bool> appendConfirmEvent(ConfirmEvent event, {DateTime? rideStartedAt});
 
+  /// Hängt eine Marke „Trail beginnt/endet" (#105) an die laufende Fahrt.
+  /// Geschrieben aus dem Main-Isolate — getippt wird dort, und die Marke
+  /// trägt nur die Zeit; der Service hängt daneben seine Punkte an (wie
+  /// die Antworten aus #116). Gibt zurück, ob geschrieben wurde. **Wirft
+  /// nie.**
+  Future<bool> appendMark(RideMark mark);
+
   /// Die Fragen und Antworten der laufenden Fahrt. Wirft nie.
   Future<List<ConfirmEvent>> activeConfirmEvents({required String uid});
 
@@ -144,6 +151,20 @@ class FileRideStore implements RideStore {
       });
 
   @override
+  Future<bool> appendMark(RideMark mark) => _serialized(() async {
+        try {
+          final file = await _active();
+          if (!await file.exists()) return false;
+          await file.writeAsString('${jsonEncode(mark.toJson())}\n',
+              mode: FileMode.append, flush: true);
+          return true;
+        } catch (e, stackTrace) {
+          logError('Fahrt: Marke anhängen', e, stackTrace);
+          return false;
+        }
+      });
+
+  @override
   Future<List<ConfirmEvent>> activeConfirmEvents({required String uid}) =>
       _serialized(() async => (await _parse(await _active(), uid: uid))?.events ?? const []);
 
@@ -208,7 +229,7 @@ class FileRideStore implements RideStore {
       _serialized(() async {
         final parsed = await _parse(await _active(), uid: uid);
         if (parsed == null) return null;
-        return (startedAt: parsed.startedAt, points: parsed.points);
+        return (startedAt: parsed.startedAt, points: parsed.points, marks: parsed.marks);
       });
 
   @override
@@ -233,7 +254,8 @@ class FileRideStore implements RideStore {
               startedAt: parsed.startedAt,
               endedAt: endedAt.toUtc(),
               points: parsed.points,
-              events: parsed.events);
+              events: parsed.events,
+              marks: parsed.marks);
         } catch (e, stackTrace) {
           logError('Fahrt abschließen', e, stackTrace);
           return null;
@@ -272,6 +294,7 @@ class FileRideStore implements RideStore {
                   (parsed.points.isEmpty ? parsed.startedAt : parsed.points.last.at),
               points: parsed.points,
               events: parsed.events,
+              marks: parsed.marks,
             ));
           }
           rides.sort((a, b) => b.startedAt.compareTo(a.startedAt));
@@ -305,6 +328,7 @@ class FileRideStore implements RideStore {
             DateTime? endedAt,
             List<RidePoint> points,
             List<ConfirmEvent> events,
+            List<RideMark> marks,
           })?>
       _parse(File file, {required String uid}) async {
     try {
@@ -323,6 +347,7 @@ class FileRideStore implements RideStore {
       if (startedAt == null) return null;
       final points = <RidePoint>[];
       final events = <ConfirmEvent>[];
+      final marks = <RideMark>[];
       DateTime? endedAt;
       for (final line in lines.skip(1)) {
         // Eine abgeschnittene LETZTE Zeile ist der Normalfall nach einem
@@ -332,6 +357,11 @@ class FileRideStore implements RideStore {
           if (json is! Map<String, dynamic>) continue;
           if (json.containsKey('endedAt')) {
             endedAt = DateTime.tryParse(json['endedAt'] as String? ?? '')?.toUtc();
+            continue;
+          }
+          if (RideMark.isMark(json)) {
+            final mark = RideMark.fromJson(json);
+            if (mark != null) marks.add(mark);
             continue;
           }
           if (ConfirmEvent.isEvent(json)) {
@@ -345,7 +375,13 @@ class FileRideStore implements RideStore {
           continue;
         }
       }
-      return (startedAt: startedAt.toUtc(), endedAt: endedAt, points: points, events: events);
+      return (
+        startedAt: startedAt.toUtc(),
+        endedAt: endedAt,
+        points: points,
+        events: events,
+        marks: marks,
+      );
     } catch (_) {
       return null;
     }

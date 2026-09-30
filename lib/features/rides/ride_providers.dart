@@ -168,7 +168,7 @@ class RideNotifier extends Notifier<RecordedRide?> {
       logError('Fahrt beginnen', e, stackTrace);
       return RideStartResult.failed;
     }
-    state = (startedAt: startedAt, points: const []);
+    state = (startedAt: startedAt, points: const [], marks: const []);
     await _arm(uid, startedAt);
     await syncConfirmTargets();
     // Der erste Punkt sofort und aus DIESEM Isolate — der Takt des
@@ -257,7 +257,26 @@ class RideNotifier extends Notifier<RecordedRide?> {
   void acceptTick(RidePoint point) {
     final current = state;
     if (current == null) return;
-    state = (startedAt: current.startedAt, points: [...current.points, point]);
+    state = (startedAt: current.startedAt, points: [...current.points, point], marks: current.marks);
+  }
+
+  /// Setzt die nächste Marke (#105): „Trail beginnt", solange kein
+  /// markierter Trail läuft, sonst „Trail endet". Gibt die gesetzte Marke
+  /// zurück; `null`, wenn keine Fahrt läuft oder die Datei sie nicht
+  /// nahm — dann steht sie auch nicht im Zustand, sonst zeigte der Knopf
+  /// eine Marke, die das Zerlege-Blatt nie sieht.
+  Future<RideMark?> toggleMark() async {
+    final current = state;
+    if (current == null) return null;
+    final mark = RideMark(
+      kind: markedTrailOpen(current.marks) ? RideMarkKind.end : RideMarkKind.start,
+      at: DateTime.now().toUtc(),
+    );
+    if (!await ref.read(rideStoreProvider).appendMark(mark)) return null;
+    final now = state;
+    if (now == null || !now.startedAt.isAtSameMomentAs(current.startedAt)) return null;
+    state = (startedAt: now.startedAt, points: now.points, marks: [...now.marks, mark]);
+    return mark;
   }
 
   /// Hört die Aufzeichnung auf, weil die Fahrt zu lange läuft? Der

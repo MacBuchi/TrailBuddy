@@ -50,7 +50,7 @@ double ele(int py) => py > 2100
 
 final t0 = DateTime.utc(2026, 9, 27, 9);
 
-Ride ride() {
+Ride ride({List<RideMark> marks = const []}) {
   final points = <RidePoint>[];
   var i = 0;
   for (var py = 3800; py >= 1300; py -= 25) {
@@ -58,7 +58,7 @@ Ride ride() {
     points.add(RidePoint(
         lat: p.latitude, lng: p.longitude, at: t0.add(Duration(seconds: 5 * i++)), accuracyM: 6, altM: ele(py)));
   }
-  return Ride(id: 'r1', startedAt: t0, endedAt: points.last.at, points: points);
+  return Ride(id: 'r1', startedAt: t0, endedAt: points.last.at, points: points, marks: marks);
 }
 
 /// Straße auf der Fahrt zwischen den beiden Trailstücken (py 2600–2100)
@@ -284,6 +284,38 @@ void main() {
     await settle(tester, frames: 30);
     expect(trails.contributeCalls, 2);
     expect(trails.details.where((d) => d.userId == annaId && d.name == 'Jump-Line'), hasLength(1));
+  });
+
+  testWidgets('unterwegs markiert (#105): vorangehakt, ohne gespeicherten Bereich, Griffe über die ganze Fahrt',
+      (tester) async {
+    // Beginn bei Punkt 60 (py 2300), Ende bei Punkt 80 (py 1800): 400 m
+    // hinter Roots, abseits der Heimzone.
+    store.rides
+      ..clear()
+      ..add(ride(marks: [
+        RideMark(kind: RideMarkKind.start, at: t0.add(const Duration(seconds: 300))),
+        RideMark(kind: RideMarkKind.end, at: t0.add(const Duration(seconds: 400))),
+      ]));
+    await pumpApp(tester, backend, trails: trails, rideStore: store);
+    await openFromRides(tester);
+    await sheetScrollTo(tester, find.byKey(const ValueKey('split-candidate-0')));
+    expect(find.textContaining('unterwegs markiert'), findsOneWidget);
+    expect(find.textContaining('abseits von Wegen'), findsNothing);
+    expect(find.byKey(const ValueKey('split-candidate-1')), findsNothing, reason: 'genau ein Paar');
+    expect(find.byKey(const ValueKey('split-candidate-home-0')), findsNothing);
+    final check = tester.widget<Checkbox>(find.byKey(const ValueKey('split-candidate-check-0')));
+    expect(check.value, isTrue, reason: 'vorangehakt');
+    final range = tester.widget<RangeSlider>(find.byKey(const ValueKey('split-candidate-range-0')));
+    expect((range.min, range.max), (0.0, 100.0), reason: 'die Griffe reichen über die ganze Fahrt');
+    expect((range.values.start, range.values.end), (60.0, 80.0), reason: 'vorgewählt ist das Stück');
+    expect(linesOf(tester, AppColors.mapLines.candidate).single.points, hasLength(21));
+    expect(find.text('2 beisteuern'), findsOneWidget, reason: 'Roots und das markierte Stück');
+
+    await tester.enterText(find.byKey(const ValueKey('split-candidate-name-0')), 'Wurzelweg');
+    await tester.tap(find.byKey(const ValueKey('split-submit')));
+    await settle(tester, frames: 30);
+    expect(trails.contributeCalls, 2);
+    expect(trails.details.where((d) => d.userId == annaId && d.name == 'Wurzelweg'), hasLength(1));
   });
 
   testWidgets('eine GPX-Fahrt geht aus dem Import in dasselbe Blatt', (tester) async {

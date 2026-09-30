@@ -210,6 +210,11 @@ der Strich beim Zeichnen folgt der Regel.
 - **Rechts unten — immer:** Aufnahme 60 px (Lime; läuft die Fahrt: Orange
   mit Stop-Quadrat), darüber 44 px: Position, Ebenen, Idee. Ein offenes
   Menü markiert seinen Knopf mit Rand in der Marke.
+  Während einer Fahrt steht direkt über der Aufnahme ein weiterer
+  44-px-Knopf für die Marken (#105, E12): Fahne „Trail beginnt", dann
+  Zielflagge „Trail endet" mit Rand in der Marke, solange ein markierter
+  Trail läuft. Bewusst kein Pin und keine Trail-Farbe — nicht zu
+  verwechseln mit den Start-/Ende-Marken der Trails (#96).
 - **Links mittig — nur mit Menü:** 52 px breit, Knöpfe 44 px
   (Handschuh, Mindest-Trefferfläche), Gruppen durch 8 px Luft statt
   Trennlinien. Aktives Werkzeug = helle Fläche. Hauptaktion (Speichern) =

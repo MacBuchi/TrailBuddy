@@ -46,6 +46,7 @@ class SplitRequest {
     required this.source,
     this.accuracyM,
     this.rideId,
+    this.marks = const [],
   });
 
   /// Aus einer eigenen Fahrt. Die GPS-Höhe geht als Höhe hinein — für die
@@ -61,6 +62,7 @@ class SplitRequest {
         source: RecordingSource.app,
         accuracyM: [for (final p in ride.points) p.accuracyM],
         rideId: ride.id,
+        marks: ride.marks,
       );
 
   /// Aus einer GPX-Datei, die eine Fahrt ist (Konzept 5.2).
@@ -71,6 +73,10 @@ class SplitRequest {
   final RecordingSource source;
   final List<double?>? accuracyM;
   final String? rideId;
+
+  /// Die Marken „Trail beginnt/endet" der Aufnahme (#105); eine Datei hat
+  /// keine.
+  final List<RideMark> marks;
 
   /// Höhen aus dem GPS werden nicht beigesteuert, Höhen aus der Datei schon.
   bool get stripElevation => source == RecordingSource.app;
@@ -236,6 +242,7 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
       accuracyM: widget.request.accuracyM,
       trails: trails,
       roads: roads,
+      marks: widget.request.marks,
     );
     setState(() {
       _split = split;
@@ -525,13 +532,13 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                   key: const ValueKey('split-no-roads'),
                   split.roads == RoadCoverage.partial
                       ? 'Die Wege kennt die App hier nur zum Teil: Ein gespeicherter '
-                          'Bereich deckt die Fahrt nicht ganz. Kandidaten für neue '
-                          'Trails findet sie erst, wenn ein Bereich bis Zoomstufe 13 '
+                          'Bereich deckt die Fahrt nicht ganz. Von selbst findet sie '
+                          'Kandidaten erst, wenn ein Bereich bis Zoomstufe 13 '
                           'die ganze Fahrt trägt (Ebenen-Knopf auf der Karte → '
                           'Ausschnitt oder Fläche wählen → Speichern).'
                       : 'Die Wege kennt die App hier nicht: Es gibt keinen '
-                          'gespeicherten Bereich über der Fahrt. Kandidaten für neue '
-                          'Trails findet sie erst damit — Ebenen-Knopf auf der Karte → '
+                          'gespeicherten Bereich über der Fahrt. Von selbst findet sie '
+                          'Kandidaten erst damit — Ebenen-Knopf auf der Karte → '
                           'Ausschnitt oder Fläche wählen → Speichern, dann die Fahrt aus '
                           '„Meine Fahrten" noch einmal zerlegen.',
                   style: theme.textTheme.bodyMedium,
@@ -786,6 +793,9 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     final tooShort = lengthM < kTrailMinLengthM;
     final home = homeZoneOf(_split!, d.start, d.end);
     final share = s.offRoadShare;
+    // Selbst gewählt und markiert: Die Griffe reichen über die ganze
+    // Fahrt, vorgewählt ist das Stück.
+    final bounds = s.spansRide ? (0, _split!.points.length - 1) : (s.start, s.end);
     return Card(
       key: ValueKey('split-candidate-$i'),
       margin: const EdgeInsets.only(top: 8),
@@ -834,6 +844,7 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                 '${loss != null ? ' · ↓ ${loss.round()} Hm' : ''}'
                 '${share != null ? ' · ${(share * 100).round()} % abseits von Wegen' : ''}'
                 '${s.manual ? ' · selbst gewählt' : ''}'
+                '${s.marked ? ' · unterwegs markiert' : ''}'
                 '${tooShort ? ' · zu kurz für einen Trail' : ''}',
                 style: theme.textTheme.bodySmall,
               ),
@@ -854,9 +865,9 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
             // Die zwei Griffe: Punkt für Punkt, die Karte zeigt es.
             RangeSlider(
               key: ValueKey('split-candidate-range-$i'),
-              min: s.start.toDouble(),
-              max: s.end.toDouble(),
-              divisions: s.end - s.start,
+              min: bounds.$1.toDouble(),
+              max: bounds.$2.toDouble(),
+              divisions: bounds.$2 - bounds.$1,
               values: RangeValues(d.start.toDouble(), d.end.toDouble()),
               onChanged: _busy
                   ? null
