@@ -23,10 +23,12 @@ import 'package:path_provider/path_provider.dart';
 import '../features/trails/trail_geometry.dart' show RecordingSource;
 import '../models/trail.dart';
 
-/// Ein Auftrag im Korb. Genau ZWEI Arten — die Schreibwege, die draußen
-/// vorkommen: eine Aufzeichnung beisteuern und den eigenen Beitrag
-/// speichern. Höhen nachtragen, Hinweise, Löschen scheitern weiter
-/// sichtbar: Schreibtischarbeit im WLAN.
+/// Ein Auftrag im Korb. Genau DREI Arten — die Schreibwege, die draußen
+/// vorkommen: eine Aufzeichnung beisteuern, den eigenen Beitrag speichern
+/// und melden (seit 0.49.0, #101 — die Meldung stand bis dahin im
+/// Beitrag, und „gesperrt" meldet man am Trail, also ohne Netz). Höhen
+/// nachtragen, Hinweise allein, Löschen scheitern weiter sichtbar:
+/// Schreibtischarbeit im WLAN.
 sealed class OutboxJob {
   const OutboxJob({
     required this.id,
@@ -85,10 +87,31 @@ sealed class OutboxJob {
             failure: failure,
           );
         case 'details':
+          final details = json['details'] as Map<String, dynamic>;
+          // Ein Auftrag von vor 0.49.0 trägt den Status noch im Beitrag —
+          // er geht beim Nachholen als Meldung raus, zu seiner Zeit.
+          final legacyAt = DateTime.tryParse(details['status_at'] as String? ?? '');
           return DetailsJob(
             id: id,
             createdAt: createdAt,
-            details: TrailDetails.fromJson(json['details'] as Map<String, dynamic>),
+            details: TrailDetails.fromJson(details),
+            note: json['note'] as String?,
+            legacyStatus: legacyAt == null ? null : TrailStatus.fromDb(details['status'] as String?),
+            legacyStatusAt: legacyAt?.toUtc(),
+            attempts: attempts,
+            failure: failure,
+          );
+        case 'report':
+          final status = json['status'] == null ? null : TrailStatus.fromDb(json['status'] as String?);
+          final condition = json['condition'] as int?;
+          if (status == null && condition == null) return null;
+          return ReportJob(
+            id: id,
+            createdAt: createdAt,
+            trailId: json['trail_id'] as String,
+            status: status,
+            condition: condition,
+            onSite: json['on_site'] as bool? ?? false,
             note: json['note'] as String?,
             attempts: attempts,
             failure: failure,
@@ -184,12 +207,23 @@ class DetailsJob extends OutboxJob {
     required super.createdAt,
     required this.details,
     this.note,
+    this.legacyStatus,
+    this.legacyStatusAt,
     super.attempts,
     super.failure,
   });
 
   final TrailDetails details;
+
+  /// Nur Aufträge von vor 0.49.0: der Hinweis zum geänderten Status.
   final String? note;
+
+  /// Nur Aufträge von vor 0.49.0: der Status, der damals im Beitrag stand,
+  /// und seine Zeit. Er geht als Meldung raus (`report_trail`); der
+  /// Server entscheidet, ob er bestätigt ist, und eine ältere Meldung
+  /// verdrängt keine jüngere.
+  final TrailStatus? legacyStatus;
+  final DateTime? legacyStatusAt;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -198,7 +232,11 @@ class DetailsJob extends OutboxJob {
         'created_at': createdAt.toUtc().toIso8601String(),
         'attempts': attempts,
         'failure': failure,
-        'details': details.toRow(),
+        'details': {
+          ...details.toRow(),
+          if (legacyStatus != null) 'status': legacyStatus!.db,
+          if (legacyStatusAt != null) 'status_at': legacyStatusAt!.toUtc().toIso8601String(),
+        },
         'note': note,
       };
 
@@ -208,6 +246,61 @@ class DetailsJob extends OutboxJob {
         id: id,
         createdAt: createdAt,
         details: details,
+        note: note,
+        legacyStatus: legacyStatus,
+        legacyStatusAt: legacyStatusAt,
+        attempts: attempts ?? this.attempts,
+        failure: clearFailure ? null : (failure ?? this.failure),
+      );
+}
+
+/// Eine Meldung und/oder einen Zustand zu einem Trail (#101). [id] ist
+/// zugleich die `client_id` für `report_trail`, [createdAt] die Zeit des
+/// Meldens — sie geht mit, damit „gesperrt" von gestern nicht als
+/// Meldung von heute ankommt. [onSite] ist beim Melden geprüft worden.
+class ReportJob extends OutboxJob {
+  const ReportJob({
+    required super.id,
+    required super.createdAt,
+    required this.trailId,
+    this.status,
+    this.condition,
+    required this.onSite,
+    this.note,
+    super.attempts,
+    super.failure,
+  }) : assert(status != null || condition != null);
+
+  final String trailId;
+  final TrailStatus? status;
+  final int? condition;
+  final bool onSite;
+
+  /// Der Hinweis dazu — der sagt WARUM.
+  final String? note;
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'kind': 'report',
+        'id': id,
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'attempts': attempts,
+        'failure': failure,
+        'trail_id': trailId,
+        'status': status?.db,
+        'condition': condition,
+        'on_site': onSite,
+        'note': note,
+      };
+
+  @override
+  ReportJob copyWith({int? attempts, String? failure, bool clearFailure = false}) => ReportJob(
+        id: id,
+        createdAt: createdAt,
+        trailId: trailId,
+        status: status,
+        condition: condition,
+        onSite: onSite,
         note: note,
         attempts: attempts ?? this.attempts,
         failure: clearFailure ? null : (failure ?? this.failure),

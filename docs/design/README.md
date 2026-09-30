@@ -261,6 +261,14 @@ Liste (4e): Filter-Chips „Alle", „bis S2", „Flowig", „Jumps" (Suche, „
 Karte mit Farbstreifen links, Zahlen in Mono, Schild und Symbole rechts.
 Blatt (4f): Name, „Du und 2 Buddys", Charakter-Chips mit Anzahl, drei
 Kacheln Länge / Höhe / S-Grad oder Spanne, „Deine Einschätzung".
+**Seit 0.49.0 (#101, Rework E8)** darunter eine zweite Reihe BEWERTUNG
+(Sterne in der Marke, Median und Anzahl; verblasst, solange der eigene
+Trail nicht bewertet ist) und ZUSTAND (Wort und Alter; eine jüngere
+unbestätigte Angabe verblasst mit „zu bestätigen"), je mit Tipp auf die
+Einzelstimmen. Eine unbestätigte Meldung steht als verblasster Chip
+neben der bestätigten; unten „Hinweis schreiben" (Lime) und „Melden"
+nebeneinander, „Karte" darunter. Linienart auf der Karte und die Wörter
+in der Liste kommen als eigener Schritt.
 
 ## 8. Screens (Turn 1g–1l)
 

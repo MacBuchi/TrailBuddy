@@ -129,11 +129,28 @@ create table public.trail_details (
   -- „Art“ (kind, bleibt für Clients bis 0.33.0 und wird später entfernt).
   traits text[] not null default '{}'
     check (traits <@ array['flowy', 'jumps', 'rocky', 'steep', 'uphill', 'natural', 'connection']),
+  rating smallint check (rating between 1 and 5),  -- Bewertung, Patch 013
   visibility text not null default 'buddies' check (visibility in ('buddies', 'private')),
+  -- status/status_at: veraltet seit Patch 013, nur noch für alte Clients
   status text not null default 'open' check (status in ('open', 'closed', 'destroyed', 'changed')),
   status_at timestamptz,
   updated_at timestamptz not null default now(),
   primary key (trail_id, user_id)
+);
+
+-- Meldung und Zustand als Verlauf (Patch 013, #101): schreiben nur über
+-- report_trail(), das `confirmed` festlegt (gefahren oder vor Ort).
+create table public.trail_reports (
+  id uuid primary key default gen_random_uuid(),
+  trail_id uuid not null references public.trails(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  kind text not null check (kind in ('status', 'condition')),
+  status text,            -- bei 'status': open, closed, destroyed, changed
+  condition smallint,     -- bei 'condition': 1–5
+  confirmed boolean not null,
+  reported_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  client_id uuid          -- Ausgangskorb, Idempotenz
 );
 
 -- Unsichtbare Nachbarschaft für später (Abschnitt 4.4): „Trail A
@@ -192,15 +209,49 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
 - **Schwierigkeit** = Median der sichtbaren S-Grade (Singletrail-Skala,
   von den Buddys eingeschätzt; bei gerader Anzahl der schwerere), mit
   Spanne.
-- **Status** = die jüngste sichtbare Statusmeldung, mit ihrem Alter
-  („gesperrt, gemeldet vor 14 Monaten"). Kein automatisches Verfallen,
-  aber ein sichtbares Datum; alle Meldungen bleiben im Blatt. **Jede
-  neue Aufzeichnung setzt den Status des Aufzeichnenden auf „offen"**
-  — wer den Trail fährt, hat ihn befahrbar vorgefunden. Bei
-  Widerspruch zwischen Buddys gewinnt der jüngste, ohne Abstimmung.
-  **Ausnahme seit 0.46.1 (#100, Patch 011):** eine geplante Aufzeichnung
-  (`planned`, Datei ohne Fahrzeiten) — sie belegt nicht, dass jemand
-  den Trail befahrbar vorgefunden hat.
+- **Meldung** (bis 0.48.0 „Status"; Rework E7) = offen, gesperrt,
+  zerstört, verändert. **Seit 0.49.0 (#101, Patch 013) kein Teil des
+  Beitrags mehr**, sondern ein Verlauf (`trail_reports`): Melden darf
+  jeder, der den Trail SIEHT (Regel der Hinweise, `can_see_trail`) —
+  Abweichung von „ohne Beleg kein Beitrag", entschieden am 2026-09-30.
+  Angezeigt wird die **jüngste bestätigte** Meldung mit ihrem Alter
+  („gesperrt, gemeldet vor 14 Monaten"), dazu verblasst die **jüngste
+  unbestätigte, wenn sie jünger ist** („zu bestätigen"); eine ältere
+  unbestätigte ist überholt. Karte, Liste und Filter „Gemeldet" folgen
+  nur der bestätigten. Kein automatisches Verfallen.
+  **Bestätigt** ist eine Meldung, wenn der Meldende den Trail zu diesem
+  Zeitpunkt gefahren hat (eine Aufzeichnung, die nicht `planned` ist)
+  oder vor Ort war: ≤ 200 m zur Linie, geprüft auf dem Gerät nach einem
+  Tipp auf „Ich bin vor Ort". Zum Server geht nur das Ja/Nein, und
+  gespeichert wird dort nur das Ergebnis `confirmed` (der Server rechnet
+  es in `report_trail`, Security Definer — ein Client kann sich nicht
+  selbst bestätigen). Push nur für bestätigte Meldungen.
+  **Eine Fahrt setzt die eigene Meldung auf „offen"** — wer den Trail
+  fährt, hat ihn befahrbar vorgefunden —, und zwar **zum Fahrdatum**
+  (`recorded_at`, seit 0.49.0): Eine GPX-Datei von 2024 verdrängt keine
+  Meldung von gestern. Nur, wenn der Fahrende schon etwas gemeldet hat;
+  bei Widerspruch zwischen Buddys gewinnt die jüngste bestätigte, ohne
+  Abstimmung. **Ausnahme seit 0.46.1 (#100, Patch 011):** eine geplante
+  Aufzeichnung (`planned`, Datei ohne Fahrzeiten) — sie belegt nicht,
+  dass jemand den Trail befahrbar vorgefunden hat.
+  **Aufbewahrt 90 Tage** (`sweep_old_reports`), damit man nachsehen
+  kann, wer was gemeldet hat (Name bzw. Alias im Blatt); die jüngste
+  bestätigte und die jüngste unbestätigte je Person, Trail und Art
+  bleiben länger — die angezeigte muss auch nach einem Jahr noch da
+  sein. Alte Clients (bis 0.48.0) lesen und schreiben weiter
+  `trail_details.status`; Trigger gleichen in beide Richtungen ab
+  (erweitern → ausliefern → entfernen).
+- **Zustand** (#101, Patch 013) = 1–5, von „kaum fahrbar" bis „top
+  gepflegt" (`trail_condition.dart`), im selben Verlauf wie die Meldung
+  und nach derselben Regel bestätigt und angezeigt: die jüngste
+  bestätigte Angabe, **dauerhaft** mit ihrem Alter (Betreiber,
+  2026-09-30), dazu verblasst eine jüngere unbestätigte. Beschreibt
+  den Zustand, nie eine Maßnahme (Konzept 7). Keine Push.
+- **Bewertung** (#101, Patch 013) = 1–5 Sterne je Beitrag
+  (`trail_details.rating`), also nur mit eigenem Beleg; angezeigt der
+  Median der sichtbaren Beiträge (bei Gleichstand der höhere) mit
+  Anzahl, auf dem Gerät gerechnet. Ein eigener Trail ohne eigene
+  Bewertung zeigt verblasste Sterne.
 - **Link zur Quelle** (#103, Patch 012, seit 0.48.0) = eigener Link,
   sonst der des ältesten sichtbaren Beitrags, der einen hat — wie der
   Name, nur ohne „auch: …". Nur https, ohne Query und Fragment (Check in
@@ -222,11 +273,11 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   Trail war. Nach 90 Tagen räumt der Server auf; der jüngste Hinweis
   eines Autors zu einem Trail bleibt, bis ihn jemand entfernt (je Autor,
   weil „der jüngste über alle Netze" eine Rechnung über Netzgrenzen
-  wäre). Beim Ändern des Status wird einer angeboten. Die App hebt
+  wäre). Beim Melden wird einer angeboten. Die App hebt
   Trails mit einem neuen, noch nicht gelesenen Hinweis eines Buddys aus
   den letzten sieben Tagen in Karte und Liste hervor; was gelesen ist,
   weiß nur das Gerät. **Seit 0.23.0 (#34) dazu eine Push-Meldung** für
-  Statuswechsel und neue Hinweise — an die direkten Buddys des Autors,
+  bestätigte Meldungen und neue Hinweise — an die direkten Buddys des Autors,
   die den Trail und seinen Beitrag sehen (dieselben Regeln wie die
   Sichtbarkeit, je Buddy-Beziehung eine Zeile, keine Rechnung über alle;
   Abschnitt 12), ohne Inhalt: kein Trailname, kein Name, kein

@@ -20,9 +20,22 @@ TrailRecording rec(String trail, String user,
       ele: ele,
     );
 
-TrailDetails det(String trail, String user,
-        {String? name, int? grade, TrailStatus status = TrailStatus.open, DateTime? at}) =>
-    TrailDetails(trailId: trail, userId: user, name: name, grade: grade, status: status, statusAt: at);
+TrailDetails det(String trail, String user, {String? name, int? grade, int? rating}) =>
+    TrailDetails(trailId: trail, userId: user, name: name, grade: grade, rating: rating);
+
+var _reportN = 0;
+TrailReport rep(String trail, String user, DateTime at,
+        {TrailStatus? status, int? condition, bool confirmed = true}) =>
+    TrailReport(
+      id: 'r${_reportN++}',
+      trailId: trail,
+      userId: user,
+      kind: status != null ? ReportKind.status : ReportKind.condition,
+      status: status,
+      condition: condition,
+      confirmed: confirmed,
+      reportedAt: at,
+    );
 
 void main() {
   test('geplant: nur wer ausschließlich Dateien ohne Fahrzeiten beigesteuert hat (#100)', () {
@@ -74,21 +87,126 @@ void main() {
     expect(Trail(id: 't', myId: 'x', recordings: [a, c, b], details: const []).best.id, b.id);
   });
 
-  test('jüngster Status gewinnt, Median der S-Grade, Buddys gezählt', () {
+  test('jüngste bestätigte Meldung gewinnt, Median der S-Grade, Buddys gezählt', () {
     final t = Trail(
       id: 't',
       myId: 'me',
       recordings: [rec('t', 'me'), rec('t', 'a'), rec('t', 'b')],
       details: [
-        det('t', 'a', grade: 2, status: TrailStatus.closed, at: DateTime(2026, 3, 1)),
-        det('t', 'b', grade: 3, status: TrailStatus.open, at: DateTime(2026, 4, 1)),
+        det('t', 'a', grade: 2),
+        det('t', 'b', grade: 3),
         det('t', 'me', grade: 5),
+      ],
+      reports: [
+        rep('t', 'a', DateTime(2026, 3, 1), status: TrailStatus.closed),
+        rep('t', 'b', DateTime(2026, 4, 1), status: TrailStatus.open),
       ],
     );
     expect(t.status, TrailStatus.open);
     expect(t.grade, 3);
     expect(t.buddyIds, {'a', 'b'});
     expect(t.isOwn, isTrue);
+  });
+
+  group('Meldung und Zustand (#101)', () {
+    Trail withReports(List<TrailReport> reports) => Trail(
+          id: 't', myId: 'me', recordings: [rec('t', 'me')], details: const [], reports: reports);
+
+    test('die jüngste bestätigte, dazu eine jüngere unbestätigte', () {
+      final closed = rep('t', 'a', DateTime(2026, 9, 1), status: TrailStatus.closed);
+      final openLater = rep('t', 'b', DateTime(2026, 9, 10), status: TrailStatus.open, confirmed: false);
+      final t = withReports([closed, openLater]);
+      expect(t.shownStatus.confirmed, closed);
+      expect(t.shownStatus.unconfirmed, openLater);
+      expect(t.status, TrailStatus.closed, reason: 'Karte und Liste folgen der bestätigten');
+    });
+
+    test('eine ältere unbestätigte ist überholt und fällt weg', () {
+      final old = rep('t', 'b', DateTime(2026, 8, 1), status: TrailStatus.destroyed, confirmed: false);
+      final closed = rep('t', 'a', DateTime(2026, 9, 1), status: TrailStatus.closed);
+      final t = withReports([old, closed]);
+      expect(t.shownStatus.unconfirmed, isNull);
+      expect(t.shownStatus.confirmed, closed);
+    });
+
+    test('nur unbestätigt: die Karte bleibt ohne Warnung, das Blatt zeigt sie', () {
+      final t = withReports([rep('t', 'b', DateTime(2026, 9, 1), status: TrailStatus.closed, confirmed: false)]);
+      expect(t.status, TrailStatus.open);
+      expect(t.shownStatus.unconfirmed?.status, TrailStatus.closed);
+    });
+
+    test('Zustand: der jüngste bestätigte steht dauerhaft, auch nach einem Jahr', () {
+      final t = withReports([
+        rep('t', 'a', DateTime(2025, 6, 1), condition: 2),
+        rep('t', 'b', DateTime(2025, 5, 1), condition: 5),
+      ]);
+      expect(t.shownCondition.confirmed?.condition, 2);
+      expect(t.reportsShown(now: DateTime(2026, 9, 30)).map((r) => r.condition), [2],
+          reason: 'außerhalb der 90 Tage bleibt nur, was angezeigt wird');
+    });
+
+    test('Verlauf: 90 Tage, neueste zuerst', () {
+      final now = DateTime(2026, 9, 30);
+      final t = withReports([
+        rep('t', 'a', DateTime(2026, 9, 1), status: TrailStatus.closed),
+        rep('t', 'a', DateTime(2026, 9, 20), status: TrailStatus.open),
+        rep('t', 'b', DateTime(2026, 5, 1), status: TrailStatus.changed),
+      ]);
+      expect(t.reportsShown(now: now).map((r) => r.status),
+          [TrailStatus.open, TrailStatus.closed]);
+    });
+  });
+
+  group('Bewertung (#101)', () {
+    test('Median, bei Gleichstand der höhere', () {
+      final t = Trail(id: 't', myId: 'me', recordings: [rec('t', 'me'), rec('t', 'a')], details: [
+        det('t', 'me', rating: 2),
+        det('t', 'a', rating: 4),
+      ]);
+      expect(t.rating, 4);
+      expect(t.ratingVotes, hasLength(2));
+      expect(t.ratingOpen, isFalse);
+    });
+
+    test('belegt, aber nicht bewertet: Bewertung offen (verblasste Sterne)', () {
+      final t = Trail(id: 't', myId: 'me', recordings: [rec('t', 'me'), rec('t', 'a')], details: [
+        det('t', 'me'),
+        det('t', 'a', rating: 5),
+      ]);
+      expect(t.rating, 5);
+      expect(t.ratingOpen, isTrue);
+      final buddyOnly = Trail(id: 't', myId: 'me', recordings: [rec('t', 'a')], details: [det('t', 'a')]);
+      expect(buddyOnly.ratingOpen, isFalse, reason: 'ohne eigenen Beleg keine eigene Bewertung');
+    });
+
+    test('ein Wert außerhalb 1–5 fällt beim Lesen weg', () {
+      final d = TrailDetails.fromJson({'trail_id': 't', 'user_id': 'a', 'rating': 7});
+      expect(d.rating, isNull);
+    });
+  });
+
+  test('gefahren heißt: eine Aufzeichnung, die nicht nur geplant ist', () {
+    final t = Trail(id: 't', myId: 'me', recordings: [
+      rec('t', 'me', source: RecordingSource.planned),
+      rec('t', 'a'),
+    ], details: const []);
+    expect(t.hasRidden('me'), isFalse);
+    expect(t.hasRidden('a'), isTrue);
+  });
+
+  test('eine Meldung unbekannter Art liest sich als nichts', () {
+    expect(
+        TrailReport.fromJson({
+          'id': 'x', 'trail_id': 't', 'user_id': 'a', 'kind': 'weather',
+          'confirmed': true, 'reported_at': '2026-09-30T08:00:00Z',
+        }),
+        isNull);
+    expect(
+        TrailReport.fromJson({
+          'id': 'x', 'trail_id': 't', 'user_id': 'a', 'kind': 'condition', 'condition': 9,
+          'confirmed': true, 'reported_at': '2026-09-30T08:00:00Z',
+        }),
+        isNull);
   });
 
   test('buildTrails gruppiert und lässt Beiträge ohne Beleg weg', () {

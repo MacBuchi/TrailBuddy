@@ -25,11 +25,13 @@ import 'package:path_provider/path_provider.dart';
 import '../core/errors.dart';
 import '../models/trail.dart';
 
-/// Was das Netz auf einen Schlag liefert: die drei Tabellen des Netzes.
+/// Was das Netz auf einen Schlag liefert: die vier Tabellen des Netzes
+/// (die Meldungen seit Patch 013).
 typedef TrailSnapshot = ({
   List<TrailRecording> recordings,
   List<TrailDetails> details,
   List<TrailNote> notes,
+  List<TrailReport> reports,
 });
 
 /// Ein Abruf mit Herkunft: `cachedAt == null` heißt frisch aus dem Netz.
@@ -81,6 +83,7 @@ String encodeTrailCache({required String uid, required TrailSnapshot snapshot, r
       'recordings': [for (final r in snapshot.recordings) recordingToRow(r)],
       'details': [for (final d in snapshot.details) detailsToRow(d)],
       'notes': [for (final n in snapshot.notes) noteToRow(n)],
+      'reports': [for (final r in snapshot.reports) r.toRow()],
     });
 
 /// Liest [text] zurück — `null`, wenn nichts Brauchbares darin steht oder
@@ -100,6 +103,8 @@ String encodeTrailCache({required String uid, required TrailSnapshot snapshot, r
         recordings: [for (final r in rows('recordings')) TrailRecording.fromJson(r)],
         details: [for (final d in rows('details')) TrailDetails.fromJson(d)],
         notes: [for (final n in rows('notes')) TrailNote.fromJson(n)],
+        // Fehlt bei einer Kopie von vor 0.49.0: dann eben keine Meldungen.
+        reports: [for (final r in rows('reports')) ?TrailReport.fromJson(r)],
       ),
       savedAt: savedAt.toLocal(),
     );

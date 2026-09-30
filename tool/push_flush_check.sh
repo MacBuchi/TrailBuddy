@@ -93,6 +93,22 @@ update app_internal.push_outbox set due_at = now() - interval '1 minute';
 select 'SENT3=' || app_internal.push_flush();
 select 'BODY3=' || convert_from(body, 'utf8') from net.http_request_queue order by id desc limit 1;
 
+-- 3b. Meldungen über report_trail (Patch 013): Bert hat T1 nie gefahren.
+--     Von zu Hause gemeldet ist unbestätigt und bleibt still; vor Ort
+--     gemeldet ist bestätigt und geht an Anna.
+delete from app_internal.push_outbox;
+select set_config('request.jwt.claims', '{"sub":"$B","role":"authenticated"}', true);
+set local role authenticated;
+select public.report_trail('$T1', 'closed', null, false, null, null);
+reset role;
+select 'OUTBOX_UNCONFIRMED=' || count(*) from app_internal.push_outbox;
+set local role authenticated;
+select public.report_trail('$T1', 'closed', 2, true, null, null);
+reset role;
+select 'OUTBOX_ONSITE=' || coalesce(string_agg(recipient_id::text || ':' || kind || ':' || coalesce(status, '-'), ',' order by recipient_id), '')
+  from app_internal.push_outbox;
+delete from app_internal.push_outbox;
+
 -- 4. Privat: Kein Buddy sieht den Beitrag, also erfährt keiner etwas.
 update public.trail_details set visibility = 'private'
   where trail_id = '$T2' and user_id = '$A';
@@ -156,9 +172,11 @@ case "$msg2" in *Baum*|*Kehre*) echo "::error::push_flush: Hinweistext in der Nu
 expect "Status und Hinweis zugleich: eine Meldung" "$(value SENT3)" "1"
 msg3=$(value BODY3 | jq -c '.messages[0]')
 expect "Titel: beides" "$(jq -r .title <<<"$msg3")" "Deine Buddys haben etwas gemeldet"
-expect "Text: die Zahlen" "$(jq -r .body <<<"$msg3")" "1 Statusmeldung und 1 Hinweis"
+expect "Text: die Zahlen" "$(jq -r .body <<<"$msg3")" "1 Meldung und 1 Hinweis"
 expect "Ziel: der eine Trail" "$(jq -r .route <<<"$msg3")" "/trail/$T1"
 
+expect "unbestätigte Meldung (von zu Hause): keine Push" "$(value OUTBOX_UNCONFIRMED)" "0"
+expect "vor Ort bestätigt: Anna bekommt eine Zeile, der Zustand keine" "$(value OUTBOX_ONSITE)" "$A:trail_status:closed"
 expect "privater Beitrag: niemand erfährt etwas" "$(value OUTBOX_PRIVATE)" "0"
 expect "ohne Geheimnisse wird nichts verschickt" "$(value SENT_NOSECRET)" "0"
 expect "aber abgeräumt" "$(value OUTBOX_NOSECRET)" "0"

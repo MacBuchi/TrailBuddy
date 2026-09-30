@@ -25,7 +25,7 @@ enum TrailOwnerFilter {
 }
 
 enum TrailSort {
-  /// Jüngster Beleg, Beitrag, Hinweis oder Statusmeldung zuerst.
+  /// Jüngster Beleg, Beitrag, Hinweis oder Meldung zuerst.
   recent('Zuletzt aktiv'),
   name('Name'),
   length('Länge'),
@@ -152,10 +152,12 @@ DateTime lastActivity(Trail t) {
   }
   for (final d in t.details) {
     take(d.updatedAt);
-    take(d.statusAt);
   }
   for (final n in t.notes) {
     take(n.createdAt);
+  }
+  for (final r in t.reports) {
+    take(r.reportedAt);
   }
   return latest;
 }

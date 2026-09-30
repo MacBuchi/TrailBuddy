@@ -127,13 +127,14 @@ begin
 end $$;
 
 create or replace function tb_test.contribute(uid uuid, xy double precision[],
-                                              src text default 'app', cid uuid default null)
+                                              src text default 'app', cid uuid default null,
+                                              at timestamptz default null)
 returns uuid language plpgsql as $$
 declare
   t uuid;
 begin
   perform tb_test.as_user(uid);
-  t := public.contribute_recording(tb_test.coords(xy), src, null, cid);
+  t := public.contribute_recording(tb_test.coords(xy), src, at, cid);
   perform tb_test.as_owner();
   return t;
 end $$;
@@ -538,19 +539,23 @@ declare
   ua uuid := '11111111-1111-4111-8111-111111111111';
   t uuid := tb_test.t('half');
 begin
-  perform tb_test.exec_as(ua, format('update public.trail_details set status = %L, status_at = now() where trail_id = %L and user_id = %L', 'closed', t, ua));
+  -- Seit Patch 013 zählt eine Fahrt zu IHREM Datum und nur, wenn sie
+  -- jünger ist als die Meldung. In einem DO-Block ist now() überall
+  -- gleich, deshalb stehen die Zeiten hier ausdrücklich da.
+  perform tb_test.exec_as(ua, format('update public.trail_details set status = %L, status_at = now() - interval ''3 minutes'' where trail_id = %L and user_id = %L', 'closed', t, ua));
   perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'closed', 'Beitrag auf gesperrt gesetzt');
-  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.42)) = t, 'Hälfte erneut gefahren ⇒ derselbe Trail');
+  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.42), at => now() - interval '2 minutes') = t,
+                        'Hälfte erneut gefahren ⇒ derselbe Trail');
   perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'open',
                         'wer fährt, hat offen vorgefunden: Status wieder offen (Entscheidung 6)');
 
   -- Patch 011 (#100): Eine Datei ohne Fahrzeiten belegt keine Fahrt.
-  perform tb_test.exec_as(ua, format('update public.trail_details set status = %L, status_at = now() where trail_id = %L and user_id = %L', 'closed', t, ua));
+  perform tb_test.exec_as(ua, format('update public.trail_details set status = %L, status_at = now() - interval ''1 minute'' where trail_id = %L and user_id = %L', 'closed', t, ua));
   perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.43), 'planned') = t,
                         'geplanter Import derselben Hälfte ⇒ derselbe Trail');
   perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'closed',
                         'geplant ist nicht gefahren: Status bleibt gesperrt (Patch 011)');
-  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.44), 'import') = t,
+  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.44), 'import', at => now()) = t,
                         'Import mit Fahrzeiten ⇒ derselbe Trail');
   perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'open',
                         'Import mit Fahrzeiten ist eine Fahrt: Status wieder offen');
@@ -907,6 +912,172 @@ begin
     perform tb_test.check(code = '23514', format('abgelehnt: %s… (%s)', left(bad, 40), code));
   end loop;
   perform tb_test.exec_as(ua, format('update public.trail_details set link = null where trail_id = %L and user_id = %L', t, ua));
+end $$;
+
+\echo -- 23. Bewertung, Meldungen und Zustände (Patch 013, #101)
+do $$
+declare
+  ua uuid := '11111111-1111-4111-8111-111111111111';
+  ub uuid := '22222222-2222-4222-8222-222222222222';
+  uc uuid := '33333333-3333-4333-8333-333333333333';
+  t uuid;
+  code text;
+  n integer;
+  rep text := 'select public.report_trail(%L::uuid, %L::text, %L::integer, %L::boolean, %L::timestamptz, %L::uuid)';
+  mine text := 'select count(*) from public.trail_reports where trail_id = %L';
+begin
+  -- Ein frischer Trail von Anna, geteilt; Bernd sieht ihn über Anna,
+  -- ohne ihn gefahren zu sein, Carla sieht ihn nicht.
+  t := tb_test.contribute(ua, tb_test.line(400, y0 => 80000));
+  perform tb_test.check(app_internal.can_see_trail(ub, t) and not app_internal.can_see_trail(uc, t),
+                        'Bernd sieht den Trail über Anna, Carla nicht');
+
+  -- Bewertung am Beitrag: 1–5 oder leer.
+  perform tb_test.exec_as(ua, format('update public.trail_details set rating = 4 where trail_id = %L and user_id = %L', t, ua));
+  perform tb_test.check((select rating from public.trail_details where trail_id = t and user_id = ua) = 4,
+                        'Bewertung 4 gespeichert');
+  foreach n in array array[0, 6] loop
+    code := null;
+    begin
+      perform tb_test.exec_as(ua, format('update public.trail_details set rating = %s where trail_id = %L and user_id = %L', n, t, ua));
+    exception when others then
+      get stacked diagnostics code = returned_sqlstate;
+    end;
+    perform tb_test.check(code = '23514', format('Bewertung %s abgelehnt (%s)', n, code));
+  end loop;
+  -- Ein alter Client schreibt per upsert nur seine Spalten: die Bewertung bleibt.
+  perform tb_test.exec_as(ua, format(
+    'insert into public.trail_details (trail_id, user_id, name, grade, traits, link, visibility, status, status_at) '
+    'values (%L, %L, %L, 2, %L, null, %L, %L, null) '
+    'on conflict (trail_id, user_id) do update set name = excluded.name, grade = excluded.grade, '
+    'traits = excluded.traits, link = excluded.link, visibility = excluded.visibility, '
+    'status = excluded.status, status_at = excluded.status_at',
+    t, ua, 'Alter Client', '{flowy}', 'buddies', 'open'));
+  perform tb_test.check((select rating from public.trail_details where trail_id = t and user_id = ua) = 4,
+                        'Upsert eines alten Clients (ohne rating) lässt die Bewertung stehen');
+
+  -- Bernd meldet von zu Hause: erlaubt, aber unbestätigt.
+  perform tb_test.exec_as(ub, format(rep, t, 'closed', null, false, null, null));
+  perform tb_test.check((select confirmed from public.trail_reports where trail_id = t and user_id = ub) = false,
+                        'ohne Beleg und nicht vor Ort: unbestätigt');
+  perform tb_test.check(not exists (select 1 from app_internal.push_outbox where trail_id = t),
+                        'eine unbestätigte Meldung löst keine Push aus');
+  -- Vor Ort: bestätigt, Zustand zugleich.
+  perform tb_test.exec_as(ub, format(rep, t, 'closed', 2, true, null, null));
+  perform tb_test.check((select count(*) from public.trail_reports where trail_id = t and user_id = ub and confirmed) = 2,
+                        'vor Ort: Meldung und Zustand bestätigt, je eine Zeile');
+  perform tb_test.check(exists (select 1 from app_internal.push_outbox where trail_id = t and recipient_id = ua and kind = 'trail_status'),
+                        'eine bestätigte Meldung „gesperrt" geht an Anna');
+  -- Bernd hat keinen Beitrag: Der Abgleich zum alten Status legt keinen an.
+  perform tb_test.check(not exists (select 1 from public.trail_details where trail_id = t and user_id = ub),
+                        'Melden legt keinen Beitrag an');
+
+  -- Anna ist gefahren: bestätigt auch von zu Hause, und am Beitrag steht
+  -- der alte Status für Clients bis 0.48.0.
+  perform tb_test.exec_as(ua, format(rep, t, 'changed', null, false, null, null));
+  perform tb_test.check((select confirmed from public.trail_reports where trail_id = t and user_id = ua and kind = 'status'),
+                        'gefahren: bestätigt, auch ohne vor Ort');
+  perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'changed',
+                        'bestätigte Meldung landet am Beitrag (alte Clients)');
+  -- Ein alter Client meldet am Beitrag: Es entsteht eine Meldung.
+  perform tb_test.exec_as(ua, format('update public.trail_details set status = %L, status_at = now() + interval ''1 hour'' where trail_id = %L and user_id = %L',
+                                     'destroyed', t, ua));
+  perform tb_test.check((select count(*) from public.trail_reports where trail_id = t and user_id = ua and status = 'destroyed') = 1,
+                        'Status am Beitrag (alter Client) wird zur Meldung');
+  perform tb_test.check((select reported_at <= now() from public.trail_reports where trail_id = t and user_id = ua and status = 'destroyed'),
+                        'eine Zeit in der Zukunft wird auf jetzt gekappt');
+  -- Eine Fahrt von vor zwei Jahren verdrängt keine Meldung von heute.
+  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(400, y0 => 80000), 3.0, 0.5), 'import',
+                                           at => now() - interval '2 years') = t, 'alte Datei ⇒ derselbe Trail');
+  perform tb_test.check(not exists (select 1 from public.trail_reports where trail_id = t and user_id = ua and status = 'open'),
+                        'eine alte Fahrt setzt die Meldung nicht auf offen');
+
+  -- Idempotenz: derselbe Auftrag zweimal ⇒ eine Zeile.
+  perform tb_test.exec_as(ub, format(rep, t, null, 3, false, null, '00000000-0000-4000-8000-0000000000aa'));
+  perform tb_test.exec_as(ub, format(rep, t, null, 3, false, null, '00000000-0000-4000-8000-0000000000aa'));
+  perform tb_test.check((select count(*) from public.trail_reports
+                          where user_id = ub and client_id = '00000000-0000-4000-8000-0000000000aa') = 1,
+                        'Wiedervorlage desselben Auftrags legt keine zweite Zeile an');
+
+  -- Abgelehnt: wer den Trail nicht sieht, nichts gemeldet, Werte außerhalb.
+  foreach code in array array['carla', 'leer', 'zustand', 'status', 'direkt'] loop
+    declare got text := null; want text;
+    begin
+      want := case code when 'carla' then '42501' when 'leer' then '22023'
+                        when 'direkt' then '42501' else '23514' end;
+      begin
+        case code
+          when 'carla' then perform tb_test.exec_as(uc, format(rep, t, 'closed', null, true, null, null));
+          when 'leer' then perform tb_test.exec_as(ub, format(rep, t, null, null, false, null, null));
+          when 'zustand' then perform tb_test.exec_as(ub, format(rep, t, null, 6, false, null, null));
+          when 'status' then perform tb_test.exec_as(ub, format(rep, t, 'kaputt', null, false, null, null));
+          else perform tb_test.exec_as(ub, format(
+            'insert into public.trail_reports (trail_id, user_id, kind, status, confirmed, reported_at) values (%L, %L, %L, %L, true, now())',
+            t, ub, 'status', 'open'));
+        end case;
+      exception when others then
+        get stacked diagnostics got = returned_sqlstate;
+      end;
+      perform tb_test.as_owner();
+      perform tb_test.check(got = want, format('abgelehnt: %s (%s)', code, got));
+    end;
+  end loop;
+
+  -- Schutz gegen Fluten: ab 200 Zeilen in 24 h ist Schluss (54000).
+  insert into public.trail_reports (trail_id, user_id, kind, status, confirmed, reported_at)
+    select t, ub, 'status', 'open', false, now() - interval '100 days' from generate_series(1, 200);
+  code := null;
+  begin
+    perform tb_test.exec_as(ub, format(rep, t, 'open', null, false, null, null));
+  exception when others then
+    get stacked diagnostics code = returned_sqlstate;
+  end;
+  perform tb_test.as_owner();
+  perform tb_test.check(code = '54000', format('Tageslimit der Meldungen (%s)', code));
+  delete from public.trail_reports where trail_id = t and user_id = ub
+     and reported_at < now() - interval '99 days' and status = 'open' and not confirmed;
+
+  -- Sichtbar: Anna und Bernd sehen alles, Carla nichts.
+  perform tb_test.check(tb_test.count_as(ub, format(mine, t)) = tb_test.count_as(ua, format(mine, t))
+                        and tb_test.count_as(ua, format(mine, t)) = (select count(*) from public.trail_reports where trail_id = t),
+                        'Anna und Bernd sehen alle Meldungen');
+  perform tb_test.check(tb_test.count_as(uc, format(mine, t)) = 0, 'Carla sieht keine');
+  -- Privat: Annas Meldungen verschwinden aus Bernds Sicht, seine bleiben.
+  perform tb_test.exec_as(ua, format('update public.trail_details set visibility = %L where trail_id = %L and user_id = %L', 'private', t, ua));
+  perform tb_test.check(tb_test.count_as(ub, format(mine || ' and user_id = %L', t, ua)) = 0,
+                        'privat: Annas Meldungen sieht Bernd nicht mehr');
+  perform tb_test.exec_as(ua, format('update public.trail_details set visibility = %L where trail_id = %L and user_id = %L', 'buddies', t, ua));
+
+  -- Aufräumen nach 90 Tagen: die jüngste je Person, Art und Bestätigung bleibt.
+  update public.trail_reports set reported_at = reported_at - interval '100 days'
+   where trail_id = t and user_id = ub;
+  n := app_internal.sweep_old_reports();
+  perform tb_test.check(n = 0, format('jede alte Angabe ist die jüngste ihrer Art: nichts entfernt (%s)', n));
+  perform tb_test.exec_as(ub, format(rep, t, 'open', null, false, null, null));
+  n := app_internal.sweep_old_reports();
+  perform tb_test.check(n = 1, format('eine neuere unbestätigte Meldung: die alte fällt weg (%s)', n));
+  perform tb_test.check((select count(*) from public.trail_reports where trail_id = t and user_id = ub) = 4
+                        and exists (select 1 from public.trail_reports where trail_id = t and user_id = ub
+                                     and confirmed and status = 'closed'),
+                        'die alte bestätigte Meldung bleibt — sie ist Bernds jüngste bestätigte');
+
+  -- Zurückziehen nimmt die eigenen Meldungen mit, fremde bleiben.
+  perform tb_test.as_user(ua);
+  perform public.withdraw_contribution(t);
+  perform tb_test.as_owner();
+  perform tb_test.check(not exists (select 1 from public.trail_reports where trail_id = t and user_id = ua),
+                        'withdraw_contribution löscht Annas Meldungen');
+
+  code := null;
+  begin
+    perform set_config('request.jwt.claims', '', true);
+    execute 'set local role anon';
+    perform public.report_trail(t, 'open');
+  exception when others then
+    code := sqlstate;
+  end;
+  execute 'reset role';
+  perform tb_test.check(code = '42501', 'anon darf report_trail nicht ausführen');
 end $$;
 
 \echo -- Alle Prüfungen bestanden.

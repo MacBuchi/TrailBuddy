@@ -64,7 +64,7 @@ void main() {
     expect(adopted.single.$4, {TrailTrait.jumps});
   });
 
-  test('Beitrag samt Hinweis', () async {
+  test('Beitrag von vor 0.49.0 samt Status und Hinweis', () async {
     // Der Trail muss sichtbar sein, sonst lehnt die RLS den Hinweis ab.
     final trailId = await repo.contribute(
         coords: line(5), source: RecordingSource.import, clientId: 'seed');
@@ -72,15 +72,36 @@ void main() {
         DetailsJob(
             id: 'd',
             createdAt: at,
-            details: TrailDetails(
-                trailId: trailId, userId: 'me', grade: 4, status: TrailStatus.closed),
+            details: TrailDetails(trailId: trailId, userId: 'me', grade: 4),
+            legacyStatus: TrailStatus.closed,
+            legacyStatusAt: at,
             note: 'Baum quer'),
         uid: 'me');
     final r = await runner.run(uid: 'me');
     expect(r.sent, 1);
     expect(repo.details.singleWhere((d) => d.trailId == trailId).grade, 4);
+    final report = repo.reports.single;
+    expect(report.status, TrailStatus.closed);
+    expect(report.reportedAt.toUtc(), at, reason: 'zur Zeit von damals, nicht zur Sendezeit');
     expect(repo.notes.single.body, 'Baum quer');
   });
+
+  test('Meldung: geht mit der Zeit des Meldens raus, zweimal gesendet bleibt eine', () async {
+    final trailId = await repo.contribute(
+        coords: line(5), source: RecordingSource.import, clientId: 'seed');
+    final job = ReportJob(
+        id: 'r', createdAt: at, trailId: trailId, condition: 2, onSite: false, note: 'Wurzeln frei');
+    await box.append(job, uid: 'me');
+    expect((await runner.run(uid: 'me')).sent, 1);
+    // Ein Abriss nach dem Senden: derselbe Auftrag noch einmal.
+    await box.append(job, uid: 'me');
+    await runner.run(uid: 'me');
+    expect(repo.reports.where((r) => r.condition == 2), hasLength(1),
+        reason: 'dieselbe client_id legt keine zweite Meldung an');
+    expect(repo.reports.single.reportedAt.toUtc(), at);
+    expect(repo.reports.single.confirmed, isTrue, reason: 'gefahren (Import mit Zeiten)');
+  });
+
 
   test('kein Netz: Lauf endet, nichts gilt als gescheitert, Reihenfolge bleibt', () async {
     await box.append(job('a'), uid: 'me');

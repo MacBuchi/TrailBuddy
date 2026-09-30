@@ -77,9 +77,31 @@ class OutboxRunner {
             }
           case DetailsJob():
             await repository.saveDetails(job.details);
+            if (job.legacyStatus case final status?) {
+              await repository.report(
+                trailId: job.details.trailId,
+                status: status,
+                onSite: false,
+                reportedAt: job.legacyStatusAt ?? job.createdAt,
+                clientId: job.id,
+              );
+            }
             final note = job.note?.trim() ?? '';
             if (note.isNotEmpty) {
               await repository.addNote(trailId: job.details.trailId, body: note);
+            }
+          case ReportJob():
+            await repository.report(
+              trailId: job.trailId,
+              status: job.status,
+              condition: job.condition,
+              onSite: job.onSite,
+              reportedAt: job.createdAt,
+              clientId: job.id,
+            );
+            final note = job.note?.trim() ?? '';
+            if (note.isNotEmpty) {
+              await repository.addNote(trailId: job.trailId, body: note);
             }
         }
         sent++;

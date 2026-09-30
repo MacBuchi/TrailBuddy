@@ -151,6 +151,9 @@ enum TrailVisibility {
       values.where((v) => v.db == s).firstOrNull ?? TrailVisibility.buddies;
 }
 
+/// Die Meldung zu einem Trail (bis 0.48.0 in der App „Status", Rework
+/// E7): offen, gesperrt, zerstört, verändert. Seit Patch 013 steht sie
+/// nicht mehr am Beitrag, sondern als [TrailReport] im Verlauf.
 enum TrailStatus {
   open('open', 'Offen'),
   closed('closed', 'Gesperrt'),
@@ -168,8 +171,10 @@ enum TrailStatus {
 }
 
 /// Was ein Nutzer über einen Trail sagt — genau eine Zeile je Nutzer und
-/// Trail (Konzept 3). Name, Schwierigkeit und Status sind Eigenschaften
-/// des BEITRAGS, nicht des Trails.
+/// Trail (Konzept 3). Name, Schwierigkeit, Charakter und Bewertung sind
+/// Eigenschaften des BEITRAGS, nicht des Trails. Die Meldung steht seit
+/// Patch 013 nicht mehr hier, sondern in [TrailReport]: Melden darf auch,
+/// wer keinen Beitrag hat.
 class TrailDetails {
   const TrailDetails({
     required this.trailId,
@@ -179,10 +184,9 @@ class TrailDetails {
     this.description,
     this.grade,
     this.traits = const {},
+    this.rating,
     this.link,
     this.visibility = TrailVisibility.buddies,
-    this.status = TrailStatus.open,
-    this.statusAt,
     this.updatedAt,
   });
 
@@ -199,12 +203,14 @@ class TrailDetails {
   /// Der Charakter laut DIESEM Beitrag, leer = keine Angabe.
   final Set<TrailTrait> traits;
 
+  /// Die Bewertung (#101, Patch 013): 1–5 Sterne, null = noch nicht
+  /// bewertet. Unbekannte Werte fallen beim Lesen weg.
+  final int? rating;
+
   /// Link zur Quelle (#103, Patch 012): https, ohne Query — geprüft von
   /// `sanitizeLink` und vom Check in der Datenbank.
   final String? link;
   final TrailVisibility visibility;
-  final TrailStatus status;
-  final DateTime? statusAt;
   final DateTime? updatedAt;
 
   factory TrailDetails.fromJson(Map<String, dynamic> json) {
@@ -217,12 +223,9 @@ class TrailDetails {
       description: json['description'] as String?,
       grade: json['grade'] as int?,
       traits: _traitsFromJson(json),
+      rating: _ratingFromJson(json['rating']),
       link: json['link'] as String?,
       visibility: TrailVisibility.fromDb(json['visibility'] as String?),
-      status: TrailStatus.fromDb(json['status'] as String?),
-      statusAt: json['status_at'] == null
-          ? null
-          : DateTime.parse(json['status_at'] as String).toLocal(),
       updatedAt: json['updated_at'] == null
           ? null
           : DateTime.parse(json['updated_at'] as String).toLocal(),
@@ -238,10 +241,12 @@ class TrailDetails {
         // `kind` schreibt die App nicht mehr; der Server behält den
         // alten Wert, bis Patch-Folge die Spalte entfernt.
         'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
+        'rating': rating,
         'link': link,
         'visibility': visibility.db,
-        'status': status.db,
-        'status_at': statusAt?.toUtc().toIso8601String(),
+        // `status`/`status_at` schreibt die App seit 0.49.0 nicht mehr: Die
+        // Meldung geht über `report_trail` (Patch 013), und der Server
+        // gleicht sie für ältere Clients an den Beitrag ab.
       };
 
   TrailDetails copyWith({
@@ -250,11 +255,11 @@ class TrailDetails {
     int? grade,
     bool clearGrade = false,
     Set<TrailTrait>? traits,
+    int? rating,
+    bool clearRating = false,
     String? link,
     bool clearLink = false,
     TrailVisibility? visibility,
-    TrailStatus? status,
-    DateTime? statusAt,
   }) =>
       TrailDetails(
         trailId: trailId,
@@ -264,12 +269,144 @@ class TrailDetails {
         description: description ?? this.description,
         grade: clearGrade ? null : (grade ?? this.grade),
         traits: traits ?? this.traits,
+        rating: clearRating ? null : (rating ?? this.rating),
         link: clearLink ? null : (link ?? this.link),
         visibility: visibility ?? this.visibility,
-        status: status ?? this.status,
-        statusAt: statusAt ?? this.statusAt,
         updatedAt: updatedAt,
       );
+}
+
+int? _ratingFromJson(Object? raw) =>
+    raw is int && raw >= kRatingMin && raw <= kRatingMax ? raw : null;
+
+/// Die Sterne der Bewertung (#101) — dieselben Grenzen wie der Check
+/// `trail_details_rating_check`.
+const kRatingMin = 1;
+const kRatingMax = 5;
+
+/// Was eine Meldung ist: die Meldung selbst („gesperrt" …) oder der
+/// Zustand 1–5. Die Werte sind die von `trail_reports.kind`.
+enum ReportKind {
+  status('status'),
+  condition('condition');
+
+  const ReportKind(this.db);
+  final String db;
+
+  static ReportKind? fromDb(String? s) =>
+      values.where((k) => k.db == s).firstOrNull;
+}
+
+/// Eine Meldung oder ein Zustand (#101, Patch 013), eine Zeile im
+/// Verlauf. Schreiben darf jeder, der den Trail sieht; ob sie
+/// [confirmed] ist, legt der Server fest: gefahren oder vor Ort.
+class TrailReport {
+  const TrailReport({
+    required this.id,
+    required this.trailId,
+    required this.userId,
+    required this.kind,
+    required this.confirmed,
+    required this.reportedAt,
+    this.status,
+    this.condition,
+    this.username,
+    this.pending = false,
+  });
+
+  final String id;
+  final String trailId;
+  final String userId;
+  final ReportKind kind;
+
+  /// Nur bei [ReportKind.status].
+  final TrailStatus? status;
+
+  /// Nur bei [ReportKind.condition]: 1 (kaum fahrbar) bis 5 (top gepflegt).
+  final int? condition;
+
+  /// Bestätigt: Der Meldende war dort — gefahren oder vor Ort gemeldet.
+  /// Sonst „zu bestätigen" (verblasst).
+  final bool confirmed;
+  final DateTime reportedAt;
+
+  /// Aus dem Embed `reporter:profiles(...)`.
+  final String? username;
+
+  /// Wartet im Ausgangskorb; [confirmed] ist dann die Vorhersage des
+  /// Geräts (vor Ort oder selbst gefahren), der Server rechnet nach.
+  final bool pending;
+
+  /// null, wenn die Zeile nicht zu diesem Stand passt (unbekannte Art,
+  /// fehlender Wert) — eine neuere App darf eine ältere nicht umwerfen.
+  static TrailReport? fromJson(Map<String, dynamic> json) {
+    final kind = ReportKind.fromDb(json['kind'] as String?);
+    final at = DateTime.tryParse(json['reported_at'] as String? ?? '');
+    if (kind == null || at == null) return null;
+    final status = json['status'] == null ? null : TrailStatus.fromDb(json['status'] as String?);
+    final condition = json['condition'];
+    if (kind == ReportKind.status && status == null) return null;
+    if (kind == ReportKind.condition &&
+        !(condition is int && condition >= kConditionMin && condition <= kConditionMax)) {
+      return null;
+    }
+    final reporter = json['reporter'];
+    return TrailReport(
+      id: json['id'] as String,
+      trailId: json['trail_id'] as String,
+      userId: json['user_id'] as String,
+      kind: kind,
+      status: kind == ReportKind.status ? status : null,
+      condition: kind == ReportKind.condition ? condition as int : null,
+      confirmed: json['confirmed'] as bool? ?? false,
+      reportedAt: at.toLocal(),
+      username: reporter is Map ? reporter['username'] as String? : null,
+    );
+  }
+
+  Map<String, dynamic> toRow() => {
+        'id': id,
+        'trail_id': trailId,
+        'user_id': userId,
+        'kind': kind.db,
+        'status': status?.db,
+        'condition': condition,
+        'confirmed': confirmed,
+        'reported_at': reportedAt.toUtc().toIso8601String(),
+        'reporter': username == null ? null : {'username': username},
+      };
+}
+
+/// Die Skala des Zustands — dieselben Grenzen wie der Check an
+/// `trail_reports.condition`. Wortlaut: `trail_condition.dart`.
+const kConditionMin = 1;
+const kConditionMax = 5;
+
+/// So lange steht eine Meldung im Verlauf des Blatts (Betreiber,
+/// 2026-09-30: „zur Nachvollziehbarkeit 90 Tage"); der Server räumt
+/// danach auf (`sweep_old_reports`), die angezeigte bleibt.
+const kReportRetentionDays = 90;
+
+/// Was angezeigt wird (Rework, Abschnitt 9): die jüngste BESTÄTIGTE
+/// Angabe, dazu die jüngste UNBESTÄTIGTE, wenn sie jünger ist — eine
+/// ältere unbestätigte ist überholt.
+typedef ShownReports = ({TrailReport? confirmed, TrailReport? unconfirmed});
+
+ShownReports shownReportsOf(Iterable<TrailReport> reports) {
+  TrailReport? confirmed;
+  TrailReport? unconfirmed;
+  bool newer(TrailReport a, TrailReport? b) => b == null || a.reportedAt.isAfter(b.reportedAt);
+  for (final r in reports) {
+    if (r.confirmed) {
+      if (newer(r, confirmed)) confirmed = r;
+    } else if (newer(r, unconfirmed)) {
+      unconfirmed = r;
+    }
+  }
+  if (confirmed != null && unconfirmed != null && !unconfirmed.reportedAt.isAfter(confirmed.reportedAt)) {
+    unconfirmed = null;
+  }
+  return (confirmed: confirmed, unconfirmed: unconfirmed);
 }
 
 /// `traits` aus einer Zeile; fehlt die Spalte (Zwischenspeicher oder
@@ -340,6 +477,7 @@ class Trail {
     required this.details,
     required this.myId,
     this.notes = const [],
+    this.reports = const [],
     this.pending = false,
     this.pendingFailure,
     this.pendingDetails = false,
@@ -366,6 +504,11 @@ class Trail {
   /// Die sichtbaren Hinweise, in beliebiger Reihenfolge — angezeigt über
   /// [notesShown].
   final List<TrailNote> notes;
+
+  /// Die sichtbaren Meldungen und Zustände (#101), in beliebiger
+  /// Reihenfolge — angezeigt über [shownStatus], [shownCondition] und
+  /// [reportsShown].
+  final List<TrailReport> reports;
 
   bool get isOwn => recordings.any((r) => r.userId == myId);
 
@@ -516,23 +659,60 @@ class Trail {
     return sorted.take(kShownTraits).toList();
   }
 
-  /// Die jüngste Statusmeldung gewinnt (Entscheidung 6); ohne Datum
-  /// zählt eine Meldung als älter als jede datierte.
-  TrailDetails? get latestStatus {
-    TrailDetails? latest;
-    for (final d in details) {
-      if (latest == null) {
-        latest = d;
-        continue;
-      }
-      final a = d.statusAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final b = latest.statusAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      if (a.isAfter(b)) latest = d;
-    }
-    return latest;
+  /// Die angezeigte Meldung (Rework, Abschnitt 9): die jüngste
+  /// bestätigte, dazu verblasst die jüngste unbestätigte, wenn sie jünger
+  /// ist. Ersetzt „der jüngste Status gewinnt".
+  ShownReports get shownStatus =>
+      shownReportsOf(reports.where((r) => r.kind == ReportKind.status));
+
+  /// Der angezeigte Zustand — dieselbe Regel wie bei der Meldung, ohne
+  /// Frist: Die jüngste bestätigte Angabe steht dauerhaft, mit ihrem
+  /// Alter (Betreiber, 2026-09-30).
+  ShownReports get shownCondition =>
+      shownReportsOf(reports.where((r) => r.kind == ReportKind.condition));
+
+  /// Die BESTÄTIGTE Meldung — sie färbt Karte und Liste und zählt im
+  /// Filter „Gemeldet". Eine unbestätigte steht nur verblasst im Blatt.
+  TrailStatus get status => shownStatus.confirmed?.status ?? TrailStatus.open;
+
+  /// Der Verlauf im Blatt, neueste zuerst: alles aus den letzten
+  /// [kReportRetentionDays] Tagen, dazu immer, was angezeigt wird.
+  List<TrailReport> reportsShown({DateTime? now}) {
+    final since = (now ?? DateTime.now())
+        .subtract(const Duration(days: kReportRetentionDays));
+    final keep = {
+      for (final pair in [shownStatus, shownCondition]) ...[?pair.confirmed, ?pair.unconfirmed],
+    };
+    return [
+      for (final r in reports)
+        if (r.reportedAt.isAfter(since) || keep.contains(r)) r,
+    ]..sort((a, b) => b.reportedAt.compareTo(a.reportedAt));
   }
 
-  TrailStatus get status => latestStatus?.status ?? TrailStatus.open;
+  /// [userId] ist den Trail gefahren — eine sichtbare Aufzeichnung, die
+  /// nicht nur geplant ist. Dieselbe Regel wie `has_ridden` auf dem
+  /// Server; auf dem Gerät nur die Vorhersage für wartende Meldungen.
+  bool hasRidden(String userId) => recordings
+      .any((r) => r.userId == userId && r.source != RecordingSource.planned);
+
+  /// Die sichtbaren Bewertungen, älteste Beiträge zuerst — „wer hat was
+  /// gesagt" im Blatt.
+  List<TrailDetails> get ratingVotes =>
+      contributionsOrdered.where((d) => d.rating != null).toList();
+
+  /// Median der sichtbaren Bewertungen (Rework E4/E8), null ohne Angabe.
+  /// Bei gerader Anzahl der HÖHERE der beiden mittleren — wie beim S-Grad
+  /// (dort im Zweifel die Warnung, hier der Betreiber, 2026-09-30).
+  int? get rating {
+    final ratings = details.map((d) => d.rating).whereType<int>().toList()..sort();
+    if (ratings.isEmpty) return null;
+    return ratings[ratings.length ~/ 2];
+  }
+
+  /// Ich habe den Trail belegt, aber noch nicht bewertet: verblasste
+  /// Sterne (Rework E4, Nachtrag des Betreibers) — das IST „Bewertung
+  /// offen". Nicht für wartende Trails, dort gibt es keinen Beitrag.
+  bool get ratingOpen => isOwn && !pending && myDetails?.rating == null;
 
   /// Was das Blatt zeigt, neueste zuerst: alles aus den letzten
   /// [kNoteRetentionDays] Tagen, und immer den jüngsten — der bleibt
@@ -573,6 +753,7 @@ List<Trail> buildTrails({
   required List<TrailDetails> details,
   required String myId,
   List<TrailNote> notes = const [],
+  List<TrailReport> reports = const [],
 }) {
   final byTrail = <String, List<TrailRecording>>{};
   for (final r in recordings) {
@@ -586,6 +767,10 @@ List<Trail> buildTrails({
   for (final n in notes) {
     notesByTrail.putIfAbsent(n.trailId, () => []).add(n);
   }
+  final reportsByTrail = <String, List<TrailReport>>{};
+  for (final r in reports) {
+    reportsByTrail.putIfAbsent(r.trailId, () => []).add(r);
+  }
   return [
     for (final e in byTrail.entries)
       Trail(
@@ -594,6 +779,7 @@ List<Trail> buildTrails({
         details: detailsByTrail[e.key] ?? const [],
         myId: myId,
         notes: notesByTrail[e.key] ?? const [],
+        reports: reportsByTrail[e.key] ?? const [],
       ),
   ]..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
 }

@@ -2,6 +2,37 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Bewerten und melden
+
+*Version 0.49.0, 2026-09-30*
+
+- **Sterne**: Trails, die du selbst gefahren bist, bewertest du mit 1
+  bis 5 Sternen — im Blatt unter „Deine Bewertung" oder in „Mein
+  Beitrag". Das Blatt zeigt in einer zweiten Kachelreihe, was dein Netz
+  sagt (der mittlere Wert und wie viele es sind); ein Tipp zeigt, wer
+  was vergeben hat. Hast du einen Trail noch nicht bewertet, stehen die
+  Sterne dort blass.
+- **Aus „Status" wird „Meldung"**, und melden kann jetzt jeder, der den
+  Trail sieht: im Blatt unter „Melden" — offen, gesperrt, zerstört oder
+  verändert.
+- **Neu: der Zustand**, von „kaum fahrbar" bis „top gepflegt". Du
+  meldest ihn zusammen mit der Meldung oder allein; die Kachel ZUSTAND
+  zeigt den jüngsten mit seinem Alter.
+- **Bestätigt oder zu bestätigen**: Bist du den Trail gefahren oder
+  gerade vor Ort („Ich bin vor Ort", höchstens 200 m von der Linie),
+  gilt deine Meldung als bestätigt. Sonst steht sie blass mit „zu
+  bestätigen" da, und deine Buddys bekommen dafür keine
+  Benachrichtigung. Deine Position verlässt dabei das Telefon nicht —
+  an den Server geht nur, OB du vor Ort warst.
+- **Wer hat was gemeldet**: Das Blatt zeigt die Meldungen der letzten
+  90 Tage mit Namen und Alter.
+- **Alte Dateien melden nichts mehr**: Eine importierte Fahrt setzt
+  deine Meldung nur noch auf „offen", wenn sie jünger ist als die
+  Meldung — eine GPX-Datei von 2024 hebt ein „gesperrt" von gestern
+  nicht mehr auf.
+- Ohne Netz wartet eine Meldung im Ausgangskorb und geht mit der Zeit
+  raus, zu der du sie gemacht hast.
+
 ## Trails beschreiben
 
 *Version 0.48.0, 2026-09-30*

@@ -193,7 +193,15 @@ create table public.trail_details (
     constraint trail_details_traits_check check (
       traits <@ array['flowy', 'jumps', 'rocky', 'steep', 'uphill', 'natural', 'connection']::text[]
       and cardinality(traits) <= 7),
+  -- Die Bewertung (Patch 013, #101): 1–5 Sterne, wie gut einem der Trail
+  -- gefällt. Leer = noch nicht bewertet. Angezeigt als Median der
+  -- sichtbaren Beiträge, auf dem Gerät gerechnet (Konzept 12).
+  rating smallint constraint trail_details_rating_check check (rating between 1 and 5),
   visibility text not null default 'buddies' check (visibility in ('buddies', 'private')),
+  -- Veraltet seit Patch 013: Die Meldung steht in trail_reports. status
+  -- und status_at bleiben für Clients bis 0.48.0 und werden in beide
+  -- Richtungen abgeglichen (reports_from_details, reports_to_details) —
+  -- erweitern → ausliefern → entfernen.
   status text not null default 'open' check (status in ('open', 'closed', 'destroyed', 'changed')),
   status_at timestamptz,
   -- Verweis auf die Quelle (Patch 012, #103): eine Vereinsseite o. Ä.,
@@ -211,6 +219,8 @@ create table public.trail_details (
 create index trail_details_user_idx on public.trail_details (user_id);
 comment on column public.trail_details.kind is
   'Veraltet seit Patch 009 (Issue #72): nur noch für Clients bis 0.33.0; ersetzt durch traits.';
+comment on column public.trail_details.status is
+  'Veraltet seit Patch 013: die Meldung steht in trail_reports; bleibt für Clients bis 0.48.0 und wird abgeglichen.';
 
 -- Hinweise zu einem Trail für Buddys (Patch 004/005, Issue #7): „Baum
 -- liegt quer". Schreiben darf jeder, der den Trail sieht; mehrere je
@@ -229,6 +239,52 @@ create table public.trail_notes (
 );
 create index trail_notes_trail_idx on public.trail_notes (trail_id);
 create index trail_notes_user_idx on public.trail_notes (trail_id, user_id);
+
+-- Meldungen und Zustände (Patch 013, #101; docs/konzept-rework.md,
+-- Abschnitt 9): „gesperrt", „offen" … (kind 'status', in der App
+-- „Meldung") und der Zustand 1–5 (kind 'condition'). Ein VERLAUF, eine
+-- Zeile je Angabe. Schreiben darf jeder, der den Trail sieht — nur über
+-- report_trail(), weil `confirmed` der Server festlegt: bestätigt ist
+-- eine Angabe, wenn der Meldende den Trail zu diesem Zeitpunkt selbst
+-- gefahren hat (eine Aufzeichnung, die nicht `planned` ist) ODER die App
+-- ihn vor Ort gesehen hat (≤ 200 m, auf dem Gerät geprüft). Das „vor
+-- Ort" selbst wird NICHT gespeichert, nur das Ergebnis; die Position
+-- verlässt das Gerät nie.
+--
+-- Aufbewahrt werden 90 Tage (sweep_old_reports); die jüngste Angabe je
+-- Person, Trail, Art und Bestätigung bleibt darüber hinaus — die
+-- angezeigte Meldung ist die jüngste bestätigte, und die muss auch nach
+-- einem Jahr noch da sein. Je Person, nicht über alle: „die jüngste über
+-- alle Netze" wäre eine Rechnung über Netzgrenzen (Konzept 12).
+create table public.trail_reports (
+  id uuid primary key default gen_random_uuid(),
+  trail_id uuid not null,
+  user_id uuid not null,
+  kind text not null check (kind in ('status', 'condition')),
+  status text check (status in ('open', 'closed', 'destroyed', 'changed')),
+  condition smallint check (condition between 1 and 5),
+  confirmed boolean not null,
+  -- Wann die Angabe gemacht wurde — vom Gerät, damit eine Meldung aus
+  -- dem Ausgangskorb ihre echte Zeit behält; der Server kappt auf now().
+  reported_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  -- Ausgangskorb: derselbe Auftrag zweimal legt keine zweite Zeile an.
+  client_id uuid,
+  constraint trail_reports_value_check check (
+    (kind = 'status') = (status is not null)
+    and (kind = 'condition') = (condition is not null)),
+  constraint trail_reports_user_id_fkey foreign key (user_id)
+    references public.profiles(id) on delete cascade,
+  constraint trail_reports_trail_id_fkey foreign key (trail_id)
+    references public.trails(id) on delete cascade
+);
+create index trail_reports_trail_idx on public.trail_reports (trail_id);
+create index trail_reports_latest_idx
+  on public.trail_reports (trail_id, user_id, kind, confirmed, reported_at desc);
+create index trail_reports_user_idx on public.trail_reports (user_id);
+create unique index trail_reports_client_id_key
+  on public.trail_reports (user_id, client_id, kind)
+  where client_id is not null;
 
 -- Geräteregister für Push (Patch 008, #34): eine Zeile je Gerät, der
 -- Token ist der Schlüssel und gehört zu genau EINEM Konto (der Upsert
@@ -356,6 +412,37 @@ returns boolean language sql stable security definer set search_path = public as
          or (app_internal.are_friends(r.user_id, uid)
              and app_internal.contributor_shares(r.user_id, trail))));
 $$;
+
+-- Hat [uid] den Trail selbst GEFAHREN? Eine eigene Aufzeichnung, die
+-- nicht `planned` ist — eine Datei ohne Fahrzeiten belegt keine Fahrt
+-- (Patch 011, 013). Die Grundlage von „bestätigt" (trail_reports).
+create or replace function app_internal.has_ridden(uid uuid, trail uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from trail_recordings r
+     where r.trail_id = trail and r.user_id = uid and r.source <> 'planned');
+$$;
+revoke all on function app_internal.has_ridden(uuid, uuid) from public, anon, authenticated;
+
+-- Die EINE Schreibstelle für Meldungen und Zustände (Patch 013): der
+-- RPC report_trail, der Abgleich aus trail_details (alte Clients) und
+-- contribute_recording schreiben hierüber. Eine bekannte client_id ist
+-- ein zweiter Versuch desselben Auftrags und legt nichts an. Gibt zurück,
+-- ob eine Zeile entstanden ist.
+create or replace function app_internal.put_report(
+  p_user uuid, p_trail uuid, p_kind text, p_status text, p_condition integer,
+  p_confirmed boolean, p_at timestamptz, p_client_id uuid)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into trail_reports (trail_id, user_id, kind, status, condition, confirmed, reported_at, client_id)
+  values (p_trail, p_user, p_kind, p_status, p_condition, p_confirmed,
+          least(coalesce(p_at, now()), now()), p_client_id)
+  on conflict (user_id, client_id, kind) where client_id is not null do nothing;
+  return found;
+end $$;
+revoke all on function app_internal.put_report(uuid, uuid, text, text, integer, boolean, timestamptz, uuid)
+  from public, anon, authenticated;
 
 -- ------------------------------------------------------------
 -- Der Abgleich (Abschnitt 4). Spiegel von tool/trail_match.py —
@@ -635,6 +722,75 @@ begin
 end $$;
 revoke all on function app_internal.sweep_old_notes() from public, anon, authenticated;
 
+-- Meldungen und Zustände älter als 90 Tage verschwinden (Patch 013,
+-- Betreiber 2026-09-30: „zur Nachvollziehbarkeit 90 Tage"), außer der
+-- jüngsten je Person, Trail, Art und Bestätigung — die angezeigte
+-- Meldung ist die jüngste bestätigte, wie alt sie auch ist.
+create or replace function app_internal.sweep_old_reports()
+returns integer
+language plpgsql security definer set search_path = public as $$
+declare
+  n integer;
+begin
+  delete from trail_reports old
+   where old.reported_at < now() - interval '90 days'
+     and exists (select 1 from trail_reports newer
+                  where newer.trail_id = old.trail_id
+                    and newer.user_id = old.user_id
+                    and newer.kind = old.kind
+                    and newer.confirmed = old.confirmed
+                    and (newer.reported_at, newer.created_at, newer.id)
+                      > (old.reported_at, old.created_at, old.id));
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function app_internal.sweep_old_reports() from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- Meldung ↔ trail_details.status (Patch 013): Clients bis 0.48.0 lesen
+-- und schreiben die Meldung nur am Beitrag. Beide Richtungen, damit
+-- keiner etwas verpasst — erweitern → ausliefern → entfernen.
+-- ---------------------------------------------------------------------
+
+-- Alt → neu: Ändert jemand status oder status_at am Beitrag (ein alter
+-- Client), entsteht eine Meldung. `pg_trigger_depth() > 1` heißt: Die
+-- Änderung kam selbst aus reports_to_details — dann gibt es die Meldung
+-- schon, und ohne die Sperre liefen die beiden Trigger im Kreis.
+create or replace function app_internal.reports_from_details()
+returns trigger
+language plpgsql security definer set search_path = public, app_internal as $$
+begin
+  if pg_trigger_depth() > 1 then return new; end if;
+  if new.status = 'open' and new.status_at is null then return new; end if;
+  if tg_op = 'UPDATE'
+     and new.status is not distinct from old.status
+     and new.status_at is not distinct from old.status_at then
+    return new;
+  end if;
+  perform app_internal.put_report(new.user_id, new.trail_id, 'status', new.status, null,
+                                  app_internal.has_ridden(new.user_id, new.trail_id),
+                                  coalesce(new.status_at, now()), null);
+  return new;
+end $$;
+revoke all on function app_internal.reports_from_details() from public, anon, authenticated;
+
+-- Neu → alt: Eine BESTÄTIGTE Meldung landet am Beitrag des Meldenden,
+-- wenn er einen hat und sie jünger ist. Unbestätigte nicht — ein alter
+-- Client kennt kein „zu bestätigen" und zeigte sie als Tatsache.
+create or replace function app_internal.reports_to_details()
+returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.kind = 'status' and new.confirmed then
+    update trail_details d
+       set status = new.status, status_at = new.reported_at
+     where d.trail_id = new.trail_id and d.user_id = new.user_id
+       and new.reported_at > coalesce(d.status_at, '-infinity'::timestamptz);
+  end if;
+  return new;
+end $$;
+revoke all on function app_internal.reports_to_details() from public, anon, authenticated;
+
 -- updated_at am Beitrag pflegt die Datenbank, nicht der Client.
 create or replace function app_internal.touch_updated_at()
 returns trigger language plpgsql set search_path = '' as $$
@@ -646,6 +802,12 @@ revoke all on function app_internal.touch_updated_at() from public, anon, authen
 create trigger trail_details_touch
   before update on public.trail_details
   for each row execute function app_internal.touch_updated_at();
+create trigger trail_details_reports
+  after insert or update of status, status_at on public.trail_details
+  for each row execute function app_internal.reports_from_details();
+create trigger trail_reports_details
+  after insert on public.trail_reports
+  for each row execute function app_internal.reports_to_details();
 
 -- Aliase: Ende der Freundschaft löscht sie beider Seiten (PilzBuddy
 -- Patch 032; Definer, weil die delete-Policy jedem nur die EIGENEN gibt).
@@ -709,17 +871,36 @@ revoke all on function app_internal.push_recipients(uuid, uuid) from public, ano
 
 -- ----------------------------------------------------------- Die Auslöser
 
--- Ein Beitrag ändert seinen Status (Konzept 10, Punkt 6: alle vier
--- Werte, auch zurück auf „offen" — eine neue Aufzeichnung setzt den
--- eigenen Status auf offen, und das ist die gute Nachricht). Ein
--- erneutes Melden desselben Status (nur status_at springt) löst NICHTS
--- aus; ein neuer Beitrag mit „offen" auch nicht.
-create or replace function app_internal.push_on_status()
+-- Eine BESTÄTIGTE Meldung (Patch 013, trail_reports; bis dahin der
+-- Status am Beitrag), die sich von der vorigen bestätigten desselben
+-- Meldenden unterscheidet (Konzept 10, Punkt 6: alle vier Werte, auch
+-- zurück auf „offen" — das ist die gute Nachricht). Dieselbe Meldung
+-- noch einmal löst NICHTS aus, eine erste Meldung „offen" auch nicht.
+-- Unbestätigte Meldungen nie (Betreiber, 2026-09-30): Wer von zu Hause
+-- meldet, soll keine Buddys aufscheuchen. Der Zustand nie (Rework 3.2).
+-- Eine Meldung, die verspätet aus dem Ausgangskorb kommt und älter ist
+-- als eine schon da stehende, sagt nichts Neues — auch keine Meldung.
+create or replace function app_internal.push_on_report()
 returns trigger
 language plpgsql security definer set search_path = public, app_internal as $$
+declare
+  prev text;
 begin
-  if tg_op = 'UPDATE' and old.status = new.status then return new; end if;
-  if tg_op = 'INSERT' and new.status = 'open' then return new; end if;
+  if new.kind <> 'status' or not new.confirmed then return new; end if;
+  if exists (select 1 from trail_reports r
+              where r.trail_id = new.trail_id and r.user_id = new.user_id
+                and r.kind = 'status' and r.confirmed and r.id <> new.id
+                and r.reported_at > new.reported_at) then
+    return new;
+  end if;
+  select r.status into prev
+    from trail_reports r
+   where r.trail_id = new.trail_id and r.user_id = new.user_id
+     and r.kind = 'status' and r.confirmed and r.id <> new.id
+   order by r.reported_at desc, r.created_at desc
+   limit 1;
+  if not found and new.status = 'open' then return new; end if;
+  if found and prev = new.status then return new; end if;
   insert into app_internal.push_outbox (recipient_id, kind, trail_id, status, due_at)
     select r.recipient_id, 'trail_status', new.trail_id, new.status,
            app_internal.push_due_at(now())
@@ -729,7 +910,7 @@ begin
         due_at = app_internal.push_due_at(push_outbox.created_at);
   return new;
 end $$;
-revoke all on function app_internal.push_on_status() from public, anon, authenticated;
+revoke all on function app_internal.push_on_report() from public, anon, authenticated;
 
 -- Ein neuer Hinweis (#7). Der Text bleibt in der Datenbank.
 create or replace function app_internal.push_on_note()
@@ -746,8 +927,8 @@ begin
 end $$;
 revoke all on function app_internal.push_on_note() from public, anon, authenticated;
 
-create trigger push_on_status_trg after insert or update of status on public.trail_details
-  for each row execute function app_internal.push_on_status();
+create trigger push_on_report_trg after insert on public.trail_reports
+  for each row execute function app_internal.push_on_report();
 create trigger push_on_note_trg after insert on public.trail_notes
   for each row execute function app_internal.push_on_note();
 
@@ -814,7 +995,7 @@ begin
              when g.statuses > 0 and g.notes > 0
                then 'Deine Buddys haben etwas gemeldet'
              when g.statuses > 1
-               then g.statuses || ' Statusmeldungen von deinen Buddys'
+               then g.statuses || ' Meldungen von deinen Buddys'
              when g.statuses = 1
                then 'Ein Buddy meldet einen Trail als ' || case g.status
                  when 'closed' then 'gesperrt'
@@ -827,8 +1008,8 @@ begin
            end,
            'body', case
              when g.statuses > 0 and g.notes > 0 then
-               g.statuses || (case when g.statuses = 1 then ' Statusmeldung'
-                                   else ' Statusmeldungen' end) || ' und ' ||
+               g.statuses || (case when g.statuses = 1 then ' Meldung'
+                                   else ' Meldungen' end) || ' und ' ||
                g.notes || (case when g.notes = 1 then ' Hinweis'
                                 else ' Hinweise' end) ||
                (case when g.trails > 1 then ' an ' || g.trails || ' Trails'
@@ -894,11 +1075,12 @@ revoke all on function app_internal.push_flush() from public, anon, authenticate
 --      (0,6 app / 0,4 import / 0,1 planned): Genauigkeit je Punkt und
 --      Lückenprüfung (4.5) kommen, sobald der Client sie mitschickt —
 --      dann als weiterer Parameter, nicht als andere Zahl hier.
---   7. Beitrag des Aufrufers anlegen, falls er fehlt; sonst seinen
---      Status auf „offen" setzen — wer den Trail fährt, hat ihn
---      befahrbar vorgefunden (Abschnitt 3, Entscheidung 6). Nicht bei
---      `planned` (Patch 011, #100): Eine Datei ohne Fahrzeiten belegt
---      nicht, dass jemand den Trail befahrbar vorgefunden hat.
+--   7. Beitrag des Aufrufers anlegen, falls er fehlt.
+--   8. Seine Meldung auf „offen" setzen — wer den Trail fährt, hat ihn
+--      befahrbar vorgefunden (Abschnitt 3, Entscheidung 6), zum
+--      Fahrdatum (Patch 013). Nicht bei `planned` (Patch 011, #100):
+--      Eine Datei ohne Fahrzeiten belegt nicht, dass jemand den Trail
+--      befahrbar vorgefunden hat.
 create or replace function public.contribute_recording(
   coords double precision[],
   source text,
@@ -930,6 +1112,8 @@ declare
   target uuid;
   q real;
   ele_clean real[];
+  ride_at timestamptz;
+  last_report record;
 begin
   if uid is null then
     raise exception 'Nicht angemeldet' using errcode = '28000';
@@ -1068,13 +1252,29 @@ begin
     return existing;
   end;
 
-  -- 7. Der Beitrag.
+  -- 7. Der Beitrag, falls er fehlt.
   insert into trail_details (trail_id, user_id)
   values (target, uid)
-  on conflict (trail_id, user_id) do update
-    set status = 'open', status_at = now()
-    where trail_details.status <> 'open'
-      and contribute_recording.source <> 'planned';
+  on conflict (trail_id, user_id) do nothing;
+
+  -- 8. Die eigene Meldung auf „offen" (Patch 013; bis dahin der Status
+  -- am Beitrag): Wer den Trail fährt, hat ihn befahrbar vorgefunden —
+  -- und zwar AN DEM TAG, an dem er gefahren ist. Eine GPX-Datei von 2024
+  -- verdrängt keine Meldung von gestern (Betreiber, 2026-09-30). Nur
+  -- wenn der Aufrufer schon etwas gemeldet hat und das nicht schon ein
+  -- bestätigtes „offen" ist; nicht bei `planned` (Patch 011).
+  if contribute_recording.source <> 'planned' then
+    ride_at := least(coalesce(contribute_recording.recorded_at, now()), now());
+    select r.status, r.confirmed, r.reported_at into last_report
+      from trail_reports r
+     where r.trail_id = target and r.user_id = uid and r.kind = 'status'
+     order by r.reported_at desc, r.created_at desc
+     limit 1;
+    if found and ride_at > last_report.reported_at
+       and not (last_report.status = 'open' and last_report.confirmed) then
+      perform app_internal.put_report(uid, target, 'status', 'open', null, true, ride_at, null);
+    end if;
+  end if;
 
   return target;
 end $$;
@@ -1192,8 +1392,9 @@ revoke all on function public.delete_own_account() from public, anon;
 grant execute on function public.delete_own_account() to authenticated;
 
 -- Den eigenen Beitrag zu einem Trail zurückziehen (Konzept 4, „Löschen
--- und DSGVO"): eigene Aufzeichnungen, eigene Hinweise und der eigene
--- Beitrag, in EINER Transaktion. Einzeln aus der App wäre es nicht
+-- und DSGVO"): eigene Aufzeichnungen, eigene Hinweise, eigene
+-- Meldungen (seit Patch 013) und der eigene Beitrag, in EINER
+-- Transaktion. Einzeln aus der App wäre es nicht
 -- dasselbe: Fällt zuerst der Beitrag, steht „privat" nicht mehr da
 -- (`contributor_shares` sagt ohne Zeile „teilt"), und die eigenen
 -- Aufzeichnungen und Hinweise wären bis zum nächsten Schritt für Buddys
@@ -1201,8 +1402,9 @@ grant execute on function public.delete_own_account() to authenticated;
 -- Der Trail selbst bleibt, solange ein anderer ihn belegt; ohne jeden
 -- Beleg holt ihn `sweep_orphan_trails` (nächtlich).
 --
--- Security INVOKER: Die RLS erlaubt jede der drei Löschungen ohnehin
--- (recordings_delete_own, td_owner_all, notes_delete) — die Funktion
+-- Security INVOKER: Die RLS erlaubt jede der Löschungen ohnehin
+-- (recordings_delete_own, td_owner_all, notes_delete,
+-- reports_delete_own) — die Funktion
 -- braucht keine Rechte darüber hinaus, nur die gemeinsame Transaktion.
 -- Gibt die Zahl der gelöschten Aufzeichnungen zurück.
 create or replace function public.withdraw_contribution(trail_id uuid)
@@ -1220,6 +1422,8 @@ begin
   get diagnostics n = row_count;
   delete from trail_notes t
    where t.trail_id = withdraw_contribution.trail_id and t.user_id = uid;
+  delete from trail_reports m
+   where m.trail_id = withdraw_contribution.trail_id and m.user_id = uid;
   delete from trail_details d
    where d.trail_id = withdraw_contribution.trail_id and d.user_id = uid;
   return n;
@@ -1227,6 +1431,65 @@ end $$;
 
 revoke all on function public.withdraw_contribution(uuid) from public, anon;
 grant execute on function public.withdraw_contribution(uuid) to authenticated;
+
+-- Melden (Patch 013, #101): eine Meldung („offen", „gesperrt" …) und/oder
+-- einen Zustand 1–5 zu einem Trail, den der Aufrufer SIEHT — gefahren
+-- haben muss er ihn nicht (Rework, Abschnitt 9: wer die Hausrunde nie
+-- aufgezeichnet hat, soll trotzdem melden können). Bestätigt ist die
+-- Angabe, wenn er ihn gefahren hat (has_ridden) oder die App ihn vor Ort
+-- sah ([on_site], ≤ 200 m zur Linie, auf dem Gerät geprüft). Vom „vor
+-- Ort" bleibt nur das Ergebnis — keine Position, kein Merkmal.
+--
+-- Definer, weil `confirmed` sonst der Client setzen könnte; darum auch
+-- kein insert-Grant auf trail_reports. [reported_at] kommt vom Gerät
+-- (Ausgangskorb) und wird auf now() gekappt — eine Zeit in der Zukunft
+-- gewönne sonst jeden Vergleich. [client_id] macht die Wiedervorlage
+-- idempotent.
+create or replace function public.report_trail(
+  trail_id uuid,
+  status text default null,
+  condition integer default null,
+  on_site boolean default false,
+  reported_at timestamptz default null,
+  client_id uuid default null)
+returns void
+language plpgsql security definer set search_path = public, app_internal as $$
+declare
+  uid uuid := auth.uid();
+  conf boolean;
+begin
+  if uid is null then
+    raise exception 'Nicht angemeldet' using errcode = '28000';
+  end if;
+  if report_trail.status is null and report_trail.condition is null then
+    raise exception 'Weder Meldung noch Zustand' using errcode = '22023';
+  end if;
+  if report_trail.trail_id is null
+     or not app_internal.can_see_trail(uid, report_trail.trail_id) then
+    raise exception 'Trail nicht sichtbar' using errcode = '42501';
+  end if;
+  -- Schutz gegen Fluten, kein gemessener Wert: 200 Zeilen in 24 h liegen
+  -- weit über jedem echten Gebrauch (derselbe Code wie das Tageslimit der
+  -- Aufzeichnungen, die App kennt ihn schon).
+  if (select count(*) from trail_reports m
+       where m.user_id = uid and m.created_at > now() - interval '1 day') >= 200 then
+    raise exception 'Tageslimit von 200 Meldungen erreicht' using errcode = '54000';
+  end if;
+  conf := coalesce(report_trail.on_site, false)
+          or app_internal.has_ridden(uid, report_trail.trail_id);
+  if report_trail.status is not null then
+    perform app_internal.put_report(uid, report_trail.trail_id, 'status', report_trail.status,
+                                    null, conf, report_trail.reported_at, report_trail.client_id);
+  end if;
+  if report_trail.condition is not null then
+    perform app_internal.put_report(uid, report_trail.trail_id, 'condition', null,
+                                    report_trail.condition, conf, report_trail.reported_at,
+                                    report_trail.client_id);
+  end if;
+end $$;
+
+revoke all on function public.report_trail(uuid, text, integer, boolean, timestamptz, uuid) from public, anon;
+grant execute on function public.report_trail(uuid, text, integer, boolean, timestamptz, uuid) to authenticated;
 
 -- ============================================================
 -- Sicht für den Client: Aufzeichnungen als GeoJSON
@@ -1257,6 +1520,7 @@ alter table public.trails            enable row level security;
 alter table public.trail_recordings  enable row level security;
 alter table public.trail_details     enable row level security;
 alter table public.trail_notes       enable row level security;
+alter table public.trail_reports     enable row level security;
 alter table app_internal.trail_overlaps enable row level security;
 alter table public.push_devices      enable row level security;
 alter table app_internal.push_outbox    enable row level security;
@@ -1373,6 +1637,18 @@ create policy notes_delete on public.trail_notes for delete
          and app_internal.contributor_shares(user_id, trail_id)
          and app_internal.can_see_trail(auth.uid(), trail_id)));
 
+-- trail_reports (Patch 013): sehen wie die Hinweise — der Meldende und
+-- seine direkten Buddys, die den Trail selbst sehen, nicht bei „privat".
+-- Schreiben nur über report_trail() (kein insert-Grant), löschen die
+-- eigenen (withdraw_contribution, Kontolöschung per Cascade).
+create policy reports_select on public.trail_reports for select
+  using (user_id = auth.uid()
+     or (app_internal.are_friends(user_id, auth.uid())
+         and app_internal.contributor_shares(user_id, trail_id)
+         and app_internal.can_see_trail(auth.uid(), trail_id)));
+create policy reports_delete_own on public.trail_reports for delete
+  using (user_id = auth.uid());
+
 -- ============================================================
 -- Grants — ausdrücklich, nicht über auto_expose
 -- ============================================================
@@ -1396,6 +1672,7 @@ grant insert, select on public.feedback to authenticated;
 grant select, delete on public.trail_recordings to authenticated;   -- insert nur per RPC
 grant select, insert, update, delete on public.trail_details to authenticated;
 grant select, insert, delete on public.trail_notes to authenticated;
+grant select, delete on public.trail_reports to authenticated;       -- insert nur per RPC
 grant select on public.recordings_visible to authenticated;
 grant select, insert, update, delete on public.push_devices to authenticated;
 -- KEIN Grant auf public.trails, KEINER auf app_internal.trail_overlaps.
@@ -1430,11 +1707,13 @@ begin
               'select app_internal.sweep_orphan_trails()')$cron$;
     execute $cron$select cron.schedule('notes-sweep', '37 3 * * *',
               'select app_internal.sweep_old_notes()')$cron$;
+    execute $cron$select cron.schedule('reports-sweep', '41 3 * * *',
+              'select app_internal.sweep_old_reports()')$cron$;
     -- Jede Minute; ohne fällige Zeilen passiert nichts (Patch 008).
     execute $cron$select cron.schedule('push-flush', '* * * * *',
               'select app_internal.push_flush()')$cron$;
   else
-    raise notice 'pg_cron nicht verfügbar — sweep_orphan_trails(), sweep_old_notes() und push_flush() sind nicht eingeplant (lokaler Testlauf).';
+    raise notice 'pg_cron nicht verfügbar — sweep_orphan_trails(), sweep_old_notes(), sweep_old_reports() und push_flush() sind nicht eingeplant (lokaler Testlauf).';
   end if;
 end $$;
 
@@ -1478,5 +1757,6 @@ insert into public.applied_patches (filename) values
   ('patch_009_trail_traits.sql'),
   ('patch_010_withdraw_contribution.sql'),
   ('patch_011_planned_keeps_status.sql'),
-  ('patch_012_contribution_link.sql')
+  ('patch_012_contribution_link.sql'),
+  ('patch_013_rating_reports.sql')
 on conflict do nothing;

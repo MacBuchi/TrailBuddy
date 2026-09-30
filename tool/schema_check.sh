@@ -239,9 +239,16 @@ check_get_protected "friend_aliases-Spalten (Aliase)" \
 check_get_protected "recordings_visible-Spalten (Aufzeichnungen)" \
   "/rest/v1/recordings_visible?select=id,trail_id,user_id,source,recorded_at,reversed,quality,created_at,geojson,length_m,ele&limit=1"
 
-# trail_details: die Spalten des Beitrags (TrailRepository).
+# trail_details: die Spalten des Beitrags (TrailRepository). status und
+# status_at liest die App seit Patch 013 nicht mehr, Clients bis 0.48.0
+# schon — deshalb stehen sie weiter hier.
 check_get_protected "trail_details-Spalten (Beiträge)" \
-  "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,traits,link,visibility,status,status_at,created_at,updated_at&limit=1"
+  "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,traits,rating,link,visibility,status,status_at,created_at,updated_at&limit=1"
+
+# trail_reports (Patch 013): Meldungen und Zustände, exakt die Query aus
+# TrailRepository.fetchReports samt Embed über den Constraint-NAMEN.
+check_get_protected "trail_reports-Embed (Meldungen)" \
+  "/rest/v1/trail_reports?select=id,trail_id,user_id,kind,status,condition,confirmed,reported_at,reporter:profiles!trail_reports_user_id_fkey(username)&limit=1"
 
 # trail_notes: Hinweise für Buddys (Patch 004), exakt die Query aus
 # TrailRepository.fetchNotes samt Embed über den Constraint-NAMEN.
@@ -355,6 +362,9 @@ check_rpc_protected "attach_elevation-RPC" "attach_elevation" \
 # Den eigenen Beitrag zurückziehen (Patch 010): nur für Angemeldete.
 check_rpc_protected "withdraw_contribution-RPC" "withdraw_contribution" \
   '{"trail_id":"00000000-0000-4000-8000-000000000000"}'
+# Melden (Patch 013): nur für Angemeldete, alle Namen im Body.
+check_rpc_protected "report_trail-RPC" "report_trail" \
+  '{"trail_id":"00000000-0000-4000-8000-000000000000","status":"closed","condition":null,"on_site":false,"reported_at":null,"client_id":null}'
 
 if [ "$fail" -ne 0 ]; then
   echo "::error::Schema passt nicht zu den App-Queries. Fehlt ein supabase/patch_NNN_*.sql bzw. wurde er noch nicht eingespielt (tool/db_migrate.sh, Secret SUPABASE_DB_URL)?"

@@ -1,6 +1,7 @@
 // Das Trail-Blatt nach Design 1i/4f (seit 0.39.0): Titel in Versalien,
-// drei Kennzahl-Kacheln nebeneinander, ein neuer Hinweis gelb gerahmt,
-// unten „Hinweis schreiben" (Lime) und „Karte".
+// drei Kennzahl-Kacheln nebeneinander, darunter seit 0.49.0 (#101)
+// Bewertung und Zustand, ein neuer Hinweis gelb gerahmt, unten „Hinweis
+// schreiben" (Lime) und „Melden" nebeneinander, „Karte" darunter.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/core/app_colors.dart';
@@ -10,7 +11,7 @@ import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
 
 void main() {
-  testWidgets('Kacheln, gerahmter Hinweis und die beiden Aktionen unten', (tester) async {
+  testWidgets('Kacheln, gerahmter Hinweis und die Aktionen unten', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -42,6 +43,15 @@ void main() {
         reason: 'in EINER Reihe');
     expect(findLabel('↓ 420 Hm · ↑ 0 Hm'), findsOneWidget);
     expect(findLabel('S2 · 1 Einschätzung'), findsOneWidget);
+    // Die zweite Reihe (Rework E8): Bewertung und Zustand, unter der ersten.
+    final rating = find.byKey(const ValueKey('metric-rating'));
+    final condition = find.byKey(const ValueKey('metric-condition'));
+    expect(tester.getCenter(rating).dy, closeTo(tester.getCenter(condition).dy, 1));
+    expect(tester.getCenter(rating).dx, lessThan(tester.getCenter(condition).dx));
+    expect(tester.getTopLeft(rating).dy, greaterThan(tester.getBottomLeft(tiles.first).dy),
+        reason: 'unter Länge, Höhe, S-Grad');
+    expect(findLabel('Noch keine Bewertung'), findsOneWidget);
+    expect(findLabel('Kein Zustand gemeldet'), findsOneWidget);
 
     final note = tester.widget<Container>(find.ancestor(
         of: find.text('Baum liegt quer'), matching: find.byWidgetPredicate((w) => w is Container && w.key != null)));
@@ -50,8 +60,11 @@ void main() {
 
     final write = find.byKey(const ValueKey('add-note'));
     expect(tester.widget(write), isA<FilledButton>(), reason: 'die Hauptaktion in Lime');
+    final report = find.byKey(const ValueKey('trail-report'));
+    expect(tester.getCenter(write).dy, closeTo(tester.getCenter(report).dy, 1), reason: 'nebeneinander');
     final map = find.byKey(const ValueKey('trail-show-on-map'));
-    expect(tester.getCenter(write).dy, closeTo(tester.getCenter(map).dy, 1), reason: 'nebeneinander');
+    expect(tester.getTopLeft(map).dy, greaterThan(tester.getBottomLeft(write).dy),
+        reason: 'zur Karte in einer eigenen Zeile — drei nebeneinander passen nicht');
     expect(tester.getTopLeft(write).dy, greaterThan(tester.getBottomLeft(find.text('Baum liegt quer')).dy),
         reason: 'unter den Hinweisen');
   });

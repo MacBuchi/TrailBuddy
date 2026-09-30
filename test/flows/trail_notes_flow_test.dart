@@ -177,26 +177,23 @@ void main() {
     expect(find.text('Bobs Hinweis zum Flow'), findsOneWidget);
   });
 
-  testWidgets('beim Status-Ändern geht ein Hinweis gleich mit', (tester) async {
+  testWidgets('beim Melden geht ein Hinweis gleich mit', (tester) async {
     await openTrail(tester, 'Roots');
-    expect(find.byKey(const ValueKey('status-note')), findsNothing);
-
-    await tester.ensureVisible(find.text('Mein Beitrag'));
-    await tester.tap(find.text('Mein Beitrag'));
+    await tester.ensureVisible(find.byKey(const ValueKey('trail-report')));
+    await tester.tap(find.byKey(const ValueKey('trail-report')));
     await settle(tester);
-    expect(find.byKey(const ValueKey('status-note')), findsNothing,
-        reason: 'nur angeboten, wenn sich der Status ändert');
-    await tester.tap(find.text('Offen'));
-    await settle(tester);
-    await tester.tap(find.text('Gesperrt').last);
+    expect(find.byKey(const ValueKey('report-note')), findsNothing,
+        reason: 'erst angeboten, wenn etwas gemeldet wird');
+    await tester.tap(find.byKey(const ValueKey('report-status-closed')));
     await settle(tester);
     await tester.enterText(
-        find.byKey(const ValueKey('status-note')), 'Forst sperrt bis Oktober');
-    await tester.tap(find.text('Speichern'));
+        find.byKey(const ValueKey('report-note')), 'Forst sperrt bis Oktober');
+    await tester.tap(find.byKey(const ValueKey('report-submit')));
     await settle(tester, frames: 20);
 
-    expect(trails.details.singleWhere((d) => d.userId == annaId && d.trailId == roots).status,
-        TrailStatus.closed);
+    final r = trails.reports.singleWhere((r) => r.userId == annaId && r.trailId == roots);
+    expect(r.status, TrailStatus.closed);
+    expect(r.confirmed, isTrue, reason: 'Anna hat Roots selbst belegt');
     expect(trails.notes.single.body, 'Forst sperrt bis Oktober');
     expect(find.text('Forst sperrt bis Oktober'), findsOneWidget);
   });

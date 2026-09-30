@@ -6,18 +6,19 @@ import '../../core/read_after_write.dart';
 import '../../models/trail.dart';
 import 'singletrail_scale.dart';
 import 'trail_link.dart';
-import 'trail_notes.dart';
 import 'trail_providers.dart';
 import 'trail_traits.dart';
 
-/// Der eigene Beitrag zu einem Trail: Name, Schwierigkeit, Art,
-/// Sichtbarkeit, Status. Nur für Trails, die man selbst belegt hat —
-/// ohne Beleg gibt es keinen Beitrag (Konzept 3).
+/// Der eigene Beitrag zu einem Trail: Name, Schwierigkeit, Charakter,
+/// Bewertung, Sichtbarkeit, Beschreibung, Link. Nur für Trails, die man
+/// selbst belegt hat — ohne Beleg gibt es keinen Beitrag (Konzept 3). Die
+/// Meldung steht seit 0.49.0 NICHT mehr hier („Melden" im Blatt, #101):
+/// Melden darf auch, wer keinen Beitrag hat.
 Future<void> showTrailDetailsDialog(
     BuildContext context, WidgetRef ref, Trail trail) async {
   final current = trail.myDetails ??
       TrailDetails(trailId: trail.id, userId: trail.myId);
-  final result = await showDialog<({TrailDetails details, String? note})>(
+  final result = await showDialog<TrailDetails>(
     context: context,
     builder: (_) => _DetailsDialog(initial: current),
   );
@@ -26,7 +27,7 @@ Future<void> showTrailDetailsDialog(
   try {
     final outcome = await ref
         .read(trailsProvider.notifier)
-        .saveDetails(result.details, note: result.note);
+        .saveDetails(result);
     messenger.showSnackBar(SnackBar(
         content: Text(switch (outcome) {
       WriteOutcome.done => 'Beitrag gespeichert',
@@ -53,18 +54,16 @@ class _DetailsDialogState extends State<_DetailsDialog> {
       TextEditingController(text: widget.initial.description ?? '');
   late final _link = TextEditingController(text: widget.initial.link ?? '');
   String? _linkError;
-  final _note = TextEditingController();
   late int? _grade = widget.initial.grade;
+  late int? _rating = widget.initial.rating;
   late final Set<TrailTrait> _traits = {...widget.initial.traits};
   late TrailVisibility _visibility = widget.initial.visibility;
-  late TrailStatus _status = widget.initial.status;
 
   @override
   void dispose() {
     _name.dispose();
     _description.dispose();
     _link.dispose();
-    _note.dispose();
     super.dispose();
   }
 
@@ -130,31 +129,26 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               ],
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<TrailStatus>(
-              initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Zustand'),
-              items: [
-                for (final s in TrailStatus.values)
-                  DropdownMenuItem(value: s, child: Text(s.label)),
-              ],
-              onChanged: (v) => setState(() => _status = v ?? _status),
+            // Die Bewertung (#101): wie gut der Trail gefällt, 1–5 Sterne.
+            // Ein zweiter Tipp auf denselben Stern nimmt sie zurück.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Bewertung', style: Theme.of(context).textTheme.bodySmall),
             ),
-            // Der Status sagt WAS, der Hinweis WARUM (#7). Angeboten nur
-            // beim Ändern; gespeichert als eigener Hinweis mit Datum.
-            if (_status != widget.initial.status)
-              TextField(
-                key: const ValueKey('status-note'),
-                controller: _note,
-                maxLength: kNoteMaxLength,
-                maxLines: 2,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: 'Hinweis für Buddys (optional)',
-                  hintText: _status == TrailStatus.open
-                      ? 'z. B. Baum ist weggeräumt'
-                      : 'z. B. Baum liegt quer nach der zweiten Kehre',
-                ),
-              ),
+            Row(
+              children: [
+                for (var i = kRatingMin; i <= kRatingMax; i++)
+                  IconButton(
+                    key: ValueKey('details-rating-$i'),
+                    tooltip: '$i von $kRatingMax Sternen',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => setState(() => _rating = _rating == i ? null : i),
+                    icon: Icon(_rating != null && i <= _rating!
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<TrailVisibility>(
               initialValue: _visibility,
@@ -202,10 +196,9 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               setState(() => _linkError = 'Nur https-Adressen, ohne Leerzeichen');
               return;
             }
-            final statusChanged = _status != widget.initial.status;
-            Navigator.of(context).pop((
-              note: statusChanged ? _note.text.trim() : null,
-              details: TrailDetails(
+            // Jedes Feld mit: Wer hier eines vergisst, löscht es beim
+            // Speichern still (Lehre aus #113).
+            Navigator.of(context).pop(TrailDetails(
               trailId: widget.initial.trailId,
               userId: widget.initial.userId,
               username: widget.initial.username,
@@ -215,13 +208,10 @@ class _DetailsDialogState extends State<_DetailsDialog> {
                   : _description.text.trim(),
               grade: _grade,
               traits: {..._traits},
+              rating: _rating,
               link: link,
               visibility: _visibility,
-              status: _status,
-              // Eine Statusmeldung trägt ihr Datum (Entscheidung 6); ein
-              // unveränderter Status behält das alte.
-              statusAt: statusChanged ? DateTime.now() : widget.initial.statusAt,
-            )));
+            ));
           },
           child: const Text('Speichern'),
         ),

@@ -300,6 +300,22 @@ zerstört, verändert) heißt in der App und in der Datenschutzerklärung
 **„Meldung"** (passt zu „gemeldet vor …" und zum Filter „Gemeldet").
 Die neue Skala 1–5 aus 3.2 heißt **„Zustand"**.
 
+**Gebaut in #101 (0.49.0, Patch 013)** — Bewertung, Meldung, Zustand,
+„zu bestätigen", die Umbenennung; Linienart auf der Karte und die
+Wörter in der Liste folgen als eigene Schritte. Vier Nachträge des
+Betreibers vom 2026-09-30 zur Schemaskizze, hier eingearbeitet:
+(1) Eine geplante Aufzeichnung ist kein Beleg für „bestätigt".
+(2) Der Zustand gilt **dauerhaft** — die jüngste bestätigte Angabe
+steht mit ihrem Alter, ohne 90-Tage-Grenze. (3) Eine Fahrt setzt die
+Meldung zum **Fahrdatum** auf „offen", nicht zur Importzeit. (4) Alle
+Meldungen stehen **90 Tage** im Verlauf, mit Name oder Alias des
+Meldenden; die jüngste bestätigte und unbestätigte je Person bleiben
+länger. Offen und nicht in #101: Meldungen nicht still wegräumen,
+sondern den Meldenden in einer Übersicht fragen, ob sie noch gelten
+(„Ja / Nein / Weiß nicht"; „Weiß nicht" lässt alles, wie es ist) — das
+Schema trägt es schon, eine Antwort ist eine neue Meldung.
+Bestätigen durch Fahren samt lokaler Benachrichtigung: #116.
+
 **Bestätigt oder zu bestätigen (E6).** Für Meldung UND Zustand:
 - **Bestätigt** ist eine Angabe, wenn der Meldende den Trail belegt hat
   (eigene Aufzeichnung) ODER beim Melden **vor Ort** war: innerhalb
@@ -414,7 +430,7 @@ bekommen ihren PR erst danach.
 | # | Schritt | Issue | PR | Typ | Schema | Hängt ab von |
 |---|---|---|---|---|---|---|
 | 1 | Geplant: kein Status-Rücksetzen, „geplant“ im Blatt (2) | #100 | #111 ✓ | fix 0.46.1 | Patch 011 | — |
-| 2 | Bewertung (Sterne) und Zustand samt „zu bestätigen“, Meldung umbenannt (3, 9) | #101 | — | feat | Patch 013 | — |
+| 2 | Bewertung (Sterne) und Zustand samt „zu bestätigen“, Meldung umbenannt (3, 9) | #101 | (a) Blatt + Schema | feat 0.49.0 | Patch 013 | — |
 | 3 | Übernehmen beim ersten Befahren (Pflicht), Zustand je Fahrt, Filter (1, 9) | #102 | — | feat | — | #101 |
 | 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 ✓ | feat 0.48.0 | Patch 012 | — |
 | 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 ✓ | feat 0.47.0 | — | — |
@@ -422,6 +438,7 @@ bekommen ihren PR erst danach.
 | 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | #114 (Messung) | — | vorerst keins | Daten mehrerer Nutzer |
 | 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |
+| 10 | Bestätigen durch Fahren, lokale Benachrichtigung während der Aufnahme (9) | #116 | — | feat | noch offen | #101 |
 
 ### Schritt 1 — Geplant
 

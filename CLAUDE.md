@@ -108,6 +108,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `tool/schema_check.sh` (App-Queries gegen das Schema),
   `tool/matcher_check.sql` (der Abgleich mit echten Linien) und
   `tool/auth_reset_check.sh` (Auth-Flows gegen echtes GoTrue).
+  Ohne Docker lokal: `tool/schema_local_test.sh` (Postgres + PostGIS,
+  Frischinstallation; mit `TB_BASE_SCHEMA=<schema.sql von main>` und
+  `TB_PATCHES` der Bestandsweg, `TB_SEED`/`TB_AFTER` für Daten vor und
+  Prüfungen nach dem Patch, `TB_DUMP` für den Schema-Vergleich beider
+  Wege). PostgREST und GoTrue sieht erst der Dry Run in CI.
   `auto_expose_new_tables = false`: Ein vergessener Grant fällt im Dry Run
   auf, statt still von der Vorgabe ersetzt zu werden.
 - **Schema Check** (ci.yml, `needs: schema-dry-run`): erst danach wird die
@@ -351,9 +356,56 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Hinweis eines Buddys jünger als `kFreshNoteDays` (7), der auf diesem
   Gerät noch nicht im Blatt zu sehen war (`Settings.seenNoteIds`), hebt
   den Trail hervor — gelber Rand auf der Karte, gelb umrandete Karte mit „neuer
-  Hinweis" in der Liste; eigene zählen nie. Beim Ändern des Status
-  bietet „Mein Beitrag" einen Hinweis an. Entscheidungen des Betreibers
+  Hinweis" in der Liste; eigene zählen nie. Beim Melden bietet der
+  Dialog einen Hinweis an. Entscheidungen des Betreibers
   vom 2026-09-28; `matcher_check.sql` Block 20 prüft RLS und Aufräumen.
+- **Bewertung, Meldung, Zustand** (#101, Patch 013, seit 0.49.0;
+  `trail_report.dart`, `trail_condition.dart`, Rework Abschnitt 9).
+  Die Bewertung (1–5 Sterne) steht im Beitrag (`trail_details.rating`),
+  angezeigt als Median (bei Gleichstand der höhere) mit Anzahl; ein
+  eigener Trail ohne eigene Bewertung zeigt verblasste Sterne
+  (`Trail.ratingOpen`). Meldung (bis 0.48.0 „Status") und Zustand
+  (1–5) sind ein VERLAUF in `trail_reports`. Sieben Dinge, die man
+  wissen muss:
+  - **Melden darf, wer den Trail SIEHT** (`can_see_trail`), nicht nur,
+    wer ihn belegt hat — Abweichung von Konzept 3, vom Betreiber
+    entschieden. Geschrieben wird NUR über `report_trail` (Definer, kein
+    insert-Grant): **`confirmed` legt der Server fest** — gefahren
+    (`has_ridden`, nicht `planned`) oder `on_site`. `grants_check.sql`
+    wacht darüber, dass kein Client-Grant `confirmed` frei wählbar macht.
+  - **„Vor Ort" prüft nur das Gerät**: ≤ `kOnSiteMaxM` (200 m) zur
+    angezeigten Linie, mit EINEM Fix nach Tipp auf „Ich bin vor Ort"
+    (`positionFixProvider` — nie beim Öffnen). An den Server geht das
+    Ja/Nein, gespeichert wird dort nur `confirmed`, nie die Position.
+  - **Angezeigt** (`shownReportsOf`): die jüngste bestätigte, dazu
+    verblasst die jüngste unbestätigte, wenn sie jünger ist. Karte,
+    Liste und Filter „Gemeldet" folgen NUR der bestätigten
+    (`Trail.status`). Der Zustand gilt dauerhaft (keine 90-Tage-Grenze
+    für die Anzeige). Push nur für bestätigte Meldungen, nie für den
+    Zustand (`push_on_report` ersetzt `push_on_status`).
+  - **90 Tage Verlauf** (`sweep_old_reports`, pg_cron), die jüngste je
+    Person, Trail, Art und Bestätigung bleibt länger — die angezeigte
+    muss auch nach einem Jahr da sein. Das Blatt zeigt den Verlauf mit
+    Name bzw. Alias (`BuddyNames.of`).
+  - **Eine Fahrt setzt die eigene Meldung zum FAHRDATUM auf „offen"**
+    (`contribute_recording` Schritt 8, `recorded_at`, gekappt auf jetzt),
+    nur wenn es eine eigene Meldung gibt, sie älter ist und kein
+    bestätigtes „offen" ist; nie bei `planned`. `report_trail` kappt
+    `reported_at` ebenfalls auf jetzt — eine Zeit in der Zukunft gewönne
+    sonst jeden Vergleich.
+  - **Alte Clients (bis 0.48.0)** lesen und schreiben weiter
+    `trail_details.status`/`status_at`: `reports_from_details` macht
+    daraus eine Meldung, `reports_to_details` schreibt eine BESTÄTIGTE
+    Meldung an den Beitrag zurück; `pg_trigger_depth()` hält die beiden
+    auseinander. Die App schreibt `status` nicht mehr (`toRow`), liest
+    es nicht mehr. Entfernt wird es in einem eigenen Patch, wenn
+    `minimum_supported_version` über 0.48.0 steht.
+  - **Ausgangskorb**: `ReportJob` trägt die Zeit des Meldens
+    (`createdAt` → `reported_at`) und die `client_id` (eindeutig je
+    Nutzer, Kennung und Art). Ein `DetailsJob` von vor 0.49.0 bringt
+    seinen Status als `legacyStatus` mit und geht beim Nachholen als
+    Meldung raus. `matcher_check.sql` Block 23, `push_flush_check.sh`
+    Fall 3b.
 - **Suche, Filter, Sortierung der Trail-Liste** (#66, seit 0.32.0,
   `trail_list.dart` pur, `lib/core/search_text.dart`): fehlertolerant wie
   PilzBuddy #395 — `foldSearchText` (klein, ä/ae → a, ohne Leer- und
@@ -510,9 +562,10 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Kein Merkmal „neu" oder „selbst gebaut" (Konzept 7).
 - **Ausgangskorb** (#30, `lib/data/outbox*.dart` +
   `lib/features/trails/outbox_providers.dart`, seit 0.14.0; PilzBuddy
-  #267 als Vorlage): Genau ZWEI Aufträge — Aufzeichnung beisteuern
-  (`ContributeJob`, die Linie so, wie sie an die RPC ging, plus Name) und
-  eigenen Beitrag speichern (`DetailsJob`, samt Status-Hinweis). Alles
+  #267 als Vorlage): Genau DREI Aufträge — Aufzeichnung beisteuern
+  (`ContributeJob`, die Linie so, wie sie an die RPC ging, plus Name),
+  eigenen Beitrag speichern (`DetailsJob`) und melden (`ReportJob`, seit
+  0.49.0, samt Hinweis — „gesperrt" meldet man am Trail). Alles
   andere (Höhen nachtragen, Hinweise allein, Löschen) scheitert weiter
   sichtbar. Sechs Dinge, die man wissen muss:
   - **Nur `looksOffline` führt in den Korb** (`_queueIfOffline`). Ein
@@ -926,8 +979,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   liefern nichts. Tests: `test/exit_reporting_test.dart`,
   `test/tombstone_test.dart`.
 - **Push** (#34, seit 0.23.0, Patch 008; PilzBuddy #277/#564 als
-  Vorlage): eine Meldung, wenn ein Buddy einen Trail meldet (Status)
-  oder einen Hinweis schreibt — an die direkten Buddys des Autors, die
+  Vorlage): eine Meldung, wenn ein Buddy einen Trail meldet (nur
+  BESTÄTIGTE Meldungen, seit Patch 013) oder einen Hinweis schreibt —
+  an die direkten Buddys des Autors, die
   den Trail und seinen Beitrag sehen (`app_internal.push_recipients`,
   Spiegel von `td_friend_select`/`notes_select`; je Buddy-Beziehung
   eine Zeile im Korb, keine Rechnung über alle, Konzept 12). Acht Dinge,

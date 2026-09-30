@@ -68,12 +68,44 @@ PSQL=("$PGBIN/psql" -h 127.0.0.1 -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -d postgres -c "create database trailbuddy_test"
 echo "→ auth-Shim"
 "${PSQL[@]}" -d trailbuddy_test -f tool/auth_shim.sql
-echo "→ schema.sql (Frischinstallation, ein Durchlauf)"
-"${PSQL[@]}" -d trailbuddy_test -f supabase/schema.sql
+if [ -n "${TB_BASE_SCHEMA:-}" ]; then
+  # Bestandsweg wie im Schema Dry Run: das Schema des Ziel-Branches, dann
+  # nur die neuen Patches obendrauf. Etwa:
+  #   git show origin/main:supabase/schema.sql > /tmp/base.sql
+  #   TB_BASE_SCHEMA=/tmp/base.sql TB_PATCHES="supabase/patch_013_*.sql" tool/schema_local_test.sh
+  # TB_SEED (optional) läuft zwischen Basis und Patches — Daten, die ein
+  # Patch übernehmen soll.
+  echo "→ Basis-Schema $TB_BASE_SCHEMA (Bestandsweg)"
+  "${PSQL[@]}" -d trailbuddy_test -f "$TB_BASE_SCHEMA"
+  if [ -n "${TB_SEED:-}" ]; then
+    echo "→ Daten vor dem Patch: $TB_SEED"
+    "${PSQL[@]}" -d trailbuddy_test -f "$TB_SEED"
+  fi
+  for patch in ${TB_PATCHES:-}; do
+    echo "→ $patch"
+    "${PSQL[@]}" -d trailbuddy_test -f "$patch"
+  done
+  if [ -n "${TB_AFTER:-}" ]; then
+    echo "→ Prüfung nach dem Patch: $TB_AFTER"
+    "${PSQL[@]}" -d trailbuddy_test -f "$TB_AFTER"
+  fi
+else
+  echo "→ schema.sql (Frischinstallation, ein Durchlauf)"
+  "${PSQL[@]}" -d trailbuddy_test -f supabase/schema.sql
+fi
+if [ -n "${TB_DUMP:-}" ]; then
+  # Schema ohne Daten, zum Vergleich Bestand ↔ Frischinstallation.
+  "$PGBIN/pg_dump" -h 127.0.0.1 -p "$PORT" -U postgres --schema-only --no-owner \
+    -n public -n app_internal trailbuddy_test > "$TB_DUMP"
+fi
 echo "→ matcher_check.sql + grants_check.sql"
 if "${PSQL[@]}" -d trailbuddy_test -f tool/matcher_check.sql \
    && "${PSQL[@]}" -d trailbuddy_test -f tool/grants_check.sql; then
-  echo "PASS: schema.sql läuft auf einer leeren Datenbank durch, Matcher und Policies verhalten sich wie im Konzept."
+  if [ -n "${TB_BASE_SCHEMA:-}" ]; then
+    echo "PASS: Bestandsweg (Basis-Schema + Patches), Matcher und Policies verhalten sich wie im Konzept."
+  else
+    echo "PASS: schema.sql läuft auf einer leeren Datenbank durch, Matcher und Policies verhalten sich wie im Konzept."
+  fi
 else
   echo "FAIL: siehe Meldung oben (Log: $DIR/postgres.log wird beim Aufräumen gelöscht — mit TB_TEST_KEEP=1 bleibt es)."
   if [ -n "${TB_TEST_KEEP:-}" ]; then trap - EXIT; fi
