@@ -118,7 +118,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// eigenen Beitrag.
   Future<ContributeResult> contribute(GpxTrack track,
       {String? clientId, RecordingSource? source, int? grade,
-      Set<TrailTrait> traits = const {}}) async {
+      Set<TrailTrait> traits = const {}, int? rating}) async {
     final repo = ref.read(trailRepositoryProvider);
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
@@ -140,6 +140,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       link: track.link,
       grade: grade,
       traits: traits,
+      rating: rating,
     );
     try {
       final trailId = await repo.contribute(
@@ -150,7 +151,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         clientId: job.id,
       );
       await adoptDetails(trailId, track.name,
-          grade: grade, traits: traits, link: track.link);
+          grade: grade, traits: traits, link: track.link, rating: rating);
       return (trailId: trailId, queued: false);
     } catch (error, stackTrace) {
       await _queueIfOffline(error, stackTrace, job);
@@ -199,9 +200,12 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// und legt der Server die Spur auf einen Trail, den ich schon
   /// beschrieben habe, soll eine Abfahrt nicht still meine Angabe
   /// ersetzen. EIN Schreibvorgang für alles. Der [link] aus der Datei
-  /// (#103) kommt wie der Name nur, wenn noch keiner steht.
+  /// (#103) kommt wie der Name nur, wenn noch keiner steht — ebenso die
+  /// [rating] beim Übernehmen eines Buddy-Trails (#102). Ein fremder Name
+  /// ([fileName] ist dann der angezeigte) wird so zum eigenen, wenn noch
+  /// keiner steht: Danach hängt nichts mehr am Beitrag des Buddys.
   Future<bool> adoptDetails(String trailId, String fileName,
-      {int? grade, Set<TrailTrait> traits = const {}, String? link}) async {
+      {int? grade, Set<TrailTrait> traits = const {}, String? link, int? rating}) async {
     final myId = ref.read(currentUserIdProvider);
     if (myId == null) throw const NotSignedInException();
     final name = clampTrailName(fileName);
@@ -213,10 +217,12 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     final writesName = name.isNotEmpty && !keepName;
     final addsTraits = !(existing?.traits ?? const {}).containsAll(traits);
     final writesLink = link != null && (existing?.link ?? '').isEmpty;
-    if (!writesName && grade == null && !addsTraits && !writesLink) return false;
+    final writesRating = rating != null && existing?.rating == null;
+    if (!writesName && grade == null && !addsTraits && !writesLink && !writesRating) return false;
     var details = existing ?? TrailDetails(trailId: trailId, userId: myId);
     if (writesName) details = details.copyWith(name: name);
     if (writesLink) details = details.copyWith(link: link);
+    if (writesRating) details = details.copyWith(rating: rating);
     if (grade != null) details = details.copyWith(grade: grade);
     if (addsTraits) details = details.copyWith(traits: {...details.traits, ...traits});
     await ref.read(trailRepositoryProvider).saveDetails(details);
@@ -346,9 +352,9 @@ final trailsCachedAtProvider =
 final outboxRunnerProvider = Provider<OutboxRunner>((ref) => OutboxRunner(
       repository: ref.watch(trailRepositoryProvider),
       outbox: ref.watch(outboxProvider),
-      adoptDetails: (trailId, name, grade, traits, link) => ref
+      adoptDetails: (trailId, name, grade, traits, link, rating) => ref
           .read(trailsProvider.notifier)
-          .adoptDetails(trailId, name, grade: grade, traits: traits, link: link),
+          .adoptDetails(trailId, name, grade: grade, traits: traits, link: link, rating: rating),
     ));
 
 final trailByIdProvider = Provider.family<Trail?, String>((ref, id) =>

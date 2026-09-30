@@ -24,10 +24,13 @@ import '../map/map_view/map_view.dart';
 import '../offline_areas/area_providers.dart';
 import '../offline_areas/area_store.dart';
 import '../trails/gpx.dart';
+import '../trails/rating_stars.dart';
 import '../trails/singletrail_scale.dart';
 import '../trails/trail_geometry.dart';
 import '../trails/trail_providers.dart';
+import '../trails/trail_condition.dart';
 import '../trails/trail_sheet.dart' show formatLength;
+import '../trails/trail_takeover.dart';
 import '../trails/trail_traits.dart';
 import 'ride_confirm.dart';
 import 'ride_split.dart';
@@ -139,6 +142,30 @@ class _CandidateDraft {
   bool discarded = false;
 }
 
+/// Ein bekannter Trail, den ich zum ersten Mal fahre (#102): die
+/// Vorbelegung aus dem Netz, was ich daraus mache, und ob ich es bestätigt
+/// habe — ohne Bestätigung wird das Stück nicht beigesteuert (E2).
+class _TakeOverDraft {
+  _TakeOverDraft(this.prefill)
+      : nameField = TextEditingController(text: prefill.name),
+        grade = prefill.grade,
+        traits = {...prefill.traits},
+        rating = prefill.rating,
+        condition = prefill.condition;
+
+  final TakeOver prefill;
+  final TextEditingController nameField;
+  int? grade;
+  final Set<TrailTrait> traits;
+  int? rating;
+  int? condition;
+  bool confirmed = false;
+
+  /// Bestätigen geht erst mit Sternen: Wer ihn sich zu eigen macht,
+  /// bewertet ihn (Rework Abschnitt 9, E2).
+  bool get canConfirm => rating != null;
+}
+
 class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
   static final _date = DateFormat('d. MMMM', 'de');
 
@@ -146,6 +173,9 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
   bool _loading = true;
   final _knownSelected = <int>{};
   final _drafts = <_CandidateDraft>[];
+
+  /// Je bekannter Zeile ohne eigenen Beitrag die Übernahme (#102).
+  final _takeOvers = <int, _TakeOverDraft>{};
   bool _busy = false;
   int _done = 0;
 
@@ -162,6 +192,9 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
   void dispose() {
     for (final d in _drafts) {
       d.nameField.dispose();
+    }
+    for (final t in _takeOvers.values) {
+      t.nameField.dispose();
     }
     super.dispose();
   }
@@ -208,6 +241,10 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
       _split = split;
       _loading = false;
       _knownSelected.addAll([for (var i = 0; i < split.known.length; i++) i]);
+      for (var i = 0; i < split.known.length; i++) {
+        final trail = split.known[i].trail;
+        if (needsTakeOver(trail)) _takeOvers[i] = _TakeOverDraft(takeOverOf(trail));
+      }
       final date = _date.format((points.first.time ?? DateTime.now()).toLocal());
       _dateLabel = date;
       for (var i = 0; i < split.candidates.length; i++) {
@@ -291,8 +328,18 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     ref.read(rideSplitPreviewProvider.notifier).state = lines;
   }
 
+  /// Eine bekannte Zeile zählt, wenn sie angehakt ist UND — beim ersten
+  /// Befahren — übernommen (#102, E2).
+  bool _knownCounts(int i) => _knownSelected.contains(i) && (_takeOvers[i]?.confirmed ?? true);
+
   int get _selectedCount =>
-      _knownSelected.length + _drafts.where((d) => d.selected && !d.discarded && _longEnough(d)).length;
+      [for (var i = 0; i < (_split?.known.length ?? 0); i++) if (_knownCounts(i)) i].length +
+      _drafts.where((d) => d.selected && !d.discarded && _longEnough(d)).length;
+
+  /// Wann die Fahrt am Trail war — die Zeit einer Zustandsangabe beim
+  /// Übernehmen. Ohne Zeiten (geplante Datei) keine: Wer nicht
+  /// nachweislich dort war, meldet keinen Zustand „vor Ort".
+  DateTime? _rodeAt(int i) => _split!.points[_split!.known[i].start].time;
 
   bool _longEnough(_CandidateDraft d) => _lengthOf(d.start, d.end) >= kTrailMinLengthM;
 
@@ -316,20 +363,54 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
     final notifier = ref.read(trailsProvider.notifier);
     var ok = 0, queued = 0, failed = 0;
     var limitHit = false;
-    final jobs = <({GpxTrack track, int? grade, Set<TrailTrait> traits})>[
-      // Ohne Namen: Der Trail hat schon einen, und der eigene Beitrag
-      // bleibt, wie er ist — „wieder gefahren" ist ein Beleg, kein Name.
+    final jobs = <({GpxTrack track, int? grade, Set<TrailTrait> traits, int? rating, int? knownIndex})>[
       for (var i = 0; i < split.known.length; i++)
-        if (_knownSelected.contains(i))
-          (track: _trackOf(split.known[i].start, split.known[i].end, ''), grade: null, traits: const {}),
+        if (_knownCounts(i))
+          if (_takeOvers[i] case final t?)
+            // Zum ersten Mal gefahren (#102): der ganze Beitrag, vorbelegt
+            // aus dem Netz und bestätigt — auch der fremde Name wird mein.
+            (
+              track: _trackOf(split.known[i].start, split.known[i].end, t.nameField.text),
+              grade: t.grade,
+              traits: {...t.traits},
+              rating: t.rating,
+              knownIndex: i,
+            )
+          else
+            // Schon beschrieben: „wieder gefahren" ist ein Beleg, kein
+            // Name — der eigene Beitrag bleibt, wie er ist.
+            (
+              track: _trackOf(split.known[i].start, split.known[i].end, ''),
+              grade: null,
+              traits: const <TrailTrait>{},
+              rating: null,
+              knownIndex: i,
+            ),
       for (final d in _drafts)
         if (d.selected && !d.discarded && _longEnough(d))
-          (track: _trackOf(d.start, d.end, d.nameField.text), grade: d.grade, traits: {...d.traits}),
+          (
+            track: _trackOf(d.start, d.end, d.nameField.text),
+            grade: d.grade,
+            traits: {...d.traits},
+            rating: null,
+            knownIndex: null,
+          ),
     ];
     for (final job in jobs) {
       try {
         final r = await notifier.contribute(job.track,
-            source: widget.request.source, grade: job.grade, traits: job.traits);
+            source: widget.request.source,
+            grade: job.grade,
+            traits: job.traits,
+            rating: job.rating);
+        // Der Zustand beim Übernehmen geht als Meldung an den bekannten
+        // Trail, zur Zeit der Fahrt dort — ohne Netz über den Korb.
+        final k = job.knownIndex;
+        final condition = k == null ? null : _takeOvers[k]?.condition;
+        final at = k == null ? null : _rodeAt(k);
+        if (k != null && condition != null && at != null) {
+          await notifier.report(split.known[k].trail.id, condition: condition, onSite: true, at: at);
+        }
         if (r.queued) {
           queued++;
         } else {
@@ -394,6 +475,22 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
             if (split.known.isNotEmpty) ...[
               Text('Wieder gefahren', style: theme.textTheme.titleMedium),
               const Text('Vorangehakt — als Beleg beigesteuert, das hält den Trail aktuell.'),
+              if (_takeOvers.values.any((t) => !t.confirmed && t.canConfirm))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const ValueKey('split-takeover-all'),
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() {
+                              for (final t in _takeOvers.values) {
+                                if (t.canConfirm) t.confirmed = true;
+                              }
+                            }),
+                    icon: const Icon(Icons.done_all),
+                    label: const Text('Alle übernehmen'),
+                  ),
+                ),
               for (var i = 0; i < split.known.length; i++) ...[
                 CheckboxListTile(
                   key: ValueKey('split-known-$i'),
@@ -412,6 +509,7 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                   title: Text(split.known[i].trail.displayName),
                   subtitle: Text(formatLength(split.known[i].lengthM)),
                 ),
+                if (_takeOvers[i] != null && _knownSelected.contains(i)) _takeOverCard(i, theme),
                 // Unbestätigtes zu diesem Trail, das unterwegs offen blieb
                 // (#116): hier noch einmal gefragt, zur Zeit der Fahrt.
                 if (_questionAt(split, i) case (final target, final at))
@@ -522,6 +620,160 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Die aufgeklappte Zeile eines Trails, den ich zum ersten Mal fahre
+  /// (#102): Name, S-Grad, Charakter, Sterne, Zustand — vorbelegt aus dem
+  /// Netz, sichtbar als „Vorschlag aus dem Netz" (E1). Bestätigt klappt
+  /// sie zu einer Zeile zusammen.
+  Widget _takeOverCard(int i, ThemeData theme) {
+    final t = _takeOvers[i]!;
+    final palette = AppPalette.of(context);
+    final hint = theme.textTheme.bodySmall?.copyWith(color: palette.muted);
+    const fromNet = 'Vorschlag aus dem Netz';
+    if (t.confirmed) {
+      final grade = t.grade;
+      return Padding(
+        padding: const EdgeInsets.only(left: 48, bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                key: ValueKey('split-takeover-done-$i'),
+                'Übernommen: ${t.nameField.text.trim().isEmpty ? 'ohne Namen' : t.nameField.text.trim()}'
+                '${grade != null ? ' · ${singletrailGrade(grade).label}' : ''}'
+                ' · ${'★' * (t.rating ?? 0)}'
+                '${t.condition != null ? ' · ${trailConditionLabel(t.condition!)}' : ''}',
+                style: hint,
+              ),
+            ),
+            TextButton(
+              key: ValueKey('split-takeover-edit-$i'),
+              onPressed: _busy ? null : () => setState(() => t.confirmed = false),
+              child: const Text('Ändern'),
+            ),
+          ],
+        ),
+      );
+    }
+    return Card(
+      key: ValueKey('split-takeover-$i'),
+      margin: const EdgeInsets.only(left: 32, bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Zum ersten Mal gefahren — mach ihn dir zu eigen. Dann bleibt er '
+              'dir, auch wenn der Buddy seinen Beitrag löscht. Ohne Bewertung '
+              'wird das Stück nicht beigesteuert.',
+              style: theme.textTheme.bodySmall,
+            ),
+            TextField(
+              key: ValueKey('split-takeover-name-$i'),
+              controller: t.nameField,
+              enabled: !_busy,
+              maxLength: 80,
+              decoration: const InputDecoration(labelText: 'Name', counterText: ''),
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int?>(
+                    key: ValueKey('split-takeover-grade-$i'),
+                    initialValue: t.grade,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Schwierigkeit (Singletrail-Skala)',
+                      isDense: true,
+                      helperText: t.grade != null && t.grade == t.prefill.grade ? fromNet : null,
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('Keine Angabe')),
+                      for (final g in kSingletrailScale)
+                        DropdownMenuItem<int?>(
+                          value: g.value,
+                          child: Text('${g.label} · ${g.short}', overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: _busy ? null : (v) => setState(() => t.grade = v),
+                  ),
+                ),
+                SingletrailScaleButton(highlight: t.grade),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  for (final tr in TrailTrait.values)
+                    TrailTraitChip(
+                      tr,
+                      key: ValueKey('split-takeover-trait-$i-${tr.db}'),
+                      selected: t.traits.contains(tr),
+                      onSelected: _busy
+                          ? null
+                          : (v) => setState(() => v ? t.traits.add(tr) : t.traits.remove(tr)),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Bewertung', style: theme.textTheme.labelLarge),
+            Row(
+              children: [
+                RatingPicker(
+                  keyPrefix: 'split-takeover-rating-$i',
+                  value: t.rating,
+                  onChanged: _busy ? null : (v) => setState(() => t.rating = v),
+                ),
+                if (t.rating != null && t.rating == t.prefill.rating)
+                  Flexible(child: Text(fromNet, style: hint)),
+              ],
+            ),
+            Text('Zustand heute (freiwillig)', style: theme.textTheme.labelLarge),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final c in kTrailConditions)
+                  ChoiceChip(
+                    key: ValueKey('split-takeover-condition-$i-${c.value}'),
+                    label: Text(c.label),
+                    tooltip: c.description,
+                    selected: t.condition == c.value,
+                    onSelected: _busy
+                        ? null
+                        : (sel) => setState(() => t.condition = sel ? c.value : null),
+                  ),
+              ],
+            ),
+            if (t.condition != null && t.condition == t.prefill.condition)
+              Text('Zuletzt bestätigt gemeldet', style: hint),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                FilledButton.tonal(
+                  key: ValueKey('split-takeover-confirm-$i'),
+                  onPressed: _busy || !t.canConfirm ? null : () => setState(() => t.confirmed = true),
+                  child: const Text('Übernehmen'),
+                ),
+                const SizedBox(width: 8),
+                if (!t.canConfirm)
+                  Expanded(
+                    child: Text('Erst Sterne vergeben — wie gefällt er dir?',
+                        key: ValueKey('split-takeover-needs-rating-$i'), style: hint),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

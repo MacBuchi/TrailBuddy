@@ -574,6 +574,27 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     (ohne tut ein Knopf nichts, still) und bringt `VIBRATE` mit; der
     Manifest-Test hält alles zusammen. Der Harness überschreibt
     `rideConfirmTapsProvider`.
+- **Übernehmen beim ersten Befahren** (#102, seit 0.55.0,
+  `trail_takeover.dart` pur, Rework Abschnitt 1 und 9, E1/E2): Eine
+  bekannte Zeile im Zerlege-Blatt OHNE eigenen Beitrag
+  (`needsTakeOver`: `myDetails == null`, nicht wartend) klappt auf:
+  Name, S-Grad, Charakter, Sterne, Zustand — vorbelegt mit der Anzeige
+  (`takeOverOf`: `displayName`, Median-Grad, `topTraits`, Median-Sterne;
+  Zustand nur der jüngste BESTÄTIGTE der letzten 90 Tage), sichtbar als
+  „Vorschlag aus dem Netz". Drei Dinge, die man wissen muss:
+  - **Pflicht mit Sternen (E2)**: Unbestätigt zählt die Zeile nicht
+    (`_knownCounts`), bestätigen geht erst mit Sternen; „Alle
+    übernehmen" bestätigt jede Zeile, die schon Sterne hat. Wer den
+    Trail schon beschrieben hat, wird nie gefragt.
+  - **EINE Schreibstelle**: `adoptDetails` übernimmt den fremden Namen,
+    weil der eigene leer ist, und schreibt die Sterne nur in einen
+    Beitrag ohne eigene (`ContributeJob.rating`, Auftrag von vor 0.55.0
+    liest sich ohne). Der Zustand geht als Meldung an den bekannten
+    Trail (`report`, `on_site`, Zeit der Fahrt dort) — nur mit
+    Zeitstempeln.
+  - **Kein Rückfüllen auf dem Server** — es kopierte Namen von außerhalb
+    des Netzes (Konzept 12). Für den Bestand: Import-Ergebnis, Filter
+    „Bewertung offen" und „Übernehmen" im Blatt (#102 Teil 2).
 - **Das Zerlege-Blatt** (#29, Konzept 5.1, `ride_split.dart` pur,
   `road_index.dart`, `ride_split_sheet.dart`, seit 0.20.0): nach der
   Aufzeichnung, aus „Meine Fahrten" (Schere) und aus dem GPX-Import für

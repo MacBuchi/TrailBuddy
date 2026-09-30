@@ -83,6 +83,10 @@ sealed class OutboxJob {
             traits: {
               for (final t in json['traits'] as List? ?? const []) ?TrailTrait.fromDb(t as String?),
             },
+            rating: switch (json['rating']) {
+              final int r when r >= 1 && r <= kRatingMax => r,
+              _ => null,
+            },
             attempts: attempts,
             failure: failure,
           );
@@ -140,6 +144,7 @@ class ContributeJob extends OutboxJob {
     this.link,
     this.grade,
     this.traits = const {},
+    this.rating,
     super.attempts,
     super.failure,
   });
@@ -163,6 +168,10 @@ class ContributeJob extends OutboxJob {
   /// war. Fehlt der Schlüssel (Auftrag von vor 0.35.0), ist er leer.
   final Set<TrailTrait> traits;
 
+  /// Die Sterne beim Übernehmen eines Buddy-Trails (#102) — gehen nur in
+  /// einen Beitrag ohne eigene Bewertung. Fehlt bei Aufträgen vor 0.55.0.
+  final int? rating;
+
   @override
   Map<String, dynamic> toJson() => {
         'kind': 'contribute',
@@ -178,6 +187,7 @@ class ContributeJob extends OutboxJob {
         'link': link,
         'grade': grade,
         'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
+        'rating': rating,
       };
 
   @override
@@ -193,6 +203,7 @@ class ContributeJob extends OutboxJob {
         link: link,
         grade: grade,
         traits: traits,
+        rating: rating,
         attempts: attempts ?? this.attempts,
         failure: clearFailure ? null : (failure ?? this.failure),
       );

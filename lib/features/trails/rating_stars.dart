@@ -28,3 +28,47 @@ class RatingStars extends StatelessWidget {
     );
   }
 }
+
+/// Fünf Sterne zum Antippen; ein Tipp auf den gewählten nimmt ihn zurück.
+/// Die Schlüssel heißen `<keyPrefix>-<n>`.
+class RatingPicker extends StatelessWidget {
+  const RatingPicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    required this.keyPrefix,
+    this.size = 28,
+    this.faded = false,
+  });
+
+  final int? value;
+  final ValueChanged<int?>? onChanged;
+  final String keyPrefix;
+  final double size;
+
+  /// Verblasst: vorbelegt, noch nicht bestätigt.
+  final bool faded;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final color = faded ? palette.muted : palette.accentText;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 1; i <= kRatingMax; i++)
+          IconButton(
+            key: ValueKey('$keyPrefix-$i'),
+            visualDensity: VisualDensity.compact,
+            tooltip: '$i von $kRatingMax Sternen',
+            onPressed: onChanged == null ? null : () => onChanged!(value == i ? null : i),
+            icon: Icon(
+              value != null && i <= value! ? Icons.star_rounded : Icons.star_outline_rounded,
+              size: size,
+              color: color,
+            ),
+          ),
+      ],
+    );
+  }
+}
