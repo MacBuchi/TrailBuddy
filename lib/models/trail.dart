@@ -359,6 +359,19 @@ class Trail {
 
   bool get isOwn => recordings.any((r) => r.userId == myId);
 
+  /// [userId] hat den Trail nur GEPLANT: Jeder sichtbare Beleg von ihm
+  /// ist eine Datei ohne Fahrzeiten (`planned`, Konzept 4.6). Ohne Beleg
+  /// von ihm false — dann hat er gar nichts belegt.
+  bool onlyPlanned(String userId) {
+    final own = recordings.where((r) => r.userId == userId);
+    return own.isNotEmpty && own.every((r) => r.source == RecordingSource.planned);
+  }
+
+  /// Alle sichtbaren Belege sind geplant — gefahren hat ihn hier
+  /// nachweislich niemand.
+  bool get allPlanned =>
+      recordings.every((r) => r.source == RecordingSource.planned);
+
   /// Die beste sichtbare Aufzeichnung: höchste Qualität, bei Gleichstand
   /// die ältere (sie hat den Trail „angelegt").
   TrailRecording get best {

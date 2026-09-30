@@ -156,6 +156,12 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                       '— du bist ihn noch nicht gefahren.',
               style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted),
             ),
+            // Nur geplant (#100, Konzept 4.6): Eine Datei ohne Fahrzeiten
+            // ist eine Behauptung, keine Fahrt — Buddys sollen das sehen.
+            if (plannedNotice(trail) case final planned?)
+              Text(planned,
+                  key: const ValueKey('trail-planned'),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: palette.muted)),
             // Wartet im Ausgangskorb (#30): Der Trail ist noch nicht auf
             // dem Server — kein Beitrag, kein Hinweis, keine Einschätzung,
             // dafür fehlt die Kennung. Das Blatt sagt es, statt Knöpfe zu
@@ -295,6 +301,24 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
       ),
     );
   }
+}
+
+/// Wer den Trail nur GEPLANT hat (Datei ohne Fahrzeiten), in einem Satz;
+/// null, wenn jeder Beitragende ihn gefahren ist. Sind alle sichtbaren
+/// Belege geplant, sagt es der Satz für den ganzen Trail.
+String? plannedNotice(Trail trail) {
+  if (trail.pending) return null;
+  if (trail.allPlanned) {
+    return 'Nur geplant: Jeder Beleg hier kommt aus einer Datei ohne '
+        'Fahrzeiten — gefahren hat ihn niemand nachweislich.';
+  }
+  final who = [
+    for (final d in trail.contributionsOrdered)
+      if (trail.onlyPlanned(d.userId))
+        d.userId == trail.myId ? 'du' : (d.username ?? 'Buddy'),
+  ];
+  if (who.isEmpty) return null;
+  return 'Nur geplant, nicht gefahren: ${who.join(', ')}.';
 }
 
 /// Was nach dem Löschen bleibt, in einem Satz. „Bleibt" nur, wenn ich

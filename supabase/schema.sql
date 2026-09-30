@@ -892,7 +892,9 @@ revoke all on function app_internal.push_flush() from public, anon, authenticate
 --      dann als weiterer Parameter, nicht als andere Zahl hier.
 --   7. Beitrag des Aufrufers anlegen, falls er fehlt; sonst seinen
 --      Status auf „offen" setzen — wer den Trail fährt, hat ihn
---      befahrbar vorgefunden (Abschnitt 3, Entscheidung 6).
+--      befahrbar vorgefunden (Abschnitt 3, Entscheidung 6). Nicht bei
+--      `planned` (Patch 011, #100): Eine Datei ohne Fahrzeiten belegt
+--      nicht, dass jemand den Trail befahrbar vorgefunden hat.
 create or replace function public.contribute_recording(
   coords double precision[],
   source text,
@@ -1067,7 +1069,8 @@ begin
   values (target, uid)
   on conflict (trail_id, user_id) do update
     set status = 'open', status_at = now()
-    where trail_details.status <> 'open';
+    where trail_details.status <> 'open'
+      and contribute_recording.source <> 'planned';
 
   return target;
 end $$;
@@ -1469,5 +1472,6 @@ insert into public.applied_patches (filename) values
   ('patch_007_decode_trail_names.sql'),
   ('patch_008_push.sql'),
   ('patch_009_trail_traits.sql'),
-  ('patch_010_withdraw_contribution.sql')
+  ('patch_010_withdraw_contribution.sql'),
+  ('patch_011_planned_keeps_status.sql')
 on conflict do nothing;

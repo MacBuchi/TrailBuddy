@@ -4,9 +4,14 @@
 
 ## Trails verwalten
 
-*Version 0.46.0, 2026-09-29*
+*Versionen 0.46.0 bis 0.46.1, 2026-09-29 bis 2026-09-30*
 
-- **Beitrag löschen**: Im Trail-Blatt steht neben „Mein Beitrag" jetzt
+- **Geplant heißt nicht gefahren** (0.46.1): Eine GPX-Datei ohne
+  Fahrzeiten, etwa von einer Vereinsseite, setzt deine Meldung
+  „gesperrt" nicht mehr auf „offen" zurück — nur eine echte Fahrt tut
+  das. Und das Trail-Blatt sagt jetzt, wer einen Trail nur geplant hat.
+
+- **Beitrag löschen** (0.46.0): Im Trail-Blatt steht neben „Mein Beitrag" jetzt
   „Löschen". Es nimmt deine Aufzeichnungen, deine Einschätzung und deine
   Hinweise zu diesem Trail weg. Haben Buddys ihn auch gefahren, bleibt
   er für sie stehen; sonst verschwindet er.

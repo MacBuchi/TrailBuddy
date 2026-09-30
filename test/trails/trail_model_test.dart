@@ -5,12 +5,12 @@ import 'package:trailbuddy/models/trail.dart';
 
 TrailRecording rec(String trail, String user,
         {double quality = 0.5, int day = 1, List<LatLng>? pts, List<double>? ele,
-        bool reversed = false}) =>
+        bool reversed = false, RecordingSource source = RecordingSource.import}) =>
     TrailRecording(
       id: '$trail-$user-$day',
       trailId: trail,
       userId: user,
-      source: RecordingSource.import,
+      source: source,
       recordedAt: null,
       reversed: reversed,
       quality: quality,
@@ -25,6 +25,29 @@ TrailDetails det(String trail, String user,
     TrailDetails(trailId: trail, userId: user, name: name, grade: grade, status: status, statusAt: at);
 
 void main() {
+  test('geplant: nur wer ausschließlich Dateien ohne Fahrzeiten beigesteuert hat (#100)', () {
+    const planned = RecordingSource.planned;
+    final t = Trail(
+      id: 't',
+      myId: 'me',
+      recordings: [
+        rec('t', 'me', source: planned),
+        rec('t', 'a', source: planned, day: 2),
+        rec('t', 'a', day: 3),
+        rec('t', 'b', source: planned, day: 4),
+      ],
+      details: const [],
+    );
+    expect(t.onlyPlanned('me'), isTrue);
+    expect(t.onlyPlanned('a'), isFalse, reason: 'eine gefahrene Aufzeichnung reicht');
+    expect(t.onlyPlanned('b'), isTrue);
+    expect(t.onlyPlanned('nobody'), isFalse, reason: 'ohne Beleg kein „geplant"');
+    expect(t.allPlanned, isFalse);
+    final onlyPlans = Trail(
+        id: 't', myId: 'me', recordings: [rec('t', 'me', source: planned)], details: const []);
+    expect(onlyPlans.allPlanned, isTrue);
+  });
+
   test('eigener Name vor dem des ältesten Beitrags, Rest als „auch"', () {
     final t = Trail(
       id: 't1',

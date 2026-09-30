@@ -532,7 +532,7 @@ begin
   perform tb_test.check((select count(*) from public.trail_recordings where trail_id = t1) = 3, 'drei Aufzeichnungen, ein Trail');
 end $$;
 
-\echo -- 15. Status: neue Aufzeichnung setzt den eigenen Beitrag auf offen
+\echo -- 15. Status: neue Aufzeichnung setzt den eigenen Beitrag auf offen, eine geplante nicht (Patch 011)
 do $$
 declare
   ua uuid := '11111111-1111-4111-8111-111111111111';
@@ -543,6 +543,17 @@ begin
   perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.42)) = t, 'Hälfte erneut gefahren ⇒ derselbe Trail');
   perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'open',
                         'wer fährt, hat offen vorgefunden: Status wieder offen (Entscheidung 6)');
+
+  -- Patch 011 (#100): Eine Datei ohne Fahrzeiten belegt keine Fahrt.
+  perform tb_test.exec_as(ua, format('update public.trail_details set status = %L, status_at = now() where trail_id = %L and user_id = %L', 'closed', t, ua));
+  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.43), 'planned') = t,
+                        'geplanter Import derselben Hälfte ⇒ derselbe Trail');
+  perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'closed',
+                        'geplant ist nicht gefahren: Status bleibt gesperrt (Patch 011)');
+  perform tb_test.check(tb_test.contribute(ua, tb_test.jitter(tb_test.line(500), 3.0, 0.44), 'import') = t,
+                        'Import mit Fahrzeiten ⇒ derselbe Trail');
+  perform tb_test.check((select status from public.trail_details where trail_id = t and user_id = ua) = 'open',
+                        'Import mit Fahrzeiten ist eine Fahrt: Status wieder offen');
 end $$;
 
 \echo -- 16. Höhen je Punkt (Patch 002, Issue #14)
