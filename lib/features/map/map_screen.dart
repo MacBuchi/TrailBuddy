@@ -26,7 +26,7 @@ import '../offline_areas/area_plan.dart';
 import '../offline_areas/area_providers.dart';
 import '../offline_areas/area_store.dart';
 import '../offline_areas/offline_tool_rail.dart';
-import '../trails/grade_shield.dart' show trailColorOf;
+import '../trails/grade_shield.dart' show trailColorOf, trailLineStyleOf;
 import '../trails/outbox_providers.dart';
 import '../trails/trail_list.dart';
 import '../trails/trail_providers.dart';
@@ -504,18 +504,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             points: _smoothed(t),
             // Der Name fließt entlang der Linie (ab Zoom 14).
             label: t.pending ? null : t.displayName,
-            color: t.pending ? _colorOf(t).withValues(alpha: 0.6) : _colorOf(t),
+            // Farbe = Schwierigkeit, Linienart = Zustand, Saum ab S4
+            // gestrichelt (`trailLineStyleOf`, Rework E9) — schwarz allein
+            // unterschiede S3 nicht von S5. Wartend (#30) gestrichelt und
+            // blass.
+            color: _colorOf(t).withValues(alpha: _colorOf(t).a * trailLineStyleOf(t).opacity),
             width: 4,
-            // Wartet im Ausgangskorb (#30): gestrichelt, wie eine
-            // Zusage, die noch nicht eingelöst ist. Ab S4 gestrichelt wie
-            // eine Skiroute — schwarz allein unterschiede S3 nicht von S5.
-            dash: t.pending
-                ? const [12, 8]
-                : (t.grade ?? 0) >= 4
-                    ? const [14, 10]
-                    : null,
+            dash: trailLineStyleOf(t).dash,
             borderColor: _borderOf(t, seenNotes).$1,
             borderWidth: _borderOf(t, seenNotes).$2,
+            borderDash: trailLineStyleOf(t).haloDash,
             hitValue: t,
           ),
       ],

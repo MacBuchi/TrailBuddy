@@ -26,6 +26,41 @@ Color trailColorOf(Trail t, GradePalette p) => isUphill(t) ? p.uphill : p.of(t.g
 /// vielen färbt keinen Trail um.
 bool isUphill(Trail t) => t.topTraits.contains(TrailTrait.uphill);
 
+/// Wie eine Trail-Linie auf der Karte gezeichnet wird, außer der Farbe
+/// (Rework E9, #101): Die Farbe ist die Schwierigkeit, der ZUSTAND ist
+/// die Art der Linie, und S4/S5 stehen im SAUM. Eine Regel für beide
+/// Engines; [TrailLineStyle.opacity] multipliziert die Farbe.
+typedef TrailLineStyle = ({List<double>? dash, double opacity, List<double>? haloDash});
+
+/// Bröckelig: lange Striche, kurze Lücken — Zustand 3.
+const kLineDashWorn = [10.0, 3.0];
+
+/// Gestrichelt — Zustand 2 und 1 (1 zusätzlich verblasst).
+const kLineDashRough = [5.0, 5.0];
+
+/// Wartet im Ausgangskorb (#30): eine Zusage, die noch nicht eingelöst ist.
+const kLineDashPending = [12.0, 8.0];
+
+/// Der Saum ab S4 — gestrichelt wie eine Skiroute. Bis 0.50.0 war es die
+/// Linie selbst; die trägt jetzt den Zustand.
+const kHaloDashExpert = [6.0, 4.0];
+
+/// Ab dieser Stufe trägt der Saum sein Muster.
+const kExpertGrade = 4;
+
+TrailLineStyle trailLineStyleOf(Trail t) {
+  final haloDash = (t.grade ?? 0) >= kExpertGrade ? kHaloDashExpert : null;
+  if (t.pending) return (dash: kLineDashPending, opacity: 0.6, haloDash: haloDash);
+  // Nur ein BESTÄTIGTER Zustand verändert die Linie — ein unbestätigter
+  // steht verblasst im Blatt, auf der Karte wäre er eine Behauptung.
+  return switch (t.shownCondition.confirmed?.condition) {
+    3 => (dash: kLineDashWorn, opacity: 1.0, haloDash: haloDash),
+    2 => (dash: kLineDashRough, opacity: 1.0, haloDash: haloDash),
+    1 => (dash: kLineDashRough, opacity: 0.45, haloDash: haloDash),
+    _ => (dash: null, opacity: 1.0, haloDash: haloDash),
+  };
+}
+
 /// Das Schild zu einem Grad 0–5 — auf der Karte am Trailanfang auch mit
 /// den Charakter-Symbolen (Design 4c) und ohne Grad, wenn es Merkmale
 /// gibt. Ohne Grad, Uphill und Merkmale: nichts.

@@ -219,16 +219,35 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
           PolylineLayer(
             polylines: [
               for (final line in layers.polylines)
-                Polyline(
-                  points: line.points,
-                  color: line.color,
-                  strokeWidth: line.width,
-                  pattern: line.dash == null
-                      ? const StrokePattern.solid()
-                      : StrokePattern.dashed(segments: line.dash!),
-                  borderStrokeWidth: line.borderWidth,
-                  borderColor: line.borderColor ?? Colors.transparent,
-                ),
+                // Ein Rand mit eigenem Muster (S4/S5, #101) ist eine eigene,
+                // breitere Linie darunter — flutter_maps Rand teilt sonst
+                // das Muster der Linie.
+                if (line.borderDash != null && line.borderColor != null && line.borderWidth > 0) ...[
+                  Polyline(
+                    points: line.points,
+                    color: line.borderColor!,
+                    strokeWidth: line.width + 2 * line.borderWidth,
+                    pattern: StrokePattern.dashed(segments: line.borderDash!),
+                  ),
+                  Polyline(
+                    points: line.points,
+                    color: line.color,
+                    strokeWidth: line.width,
+                    pattern: line.dash == null
+                        ? const StrokePattern.solid()
+                        : StrokePattern.dashed(segments: line.dash!),
+                  ),
+                ] else
+                  Polyline(
+                    points: line.points,
+                    color: line.color,
+                    strokeWidth: line.width,
+                    pattern: line.dash == null
+                        ? const StrokePattern.solid()
+                        : StrokePattern.dashed(segments: line.dash!),
+                    borderStrokeWidth: line.borderWidth,
+                    borderColor: line.borderColor ?? Colors.transparent,
+                  ),
             ],
           ),
         // Namen der Linien — flutter_map kann keinen Text entlang eines

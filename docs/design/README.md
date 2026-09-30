@@ -75,7 +75,7 @@ erreicht es auf Weiß nur 4,2:1, verlangt sind 4,5:1. Dasselbe für Warnung
 | S1 | `#5A9BF0` | `#1F6FD1` | durchgezogen |
 | S2 | `#F0605C` | `#C62828` | durchgezogen |
 | S3 | `#F2F4EF` | `#131A16` | durchgezogen |
-| S4, S5 | `#F2F4EF` | `#131A16` | gestrichelt |
+| S4, S5 | `#F2F4EF` | `#131A16` | Saum gestrichelt (seit 0.51.0; davor die Linie) |
 | ohne Einschätzung | `#9AA69D` | `#6B756F` | durchgezogen |
 | **Uphill** (schlägt die Stufe) | `#4DB6AC` | `#00796B` | durchgezogen; im Schild ein Pfeil ↗ statt der Form |
 
@@ -92,6 +92,25 @@ Auf ihnen steht im Schild weiße Schrift, verlangt sind 4,5:1. Im Dunklen
 hellere Töne mit dunkler Schrift, und „schwarz" ist dort die Textfarbe —
 ein schwarzer Streifen auf dunkler Karte verschwände. Jede Stufe hat
 ≥ 3:1 auf Fläche, Grund und dem Landton der Karte (Test).
+
+**Der Zustand eines Trails (#101, Rework E9) ist die Art der Linie**,
+nie eine Farbe — Farbe heißt Schwierigkeit (`trailLineStyleOf` in
+`grade_shield.dart`, eine Regel für beide Engines):
+
+| Zustand | Linie |
+|---|---|
+| 5 top gepflegt, 4 gut, keiner | durchgezogen |
+| 3 ausgefahren | bröckelig (lange Striche, kurze Lücken, 10/3) |
+| 2 abgerockt | gestrichelt (5/5) |
+| 1 kaum fahrbar | gestrichelt und verblasst (45 %) |
+
+Nur ein BESTÄTIGTER Zustand zählt; ein unbestätigter steht verblasst im
+Blatt. Weil die Linie den Zustand trägt, wandern **S4/S5 auf den Saum**:
+der weiße Rand gestrichelt (6/4). Der Saum ist auf beiden Engines eine
+eigene, breitere Linie darunter (in flutter_map eigens gezeichnet, weil
+dessen Rand sonst das Muster der Linie teilt). Mit Warn- oder
+Hinweis-Rand ist der farbige Rand gestrichelt. Wartend (#30) bleibt
+gestrichelt (12/8) und blass.
 
 **Zustände liegen als Rand UM die Linie, nie auf ihr:**
 
@@ -272,7 +291,7 @@ den Zahlen (13 px, blass bei „Bewertung offen"), Sortierung „Bewertung";
 hinter Meldung und Hinweis der Zustand 1–2 als Wort („ABGEROCKT",
 „KAUM FAHRBAR") in der Textfarbe — ohne eigene Farbe, die gehört der
 Schwierigkeit (E9) —, eine unbestätigte Meldung gedämpft mit „?"
-(„GESPERRT?"). Die Linienart auf der Karte kommt als eigener Schritt.
+(„GESPERRT?"). Die Linienart auf der Karte: Abschnitt 2 (seit 0.51.0).
 
 ## 8. Screens (Turn 1g–1l)
 

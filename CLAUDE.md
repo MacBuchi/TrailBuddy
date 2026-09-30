@@ -272,8 +272,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 - **Farbe = Schwierigkeit** (seit 0.42.0, Betreiber 2026-09-29): Linie
   auf der Karte, Streifen in der Liste und S-Grad-Schild tragen die
   Pistenfarbe des Medians (`GradePalette`: S0 grün, S1 blau, S2 rot, ab
-  S3 schwarz — im Dunklen hell —, ohne Einschätzung grau; ab S4
-  gestrichelt auf der Karte). **Uphill schlägt die Stufe**: Steht Uphill
+  S3 schwarz — im Dunklen hell —, ohne Einschätzung grau; ab S4 der
+  SAUM gestrichelt, seit 0.51.0 — die Linie selbst trägt den bestätigten
+  Zustand: durchgezogen, bröckelig, gestrichelt, gestrichelt und
+  verblasst, `trailLineStyleOf`; `MapViewPolyline.borderDash` ist das
+  eigene Muster des Saums, in flutter_map eine eigene Linie darunter). **Uphill schlägt die Stufe**: Steht Uphill
   unter den angezeigten zwei Merkmalen, trägt der Trail Petrol und das
   Schild einen Pfeil statt der Form (`trailColorOf`/`isUphill` in
   `grade_shield.dart`, eine Regel für Karte, Streifen, Schild). Wem ein Trail gehört, zeigt KEINE Farbe

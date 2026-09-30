@@ -3,6 +3,7 @@
 // Schild. Wem er gehört, sagt nur noch das Wort; eine Meldung liegt als
 // Rand um die Linie.
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart' show PolylineLayer, StrokePattern;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/core/app_colors.dart';
 import 'package:trailbuddy/features/map/line_smoothing.dart';
@@ -32,6 +33,9 @@ void main() {
     trails.seedTrail(bob.id, name: 'Schwarz', lat: 48.2, grade: 4);
     trails.seedTrail(bob.id, name: 'Gesperrt', lat: 48.3, grade: 0, status: TrailStatus.closed);
     trails.seedTrail(anna.id, name: 'Ohne', lat: 48.4);
+    // Zustand 1 (bestätigt): gestrichelt und verblasst, Farbe bleibt S1.
+    final rough = trails.seedTrail(anna.id, name: 'Kaputt', lat: 48.6, grade: 1);
+    trails.seedReport(anna.id, rough, condition: 1);
     // Uphill: eigene Farbe statt der Stufe, das Schild trägt einen Pfeil.
     trails.seedTrail(bob.id, name: 'Auffahrt', lat: 48.5, grade: 2, traits: {TrailTrait.uphill});
   });
@@ -39,7 +43,7 @@ void main() {
   MapViewPolyline lineOf(WidgetTester tester, String name) =>
       fakeMapLayers(tester).polylines.singleWhere((l) => l.hitValue is Trail && (l.hitValue as Trail).displayName == name);
 
-  testWidgets('Karte: Linie in der Stufenfarbe, ab S4 gestrichelt, Meldung als Rand', (tester) async {
+  testWidgets('Karte: Linie in der Stufenfarbe, ab S4 gestrichelter Saum, Meldung als Rand', (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await settle(tester, frames: 20);
     const g = AppColors.mapGrades;
@@ -47,8 +51,16 @@ void main() {
     expect(lineOf(tester, 'Mein Blauer').color, g.s1);
     expect(lineOf(tester, 'Bobs Blauer').color, g.s1, reason: 'Die Beziehung färbt nicht mehr');
     expect(lineOf(tester, 'Schwarz').color, g.s3);
-    expect(lineOf(tester, 'Schwarz').dash, isNotNull);
+    // Seit 0.51.0 (#101, Rework E9) trägt der SAUM S4/S5, die Linie den
+    // Zustand.
+    expect(lineOf(tester, 'Schwarz').dash, isNull);
+    expect(lineOf(tester, 'Schwarz').borderDash, isNotNull);
     expect(lineOf(tester, 'Mein Blauer').dash, isNull);
+    expect(lineOf(tester, 'Mein Blauer').borderDash, isNull);
+    final rough = lineOf(tester, 'Kaputt');
+    expect(rough.dash, isNotNull, reason: 'Zustand 1: gestrichelt');
+    expect(rough.color.a, lessThan(1), reason: 'und verblasst');
+    expect(rough.color.withValues(alpha: 1), g.s1, reason: 'die Farbe bleibt die Schwierigkeit');
     expect(lineOf(tester, 'Ohne').color, g.ungraded);
     final closed = lineOf(tester, 'Gesperrt');
     expect(closed.color, g.s0, reason: 'die Meldung übermalt die Schwierigkeit nicht');
@@ -87,5 +99,18 @@ void main() {
     expect(await stripeOf('Ohne'), p.grade.ungraded);
     expect(await stripeOf('Auffahrt'), p.grade.uphill);
     expect(findLabel('Uphill, Schwierigkeit S2: größere Wurzeln, flache Stufen'), findsOneWidget);
+  });
+
+  testWidgets('flutter_map: der gestrichelte Saum ist eine eigene Linie unter der Linie', (tester) async {
+    await pumpApp(tester, backend, trails: trails, useRealMap: true);
+    await settle(tester, frames: 20);
+    final polylines = [
+      for (final layer in tester.widgetList<PolylineLayer>(find.byType(PolylineLayer)))
+        ...layer.polylines,
+    ];
+    const halo = AppColors.mapLines;
+    final dashedHalo = polylines.where((p) =>
+        p.color == halo.halo && p.pattern != const StrokePattern.solid()).toList();
+    expect(dashedHalo, hasLength(1), reason: 'nur „Schwarz" (S4) hat einen gestrichelten Saum');
   });
 }
