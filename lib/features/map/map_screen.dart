@@ -351,6 +351,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     await ref.read(ridesProvider.notifier).delete(ride.id);
   }
 
+  /// „Trail beginnt" / „Trail endet" (#105): eine Marke in der laufenden
+  /// Fahrt. Die Leiste sagt, was gesetzt wurde — mit Handschuh auf dem
+  /// Trail sieht man den Rand am Knopf nicht immer.
+  Future<void> _toggleMark() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final mark = await ref.read(rideProvider.notifier).toggleMark();
+    if (!mounted) return;
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+          content: Text(switch (mark?.kind) {
+        RideMarkKind.start => 'Trail beginnt — markiert. Am Ende noch einmal tippen.',
+        RideMarkKind.end => 'Trail endet — markiert. Das Stück steht nach der Fahrt im Zerlege-Blatt.',
+        null => 'Die Marke ließ sich nicht speichern.',
+      })));
+  }
+
   /// „Fahrt zerlegen" aus „Meine Fahrten" oder dem GPX-Import (#29):
   /// die Spur einpassen, das Blatt öffnen.
   void _openSplit(SplitRequest request) {
@@ -702,6 +719,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       icon: Icons.my_location,
                       onPressed: _locateMe,
                     ),
+                    // Die Marke über der Aufnahme, nur während einer Fahrt
+                    // (#105, E12): Fahne für „beginnt", Zielflagge für
+                    // „endet"; läuft ein markierter Trail, Rand in der Marke.
+                    if (canRecord && ride != null) ...[
+                      const SizedBox(height: 14),
+                      MapRoundButton(
+                        key: const ValueKey('ride-mark-button'),
+                        tooltip: markedTrailOpen(ride.marks) ? 'Trail endet' : 'Trail beginnt',
+                        icon: markedTrailOpen(ride.marks) ? Icons.sports_score : Icons.flag_outlined,
+                        active: markedTrailOpen(ride.marks),
+                        onPressed: _toggleMark,
+                      ),
+                    ],
                     if (canRecord) ...[
                       const SizedBox(height: 14),
                       RecordButton(

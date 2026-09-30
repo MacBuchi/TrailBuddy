@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:trailbuddy/core/app_colors.dart';
+import 'package:trailbuddy/features/map/map_buttons.dart';
 import 'package:trailbuddy/features/map/map_screen.dart' show kRidePulseExtent;
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -217,6 +218,73 @@ void main() {
     expect(bridge.armed, isTrue, reason: 'der Service wird wieder aufgesetzt');
     expect(service.running, isTrue);
     expect(fix.calls, 0, reason: 'kein neuer Start, kein erster Fix');
+  });
+
+  group('Marken während der Aufnahme (#105)', () {
+    final markButton = find.byKey(const ValueKey('ride-mark-button'));
+    bool markActive(WidgetTester tester) => tester.widget<MapRoundButton>(markButton).active;
+
+    testWidgets('erster Tipp „Trail beginnt", zweiter „Trail endet" — nur während der Fahrt',
+        (tester) async {
+      fix.next = pt(0);
+      await pump(tester);
+      expect(markButton, findsNothing, reason: 'ohne Fahrt keine Marke');
+
+      await tester.tap(button);
+      await settle(tester);
+      await drainSnackbars(tester);
+      expect(markButton, findsOneWidget);
+      expect(find.byTooltip('Trail beginnt'), findsOneWidget);
+      expect(markActive(tester), isFalse);
+
+      await tester.tap(markButton);
+      await settle(tester);
+      expect(find.textContaining('Trail beginnt — markiert'), findsOneWidget);
+      expect([for (final m in store.marks) m.kind], [RideMarkKind.start]);
+      expect(find.byTooltip('Trail endet'), findsOneWidget);
+      expect(markActive(tester), isTrue, reason: 'läuft ein Trail, trägt der Knopf den Rand');
+
+      await tester.tap(markButton);
+      await settle(tester);
+      expect(find.textContaining('Trail endet — markiert'), findsOneWidget);
+      expect([for (final m in store.marks) m.kind], [RideMarkKind.start, RideMarkKind.end]);
+      expect(find.byTooltip('Trail beginnt'), findsOneWidget);
+      expect(markActive(tester), isFalse);
+
+      // Ein zweiter Punkt, sonst gilt die Fahrt als leer und wird verworfen.
+      await store.appendPoint(pt(1));
+      await drainSnackbars(tester);
+      await tester.tap(button);
+      await settle(tester);
+      expect(store.rides.single.marks, hasLength(2), reason: 'die Marken gehören zur Fahrt');
+      await tester.tap(find.text('Behalten'));
+      await settle(tester);
+      expect(markButton, findsNothing);
+    });
+
+    testWidgets('nach dem Neustart weiß der Knopf, dass ein Trail läuft', (tester) async {
+      await store.begin(uid: annaId, startedAt: DateTime.now().toUtc());
+      await store.appendPoint(pt(0));
+      await store.appendMark(RideMark(kind: RideMarkKind.start, at: DateTime.now().toUtc()));
+      await pump(tester);
+      await settle(tester);
+      expect(find.byTooltip('Trail endet'), findsOneWidget);
+      expect(markActive(tester), isTrue);
+    });
+
+    testWidgets('nimmt die Datei die Marke nicht, steht sie auch nicht am Knopf', (tester) async {
+      fix.next = pt(0);
+      await pump(tester);
+      await tester.tap(button);
+      await settle(tester);
+      await drainSnackbars(tester);
+      store.failOnMark = true;
+      await tester.tap(markButton);
+      await settle(tester);
+      expect(find.text('Die Marke ließ sich nicht speichern.'), findsOneWidget);
+      expect(find.byTooltip('Trail beginnt'), findsOneWidget);
+      expect(markActive(tester), isFalse);
+    });
   });
 
   testWidgets('eine zu alte unterbrochene Fahrt zeichnet nicht weiter auf', (tester) async {

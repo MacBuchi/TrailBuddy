@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trailbuddy/core/line_geometry.dart';
 import 'package:trailbuddy/features/rides/ride_split.dart';
+import 'package:trailbuddy/features/rides/ride_track.dart';
 import 'package:trailbuddy/features/rides/road_index.dart';
 import 'package:trailbuddy/features/trails/gpx.dart';
 import 'package:trailbuddy/features/trails/trail_geometry.dart';
@@ -189,5 +190,67 @@ void main() {
     expect((short.start, short.end), (0, 25));
     expect(manualSection(splitRide(points: ride(100, (_) => 500), trails: const [], roads: noRoads)), isNull,
         reason: 'kürzer als ein Trail (150 m)');
+  });
+
+  group('Marken (#105)', () {
+    // Punkte alle 20 m, alle 4 s — Punkt i liegt bei 4·i s nach dem Start.
+    final t0 = DateTime.utc(2026, 9, 28, 10);
+    RideMark begins(int s) => RideMark(kind: RideMarkKind.start, at: t0.add(Duration(seconds: s)));
+    RideMark ends(int s) => RideMark(kind: RideMarkKind.end, at: t0.add(Duration(seconds: s)));
+
+    test('gepaart in zeitlicher Reihenfolge, je Marke der zeitlich nächste Punkt', () {
+      final pts = ride(2000, (_) => 500);
+      // 41 s liegt näher an Punkt 10 (40 s) als an 11 (44 s).
+      expect(markedRanges(pts, [ends(81), begins(41)]), [(10, 20)],
+          reason: 'die Reihenfolge der Liste zählt nicht, die Zeit schon');
+      expect(markedRanges(pts, [begins(40), begins(120), ends(200)]), [(10, 30), (30, 50)],
+          reason: 'ein zweiter Beginn schließt den ersten dort — zwei Trails hintereinander');
+      expect(markedRanges(pts, [ends(40)]), isEmpty, reason: 'ein Ende ohne Beginn zählt nicht');
+      expect(markedRanges(pts, [begins(360)]), [(90, pts.length - 1)],
+          reason: 'eine offene Marke gilt bis zum letzten Punkt');
+      expect(markedRanges(pts, [begins(40), ends(41)]), isEmpty, reason: 'ein Punkt ist kein Stück');
+      final untimed = [for (final p in pts) TrackPoint(p.lat, p.lon)];
+      expect(markedRanges(untimed, [begins(40), ends(80)]), isEmpty, reason: 'ohne Zeiten keine Marken');
+    });
+
+    test('ein markiertes Stück wird Kandidat — ohne Wege und ohne Höhen', () {
+      final flat = [for (final p in ride(2000, (_) => 500)) TrackPoint(p.lat, p.lon, time: p.time)];
+      final split = splitRide(points: flat, trails: const [], roads: noRoads, marks: [begins(80), ends(240)]);
+      final c = split.candidates.single;
+      expect(c.marked, isTrue);
+      expect(c.spansRide, isTrue, reason: 'die Griffe reichen über die ganze Fahrt');
+      expect((c.start, c.end), (20, 60));
+      expect(c.lengthM, closeTo(800, 5));
+      expect(c.lossM, isNull);
+      expect(c.offRoadShare, isNull, reason: 'kein Urteil über Wege');
+      expect(split.restM, closeTo(1200, 10));
+    });
+
+    test('die Marke schlägt die Suche, wo beide sich überschneiden', () {
+      final pts = ride(2000, profile);
+      final found = splitRide(points: pts, trails: const [], roads: roadsAroundDescent()).candidates.single;
+      expect(found.marked, isFalse);
+      // Markiert: 600–1 200 m, mitten in der gefundenen Abfahrt.
+      final split = splitRide(
+          points: pts, trails: const [], roads: roadsAroundDescent(), marks: [begins(120), ends(240)]);
+      expect(split.candidates, hasLength(1));
+      expect(split.candidates.single.marked, isTrue);
+      expect((split.candidates.single.start, split.candidates.single.end), (30, 60));
+      // Daneben (1 500–1 800 m) bleiben beide, nach dem Anfang sortiert.
+      final both = splitRide(
+          points: pts, trails: const [], roads: roadsAroundDescent(), marks: [begins(300), ends(360)]);
+      expect([for (final c in both.candidates) c.marked], [false, true]);
+    });
+
+    test('deckt ein bekannter Trail das markierte Stück, steht nur seine Zeile da', () {
+      final pts = ride(2000, (_) => 500);
+      final t = trail('t1', 1000, 1600, eastM: 3);
+      final split = splitRide(points: pts, trails: [t], roads: noRoads, marks: [begins(200), ends(320)]);
+      expect(split.known.single.trail.id, 't1');
+      expect(split.candidates, isEmpty, reason: 'sonst ginge dieselbe Strecke zweimal hinaus');
+      // Reicht die Marke weit darüber hinaus, bleibt sie Kandidat.
+      final longer = splitRide(points: pts, trails: [t], roads: noRoads, marks: [begins(40), ends(320)]);
+      expect(longer.candidates.single.marked, isTrue);
+    });
   });
 }

@@ -61,8 +61,47 @@ class RidePoint {
   }
 }
 
-/// Die laufende Fahrt: wann sie begann und was seither gemessen wurde.
-typedef RecordedRide = ({DateTime startedAt, List<RidePoint> points});
+/// Eine Marke während der Aufnahme (#105, Rework 5.2 und E12): „Trail
+/// beginnt" oder „Trail endet", gesetzt per Knopf — wer auf dem Trail
+/// steht, weiß genau, wo er anfängt. Die Marke trägt NUR die Zeit: Den
+/// Ort sagt die Spur, und das Zerlege-Blatt nimmt den Punkt, der ihr
+/// zeitlich am nächsten liegt. Ein eigener Fix beim Tippen wäre eine
+/// zweite Messung derselben Stelle, die der Takt ohnehin macht.
+enum RideMarkKind { start, end }
+
+class RideMark {
+  const RideMark({required this.kind, required this.at});
+
+  final RideMarkKind kind;
+  final DateTime at;
+
+  /// Steht als eigene Zeile in der Fahrt-Datei, erkennbar am Schlüssel —
+  /// `RidePoint.fromJson` ließe sie ohnehin liegen (keine Koordinate).
+  static bool isMark(Map<String, dynamic> json) => json.containsKey('mark');
+
+  Map<String, dynamic> toJson() => {'mark': kind.name, 'at': at.toUtc().toIso8601String()};
+
+  static RideMark? fromJson(Map<String, dynamic> json) {
+    final kind = switch (json['mark']) {
+      'start' => RideMarkKind.start,
+      'end' => RideMarkKind.end,
+      _ => null,
+    };
+    final at = DateTime.tryParse(json['at'] as String? ?? '');
+    if (kind == null || at == null) return null;
+    return RideMark(kind: kind, at: at.toUtc());
+  }
+}
+
+/// Läuft gerade ein markierter Trail? Die letzte Marke ist ein Beginn.
+/// Dieselbe Regel für den Knopf (was der nächste Tipp setzt, ob er einen
+/// Rand trägt) und das Zerlege-Blatt (offene Marke bis zum Ende).
+bool markedTrailOpen(List<RideMark> marks) =>
+    marks.isNotEmpty && marks.last.kind == RideMarkKind.start;
+
+/// Die laufende Fahrt: wann sie begann, was seither gemessen und was
+/// markiert wurde.
+typedef RecordedRide = ({DateTime startedAt, List<RidePoint> points, List<RideMark> marks});
 
 /// Eine abgeschlossene Fahrt auf dem Gerät. [id] ist der Dateiname ohne
 /// Endung, abgeleitet aus dem Start — eindeutig genug, zwei Fahrten
@@ -74,6 +113,7 @@ class Ride {
     required this.endedAt,
     required this.points,
     this.events = const [],
+    this.marks = const [],
   });
 
   final String id;
@@ -84,6 +124,9 @@ class Ride {
   /// Fragen und Antworten während der Fahrt (#116), in der Reihenfolge
   /// der Datei.
   final List<ConfirmEvent> events;
+
+  /// Die Marken „Trail beginnt/endet" (#105), in der Reihenfolge der Datei.
+  final List<RideMark> marks;
 
   Duration get duration => endedAt.difference(startedAt);
   double get lengthM => rideLengthM(points);

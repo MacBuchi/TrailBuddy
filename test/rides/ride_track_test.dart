@@ -1,4 +1,6 @@
 // Punkte, Länge, Verdünnung und die Brücke zwischen den Isolaten (#28).
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/features/rides/ride_task_handler.dart';
 import 'package:trailbuddy/features/rides/ride_track.dart';
@@ -55,5 +57,19 @@ void main() {
     expect(thin.first, pts.first);
     expect(thin.last, pts.last);
     expect(thinnedRide(pts.take(10).toList()), hasLength(10));
+  });
+
+  test('eine Marke (#105) überlebt JSON und ist kein Punkt', () {
+    final mark = RideMark(kind: RideMarkKind.end, at: DateTime.utc(2026, 9, 30, 12, 1, 2));
+    final json = jsonDecode(jsonEncode(mark.toJson())) as Map<String, dynamic>;
+    expect(RideMark.isMark(json), isTrue);
+    expect(RidePoint.fromJson(json), isNull);
+    final back = RideMark.fromJson(json)!;
+    expect(back.kind, RideMarkKind.end);
+    expect(back.at, mark.at);
+    expect(RideMark.fromJson({'mark': 'middle', 'at': '2026-09-30T12:00:00Z'}), isNull);
+    expect(markedTrailOpen(const []), isFalse);
+    expect(markedTrailOpen([RideMark(kind: RideMarkKind.start, at: mark.at)]), isTrue);
+    expect(markedTrailOpen([RideMark(kind: RideMarkKind.start, at: mark.at), mark]), isFalse);
   });
 }

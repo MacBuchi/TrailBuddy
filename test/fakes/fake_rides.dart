@@ -12,6 +12,7 @@ class FakeRideStore implements RideStore {
   String? uid;
   DateTime? startedAt;
   final points = <RidePoint>[];
+  final marks = <RideMark>[];
   final rides = <Ride>[];
 
   /// Lässt [begin] scheitern — „eine Fahrt, die gar nicht aufzeichnen
@@ -25,6 +26,7 @@ class FakeRideStore implements RideStore {
     this.startedAt = startedAt;
     points.clear();
     events.clear();
+    marks.clear();
   }
 
   @override
@@ -45,6 +47,17 @@ class FakeRideStore implements RideStore {
     return true;
   }
 
+  /// Lässt [appendMark] scheitern — die Marke darf dann auch nicht im
+  /// Zustand stehen.
+  bool failOnMark = false;
+
+  @override
+  Future<bool> appendMark(RideMark mark) async {
+    if (startedAt == null || failOnMark) return false;
+    marks.add(mark);
+    return true;
+  }
+
   @override
   Future<List<ConfirmEvent>> activeConfirmEvents({required String uid}) async =>
       startedAt == null || this.uid != uid ? const [] : List.of(events);
@@ -62,7 +75,7 @@ class FakeRideStore implements RideStore {
   @override
   Future<RecordedRide?> readActive({required String uid}) async {
     if (startedAt == null || this.uid != uid) return null;
-    return (startedAt: startedAt!, points: List.of(points));
+    return (startedAt: startedAt!, points: List.of(points), marks: List.of(marks));
   }
 
   @override
@@ -73,11 +86,13 @@ class FakeRideStore implements RideStore {
         startedAt: startedAt!,
         endedAt: endedAt,
         points: List.of(points),
-        events: List.of(events));
+        events: List.of(events),
+        marks: List.of(marks));
     rides.insert(0, ride);
     startedAt = null;
     points.clear();
     events.clear();
+    marks.clear();
     return ride;
   }
 
@@ -86,6 +101,7 @@ class FakeRideStore implements RideStore {
     startedAt = null;
     points.clear();
     events.clear();
+    marks.clear();
   }
 
   @override

@@ -604,7 +604,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 - **Das Zerlege-Blatt** (#29, Konzept 5.1, `ride_split.dart` pur,
   `road_index.dart`, `ride_split_sheet.dart`, seit 0.20.0): nach der
   Aufzeichnung, aus „Meine Fahrten" (Schere) und aus dem GPX-Import für
-  Fahrten — EIN Blatt, EIN `SplitRequest`. Sieben Dinge, die man wissen
+  Fahrten — EIN Blatt, EIN `SplitRequest`. Acht Dinge, die man wissen
   muss:
   - **Bekannt heißt: mit den Schwellen des Abgleichs gedeckt** (15 m,
     0,8, beidseitig, `kMatch*`), das Stück der Fahrt im Korridor wird
@@ -648,6 +648,27 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     was die Abfahrts-Suche nicht findet. Vorgewählt ohne die ersten und
     letzten 300 m (Heimzone); ist die Fahrt dafür zu kurz, die ganze.
     Kein Merkmal „neu" oder „selbst gebaut" (Konzept 7).
+  - **Marken während der Aufnahme** (#105, seit 0.57.0, `RideMark`,
+    `markedRanges`): ein 44-dp-Knopf über der Aufnahme, nur während der
+    Fahrt (Fahne, dann Zielflagge mit Rand — `markedTrailOpen`, EINE
+    Regel für Knopf und Blatt). Vier Dinge, die man wissen muss:
+    - **Die Marke trägt NUR die Zeit**; das Blatt nimmt den zeitlich
+      nächsten Punkt. Kein eigener Fix beim Tippen — den Ort misst der
+      Takt ohnehin.
+    - **Geschrieben aus dem Main-Isolate** (`appendMark`), nicht über
+      den Service wie der Punkt (Abweichung von Rework 5.2): Getippt
+      wird dort, und die Datei nimmt schon die Antworten aus #116 von
+      dort an; ein Umweg über den Service könnte still verloren gehen.
+      Der Zustand trägt die Marke erst, wenn die Datei sie genommen hat
+      — sonst zeigte der Knopf eine Marke, die das Blatt nie sieht.
+    - **Paare in zeitlicher Reihenfolge**: Beginn öffnet, Ende schließt,
+      ein zweiter Beginn schließt den offenen dort, ein Ende ohne Beginn
+      zählt nicht, offen gilt bis zum letzten Punkt. Ohne Zeiten keine.
+    - **Die Marke schlägt die Heuristik**, wo sie sich überschneiden,
+      und weicht nur einem bekannten Trail, der ≥ 0,8 des Stücks deckt
+      (sonst ginge dieselbe Strecke zweimal hinaus). Kandidat mit
+      `marked`, vorangehakt, Griffe über die ganze Fahrt (`spansRide`),
+      ohne Wege und ohne Höhen.
 - **Ausgangskorb** (#30, `lib/data/outbox*.dart` +
   `lib/features/trails/outbox_providers.dart`, seit 0.14.0; PilzBuddy
   #267 als Vorlage): Genau DREI Aufträge — Aufzeichnung beisteuern

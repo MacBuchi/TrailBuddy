@@ -198,6 +198,17 @@ Fahrt ohne ihre ersten und letzten 300 m (Heimzone) — eine Fahrt beginnt
 an der Haustür; der Heimzonen-Hinweis folgt seither den Griffen, bei
 jedem Kandidaten.
 
+**Weg 2 gebaut in #129 (0.57.0)**, mit drei Abweichungen vom Text oben:
+(1) Die Marke trägt nur die ZEIT, das Blatt nimmt den zeitlich nächsten
+Punkt — der Ort steht in der Spur. (2) Geschrieben wird sie aus dem
+Main-Isolate, wo getippt wird, nicht im Service-Isolate; die Datei nimmt
+von dort schon die Antworten aus #116. (3) Die Griffe eines markierten
+Kandidaten reichen über die ganze Fahrt wie bei Weg 1 — eine Marke kann
+einen Takt daneben sitzen. Dazu: Die Marke schlägt die Heuristik, wo
+beide sich überschneiden, und weicht nur einem bekannten Trail, der das
+Stück zu ≥ 0,8 deckt; ein zweiter Beginn schließt den offenen dort, ein
+Ende ohne Beginn zählt nicht.
+
 **Nie ein Merkmal „neu“ oder „selbst gebaut“** — die App fragt nicht,
 seit wann es einen Trail gibt (Konzept 7).
 
@@ -437,7 +448,7 @@ bekommen ihren PR erst danach.
 | 3 | Übernehmen beim ersten Befahren (Pflicht), Zustand je Fahrt, Filter (1, 9) | #102 | #127 Zerlege-Blatt, (b) Import, Filter, Blatt | feat 0.55.0–0.56.0 | — | #101 |
 | 4 | Link im Beitrag, Vorschlag aus GPX (4) | #103 | #113 ✓ | feat 0.48.0 | Patch 012 | — |
 | 5 | Stück selbst wählen im Zerlege-Blatt (5.1) | #104 | #112 ✓ | feat 0.47.0 | — | — |
-| 6 | Marken während der Aufnahme (5.2, 9) | #105 | — | feat | — | — |
+| 6 | Marken während der Aufnahme (5.2, 9) | #105 | #129 | feat 0.57.0 | — | — |
 | 7 | Abgleich gegen mehrere Aufzeichnungen, Zwillingskanten (6) | #106 | #114 (Messung) | — | vorerst keins | Daten mehrerer Nutzer |
 | 8 | Zusammenführen im Netz (7, 9) | #107 | — | feat | Patch 015 | #106 |
 | 9 | Kurze Importe auf Forstwege stutzen (6, später) | #108 | — | feat | — | — |

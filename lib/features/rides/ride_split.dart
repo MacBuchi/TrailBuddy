@@ -15,6 +15,10 @@
 //   Urteil: Der Nutzer schneidet, benennt, verwirft. Ohne bekannte Wege
 //   gibt es KEINE Kandidaten (Betreiber, 2026-09-28) — ein Gefälle
 //   allein ist auch jede Forststraße bergab.
+// - **Markiert** (#105) ist, was der Fahrer unterwegs zwischen „Trail
+//   beginnt" und „Trail endet" gesetzt hat. Das braucht weder Wege noch
+//   Höhen — er stand dort. Es schlägt die Heuristik, wo beide sich
+//   überschneiden, und weicht nur einem bekannten Trail, der es deckt.
 // - **Rest** (Anfahrt, Forstweg, Straße) wird nicht angeboten.
 import 'dart:math' as math;
 
@@ -24,6 +28,7 @@ import '../../core/line_geometry.dart';
 import '../../models/trail.dart';
 import '../trails/gpx.dart';
 import '../trails/trail_geometry.dart';
+import 'ride_track.dart' show RideMark, RideMarkKind;
 import 'road_index.dart';
 
 /// Ein Fix, der weiter streut als das, ist keine Messung im 15-m-Korridor
@@ -83,8 +88,9 @@ class KnownTrailSection extends RideSection {
   final Trail trail;
 }
 
-/// Ein Vorschlag für einen neuen Trail — gefunden ([manual] false) oder
-/// vom Nutzer über die ganze Fahrt gewählt ([manualSection], #104).
+/// Ein Vorschlag für einen neuen Trail — gefunden, vom Nutzer über die
+/// ganze Fahrt gewählt ([manual], #104) oder unterwegs markiert
+/// ([marked], #105).
 class CandidateSection extends RideSection {
   const CandidateSection({
     required super.start,
@@ -95,6 +101,7 @@ class CandidateSection extends RideSection {
     required this.nearStart,
     required this.nearEnd,
     this.manual = false,
+    this.marked = false,
   });
 
   /// Höhenverlust über das Stück, aus den geglätteten Höhen; beim
@@ -107,6 +114,14 @@ class CandidateSection extends RideSection {
 
   /// Selbst gewählt: Die Griffe reichen über die ganze Fahrt.
   final bool manual;
+
+  /// Unterwegs markiert: [start] bis [end] ist das Stück zwischen den
+  /// Marken; die Griffe reichen trotzdem über die ganze Fahrt — die
+  /// Marke kann einen Takt zu früh oder zu spät sitzen.
+  final bool marked;
+
+  /// Reichen die Griffe über die ganze Fahrt statt über das Stück?
+  bool get spansRide => manual || marked;
 
   /// Beginnt oder endet nahe Start/Ziel der Fahrt (Heimzone).
   final bool nearStart;
@@ -218,6 +233,7 @@ RideSplit splitRide({
   List<double?>? accuracyM,
   required List<Trail> trails,
   required RoadLoadResult roads,
+  List<RideMark> marks = const [],
 }) {
   // 1. Unscharfe Punkte raus.
   final kept = <TrackPoint>[];
@@ -265,6 +281,37 @@ RideSplit splitRide({
       }
     }
   }
+
+  // 4. Markierte Stücke (#105): vor der Heuristik, wo sie sich
+  //    überschneiden — der Fahrer wusste es, die Suche rät.
+  final startXy = xy.first, endXy = xy.last;
+  bool nearHome(math.Point<double> p) =>
+      p.distanceTo(startXy) <= kSplitHomeM || p.distanceTo(endXy) <= kSplitHomeM;
+  final marked = <CandidateSection>[];
+  for (final (from, to) in markedRanges(kept, marks)) {
+    final lengthM = cum[to] - cum[from];
+    // Deckt ein bekannter Trail das Stück, IST es dieser Trail: Seine
+    // Zeile steht schon im Blatt; ein Kandidat daneben steuerte dieselbe
+    // Strecke zweimal bei.
+    if (lengthM > 0 && _knownLengthIn(from, to, known, cum) / lengthM >= kMatchCoverage) continue;
+    final a = kept[from].ele, b = kept[to].ele;
+    marked.add(CandidateSection(
+      start: from,
+      end: to,
+      lengthM: lengthM,
+      lossM: a == null || b == null ? null : a - b,
+      offRoadShare: null,
+      nearStart: nearHome(xy[from]),
+      nearEnd: nearHome(xy[to]),
+      marked: true,
+    ));
+  }
+  if (marked.isNotEmpty) {
+    candidates.removeWhere((c) => marked.any((m) => c.start <= m.end && m.start <= c.end));
+    candidates
+      ..addAll(marked)
+      ..sort((a, b) => a.start.compareTo(b.start));
+  }
   return RideSplit(
     points: kept,
     known: known,
@@ -274,6 +321,63 @@ RideSplit splitRide({
     droppedInaccurate: dropped,
     totalM: totalM,
   );
+}
+
+/// Die Stücke zwischen den Marken (#105), als Indizes in [points]. Je
+/// Marke der Punkt, der ihr zeitlich am nächsten liegt; ohne Zeiten gibt
+/// es keine. Gepaart wird in zeitlicher Reihenfolge: Ein Beginn öffnet,
+/// ein Ende schließt. Ein zweiter Beginn schließt den offenen dort
+/// (zwei Trails hintereinander), ein Ende ohne Beginn zählt nicht, und
+/// ein offener Beginn läuft bis zum letzten Punkt (Rework 5.2).
+List<(int, int)> markedRanges(List<TrackPoint> points, List<RideMark> marks) {
+  if (points.length < 2 || marks.isEmpty) return const [];
+  final sorted = [...marks]..sort((a, b) => a.at.compareTo(b.at));
+  int? indexAt(DateTime at) {
+    int? best;
+    var bestGap = 0;
+    for (var i = 0; i < points.length; i++) {
+      final t = points[i].time;
+      if (t == null) continue;
+      final gap = t.difference(at).inMilliseconds.abs();
+      if (best == null || gap < bestGap) {
+        best = i;
+        bestGap = gap;
+      }
+    }
+    return best;
+  }
+
+  final out = <(int, int)>[];
+  int? open;
+  void close(int end) {
+    final from = open;
+    if (from != null && end > from) out.add((from, end));
+    open = null;
+  }
+
+  for (final m in sorted) {
+    final i = indexAt(m.at);
+    if (i == null) return const [];
+    switch (m.kind) {
+      case RideMarkKind.start:
+        if (open != null) close(i);
+        open = i;
+      case RideMarkKind.end:
+        if (open != null) close(i);
+    }
+  }
+  if (open != null) close(points.length - 1);
+  return out;
+}
+
+/// Wie viel von [from]…[to] (Länge über [cum]) in bekannten Stücken liegt.
+double _knownLengthIn(int from, int to, List<KnownTrailSection> known, List<double> cum) {
+  var sum = 0.0;
+  for (final k in known) {
+    final a = math.max(from, k.start), b = math.min(to, k.end);
+    if (b > a) sum += cum[b] - cum[a];
+  }
+  return sum;
 }
 
 List<double> _cumulative(List<math.Point<double>> xy) {

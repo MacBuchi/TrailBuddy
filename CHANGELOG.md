@@ -2,6 +2,20 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Unterwegs markieren
+
+*Version 0.57.0, 2026-09-30*
+
+- **Trail beginnt, Trail endet**: Während einer Aufzeichnung steht über
+  dem Aufnahmeknopf eine Fahne. Tippst du sie am Anfang eines Trails an,
+  ist der Beginn markiert, und der Knopf wird zur Zielflagge mit Rand;
+  am Ende tippst du noch einmal. Nach der Fahrt steht jedes markierte
+  Stück im Zerlege-Blatt als Kandidat, schon angehakt — auch ohne
+  gespeicherten Kartenbereich und auch dort, wo die Suche nach Abfahrten
+  nichts findet. Sitzt eine Marke nicht ganz genau, verschiebst du sie
+  mit den Griffen. Vergisst du das Ende, gilt das Stück bis zum Schluss
+  der Fahrt.
+
 ## Bewerten und melden
 
 *Versionen 0.49.0 bis 0.56.0, 2026-09-30*
