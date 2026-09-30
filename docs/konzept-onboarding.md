@@ -60,11 +60,13 @@ Empfehlung, die der Betreiber mitträgt — Mechanik gleich, Inhalt anders:
   Karte zeigt.
 - **Eine Tour im Zerlege-Blatt nach der ersten Aufzeichnung** statt
   einer Profil-Tour: Das ist der Moment, in dem man Hilfe braucht.
-- **Die Trails-, Buddys- und Zerlege-Tour warten auf das Rework**
-  (`konzept-rework.md`, #109): #118 benennt den Status in „Meldung“ um
-  und bringt Zustand und Bewertung, #121 die Liste, die Karten-PR die
-  Linienart, #102 die Pflicht-Bewertung im Zerlege-Blatt. Ein Skript,
-  das heute auf „Zustand: Gesperrt“ zeigt, wäre in zwei Wochen falsch.
+- **Die Skripte beschreiben den Stand nach dem Rework**
+  (`konzept-rework.md`, #109). Während dieser Plan entstand, ist es
+  gelandet (#118–#130, `main` auf 0.58.0): Status heißt „Meldung“, dazu
+  Zustand und Bewertung, die Linienart auf der Karte (#122), die
+  Übernahme beim ersten Befahren (#127/#128), Markierungen beim
+  Aufzeichnen (#129). Keine Stufe wartet mehr darauf; Kurzanleitung und
+  Touren nennen, was gebaut ist, nicht, was geplant war.
 - **Keine Rückkehrer-Startseite.** PilzBuddy unterscheidet „Willkommen“
   und „Rückblick“ nur wegen seiner Merker-Resets. TrailBuddy hat kein
   Altschlüssel-Erbe; alle heutigen Tester sehen die Tour einmal.
@@ -92,17 +94,17 @@ Zwei Grundsätze für die Kette:
 | 1 | #131 | `feat(help): Kurzanleitung, Sicherheitshinweis und Kontexthilfe` | Kurzanleitung im Profil, Hinweis beim ersten Start, Leerzustände verlinken | — |
 | 2 | #132 | `feat(coach): Hinweis-Maschine und Karten-Tour aus der Kurzanleitung` | Knopf „Tour auf der Karte zeigen“ führt vor | PR 1 |
 | 3 | #133 | `feat(help): Karten-Tour beim ersten Start mit Startseite` | Willkommen + Tour nach dem Hinweis | PR 2 |
-| 4 | #134 | `feat(help): Tour zum Zerlegen der ersten Fahrt` (Android) | Erklärung im Zerlege-Blatt, einmalig | PR 3, #102 |
-| 5 | #136 | `feat(help): Touren für Trails und Buddys mit Beispielen` | Kette nach der Karten-Tour, Beispiele für leere Konten | PR 3, #118/#121/Karten-PR |
+| 4 | #134 | `feat(help): Tour zum Zerlegen der ersten Fahrt` (Android) | Erklärung im Zerlege-Blatt, einmalig | PR 3 |
+| 5 | #136 | `feat(help): Touren für Trails und Buddys mit Beispielen` | Kette nach der Karten-Tour, Beispiele für leere Konten | PR 3 |
 | 6 | #135 | `feat(highlights): Entdecken, Neuheiten nach Updates und „Zeig es mir“` | Blatt nach Update, „Entdecken“ mit Neu-Punkt, Vorführungen | PR 5 |
 
 Jeder PR ist `feat` ⇒ MINOR, nächste freie Nummer beim Rebase, BUILD +1
-(#118/#121 laufen parallel). Jeder PR bringt mit: `CHANGELOG.md`-Block,
+(`main` steht bei 0.58.0+67). Jeder PR bringt mit: `CHANGELOG.md`-Block,
 Technik-Notiz in `CLAUDE.md`, `docs/design/README.md` wo das Aussehen
 betroffen ist, `flutter analyze` + `flutter test`,
 `tool/private_info_check.py` nach `git add`, eine Gegenprobe (ein Test
-bewusst rot) im PR-Text. Keine neuen Netzziele. PR 1–3 können sofort
-beginnen, gestapelt; nach jedem Squash des Betreibers
+bewusst rot) im PR-Text. Keine neuen Netzziele. Die Stufen bauen
+aufeinander auf und werden gestapelt; nach jedem Squash des Betreibers
 `git rebase --onto origin/main <alte Basis>`.
 
 **Warum PR 2 Maschine UND Karten-Tour enthält:** Die Maschine allein
@@ -124,20 +126,22 @@ Startseite und Kette kommen in PR 3.
      Zerlege-Blatt geht. Nur Trails gehen zu Buddys.
   2. **Die Karte lesen** (Symbol: das echte `GradeShield`) — Farbe =
      Schwierigkeit wie im Skigebiet, grau ohne Einschätzung, Petrol
-     Uphill; orangener Saum Meldung, gelber neuer Hinweis; Violett
-     gestrichelt offiziell; Schild am Anfang, Tipp öffnet das Blatt.
-     (Linienart für S4/S5 und Zustand ändert die Karten-PR des Reworks
-     — den Satz dann nachziehen.)
+     Uphill. Die Art der Linie ist der Zustand: durchgezogen gepflegt,
+     bröckelig ausgefahren, gestrichelt abgerockt, verblasst kaum
+     fahrbar (Design-README Abschnitt 2, seit 0.51.0). Der Saum: weiß
+     gestrichelt bei S4/S5, orange bei einer Meldung, gelb bei einem
+     neuen Hinweis. Violett gestrichelt sind offizielle Trails. Das
+     Schild am Anfang, ein Tipp öffnet das Blatt.
   3. **Fahrt aufzeichnen und zerlegen (Android-App)** — auch in der PWA
      zeigen, mit dem Zusatz.
   4. **Buddys und Sichtbarkeit** — nur direkte Buddys, keine öffentliche
      Karte, gleiche Trails werden EIN Trail mit zwei Namen, „Nur für
      mich“.
   5. **Mein Beitrag** — Name, S-Grad, Charakter, Meldung, Sichtbarkeit,
-     Beschreibung, Link; Hinweise leuchten gelb. Schon jetzt „Meldung“
-     schreiben (Rework E7); `help_texts_test` prüft das Wort gegen die
-     Beschriftung des Dialogs (Konstante `kReportFieldLabel`), damit
-     der Test bricht, nicht der Text.
+     Beschreibung, Link, dazu Zustand und Bewertung; Hinweise leuchten
+     gelb. „Meldung“ ist seit #118 die Beschriftung des Dialogs;
+     `help_texts_test` prüft das Wort gegen dessen Konstante, damit der
+     Test bricht, nicht der Text, wenn es sich noch einmal ändert.
   6. **Ohne Empfang** — Zwischenspeicher, Ausgangskorb, Bereiche unter
      „Ebenen“, „Meine Bereiche“.
 - `lib/core/widgets/safety_note.dart`: Kopie von PilzBuddy mit neuem
@@ -283,13 +287,14 @@ Startseite und Kette kommen in PR 3.
   nächsten Start wieder; Zurück auf der Startseite heißt „Nicht
   jetzt“), Hinweis vor Tour im selben Start, beides gesehen ⇒ nichts.
 
-### 3.4 Tour zum Zerlegen der ersten Fahrt (PR 4, Android, nach #102)
+### 3.4 Tour zum Zerlegen der ersten Fahrt (PR 4, Android)
 
 - `lib/features/help/split_tour.dart`: `kSplitTourScript` (id `split`)
   mit Startseite „Deine erste Fahrt zerlegen“: bekannte Trails „wieder
   gefahren“, Kandidaten mit Griffen, Grad und Charakter, der
-  Heimzonen-Hinweis, „Stück selbst wählen“, die Pflicht-Bewertung beim
-  ersten Befahren aus #102, dann „beisteuern“. Ohne Wege ein
+  Heimzonen-Hinweis, „Stück selbst wählen“, die Bewertung beim ersten
+  Befahren eines Buddy-Trails (#127/#128), die Nachfrage zu
+  unbestätigten Meldungen (#124), dann „beisteuern“. Ohne Wege ein
   Ersatzschritt „Erst einen Bereich speichern“. Alles über `requires`,
   weil jede Fahrt anders aussieht.
 - Anker im Zerlege-Blatt je Zeile und Knopf; ein `SheetTourStarter`
@@ -303,7 +308,7 @@ Startseite und Kette kommen in PR 3.
   (`ride_split_flow_test` als Vorlage; `sheetScrollTo` vor dem
   Kandidaten).
 
-### 3.5 Touren für Trails und Buddys mit Beispielen (PR 5, nach #118/#121/Karten-PR)
+### 3.5 Touren für Trails und Buddys mit Beispielen (PR 5)
 
 - `lib/features/help/tab_tours.dart` nach PilzBuddy-Vorlage:
   Skripte, `kTabTours = [(trails, '/trails'), (buddys, '/friends')]`,
@@ -400,7 +405,7 @@ hinweg gerechnet; Fahrt und Position verlassen das Gerät nie.
 | 0 | **Willkommen bei TrailBuddy** (Startseite, ab PR 3) | Hier liegen die Trails, die du gefahren bist, und die deiner Buddys — sonst niemandes. Drei Wege bringen Trails hierher: GPX importieren, eine Fahrt aufzeichnen, Buddys verbinden. | — | `welcomeArt` |
 | 1 | **Das Schild am Anfang** | Am Anfang jedes Trails steht sein Schild mit Grad und Charakter. Ein Tipp darauf — oder auf die Linie — öffnet das Blatt. | Schild | Tippen; nur mit Trail |
 | 2 | **Das Blatt zum Trail** | Länge, Höhenmeter und die Schwierigkeit, wie dein Netz sie sieht — ein Tipp auf den Grad zeigt, wer wie eingeschätzt hat. | Kachelzeile | Szene Trail-Blatt; nur mit Trail |
-| 3 | **Farbe heißt Schwierigkeit** | Jede Linie trägt die Schwierigkeit ihres Trails wie eine Piste: grün S0, blau S1, rot S2, schwarz ab S3. Ein orangener Saum: ein Buddy hat etwas gemeldet; ein gelber: ein neuer Hinweis. Petrol ist Uphill, Violett gestrichelt ein offizieller Trail. | nichts (nur abgedunkelt) | Mini-Legende in der Blase |
+| 3 | **Farbe heißt Schwierigkeit** | Jede Linie trägt die Schwierigkeit ihres Trails wie eine Piste: grün S0, blau S1, rot S2, schwarz ab S3. Wie die Linie gezeichnet ist, sagt den Zustand — durchgezogen gepflegt, gestrichelt abgerockt. Ein orangener Saum: ein Buddy hat etwas gemeldet; ein gelber: ein neuer Hinweis. Petrol ist Uphill, Violett gestrichelt ein offizieller Trail. | nichts (nur abgedunkelt) | Mini-Legende in der Blase (Farben, Linienarten, Säume) |
 | 4 | **Hinter dem Ebenen-Knopf** | Orte wie Einkehr, Wasser und Rad-Service, die offiziellen Trails der Region — und die Werkzeuge für Karten ohne Empfang. | Knopfspalte / Ebenen | — |
 | 5 | **Die Werkzeugleiste** | Oben der Filter für Orte und offizielle Trails. Darunter zeichnest du einen Bereich, den die App für unterwegs speichert; „Meine Bereiche“ im Profil verwaltet sie. | Leiste / Filter-Knopf | Szene Leiste |
 | 6 | **Orte und offizielle Trails wählen** | Offizielle Trails an oder aus, Orte nach Gruppe. Was hier aus ist, bleibt aus, bis du es wieder einschaltest. | Schalter und Gruppen | Szene Leiste/Filter |
@@ -435,14 +440,16 @@ was kommt.
 | 4 | **Ein Buddy in der Liste** | „n gemeinsam“ zählt Trails, die ihr beide kennt. Der Stift gibt dem Buddy einen Namen, den nur du siehst. | erste Zeile / Stift | nur mit Buddy oder Beispiel |
 | 5 | **Beim Verbinden** | Verbindet ihr euch, werden gleiche Trails EIN Trail mit zwei Namen, der Rest kommt dazu. Trennt ihr euch, verschwinden seine Trails wieder von deiner Karte. | nichts | — |
 
-### 4.4 Zerlege-Tour (`split`, Android, nach #102)
+### 4.4 Zerlege-Tour (`split`, Android)
 
 Startseite „Deine erste Fahrt zerlegen“, dann je nach Fahrt: „Wieder
 gefahren“ (bekannte Trails), „Ein Kandidat“ (Griffe, Grad, Charakter,
-Heimzone), „Stück selbst wählen“, die Pflicht-Bewertung aus #102, „Was
-zu Buddys geht“ (nur die gewählten Stücke, nie die Fahrt). Ohne Wege
-der Ersatzschritt „Erst einen Bereich speichern“. Genauer Wortlaut mit
-#102.
+Heimzone), „Stück selbst wählen“, „Jetzt deiner“ (die Bewertung, mit
+der ein Buddy-Trail beim ersten Befahren zum eigenen wird, #127), „Gilt
+das noch?“ (die Nachfrage zu unbestätigten Meldungen, #124), „Was zu
+Buddys geht“ (nur die gewählten Stücke, nie die Fahrt). Ohne Wege der
+Ersatzschritt „Erst einen Bereich speichern“. Genauer Wortlaut beim
+Bau, am Blatt, wie es dann aussieht.
 
 ## 5. Merker (alle gerätelokal, im `Settings`-Muster)
 
@@ -552,8 +559,9 @@ Zum Nachschlagen, wenn jemand die beiden Kopien vergleicht:
 2. Hinweis und Tour im selben Start — (ja).
 3. Alle heutigen Tester sehen die Tour nach PR 3 einmal — (ja,
    gewollt).
-4. Schon jetzt „Meldung“ in der Kurzanleitung, bevor #118 gemergt ist
-   — (ja; ein Test hält Beschriftung und Text zusammen).
+4. ~~Schon jetzt „Meldung“ in der Kurzanleitung, bevor #118 gemergt
+   ist~~ — erledigt, #118 ist gemergt; der Test hält Beschriftung und
+   Text weiter zusammen.
 5. Zerlege-Tour (PR 4) — oder reicht die Vorführung `import-split` aus
    PR 6? — (eigene Tour).
 6. PR 2 als ein PR mit ~1500 Zeilen Kopie, Review per Diff gegen
