@@ -695,6 +695,11 @@ damit die nächste Diskussion nicht bei null beginnt.
 Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
 (#13).*
 
+*Rework vom 2026-09-30 (Besitz des Namens, geplante Importe, Spaß und
+Zustand, Link, Stück selbst wählen, Zwillinge, Zusammenführen):
+`docs/konzept-rework.md`, verfolgt in #109. Jeder Schritt zieht die
+betroffene Stelle hier im selben PR nach.*
+
 - **Phase 0 — Messen, bevor gebaut wird. ERLEDIGT am 2026-09-27**,
   Ergebnis in `docs/trail-abgleich-messung.md`; was sich dadurch am
   Konzept geändert hat, steht dort unter „Folgen". Ein Python-Werkzeug

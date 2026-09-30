@@ -16,7 +16,9 @@ Entscheidungen des Betreibers in Abschnitt 10, die Regel für den
 dezentralen Weg in Abschnitt 12). Die Schwellen des Abgleichs sind gemessen
 (`docs/trail-abgleich-messung.md`), nicht geraten. Wer Code ändert, der dem
 Konzept widerspricht, ändert das Konzept im selben PR — oder den Code.
-Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
+Das Rework vom 2026-09-30 (`docs/konzept-rework.md`, #109) plant die
+nächsten Schritte am Modell; gebaut wird es Schritt für Schritt, und
+jeder zieht `konzept-trails.md` nach. Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
 `docs/konzept-offizielle-trails.md`. Gebaut von `official-trails.yml`
 (`tool/official_trails.py`, Quellen in `tool/official/sources.json`)
 auf den Branch `official-trails-data` — nie als Release (die
