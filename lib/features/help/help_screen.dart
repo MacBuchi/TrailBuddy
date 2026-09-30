@@ -29,6 +29,7 @@ import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, rides
 import '../rides/ride_split_sheet.dart' show SplitRequest, mapSplitRequestProvider;
 import 'map_tour.dart';
 import 'split_tour.dart';
+import 'tab_tours.dart';
 
 /// Ein Abschnitt der Anleitung: Symbol, Überschrift, ein paar Sätze.
 class HelpStep {
@@ -160,6 +161,29 @@ class HelpScreen extends ConsumerWidget {
             },
             icon: const Icon(Icons.play_circle_outline),
             label: const Text('Tour auf der Karte zeigen'),
+          ),
+          const SizedBox(height: 8),
+          // Die Reiter-Touren (#136) laufen von selbst beim ersten Besuch;
+          // hier noch einmal auf Wunsch. Erst der Wunsch, dann der Reiter —
+          // sie startet, sobald er sichtbar ist.
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final (label, route, script) in const [
+                ('Trails', '/trails', kTrailsTourScript),
+                ('Buddys', '/friends', kBuddysTourScript),
+              ])
+                OutlinedButton.icon(
+                  key: ValueKey('tab-tour-${script.id}'),
+                  onPressed: () {
+                    ref.read(requestedTabTourProvider.notifier).request(script.id);
+                    context.go(route);
+                  },
+                  icon: const Icon(Icons.play_circle_outline, size: 18),
+                  label: Text('Tour: $label'),
+                ),
+            ],
           ),
           // Die Zerlege-Tour (#134), nur wo man aufzeichnen kann: Sie
           // öffnet die jüngste Fahrt, und dort läuft die Tour.

@@ -11,7 +11,10 @@ import '../../core/widgets/letter_avatar.dart';
 import '../../core/widgets/motion.dart';
 import '../../data/providers.dart';
 import '../../models/friendship.dart';
+import '../coach/coach.dart';
 import '../help/help_link.dart';
+import '../help/tab_tours.dart';
+import '../help/tour_examples.dart';
 import '../profile/profile_providers.dart';
 import '../trails/trail_providers.dart';
 import 'buddy_alias.dart';
@@ -156,16 +159,24 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       for (final f in friendships) ...[f.requesterId, f.addresseeId]
     };
 
-    return Scaffold(
+    // Das Beispiel (#136) nur während der Tour und nur ohne JEDEN Buddy.
+    final example = ref.watch(coachExamplesProvider) && accepted.isEmpty && !friendshipsAsync.isLoading;
+    return TabTourStarter(
+      script: kBuddysTourScript,
+      child: Scaffold(
       appBar: AppBar(
         toolbarHeight: 64,
         title: Text('BUDDYS',
             style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
         actions: [
-          IconButton(
-            onPressed: _invite,
-            icon: const Icon(Icons.share),
-            tooltip: 'Buddys zu TrailBuddy einladen',
+          CoachAnchor(
+            id: BuddysCoach.invite,
+            child: IconButton(
+              key: const ValueKey('invite-button'),
+              onPressed: _invite,
+              icon: const Icon(Icons.share),
+              tooltip: 'Buddys zu TrailBuddy einladen',
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -175,7 +186,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            Row(
+            CoachAnchor(
+              id: BuddysCoach.search,
+              child: Row(
               children: [
                 Expanded(
                   child: TextField(
@@ -214,7 +227,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                         ),
                 ),
               ],
-            ),
+            )),
             if (_searched) ...[
               const SizedBox(height: 8),
               if (_results.isEmpty)
@@ -248,6 +261,13 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                 onClose: () => setState(() => _connected = null),
               ),
             ],
+            // Die offenen Anfragen als EIN Anker (#136), an dich und von dir.
+            if (incoming.isNotEmpty || outgoing.isNotEmpty)
+              CoachAnchor(
+                id: BuddysCoach.requests,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
             if (incoming.isNotEmpty) ...[
               _SectionLabel('ANFRAGEN AN DICH · ${incoming.length}'),
               for (final f in incoming)
@@ -283,12 +303,17 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                   ),
                 ),
             ],
+                  ],
+                ),
+              ),
             _SectionLabel(accepted.isEmpty ? 'MEINE BUDDYS' : 'MEINE BUDDYS · ${accepted.length}'),
             if (friendshipsAsync.isLoading && friendships.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: CenteredTrailLoader(),
               )
+            else if (example)
+              const ExampleBuddyTile()
             else if (accepted.isEmpty) ...[
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
@@ -305,8 +330,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               const SizedBox(height: 4),
               const HelpLinkButton(),
             ] else
-              for (final f in accepted)
+              for (final (i, f) in accepted.indexed)
                 _BuddyRow(
+                  coach: i == 0,
                   id: f.otherId(uid),
                   username: f.otherUsername(uid),
                   alias: names.aliasOf(f.otherId(uid)),
@@ -316,7 +342,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -606,8 +632,11 @@ class _BuddyRow extends StatelessWidget {
     required this.alias,
     required this.shared,
     required this.onRemove,
+    this.coach = false,
   });
 
+  /// Die erste Zeile — die Buddys-Tour (#136) zeigt auf sie und ihren Stift.
+  final bool coach;
   final String id;
   final String username;
   final String? alias;
@@ -619,7 +648,7 @@ class _BuddyRow extends StatelessWidget {
     final theme = Theme.of(context);
     final palette = AppPalette.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: palette.muted);
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
@@ -645,7 +674,9 @@ class _BuddyRow extends StatelessWidget {
               ],
             ),
           ),
-          AliasButton(friendId: id, username: username),
+          coach
+              ? CoachAnchor(id: BuddysCoach.alias, child: AliasButton(friendId: id, username: username))
+              : AliasButton(friendId: id, username: username),
           IconButton(
             onPressed: onRemove,
             icon: Icon(Icons.person_remove_outlined, color: palette.muted),
@@ -654,5 +685,6 @@ class _BuddyRow extends StatelessWidget {
         ],
       ),
     );
+    return coach ? CoachAnchor(id: BuddysCoach.row, child: row) : row;
   }
 }

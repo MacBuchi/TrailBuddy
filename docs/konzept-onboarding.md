@@ -363,6 +363,16 @@ Startseite und Kette kommen in PR 3.
   liegt dort, und PR 6 führt jede Profil-Funktion vor. Eine dritte
   Frage in der Kette verlängerte den ersten Start, ohne etwas zu
   zeigen, das man nicht erraten kann.
+- **Gebaut (0.63.0), mit Abweichungen:** Anker `trails.row.own` (auf dem
+  Streifen der Zeile, nur wenn der Trail mir gehört): Die Blatt-Anker
+  „Einschätzung“ und „Mein Beitrag“ entstehen erst mit der Szene und
+  können nicht in `requires` stehen — die Zeile trägt deshalb die
+  Bedingung. Die Tour öffnet den ersten EIGENEN Trail, sonst den ersten.
+  `trails.sort` ist gesetzt, der Schritt „Suchen und eingrenzen“ spart
+  aber nur Suche und Chips aus (die Sortierung sitzt in derselben Zeile
+  wie die Suche). Offene Anfragen an mich und von mir sind EIN Anker.
+  Das Beispiel-Blatt zeigt Kacheln, Einschätzung, „Mein Beitrag“,
+  „Hinweis schreiben“ und „Melden“, kein Höhenprofil.
 - Tests: `tab_tours_flow_test` (erster Besuch; Beispiele ohne Daten,
   und nichts landet im Fake-Repository; mit echtem Trail kein
   Beispiel; ein verdeckter Reiter startet nichts; die Karten-Tour geht

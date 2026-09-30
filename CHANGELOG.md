@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Touren für Trails und Buddys
+
+*Version 0.63.0, 2026-09-30*
+
+- **Beim ersten Besuch der Reiter** „Trails" und „Buddys" zeigt eine
+  kurze Tour, was dort steht: eine Zeile lesen, das Blatt eines Trails
+  mit deiner Einschätzung, deinem Beitrag und den Hinweisen, Suche und
+  Filter, der GPX-Import — und bei den Buddys Einladen, Suchen, offene
+  Anfragen und was beim Verbinden passiert.
+- **Auch ohne eigene Trails oder Buddys**: Während der Tour zeigt die App
+  einen Beispiel-Trail und einen Beispiel-Buddy, deutlich als „Beispiel"
+  markiert. Gespeichert wird davon nichts, und nach der Tour sind sie weg.
+- **Beim ersten Start** geht es nach der Tour über die Karte auf Wunsch
+  gleich weiter: „Weiter mit den Trails?", dann „Weiter mit den Buddys?".
+  „Später" ist in Ordnung — dann kommt die Tour beim ersten Besuch des
+  Reiters. In der Kurzanleitung startest du beide jederzeit neu.
+
 ## Hilfe beim Zerlegen
 
 *Version 0.62.0, 2026-09-30*
