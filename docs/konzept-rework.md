@@ -288,7 +288,8 @@ Bauen nach.
 **Bewertung statt Spaß (E4, E8).** Die Skala aus 3.1 heißt
 **„Bewertung"** und zeigt **Sterne** (1–5): Es geht ums Gefallen, nicht
 nur um Spaß. In Übersichten (Liste, Karte, Kachel) reichen die Sterne;
-dazu Mittelwert und Anzahl, wo Platz ist. **Nie vorbelegt.** Ein Trail,
+dazu **Median** und Anzahl, wo Platz ist (wie beim S-Grad, bei
+Gleichstand der höhere). Ein Trail,
 den ich belegt, aber noch nicht bewertet habe, zeigt **verblasste
 Sterne** — das IST „Bewertung offen", kein eigenes Wort (Nachtrag des
 Betreibers). Der Filter-Chip „Bewertung offen" in der Liste kommt dazu
@@ -328,8 +329,22 @@ breitere Ebene unter der Linie und kann ein eigenes Muster haben. In der
 Liste erscheint der Zustand bei 1–2 als Wort („ABGEROCKT", „KAUM
 FAHRBAR") hinter Meldung und Hinweis; im Blatt als Kachel (E8).
 
+**Anzeige und Voreinstellung = das Netz (Betreiber, 2026-09-30).** Was
+die App zeigt, ist der **Median der sichtbaren Beiträge** — eigene plus
+direkte Buddys, auf dem Gerät gerechnet, deshalb für jeden anders (nicht
+jeder hat dieselben Buddys) und nie über alle Nutzer (Konzept 12). Der
+Zwischenspeicher (`trail_cache/network.json`) trägt die Beiträge roh,
+also rechnet die App den Median auch im Wald ohne Netz; neue Felder
+kommen über `toRow` von selbst hinein. **Genau diese Werte sind die
+Voreinstellung beim Bewerten** — für S-Grad, Charakter UND Sterne
+(ersetzt „Sterne nie vorbelegt" aus 3.1), jeweils sichtbar als
+„Vorschlag aus dem Netz". So entsteht gemeinsamer Inhalt aus der
+Buddy-Gemeinschaft. **Ausnahme Zustand:** Er veraltet; angezeigt und
+vorbelegt wird der **jüngste bestätigte der letzten 90 Tage** mit
+seinem Alter, sonst nichts — ein Median mischte alte und neue Angaben.
+
 **Blatt (E8).** Eine zweite Kachelreihe unter LÄNGE / HÖHE / S-GRAD:
-BEWERTUNG (Sterne, Mittelwert, Anzahl) und ZUSTAND (Wort, Alter,
+BEWERTUNG (Sterne, Median, Anzahl) und ZUSTAND (Wort, Alter,
 „zu bestätigen", wenn unbestätigt); ein Tipp zeigt die Einzelstimmen wie
 beim S-Grad.
 
@@ -337,9 +352,9 @@ beim S-Grad.
 zum ersten Mal fährt, **muss ihn bewerten, um ihn selbst zu haben und
 weitergeben zu können**; danach wird nicht mehr gefragt. Ohne Bewertung
 wird das Stück nicht beigesteuert. Der S-Grad ist vorbelegt (Median),
-als „Vorschlag aus dem Netz" markiert; Name und Charakter vorbelegt;
-Sterne nie. „Alle übernehmen" nimmt die Vorbelegung, die Sterne fragt es
-trotzdem.
+als „Vorschlag aus dem Netz" markiert; Name, Charakter und Sterne
+ebenso (Median des Netzes, siehe oben); der Zustand mit dem jüngsten
+bestätigten. „Alle übernehmen" nimmt die Vorbelegung.
 
 **Geplante Importe (E3, E10).** Werden weiter an Buddys gegeben
 (Entscheidung 2 vom 2026-09-27 bleibt); in der Liste steht gedämpft das
