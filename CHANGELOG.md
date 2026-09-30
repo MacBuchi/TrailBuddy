@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Fahrten zerlegen
+
+*Version 0.47.0, 2026-09-30*
+
+- **Stück selbst wählen**: Im Zerlege-Blatt gibt es unter den
+  Kandidaten „Stück selbst wählen". Die Griffe reichen über die ganze
+  Fahrt — für Jump-Lines, flache Flowtrails, Uphills und alles andere,
+  was die Suche nach Abfahrten nicht findet. Das geht auch ohne
+  gespeicherten Kartenbereich. Vorgewählt ist die Fahrt ohne ihre ersten
+  und letzten 300 m, damit die Haustür nicht aus Versehen mitgeht; der
+  Hinweis „Beginnt nahe deinem Start" folgt jetzt den Griffen.
+
 ## Trails verwalten
 
 *Versionen 0.46.0 bis 0.46.1, 2026-09-29 bis 2026-09-30*
