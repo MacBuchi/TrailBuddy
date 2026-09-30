@@ -1,0 +1,343 @@
+// „Zeig es mir" (#135, Plan `docs/konzept-onboarding.md` 3.6; Vorlage
+// PilzBuddys `highlight_demos.dart`, #596): je Eintrag in „Entdecken" eine
+// kurze Vorführung auf der Hinweis-Maschine.
+//
+// **Sie endet IN der Funktion, nicht davor.** Wer „Melden, was gerade gilt"
+// sehen will, bekommt das Trail-Blatt mit dem Knopf, nicht den Reiter, in
+// dem es irgendwo liegt. Was eine Vorführung öffnet, schließt sie wieder —
+// ohne dass etwas ausgelöst wird.
+//
+// Drei Dinge, die man wissen muss:
+//
+// - **Jeder Eintrag bringt seine Vorführung mit.**
+//   `highlight_demos_flow_test.dart` verlangt eine je Kennung in
+//   `kFeatureHighlights` und fährt jede durch.
+// - **Was nicht jeder hat, hat einen Ersatzschritt** (`requires`/`unless`):
+//   ohne Trail „Erst einen Trail holen" am Import-Symbol, ohne eigenen Trail
+//   der Hinweis, dass es um eigene geht, ohne Buddy das Suchfeld. Genau
+//   einer läuft.
+// - **Die Schritte der Touren werden übernommen, nicht abgeschrieben**
+//   (`_from`): Ändert sich ein Tour-Text, ändert sich die Vorführung mit.
+import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
+
+import '../coach/coach.dart';
+import '../help/map_tour.dart';
+import '../help/tab_tours.dart';
+
+/// Eine Vorführung: wo sie beginnt und was sie zeigt.
+class HighlightDemo {
+  const HighlightDemo({required this.route, required this.script});
+
+  /// Die Route, auf die zuerst gewechselt wird.
+  final String route;
+  final CoachScript script;
+
+  /// Die Geste, die die Karte in „Entdecken" als kleines Bild zeigt: die
+  /// erste, die die Vorführung benutzt, sonst ein Tipp.
+  CoachGesture get gesture => script.steps
+      .map((s) => s.gesture)
+      .firstWhere((g) => g != CoachGesture.none, orElse: () => CoachGesture.tap);
+}
+
+CoachScript _demo(String id, List<CoachStep> steps) => CoachScript(id: 'demo.$id', steps: steps);
+
+/// Ein Schritt einer Tour, über seinen Titel.
+CoachStep _from(CoachScript script, String title) => script.steps.firstWhere((s) => s.title == title);
+
+// Bausteine, die mehrere Vorführungen teilen.
+
+const _openTrailFirst = CoachStep(
+  title: 'Einen Trail öffnen',
+  text: 'Ein Tipp auf die Zeile öffnet das Blatt — dasselbe wie auf der Karte.',
+  lit: [TrailsCoach.row],
+  ring: [],
+  gesture: CoachGesture.tap,
+  requires: [TrailsCoach.row],
+);
+
+const _noTrailYet = CoachStep(
+  title: 'Erst einen Trail holen',
+  text: 'Das geht an einem Trail. Hol dir einen über GPX aus einer anderen App, '
+      'zeichne eine Fahrt auf oder verbinde dich mit Buddys.',
+  lit: [TrailsCoach.import],
+  unless: [TrailsCoach.row],
+);
+
+const _noOwnTrail = CoachStep(
+  title: 'An eigenen Trails',
+  text: 'Das geht an Trails, die du selbst beigesteuert hast — über GPX oder '
+      'aus einer aufgezeichneten Fahrt. Einen Buddy-Trail machst du beim ersten '
+      'Befahren zu deinem.',
+  lit: [TrailsCoach.import],
+  requires: [TrailsCoach.row],
+  unless: [TrailsCoach.rowOwn],
+);
+
+const _androidOnly = CoachStep(
+  title: 'In der Android-App',
+  text: 'Aufgezeichnet wird in der Android-App — ein Browser bekommt im '
+      'Hintergrund keine Positionen.',
+  unless: [MapCoach.record],
+);
+
+const _findBuddyFirst = CoachStep(
+  title: 'Erst einen Buddy finden',
+  text: 'Das geht mit deinen Buddys. Such hier nach einem Benutzernamen oder '
+      'einer genauen E-Mail-Adresse — oder lade jemanden ein.',
+  lit: [BuddysCoach.search],
+  unless: [BuddysCoach.row],
+);
+
+CoachStep _profileRow(String id, String title, String text) => CoachStep(
+      title: title,
+      text: text,
+      lit: [ProfileCoach.row(id)],
+      scrollIn: ProfileCoach.list,
+    );
+
+final kHighlightDemos = <String, HighlightDemo>{
+  // ─── Highlights ────────────────────────────────────────────────
+  'kurzanleitung': HighlightDemo(
+    route: '/profile',
+    script: _demo('kurzanleitung', [
+      _profileRow('help', 'Hier steht sie',
+          'Sechs Abschnitte mit den echten Symbolen, dazu die Knöpfe für jede Tour.'),
+    ]),
+  ),
+  'still-valid': HighlightDemo(
+    route: '/profile',
+    script: _demo('still-valid', [
+      CoachStep(
+        title: 'Angaben prüfen',
+        text: 'Die Zahl sagt, wie viele deiner Meldungen und Zustände älter als '
+            '30 Tage sind. Ein Tipp, dann je Trail Ja, Nein oder Weiß nicht.',
+        lit: [ProfileCoach.row('still-valid')],
+        requires: [ProfileCoach.row('still-valid')],
+      ),
+      CoachStep(
+        title: 'Gerade nichts zu prüfen',
+        text: 'Ist eine deiner Angaben älter als 30 Tage, steht hier im Profil '
+            '„Noch gültig?" mit der Zahl.',
+        unless: [ProfileCoach.row('still-valid')],
+      ),
+    ]),
+  ),
+  'marks': HighlightDemo(
+    route: '/',
+    script: _demo('marks', const [
+      CoachStep(
+        title: 'Die Fahne kommt mit der Fahrt',
+        text: 'Läuft eine Aufzeichnung, steht über diesem Knopf eine Fahne: am '
+            'Anfang eines Trails antippen, am Ende noch einmal.',
+        lit: [MapCoach.buttons],
+        ring: [MapCoach.record],
+        requires: [MapCoach.record],
+      ),
+      _androidOnly,
+    ]),
+  ),
+  'takeover': HighlightDemo(
+    route: '/trails',
+    script: _demo('takeover', const [
+      CoachStep(
+        title: 'Beim ersten Befahren',
+        text: 'Fährst du einen Trail deiner Buddys, klappt seine Zeile im '
+            'Zerlege-Blatt auf: vorbelegt aus dem Netz. Mit deinen Sternen wird er '
+            'deiner. Für Trails, die du schon hast, gibt es im Blatt „Übernehmen".',
+      ),
+    ]),
+  ),
+  'reports': HighlightDemo(
+    route: '/trails',
+    script: _demo('reports', const [
+      _openTrailFirst,
+      CoachStep(
+        title: 'Hier melden',
+        text: 'Gesperrt, zerstört, verändert — und der Zustand. Bestätigt ist es, '
+            'wenn du ihn gefahren hast oder vor Ort bist; sonst steht es als „zu '
+            'bestätigen" da.',
+        scene: TrailsCoach.sheet,
+        lit: [SheetCoach.report],
+        requires: [TrailsCoach.row],
+      ),
+      _noTrailYet,
+    ]),
+  ),
+  'rating': HighlightDemo(
+    route: '/trails',
+    script: _demo('rating', [
+      _openTrailFirst,
+      _from(kTrailsTourScript, 'Deine Einschätzung'),
+      _noOwnTrail,
+      _noTrailYet,
+    ]),
+  ),
+  'grade-colors': HighlightDemo(
+    route: '/',
+    script: _demo('grade-colors', [_from(kMapTourScript, 'Farbe heißt Schwierigkeit')]),
+  ),
+  'connect-merge': HighlightDemo(
+    route: '/friends',
+    script: _demo('connect-merge', const [
+      CoachStep(
+        title: 'Eine Anfrage annehmen',
+        text: 'Nimmst du an, werden gleiche Trails EIN Trail mit zwei Namen. Danach '
+            'steht hier, was ihr gemeinsam habt und was neu dazukommt.',
+        lit: [BuddysCoach.requests],
+        requires: [BuddysCoach.requests],
+      ),
+      CoachStep(
+        title: 'Erst eine Anfrage',
+        text: 'Such einen Buddy über den Benutzernamen oder die genaue E-Mail und '
+            'frag an. Sobald er annimmt, legt die App eure Trails zusammen.',
+        lit: [BuddysCoach.search],
+        unless: [BuddysCoach.requests],
+      ),
+    ]),
+  ),
+  'import-split': HighlightDemo(
+    route: '/trails',
+    script: _demo('import-split', [_from(kTrailsTourScript, 'GPX hereinholen')]),
+  ),
+  'offline-areas': HighlightDemo(
+    route: '/',
+    script: _demo('offline-areas', [
+      _from(kMapTourScript, 'Hinter dem Ebenen-Knopf'),
+      _from(kMapTourScript, 'Die Werkzeugleiste'),
+    ]),
+  ),
+  'ride-record': HighlightDemo(
+    route: '/',
+    script: _demo('ride-record', [_from(kMapTourScript, 'Eine Fahrt aufzeichnen'), _androidOnly]),
+  ),
+  'official-trails': HighlightDemo(
+    route: '/',
+    script: _demo('official-trails', [
+      _from(kMapTourScript, 'Die Werkzeugleiste'),
+      _from(kMapTourScript, 'Orte und offizielle Trails wählen'),
+    ]),
+  ),
+  'trail-notes': HighlightDemo(
+    route: '/trails',
+    script: _demo('trail-notes', [
+      _openTrailFirst,
+      _from(kTrailsTourScript, 'Etwas Aktuelles erzählen'),
+      _noTrailYet,
+    ]),
+  ),
+  // ─── Tipps ─────────────────────────────────────────────────────
+  'tours': HighlightDemo(
+    route: '/profile/help',
+    script: _demo('tours', const [
+      CoachStep(
+        title: 'Noch einmal ansehen',
+        text: 'Hier startest du die Touren für Trails und Buddys neu; darunter die '
+            'Tour zum Zerlegen einer Fahrt.',
+        lit: [HelpCoach.tabTours],
+        scrollIn: HelpCoach.list,
+      ),
+    ]),
+  ),
+  'pick-section': HighlightDemo(
+    route: '/profile',
+    script: _demo('pick-section', [
+      _profileRow('rides', 'Über „Meine Fahrten"',
+          'Die Schere neben einer Fahrt öffnet das Zerlege-Blatt; dort steht unter '
+              'den Kandidaten „Stück selbst wählen".'),
+    ]),
+  ),
+  'trail-link': HighlightDemo(
+    route: '/trails',
+    script: _demo('trail-link', [
+      _openTrailFirst,
+      _from(kTrailsTourScript, 'Was du beisteuerst'),
+      _noOwnTrail,
+      _noTrailYet,
+    ]),
+  ),
+  'planned': HighlightDemo(
+    route: '/trails',
+    script: _demo('planned', [_from(kTrailsTourScript, 'GPX hereinholen')]),
+  ),
+  'traits': HighlightDemo(
+    route: '/trails',
+    script: _demo('traits', [_from(kTrailsTourScript, 'Suchen und eingrenzen')]),
+  ),
+  'grade-votes': HighlightDemo(
+    route: '/trails',
+    script: _demo('grade-votes', const [
+      _openTrailFirst,
+      CoachStep(
+        title: 'Ein Tipp auf den Grad',
+        text: 'Die Kachel zeigt den Median deines Netzes; ein Tipp darauf listet '
+            'alle Einschätzungen und erklärt die Skala.',
+        scene: TrailsCoach.sheet,
+        lit: [SheetCoach.metrics],
+        requires: [TrailsCoach.row],
+      ),
+      _noTrailYet,
+    ]),
+  ),
+  'visibility': HighlightDemo(
+    route: '/trails',
+    script: _demo('visibility', [
+      _openTrailFirst,
+      _from(kTrailsTourScript, 'Was du beisteuerst'),
+      _noOwnTrail,
+      _noTrailYet,
+    ]),
+  ),
+  'pois': HighlightDemo(
+    route: '/',
+    script: _demo('pois', [
+      _from(kMapTourScript, 'Die Werkzeugleiste'),
+      _from(kMapTourScript, 'Orte und offizielle Trails wählen'),
+    ]),
+  ),
+  'my-position': HighlightDemo(
+    route: '/',
+    script: _demo('my-position', [_from(kMapTourScript, 'Zu dir und zu uns')]),
+  ),
+  'buddy-alias': HighlightDemo(
+    route: '/friends',
+    script: _demo('buddy-alias', [
+      _from(kBuddysTourScript, 'Ein Buddy in der Liste'),
+      _findBuddyFirst,
+    ]),
+  ),
+  'invite': HighlightDemo(
+    route: '/friends',
+    script: _demo('invite', [_from(kBuddysTourScript, 'Jemanden einladen')]),
+  ),
+  'notifications': HighlightDemo(
+    route: '/profile',
+    script: _demo('notifications', [
+      _profileRow('notifications', 'Hier einschalten',
+          'Der Schalter sagt, was wirklich ankommt — auch, wenn der Browser oder '
+              'Android Benachrichtigungen nicht erlaubt.'),
+    ]),
+  ),
+  'appearance': HighlightDemo(
+    route: '/profile',
+    script: _demo('appearance', [
+      _profileRow('appearance', 'Hell, dunkel oder wie das System',
+          'Gilt für die App; die Karte bleibt hell, in der Sonne liest sie sich '
+              'besser.'),
+    ]),
+  ),
+};
+
+/// Wechselt zur Route der Vorführung und startet sie, sobald der Reiter
+/// steht. **Erst nach ein paar Bildern**: `requires` fragt beim Start, ob
+/// die Anker DA sind, und die des Zielreiters meldet erst sein Aufbau an.
+/// Bis dahin ist der Start vorgemerkt (`reserve`), damit die Tour des
+/// Reiters nicht dazwischenkommt.
+Future<void> startHighlightDemo(GoRouter router, CoachNotifier coach, HighlightDemo demo) async {
+  coach.reserve();
+  router.go(demo.route);
+  for (var i = 0; i < 3; i++) {
+    await WidgetsBinding.instance.endOfFrame;
+  }
+  coach.start(demo.script);
+}

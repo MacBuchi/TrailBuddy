@@ -12,6 +12,7 @@ import '../features/auth/signup_screen.dart';
 import '../features/changelog/changelog_screen.dart';
 import '../features/friends/friends_screen.dart';
 import '../features/help/help_screen.dart';
+import '../features/highlights/discover_screen.dart';
 import '../features/help/map_tour.dart' show NavCoach;
 import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
@@ -140,6 +141,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                       path: 'help',
                       builder: (context, state) => const HelpScreen()),
+                  // „Entdecken" (#135): alle Funktionen und Tipps.
+                  GoRoute(
+                      path: 'discover',
+                      builder: (context, state) => const DiscoverScreen()),
                 ]),
           ]),
         ],

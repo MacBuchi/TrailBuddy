@@ -218,11 +218,14 @@ class _ExampleTrailSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    onPressed: _nothing,
-                    icon: const Icon(Icons.flag_outlined),
-                    label: const Text('Melden'),
+                  child: CoachAnchor(
+                    id: SheetCoach.report,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: _nothing,
+                      icon: const Icon(Icons.flag_outlined),
+                      label: const Text('Melden'),
+                    ),
                   ),
                 ),
               ],

@@ -18,7 +18,10 @@ import '../../core/widgets/motion.dart';
 import '../../core/widgets/password_field.dart';
 import '../../core/widgets/safety_note.dart';
 import '../../data/providers.dart';
+import '../coach/coach.dart';
 import '../feedback/feedback_dialog.dart';
+import '../help/tab_tours.dart' show ProfileCoach;
+import '../highlights/highlight_sheet.dart' show unseenHighlightCountProvider;
 import '../friends/friend_providers.dart';
 import '../offline_areas/area_providers.dart' show storedAreasProvider;
 import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
@@ -50,6 +53,9 @@ class ProfileScreen extends ConsumerWidget {
             // alles, was danach noch `ref` bräuchte, gehört VOR diesen
             // Aufruf.
             onPressed: () async {
+              // Eine laufende Tour endet mit dem Konto (#135): Ihre Anker
+              // verschwinden, und die Überlagerung läge sonst über dem Login.
+              ref.read(coachProvider.notifier).finish();
               // Die Kopie des Netzes (#32) gehört dem Konto, nicht dem
               // Gerät — sie geht mit. Der Ausgangskorb bleibt: Er trägt
               // Originale und ist an die Konto-Kennung gebunden.
@@ -62,7 +68,9 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
+      body: CoachAnchor(
+        id: ProfileCoach.list,
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
           if (profile != null) ...[
@@ -136,6 +144,15 @@ class ProfileScreen extends ConsumerWidget {
             value: 'Name, E-Mail, Passwort, Geräte',
             onTap: () => context.push('/profile/account'),
           ),
+          // „Entdecken" (#135): alles, was TrailBuddy kann, mit Neu-Punkt.
+          _ProfileRow(
+            id: 'discover',
+            icon: Icons.lightbulb_outline,
+            title: 'Entdecken',
+            value: 'Was TrailBuddy kann',
+            badge: ref.watch(unseenHighlightCountProvider),
+            onTap: () => context.push('/profile/discover'),
+          ),
           // Über „Über TrailBuddy" (#131): Wer eine Erklärung sucht, landet
           // hier eher als in den Rechtstexten darunter.
           _ProfileRow(
@@ -160,7 +177,7 @@ class ProfileScreen extends ConsumerWidget {
             style: AppFonts.numbers(theme.textTheme.bodySmall).copyWith(color: palette.muted),
           ),
         ],
-      ),
+      )),
     );
   }
 }
@@ -232,8 +249,11 @@ class _ProfileRow extends StatelessWidget {
     required this.title,
     required this.value,
     required this.onTap,
+    this.badge = 0,
   });
 
+  /// Der Neu-Punkt (#135): wie viele Einträge noch nicht angesehen sind.
+  final int badge;
   final String id;
   final IconData icon;
   final String title;
@@ -244,7 +264,10 @@ class _ProfileRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = AppPalette.of(context);
-    return Padding(
+    // Jede Zeile ist ein Anker der Vorführungen (#135), aus ihrer Kennung.
+    return CoachAnchor(
+      id: ProfileCoach.row(id),
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         key: ValueKey('profile-$id'),
@@ -280,13 +303,24 @@ class _ProfileRow extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (badge > 0)
+                  Container(
+                    key: ValueKey('profile-$id-badge'),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.brand,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('$badge',
+                        style: AppFonts.numbers(theme.textTheme.labelSmall).copyWith(color: AppColors.onBrand)),
+                  ),
                 Icon(Icons.chevron_right, color: palette.muted),
               ],
             ),
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

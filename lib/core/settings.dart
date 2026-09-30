@@ -101,6 +101,17 @@ abstract interface class Settings {
   Set<String> get seenCoachTours;
 
   Future<void> setSeenCoachTours(Set<String> value);
+
+  /// Die App-Version, deren Neuheiten dieses Gerät zuletzt gezeigt bekam
+  /// (#135) — oder null, solange nie etwas gemerkt wurde.
+  String? get highlightsSeenVersion;
+
+  Future<void> setHighlightsSeenVersion(String value);
+
+  /// Einträge in „Entdecken", die schon angesehen wurden (der Neu-Punkt).
+  Set<String> get seenHighlightIds;
+
+  Future<void> setSeenHighlightIds(Set<String> value);
 }
 
 /// Umsetzung auf SharedPreferences (Android: XML im App-Verzeichnis).
@@ -212,6 +223,24 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setSeenCoachTours(Set<String> value) =>
       _prefs.setStringList(_seenCoachToursKey, value.toList()..sort());
+
+  static const _highlightsSeenVersionKey = 'highlights_seen_version';
+
+  @override
+  String? get highlightsSeenVersion => _prefs.getString(_highlightsSeenVersionKey);
+
+  @override
+  Future<void> setHighlightsSeenVersion(String value) =>
+      _prefs.setString(_highlightsSeenVersionKey, value);
+
+  static const _seenHighlightIdsKey = 'seen_highlight_ids';
+
+  @override
+  Set<String> get seenHighlightIds => (_prefs.getStringList(_seenHighlightIdsKey) ?? const []).toSet();
+
+  @override
+  Future<void> setSeenHighlightIds(Set<String> value) =>
+      _prefs.setStringList(_seenHighlightIdsKey, value.toList()..sort());
 }
 
 /// Wird in `main()` mit den geladenen Einstellungen überschrieben, in Tests

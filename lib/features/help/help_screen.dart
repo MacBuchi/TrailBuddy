@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/widgets/safety_note.dart';
+import '../coach/coach.dart';
 import '../trails/grade_shield.dart';
 import '../trails/trail_report.dart' show kReportFieldLabel;
 import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
@@ -133,7 +134,9 @@ class HelpScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Kurzanleitung')),
-      body: ListView(
+      body: CoachAnchor(
+        id: HelpCoach.list,
+        child: ListView(
         key: const ValueKey('help-list'),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
@@ -166,7 +169,9 @@ class HelpScreen extends ConsumerWidget {
           // Die Reiter-Touren (#136) laufen von selbst beim ersten Besuch;
           // hier noch einmal auf Wunsch. Erst der Wunsch, dann der Reiter —
           // sie startet, sobald er sichtbar ist.
-          Wrap(
+          CoachAnchor(
+            id: HelpCoach.tabTours,
+            child: Wrap(
             spacing: 8,
             runSpacing: 4,
             children: [
@@ -184,15 +189,24 @@ class HelpScreen extends ConsumerWidget {
                   label: Text('Tour: $label'),
                 ),
             ],
-          ),
+          )),
           // Die Zerlege-Tour (#134), nur wo man aufzeichnen kann: Sie
           // öffnet die jüngste Fahrt, und dort läuft die Tour.
           if (ref.watch(rideRecordingAvailableProvider)) ...[
             const SizedBox(height: 8),
             const _SplitTourButton(),
           ],
+          const SizedBox(height: 8),
+          // Alles, was über die sechs Abschnitte hinausgeht (#135) — die
+          // Kurzanleitung bleibt kurz, weil es diesen Weg gibt.
+          OutlinedButton.icon(
+            key: const ValueKey('help-discover'),
+            onPressed: () => context.push('/profile/discover'),
+            icon: const Icon(Icons.lightbulb_outline),
+            label: const Text('Funktionen und Tipps entdecken'),
+          ),
         ],
-      ),
+      )),
     );
   }
 }
