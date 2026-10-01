@@ -757,6 +757,13 @@ Kante. Gerechnet wird nur auf dem Gerät über die eigenen sichtbaren
 Trails (12); eine geplante Runde ist eine `planned`-Fahrt (5.2) und
 wandert erst gefahren weiter (10.1). Das Werkzeug sagt, wo es über einen
 Wanderweg plant, und nie, dass ein Weg befahren werden darf (7).
+Seit 0.74.0 (Feldbericht, #174 #178 #185): Welche Trails in die Runde
+sollen, wählt der Fahrer — Tipp auf der Karte, Liste im Radius oder ein
+umfahrenes Gebiet; ab Werk ist nichts gewählt. Kein Trail wird gegen
+seine Richtung gefahren, auch nicht als Aufstieg, außer ein Beitrag sagt
+„in beide Richtungen fahrbar" (Patch 016). Uphill-Trails und Verbinder
+sind der bevorzugte Weg bergauf, keine Abfahrten. Einzelheiten:
+`docs/konzept-routing.md` 2.7 und 4.
 
 **Die Engine ist eine eigene, kein BRouter** (Betreiber, 2026-10-01).
 Anforderungsprofil (Bio-Bike/E-Bike, Zeitmodell, Budgets, Wegklassen
