@@ -738,6 +738,26 @@ Das ist keine Routenplanung und behauptet keine; es beantwortet die
 Frage, die im Alltag zuerst kommt, und braucht kein Netzziel. Der
 Rückfall ist die Zwischenablage, nie ein fester Kartendienst.
 
+**Der Planer ist Trail-zuerst, nicht A-nach-B** (Betreiber, 2026-10-01,
+#158): „möglichst uphill Höhenmeter-effizient viele Trails
+unterbringen" — eine Runde ab Startpunkt mit Höhenmeter- oder
+Zeitbudget, die möglichst viele sichtbare Trails in ihrer Richtung
+bergab mitnimmt. Aufstiege werden nach Wegklasse bewertet: Schotter und
+Forstweg sind die Grundlinie, Wanderwege erlaubt mit Aufschlag, Straßen
+stark belastet, nie ausgeschlossen. Bergab auf einem Trail ist der
+Gewinn, bergab auf der Straße verschenkte Höhe. Das ist ein
+Prize-Collecting-Problem, auf dem Telefon lösbar: kürzeste Aufstiege
+zwischen allen Trail-Enden über den Wegegraphen, dann eine Verkettung
+unter dem Budget. Keine Abbiegehinweise — die Runde geht als GPX
+(#150) an die Navi-App. Drei Voraussetzungen, die das Modell heute nicht
+hat: ein Höhengitter für die Wege (PilzBuddys `elevation_grid.py` als
+Vorlage), der Graph aus den `roads`-Kacheln der gespeicherten Bereiche
+(der Wege-Index des Zerlege-Blatts liest sie schon) und die Wegklasse je
+Kante. Gerechnet wird nur auf dem Gerät über die eigenen sichtbaren
+Trails (12); eine geplante Runde ist eine `planned`-Fahrt (5.2) und
+wandert erst gefahren weiter (10.1). Das Werkzeug sagt, wo es über einen
+Wanderweg plant, und nie, dass ein Weg befahren werden darf (7).
+
 **Airtime und Ranking.** Sprünge lassen sich aus dem
 Beschleunigungssensor lesen (Freifallphase: Betrag der Beschleunigung
 nahe 0 für > 150 ms), Zuordnung zum Trail über die laufende Fahrt. Drei
@@ -869,8 +889,13 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   `docs/play-console.md` und ein Entwurf der Nutzungsbedingungen (#39,
   Teil). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
   aus dem Rework.
-- **Phase 4 — Routing.** Nach eigener Messung (9, #35); bis dahin die
-  Übergabe aus Phase 3b.
+- **Phase 4 — Der Trail-zuerst-Planer** (9, #158): erst die Messung
+  (#35, jetzt mit der Zielfunktion des Planers), dann Höhengitter,
+  Wegegraph aus den Bereichen, Aufstieg von Punkt zu Punkt mit
+  Wegklasse („zum Trailkopf, offline"), zuletzt die Verkettung mit
+  Budget und Blatt. Läuft direkt nach Phase 3b, parallel zum Abgleich
+  aus dem Rework: Der wartet auf Daten mehrerer Nutzer, der Planer
+  braucht keine. Bis dahin die Übergabe aus Phase 3b.
 - **Phase 5 — Community.** Airtime und Ranking unter Buddys (#36), Fotos
   am Trail (#37).
 - **Play Store** (#39): rechtliche Prüfung, Store-Grafiken, Pro-Plan,
@@ -982,9 +1007,13 @@ tun und nicht tun werden:
 4. **Fahrten verlassen das Gerät nie** (10.4), die Karte kommt vom
    eigenen Host, offline zuerst.
 
-**Was sie bewusst nicht ist.** Kein Routenplaner mit Abbiegehinweisen,
+**Was sie bewusst nicht ist.** Keine Navigation mit Abbiegehinweisen,
 keine Entdeckungs-Plattform für fremde Gegenden, kein Tourenarchiv in
-der Cloud, keine Statistik über alle. Wer das will, hat Komoot,
+der Cloud, keine Statistik über alle. **Die eine Planungsfunktion ist
+der Trail-zuerst-Planer** (9, #158), weil ihn keine andere App hat:
+Komoot und Outdooractive planen von A nach B über öffentliche Wege,
+Trailforks zeigt Trails — keine davon plant „eine Runde mit möglichst
+vielen MEINER Trails und möglichst wenig verschenktem Aufstieg". Wer das will, hat Komoot,
 Outdooractive oder Trailforks — und soll sie NEBEN TrailBuddy benutzen
 können, ohne dass eine der beiden Seiten etwas über die andere erfährt.
 
