@@ -886,9 +886,10 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   (#96, ERLEDIGT 0.66.0), Anfahrt zum Trailkopf per Übergabe an die
   Navi-App (#151, ERLEDIGT 0.67.0),
   GPX-Export von Fahrten und Trails (#150 — Entscheidung 10.4 setzt ihn
-  voraus; ERLEDIGT 0.68.0), Neuheiten-Vorschau bei der Freigabe (#152),
+  voraus; ERLEDIGT 0.68.0), Neuheiten-Vorschau bei der Freigabe (#152, ERLEDIGT),
   `docs/play-console.md` und ein Entwurf der Nutzungsbedingungen (#39,
-  Teil). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
+  Teil; ERLEDIGT, `docs/nutzungsbedingungen-entwurf.md`, wartet auf die
+  Prüfung). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
   aus dem Rework.
 - **Phase 4 — Der Trail-zuerst-Planer** (9, #158): erst die Messung
   (#35, jetzt mit der Zielfunktion des Planers), dann Höhengitter,
