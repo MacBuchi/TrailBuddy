@@ -67,10 +67,13 @@ Nicht-Ziele, damit sie nicht hineinwachsen:
 - **Kein Urteil über Erlaubnis** (Konzept 7). Die Engine plant über
   Wanderwege, wenn der Aufschlag trotzdem gewinnt, und SAGT es. Sie
   sagt nie, dass ein Weg befahren werden darf.
-- **Kein Bergab auf fremden Pfaden.** Verbindungsstücke bergab laufen
-  nur über Fahrstraßen und Forstwege. Ein Pfad bergab wäre ein Trail,
-  den niemand beigesteuert hat — und genau die Linie, die Konzept 7
-  nicht erzeugen will.
+- **Ein Wanderweg als Verbindung ist kein Trail.** Die Engine darf
+  über Wanderwege verbinden, bergauf und — teurer — bergab (Betreiber:
+  „auch bergab, wenn's Sinn macht"). Das Stück heißt im Ergebnis
+  „Wanderweg", wird nie als Trail beigesteuert und bekommt keinen
+  S-Grad; die Linie, die Konzept 7 nicht erzeugen will, entsteht nur,
+  wenn jemand sie fährt und beisteuert — und das ist dann seine
+  Entscheidung.
 - **Keine Daten anderer Nutzer** (Konzept 12): Gerechnet wird über die
   sichtbaren Trails des Aufrufers, auf dem Gerät, nie auf dem Server.
 
@@ -78,9 +81,16 @@ Nicht-Ziele, damit sie nicht hineinwachsen:
 
 ### 2.1 Fahrerprofil: Bio-Bike oder E-Bike
 
-Eine Einstellung, gerätelokal (`Settings.riderProfile`), Vorgabe
-**Bio-Bike**; änderbar im Profil und im Planer-Blatt (dort für diese
-Planung). Das Profil ändert drei Dinge und sonst nichts:
+**Zwei Profile nebeneinander, jedes mit eigenen Parametern** —
+viele fahren beides (Betreiber, 2026-10-01). Gerätelokal: das aktive
+Profil (`Settings.riderProfile`, Vorgabe **Bio-Bike**, umschaltbar im
+Profil und im Planer-Blatt) und je Profil ein Parametersatz. Die Werte
+beginnen mit den Vorgaben unten und **lernen aus den eigenen Fahrten**
+(Abschnitt 5, Schritt 6): Jede Aufzeichnung merkt sich beim Start das
+aktive Profil (`Ride.profile`), die Kalibrierung rechnet je Profil;
+Fahrten ohne Profil (vor diesem Schritt) lernen nichts. Wer die
+gelernten Werte nicht will, setzt sie im Profil auf die Vorgaben
+zurück. Das Profil ändert drei Dinge und sonst nichts:
 
 | | Bio-Bike | E-Bike |
 |---|---|---|
@@ -131,7 +141,7 @@ Drei Regler im Planer-Blatt, jeder mit Vorgabe; der engste gewinnt:
 |---|---|---|---|
 | Höchstens Zeit | 3 h | 1–6 h | 30 min |
 | Höchstens Höhenmeter bergauf | 800 hm (Bio) / 1 400 hm (E) | 200–2 500 | 100 |
-| Höchstens Wanderweg bergauf | 2 km | 0–10 km („kein Wanderweg" = 0) | 0,5 km |
+| Höchstens Wanderweg (bergauf und bergab) | 2 km | 0–10 km („kein Wanderweg" = 0) | 0,5 km |
 
 Dazu „Start ist auch Ziel" (Vorgabe AN — eine Runde) und wahlweise ein
 Zielpunkt. Die Vorgaben merkt sich das Gerät mit der letzten Planung.
@@ -146,22 +156,29 @@ Die Engine kennt Kanten aus zwei Quellen: **Wege** aus der
 eine Klasse; die Klasse bestimmt Geschwindigkeit, Steigrate, Aufschlag
 und ob die Kante überhaupt gilt.
 
-| `kind` / `kind_detail` | Klasse | Aufschlag bergauf | bergab erlaubt | Bemerkung |
+| `kind` / `kind_detail` | Klasse | Aufschlag bergauf | Aufschlag bergab | Bemerkung |
 |---|---|---|---|---|
-| `path` / `track` | Forstweg | 1,0 | ja | Grundlinie — „Schotter/Waldweg bevorzugt" |
-| `path` / `cycleway` | Radweg | 1,0 | ja | |
-| `minor_road` / `unclassified`, `residential`, `living_street` | Nebenstraße | 1,2 | ja | Asphalt, Verkehr |
-| `minor_road` / `service` (ohne `driveway`, `parking_aisle`) | Zufahrt | 1,2 | ja | Almzufahrten sind oft `service` |
-| `path` / `path`, `bridleway` | Wanderweg | 1,4 (Bio) / 2,0 (E) | **nein** | zählt gegen „höchstens Wanderweg" |
-| `path` / `footway`, `pedestrian` | Fußweg | 2,0 | nein | im Ort als Lücke brauchbar |
-| `path` / `steps` | Stufen | 3,0, schiebend | nein | nur als letzte Brücke |
-| `medium_road` (tertiary) | Landstraße | 1,6 | ja | |
-| `major_road` / `secondary` | Hauptstraße | 2,5 | ja | |
-| `major_road` / `primary` | Bundesstraße | 4,0 | ja | nie ausgeschlossen (#158) |
-| `highway` (motorway, trunk) | — | gesperrt | nein | |
-| `access` = `private`, `no` | — | gesperrt | nein | |
-| `other` (Rennstrecken, Pisten) | — | gesperrt | nein | |
+| `path` / `track` | Forstweg | 1,0 | 1,0 | Grundlinie — „Schotter/Waldweg bevorzugt" |
+| `path` / `cycleway` | Radweg | 1,0 | 1,0 | |
+| `minor_road` / `unclassified`, `residential`, `living_street` | Nebenstraße | 1,2 | 1,2 | Asphalt, Verkehr |
+| `minor_road` / `service` (ohne `driveway`, `parking_aisle`) | Zufahrt | 1,2 | 1,2 | Almzufahrten sind oft `service` |
+| `path` / `path`, `bridleway` | Wanderweg | 1,4 (Bio) / 2,0 (E) | 2,0 (Bio) / 2,5 (E) | zählt in beide Richtungen gegen „höchstens Wanderweg" |
+| `path` / `footway`, `pedestrian` | Fußweg | 2,0 | 2,5 | im Ort als Lücke brauchbar |
+| `path` / `steps` | Stufen | 3,0, schiebend | 3,0, schiebend | nur als letzte Brücke |
+| `medium_road` (tertiary) | Landstraße | 1,6 | 1,6 | |
+| `major_road` / `secondary` | Hauptstraße | 2,5 | 2,5 | |
+| `major_road` / `primary` | Bundesstraße | 4,0 | 4,0 | nie ausgeschlossen (#158) |
+| `highway` (motorway, trunk) | — | gesperrt | gesperrt | |
+| `access` = `private`, `no` | — | gesperrt | gesperrt | |
+| `other` (Rennstrecken, Pisten) | — | gesperrt | gesperrt | |
 | `oneway` | — | nur auf Straßenklassen beachtet | | Forstwege und Pfade in beide Richtungen |
+
+Wanderwege bergab sind erlaubt, „wenn's Sinn macht" (Betreiber): Der
+Aufschlag ist so gesetzt, dass ein Forstweg mit der eineinhalbfachen
+Länge gewinnt und erst ein deutlich längerer Umweg den Wanderweg
+rechtfertigt. Bergab auf einem Wanderweg fährt man im Zeitmodell wie
+auf einem Trail ohne Einschätzung (10 km/h), und der Abschnitt steht
+im Ergebnis mit Richtung („1,2 km Wanderweg bergab").
 
 Kosten einer Wegekante = geschätzte Zeit × Aufschlag. Der Aufschlag
 drückt aus, was die Zeit nicht sagt: Eine Bundesstraße ist nicht
@@ -218,7 +235,10 @@ Copernicus-DEM GLO-90 (offen, ohne Konto, in CI lesbar — geprüft):
   Zelle, ~3 KB je z13-Kachel gezippt), geladen mit dem Bereich wie die
   Orte-Zellen. Genauer, ein zweiter Dateityp, kein neues Netzziel.
 
-Vorschlag: **A messen, B nur bauen, wenn A durchfällt.** Die Höhe einer
+Entschieden (Betreiber, 2026-10-01): **A zuerst, „vielleicht reicht es
+fürs Routing"; genauer wie bei Locus, wenn nicht.** Locus rechnet mit
+SRTM-Höhen in 3 Bogensekunden (~90 m) — das ist genau die Auflösung
+von B, also der Weg, der dann offensteht. Die Höhe einer
 Kante wird nicht an den Enden, sondern alle 50 m entlang der Linie
 abgetastet und mit einer Hysterese von 10 m zu Anstieg/Abstieg summiert
 (die 3 m der Trail-Höhen gelten für aufgezeichnete Höhen, nicht für ein
@@ -259,12 +279,19 @@ Gitter). Die Trailkanten behalten ihre aufgezeichneten Höhen.
 2. **Verkettung** (Orienteering-Problem, NP-schwer, hier klein):
    greedy einfügen nach „Trail-Meter je Kostenzuwachs", dann lokale
    Suche (Tausch, Entfernen und Einfügen) mit festem Zeitdeckel
-   (300 ms). Jeder Trail höchstens einmal; „diese will ich heute"
-   (Pflicht-Trails) werden zuerst eingefügt und nie entfernt.
+   (300 ms). „Diese will ich heute" (Pflicht-Trails) werden zuerst
+   eingefügt und nie entfernt.
 3. **Zielfunktion**: zuerst mehr **Trail-Meter** (Länge der gefahrenen
    Trails — nicht Anzahl, sonst gewinnen drei kurze gegen einen langen),
    bei Gleichstand weniger Aufstiegs-Höhenmeter, dann weniger
    verschenkte Höhe. Alles unter den drei Budgets aus 2.3.
+   **Ein Trail zweimal ist sehr teuer** (Betreiber, 2026-10-01): Die
+   zweite Abfahrt bringt keine Trail-Meter — außer der Trail trägt eine
+   Bewertung von 4 oder 5 Sternen (Median, wie angezeigt), dann noch
+   30 %. Zeit und Aufstieg kostet sie voll. Ein Trail steht höchstens
+   zweimal in einer Runde. So fällt ein zweiter Durchgang nur dort an,
+   wo sonst nur Forstweg bergab bliebe, und bevorzugt auf dem Trail,
+   den die Buddys mögen.
 4. **Ergebnis**: Linie mit Abschnitten (Aufstieg nach Klasse, Trail),
    Summen (Länge, hm bergauf, hm Trail bergab, Zeit, Wanderweg-km,
    verschenkte hm), Liste der Trails in Reihenfolge, die Trails, die
@@ -284,8 +311,10 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
   als Vorschau auf der Karte (dieselbe Strecke wie das Zerlege-Blatt:
   Fahrt blass, Aufstieg nach Klasse), darunter die Summen und der
   Satz zum Wanderweg. „Als Fahrt speichern" (geplant) und „Als GPX".
-- **Planer-Blatt** vom Kartenknopf „Idee" (der heute das Feedback
-  trägt — Entscheidung 8.7) oder aus dem Reiter Trails: Start (Position
+- **Planer-Blatt** über einen EIGENEN Knopf (Betreiber: nicht der
+  Idee-Knopf, der bleibt Feedback) — auf der Karte, wenn die Knopfspalte
+  ihn trägt (bei 0.19.0 lief sie auf einem kleinen Telefon über, deshalb
+  dort nachmessen), sonst im Reiter Trails: Start (Position
   / getippt), Profil, drei Regler, Pool (alle sichtbaren im Rahmen,
   abwählbar; Pflicht-Haken), Rechnen, Ergebnis wie oben. Ohne Bereich:
   ein Satz und der Knopf „Bereich speichern".
@@ -305,7 +334,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, speichern, GPX | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails | #158/5 | feat |
-| 6 | Kalibrierung aus eigenen Fahrten (Steigrate je Klasse), im Profil sichtbar („deine Steigrate: 520 hm/h aus 14 Fahrten") | #158 | feat |
+| 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 | #158 | feat |
 
 Schritt 1 entscheidet, ob 2–5 so gebaut werden oder ob vorher die
 Pipeline (2.5, letzter Punkt) dran ist. Schritte 3–5 brauchen keine
@@ -359,25 +388,29 @@ M5; M2 und M4 nur der lokale.
   vorschlägt. Das Blatt trägt den Sicherheitshinweis (`kSafetyNote`),
   und die Nutzungsbedingungen (Entwurf, Abschnitt 4) gelten.
 
-## 8. Entscheidungen des Betreibers (offen, mit Vorschlag)
+## 8. Entscheidungen des Betreibers (2026-10-01)
 
-1. **Profil Bio-Bike / E-Bike** als gerätelokale Einstellung mit
-   Vorgabe Bio-Bike, im Planer je Planung umschaltbar. *Vorschlag: ja.*
+Alle entschieden; die Zahlen dahinter sind Startwerte und bleiben
+Vorschläge, bis die Messung oder die eigenen Fahrten andere liefern.
+
+1. **Zwei Profile, Bio-Bike und E-Bike, nebeneinander mit eigenen
+   Parametern** („viele haben beides"), Vorgabe Bio-Bike, je Planung
+   umschaltbar; die Parameter entweder feste Vorgaben oder aus den
+   Fahrten gelernt — gebaut wird: Vorgaben zuerst, Lernen je Profil in
+   Schritt 6 (2.1).
 2. **Startwerte** aus 2.1–2.3 (Steigraten, Geschwindigkeiten, 3 h,
-   800/1 400 hm, 2 km Wanderweg). *Vorschlag: so, bis die eigenen
-   Fahrten andere Zahlen liefern.*
-3. **Wanderwege nur bergauf, nie bergab** als Verbindungsstück (1,
-   vierter Punkt). *Vorschlag: ja.*
-4. **Hauptstraßen nie ausgeschlossen, nur teuer** (#158). *Vorschlag:
-   ja; `motorway`/`trunk` und `access=private` bleiben gesperrt.*
-5. **Höhenquelle**: erst Gitter A messen, B nur bei Durchfallen.
-   *Vorschlag: ja.*
-6. **Zielfunktion Trail-Meter** vor Anzahl. *Vorschlag: ja.*
-7. **Einstieg in den Planer**: der Kartenknopf „Idee" ist heute das
-   Feedback. *Vorschlag: eigener Eintrag im Reiter Trails und im
-   Trail-Blatt; der Kartenknopf bleibt Feedback.*
-8. **BRouter**: nein, keine Hintertür. *Entschieden 2026-10-01.*
-9. **Trails mit warnender Meldung** aus dem Pool, einzeln
-   hineinholbar. *Vorschlag: ja.*
+   800/1 400 hm, 2 km Wanderweg): so.
+3. **Wanderwege auch bergab, wenn es Sinn macht** — als teure
+   Verbindung, nie als Trail (1, 2.4).
+4. **Hauptstraßen nie ausgeschlossen, nur teuer**; `motorway`/`trunk`
+   und `access=private` bleiben gesperrt.
+5. **Höhen: zuerst das Gitter wie in PilzBuddy**, „vielleicht reicht es
+   fürs Routing"; genauer wie bei Locus (90 m, Weg B), wenn die Messung
+   M3 es verlangt (2.6).
+6. **Zielfunktion Trail-Meter** vor Anzahl; **ein Trail zweimal ist
+   sehr teuer**, erst recht ohne 4–5 Sterne der Buddys (3).
+7. **Eigener Knopf für den Planer**, nicht der Idee-Knopf (4).
+8. **Trails mit warnender Meldung** aus dem Pool, einzeln hineinholbar.
+9. **BRouter**: nein, keine Hintertür (0).
 10. **Reihenfolge**: Schritt 1 (Messung) vor allem anderen; Schritte
-    3–5 erst nach dem Bericht. *Vorschlag: ja — die Regel aus #35.*
+    3–5 erst nach dem Bericht — die Regel aus #35.
