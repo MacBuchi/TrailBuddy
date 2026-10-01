@@ -10,8 +10,8 @@
   * trail_cache/ — die zwischengespeicherten Trails des eigenen Netzes.
     Googles Cloud ist in der Datenschutzerklärung kein Empfänger.
   * rides/ — die eigenen Fahrten (Bewegungsprofile, Haustür bis Haustür).
-    Sie verlassen das Gerät nie (Konzept, Entscheidung 4), also auch nicht
-    über ein Backup.
+    Sie verlassen das Gerät nie von selbst (Konzept, Entscheidung 4; nur
+    als GPX-Export von Hand), also auch nicht über ein Backup.
   * outbox/ — Aufträge des Ausgangskorbs: Aufzeichnungen, die auf die
     Übertragung warten. Hier stehen Linien, BEVOR sie irgendwo anders
     stehen.

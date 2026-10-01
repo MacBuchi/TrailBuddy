@@ -98,6 +98,22 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'gpx-export': HighlightDemo(
+    route: '/trails',
+    script: _demo('gpx-export', const [
+      _openTrailFirst,
+      CoachStep(
+        title: 'Die Linie als Datei',
+        text: 'Gibt den Trail als GPX-Datei weiter — über das Teilen-Menü an '
+            'jede App, die GPX liest. Nur die Linie mit Namen; keine Buddys, '
+            'keine Hinweise. Fahrten exportierst du unter „Meine Fahrten".',
+        scene: TrailsCoach.sheet,
+        lit: [SheetCoach.export],
+        requires: [TrailsCoach.row],
+      ),
+      _noTrailYet,
+    ]),
+  ),
   'navigate': HighlightDemo(
     route: '/trails',
     script: _demo('navigate', const [

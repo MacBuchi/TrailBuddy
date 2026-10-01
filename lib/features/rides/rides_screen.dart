@@ -8,9 +8,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/geo.dart';
+import '../../core/gpx_share.dart';
 import '../../core/router_branches.dart';
 import '../../core/widgets/motion.dart';
 import '../help/help_link.dart';
+import '../trails/gpx_writer.dart';
+import 'ride_export.dart';
 import 'ride_providers.dart';
 import 'ride_split_sheet.dart';
 import 'ride_track.dart';
@@ -93,6 +96,15 @@ class _RideTile extends ConsumerWidget {
     }
   }
 
+  /// Die ganze Fahrt als GPX, mit roher GPS-Höhe (#150) — die Sicherung
+  /// aus Konzept 10.4, über das Teilen-Blatt des Systems.
+  Future<void> _export(BuildContext context, WidgetRef ref) {
+    final track = rideToGpx(ride);
+    return shareGpx(context, ref,
+        fileName: rideExportFileName(ride),
+        xml: writeGpx(name: track.name, points: track.points));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListTile(
@@ -112,10 +124,28 @@ class _RideTile extends ConsumerWidget {
             ref.read(mapSplitRequestProvider.notifier).state = SplitRequest.fromRide(ride);
           },
         ),
-        IconButton(
-          tooltip: 'Fahrt löschen',
-          icon: const Icon(Icons.delete_outline),
-          onPressed: () => _delete(context, ref),
+        // Exportieren und Löschen in einem Menü (#150): Drei Symbole
+        // nebeneinander ließen auf einem kleinen Telefon vom Datum
+        // nichts mehr übrig.
+        PopupMenuButton<String>(
+          key: ValueKey('ride-menu-${ride.id}'),
+          tooltip: 'Mehr',
+          onSelected: (value) => switch (value) {
+            'export' => _export(context, ref),
+            _ => _delete(context, ref),
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              key: ValueKey('ride-export-${ride.id}'),
+              value: 'export',
+              child: const ListTile(
+                  leading: Icon(Icons.share_outlined), title: Text('Als GPX exportieren')),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Fahrt löschen')),
+            ),
+          ],
         ),
       ]),
       onTap: () {

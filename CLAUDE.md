@@ -1216,6 +1216,30 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `trailbuddy-push` (`kPushBridgeType`, ein Test hält beide zusammen).
     `tool/check_push_worker.mjs` prüft ihn im echten Chrome (Job „Build
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
+- **GPX-Export von Fahrten und Trails** (#150, seit 0.68.0; Konzept
+  10.4 „Sicherung ist der GPX-Export", 13 „Integration heißt Datei").
+  Writer `lib/features/trails/gpx_writer.dart` (neben dem Parser, er
+  nimmt dessen `TrackPoint`; Rundlauf-Test gegen `parseGpx`), pur je
+  Quelle `ride_export.dart` und `trail_export.dart`, Naht
+  `lib/core/gpx_share.dart` (`gpxShareProvider`, im Harness ein
+  Recorder). Einstiege: Menü an der Zeile in „Meine Fahrten", „Als GPX
+  exportieren" im Trail-Blatt. Vier Dinge, die man wissen muss:
+  - **Der Trail nimmt `best.ele`, nicht `Trail.elevation`.** Das
+    Höhenprofil kann aus einer ANDEREN Aufzeichnung kommen als die
+    Linie; an die Punkte der besten passen nur ihre eigenen Höhen.
+    Punkte und Höhen drehen sich gemeinsam bei `reversed`.
+  - **Nichts Fremdes in der Datei**: nur der eigene Link, keine
+    Buddy-Namen, keine Hinweise; eine Fahrt ohne ihre Fragen, Antworten
+    und Marken — die ganze Linie mit roher GPS-Höhe und Zeit.
+  - **Im Browser ist `ShareResultStatus.unavailable` ein Erfolg**:
+    `share_plus` lädt die Datei dann herunter. Das Einladungs-Muster
+    („unavailable ⇒ Zwischenablage") passt hier nicht; die App sagt
+    „wird heruntergeladen".
+  - **Kein Netzziel, kein `path_provider`**: `XFile.fromData` legt
+    `share_plus` selbst im Cache ab. Aber eine neue Richtung des
+    Datenflusses — Datenschutzerklärung, Konzept 2 (Tabelle),
+    `ride_track.dart` und `backup_rules.xml` sagen seither „nie von
+    selbst"; `privacy_policy_test` prüft weiter den Teilstring.
 - **Anfahrt zum Trailkopf** (#151, seit 0.67.0,
   `lib/features/trails/trail_navigation.dart`; Vorlage PilzBuddy #367):
   „Anfahrt" im Trail-Blatt reicht `Trail.start` als `geo:`-URI an

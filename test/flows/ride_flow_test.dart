@@ -191,12 +191,17 @@ void main() {
     await tester.tap(find.text('Meine Fahrten'));
     await settle(tester);
     expect(find.textContaining('40 min'), findsOneWidget);
-    await tester.tap(find.byTooltip('Fahrt löschen'));
+    // Löschen liegt seit 0.68.0 im Zeilenmenü, neben dem Export (#150).
+    await tester.tap(find.byTooltip('Mehr'));
+    await settle(tester);
+    await tester.tap(find.text('Fahrt löschen'));
     await settle(tester);
     await tester.tap(find.text('Abbrechen'));
     await settle(tester);
     expect(store.rides, hasLength(1));
-    await tester.tap(find.byTooltip('Fahrt löschen'));
+    await tester.tap(find.byTooltip('Mehr'));
+    await settle(tester);
+    await tester.tap(find.text('Fahrt löschen'));
     await settle(tester);
     await tester.tap(find.text('Löschen'));
     await settle(tester);

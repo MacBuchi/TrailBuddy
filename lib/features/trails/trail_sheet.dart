@@ -8,16 +8,19 @@ import '../../core/app_theme.dart' show AppFonts;
 import '../official/official_signposts.dart';
 import '../../core/errors.dart';
 import '../../core/geo.dart' show formatMeters;
+import '../../core/gpx_share.dart';
 import '../../core/read_after_write.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart' show SheetCoach;
+import 'gpx_writer.dart';
 import 'grade_shield.dart';
 import 'elevation_profile_chart.dart';
 import 'outbox_providers.dart';
 import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
+import 'trail_export.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_link.dart';
@@ -269,6 +272,29 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                   onPressed: () => launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication),
                   icon: const Icon(Icons.open_in_new, size: 18),
                   label: Text(linkHost(link)),
+                ),
+              ),
+            // Als GPX hinaus (#150): die angezeigte Linie in Trail-Richtung,
+            // Name und eigener Link — für jeden sichtbaren Trail, auch
+            // die der Buddys; nicht für wartende (ohne Server-Kennung ist
+            // noch nichts fertig).
+            if (!trail.pending)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CoachAnchor(
+                  id: SheetCoach.export,
+                  child: TextButton.icon(
+                    key: const ValueKey('trail-export'),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    onPressed: () {
+                      final track = trailToGpx(trail);
+                      shareGpx(context, ref,
+                          fileName: gpxFileName(track.name),
+                          xml: writeGpx(name: track.name, points: track.points, link: track.link));
+                    },
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    label: const Text('Als GPX exportieren'),
+                  ),
                 ),
               ),
             if (!trail.pending) ...[

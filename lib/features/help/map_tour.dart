@@ -83,6 +83,9 @@ abstract final class SheetCoach {
 
   /// „Anfahrt" — der Trailkopf an eine Navi-App (#151).
   static const navigate = 'sheet.navigate';
+
+  /// „Als GPX exportieren" (#150).
+  static const export = 'sheet.export';
 }
 
 /// Die Startseite beim ERSTEN Start (#133). Sie nennt die drei Wege, auf

@@ -74,7 +74,7 @@ wie Strava sie zwischen Segment und Aktivität macht.
 
 | Begriff | Bedeutet | Wem gehört es | Verlässt das Gerät |
 |---|---|---|---|
-| **Fahrt** | Eine GPS-Aufzeichnung von Start bis Ziel, mit Zeiten. | dem Nutzer, gerätelokal | **nie** |
+| **Fahrt** | Eine GPS-Aufzeichnung von Start bis Ziel, mit Zeiten. | dem Nutzer, gerätelokal | **nie von selbst** (nur als GPX-Export von Hand, #150) |
 | **Aufzeichnung** | Ein Ausschnitt einer Fahrt (oder einer importierten GPX-Datei), der einen Trail belegt: Linie, Zeitpunkt, Richtung, GPS-Qualität. | dem Nutzer | ja, an den Server |
 | **Trail** | Die Kennung für „dieses Stück Weg auf dem Boden". Trägt selbst nichts Sichtbares. | niemandem | — |
 | **Beitrag** | Alles, was ein Nutzer über einen Trail sagt: Name, Beschreibung, S-Grad, Typ, Status, Sichtbarkeit. Genau einer je Nutzer und Trail. | dem Nutzer | ja |
@@ -886,7 +886,7 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   (#96, ERLEDIGT 0.66.0), Anfahrt zum Trailkopf per Übergabe an die
   Navi-App (#151, ERLEDIGT 0.67.0),
   GPX-Export von Fahrten und Trails (#150 — Entscheidung 10.4 setzt ihn
-  voraus), Neuheiten-Vorschau bei der Freigabe (#152),
+  voraus; ERLEDIGT 0.68.0), Neuheiten-Vorschau bei der Freigabe (#152),
   `docs/play-console.md` und ein Entwurf der Nutzungsbedingungen (#39,
   Teil). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
   aus dem Rework.
@@ -1019,7 +1019,7 @@ Outdooractive oder Trailforks — und soll sie NEBEN TrailBuddy benutzen
 können, ohne dass eine der beiden Seiten etwas über die andere erfährt.
 
 **Integration heißt Datei, nicht Konto.** GPX hinein gibt es (5.2);
-GPX hinaus kommt mit #150 (Fahrten als Sicherung, Trails als Brücke);
+GPX hinaus seit 0.68.0 (#150: Fahrten als Sicherung, Trails als Brücke);
 die Anfahrt übergibt #151 an die Navi-App des Nutzers. Der Fluss, den
 das trägt: Trails als GPX exportieren → in Komoot oder Outdooractive die
 Verbindung planen → die geplante Tour als Fahrt importieren → das
