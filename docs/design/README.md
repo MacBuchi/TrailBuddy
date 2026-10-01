@@ -480,7 +480,8 @@ Bewegung steht überall das Endbild, kein Takt läuft. Fünf Abweichungen:
 ## 10. Nicht bauen
 
 Nachrichten (1m, #34 Rest), Fahrt-Zusammenfassung mit Airtime (1n, #36)
-und Routing zum Trailkopf (1o, #35) sind Entwürfe für später.
+und Routing zum Trailkopf (1o, #35) sind Entwürfe für später; vor dem
+Routing kommt die Übergabe an eine Navi-App (#151, Konzept 9).
 
 ## 11. Umsetzung
 
