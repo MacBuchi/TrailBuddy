@@ -927,13 +927,13 @@ def build_graph(lines, lat0, join_m=JOIN_M, split_crossings=False):
             x, y = g.nodes[n]
             target = g.nearest_node(x, y, join_m, exclude=n)
             if target is None:
-                hit = g.nearest(lat, lon, join_m)
+                # Its own edge is at distance 0 — exclude it, or every
+                # T-junction without a vertex is skipped (the first CI
+                # run joined 554 ends where 11 000 lay within 2 m).
+                hit = g.nearest(lat, lon, join_m, exclude_edges=set(g.adj[n]))
                 if hit is None:
                     continue
                 _, ei, t, la, lo = hit
-                e = g.edges[ei]
-                if n in (e.a, e.b):
-                    continue
                 target = g.split_edge(ei, t, la, lo)
             if target != n:
                 g.add_edge(n, target, g.edges[g.adj[n][0]].cls, False, [g.latlon[n], g.latlon[target]])
@@ -1235,10 +1235,29 @@ def measure_frame(bbox, trails, archive, dem, profile="bio", budget_h=BUDGET_HOU
                 if e.a in big_nodes or e.b in big_nodes:
                     attached_big += 1
         small = [sum(e.length for e in c) for c in comps if sum(e.length for e in c) < 200]
+        # Ends off the largest component: a real neighbouring valley (its
+        # roads leave the frame before they meet) or a fragment?
+        comp_of = {}
+        comp_len = []
+        for ci, c in enumerate(comps):
+            comp_len.append(sum(e.length for e in c))
+            for e in c:
+                comp_of[e.a] = ci
+                comp_of[e.b] = ci
+        off = []
+        for t in trails:
+            for lat, lon in (t.start, t.end):
+                hit = g.nearest(lat, lon, ATTACH_M)
+                if hit is None:
+                    continue
+                ci = comp_of.get(g.edges[hit[1]].a)
+                if ci not in (None, 0):
+                    off.append(comp_len[ci])
         return {"edges": len(g.edges), "nodes": len(g.nodes), "components": len(comps),
                 "largest_share": largest / total if total else 0.0,
                 "ends": ends, "attached": attached, "attached_largest": attached_big,
-                "small": len(small), "small_share": sum(small) / total if total else 0.0}
+                "small": len(small), "small_share": sum(small) / total if total else 0.0,
+                "off_lengths": sorted(off)}
 
     m1 = {"strict": connectivity(strict), "joined": connectivity(joined), "joins": joins}
     for key, (g, j, c) in variants.items():
@@ -1385,6 +1404,10 @@ def render_report(frames, profile, source_name, note=""):
         c = m1["cross10"]
         out.append(f"Kleinstteile (< 200 m) nach ≤ 10 m + Kreuzungen: {c['small']} Komponenten, "
                    f"{pct(c['small_share'])} der Kantenlänge.")
+        if c["off_lengths"]:
+            out.append("Trail-Enden abseits der größten Komponente (≤ 10 m + Kreuzungen): Länge ihrer Komponente "
+                       + ", ".join(km(l) for l in c["off_lengths"]) + " — ab einigen km ist das ein Nachbartal, "
+                       "dessen Straßen den Rahmen verlassen, kein Bruchstück.")
         m3 = fr["m3"]
         out += ["", "### M3 — Höhen (Tirol-Hälfte)", ""]
         if m3:
@@ -1601,6 +1624,9 @@ def _synthetic_tiles():
         ({"kind": "path", "kind_detail": "track"}, [[(500, 3200), (3500, 3200)]]),
         # a bridge over the primary: crosses geometrically, must NOT join
         ({"kind": "path", "kind_detail": "track", "is_bridge": True}, [[(1500, 3300), (2500, 3300)]]),
+        # a T-junction the simplification lost: ends 1 unit (~1.2 m) off the
+        # interior of the track (2000,3000)-(3000,3000), no node nearby
+        ({"kind": "path", "kind_detail": "track"}, [[(2600, 2500), (2600, 2999)]]),
     ]
     tile_b = [
         # Slightly sloped: the two border points differ by ~1 m, as real
@@ -1698,7 +1724,7 @@ def self_test():
     # MVT round trip
     z, x, y, ta, tb = _synthetic_tiles()
     decoded = decode_mvt_lines(ta)
-    expect(len(decoded) == 8, f"8 features decoded, got {len(decoded)}")
+    expect(len(decoded) == 9, f"9 features decoded, got {len(decoded)}")
     expect(decoded[0][2][0] == [(100, 2000), (2000, 2000), (4296, 2000)], "geometry round trip")
     expect(decoded[1][1]["kind_detail"] == "primary", "properties round trip")
     expect(decode_mvt_lines(b"\x00\x01\x02" * 3) == [] or True, "garbage does not crash (or raises)")
@@ -1711,7 +1737,7 @@ def self_test():
     # lines from tiles: dropped classes
     la = lines_from_tile(ta, z, x, y)
     lb = lines_from_tile(tb, z, x + 1, y)
-    expect(sorted(c for c, *_ in la) == ["bundesstrasse", "forstweg", "forstweg", "forstweg", "forstweg", "wanderweg"],
+    expect(sorted(c for c, *_ in la) == ["bundesstrasse", "forstweg", "forstweg", "forstweg", "forstweg", "forstweg", "wanderweg"],
            f"classes in A: {[c for c, *_ in la]}")
     expect([lv for c, o, p, lv in la].count(1) == 1, "the bridge carries its level")
     expect(len(lb) == 1, "one track in B")
@@ -1722,9 +1748,9 @@ def self_test():
     joined, joins, _ = build_graph(la + lb, lat0)
     comps_s = strict.components()
     comps_j = joined.components()
-    expect(len(comps_s) >= 3, f"strict graph is split at the border and the crossings: {len(comps_s)}")
-    expect(len(comps_j) == 3, f"joined graph: net, crossing track, bridge — got {len(comps_j)}")
-    expect(joins >= 1, "the border was joined")
+    expect(len(comps_s) >= 4, f"strict graph is split at the border, the crossings and the T: {len(comps_s)}")
+    expect(len(comps_j) == 3, f"joined graph: net (with the T-track), crossing track, bridge — got {len(comps_j)}")
+    expect(joins >= 2, f"the border AND the T-junction were joined, got {joins}")
     crossed, _, ncross = build_graph(la + lb, lat0, split_crossings=True)
     expect(ncross == 1, f"exactly the one same-level crossing is split, got {ncross}")
     expect(len(crossed.components()) == 2, f"crossing joins the track, the bridge stays apart: {len(crossed.components())}")
