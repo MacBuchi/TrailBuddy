@@ -21,6 +21,8 @@ import '../rides/ride_providers.dart';
 import '../rides/ride_split_sheet.dart';
 import '../rides/ride_task_handler.dart';
 import '../rides/ride_track.dart';
+import '../routing/trail_head_providers.dart';
+import '../routing/trail_head_sheet.dart';
 import '../official/official_trails.dart';
 import '../official/official_trails_layer.dart';
 import '../official/official_trails_source.dart';
@@ -455,6 +457,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       })));
   }
 
+  /// „Zum Trailkopf" (#158 Schritt 4): das Blatt über der Karte; der
+  /// Trail kommt frisch aus der Liste, der Wunsch trägt nur die Kennung.
+  void _openTrailHead(String id) {
+    final trail = ref.read(trailByIdProvider(id));
+    if (trail == null) return;
+    unawaited(showTrailHeadSheet(context, trail));
+  }
+
   /// „Fahrt zerlegen" aus „Meine Fahrten" oder dem GPX-Import (#29):
   /// die Spur einpassen, das Blatt öffnen.
   void _openSplit(SplitRequest request) {
@@ -490,6 +500,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final ride = ref.watch(rideProvider);
     final focusRide = ref.watch(mapFocusRideProvider);
     final splitPreview = ref.watch(rideSplitPreviewProvider);
+    final trailHeadPreview = ref.watch(trailHeadPreviewProvider);
     final canRecord = ref.watch(rideRecordingAvailableProvider);
     final cachedAt = ref.watch(trailsCachedAtProvider);
 
@@ -516,6 +527,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ref.listen(mapFocusTrailProvider, (_, id) {
       if (id == null) return;
       _takeFocusWish();
+    });
+    // „Zum Trailkopf" (#158 Schritt 4): Das Trail-Blatt stellt den Wunsch,
+    // die Karte rechnet und zeigt — die Vorschau gehört hierher. Nach dem
+    // Bild, nicht im Listener: Der Wunsch kommt aus einem Blatt, das
+    // gerade schließt, und der Reiter wechselt im selben Zug.
+    ref.listen(trailHeadRequestProvider, (_, id) {
+      if (id == null) return;
+      ref.read(trailHeadRequestProvider.notifier).state = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openTrailHead(id);
+      });
+    });
+    // Sobald die Route steht, einmal auf sie einpassen — nicht bei jedem
+    // Profilwechsel, der nur die Linie tauscht.
+    ref.listen(trailHeadPreviewProvider, (prev, next) {
+      if ((prev == null || prev.isEmpty) && next.isNotEmpty) {
+        _fittedOnce = true;
+        _fitPoints([for (final l in next) ...l.points]);
+      }
     });
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#30). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
@@ -608,6 +638,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ...splitPreview
         else if (focusRide != null)
           _ridePolyline(focusRide.points),
+        // Der Weg zum Trailkopf (#158 Schritt 4), solange sein Blatt offen
+        // ist — über der Fahrt, unter dem Netz.
+        ...trailHeadPreview,
         if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
         for (final t in shownTrails)
           MapViewPolyline(

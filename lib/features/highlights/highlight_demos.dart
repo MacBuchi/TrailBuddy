@@ -114,12 +114,29 @@ final kHighlightDemos = <String, HighlightDemo>{
       _noTrailYet,
     ]),
   ),
+  'trail-head': HighlightDemo(
+    route: '/trails',
+    script: _demo('trail-head', const [
+      _openTrailFirst,
+      CoachStep(
+        title: 'Der Weg aus deinen Bereichen',
+        text: 'Rechnet den Weg von deinem Standort zum Anfang des Trails — '
+            'offline, aus den Wegen in deinen gespeicherten Bereichen, nach '
+            'deinem Fahrerprofil. Die Karte zeigt die Linie, das Blatt '
+            'Höhenmeter und Zeit; als GPX geht sie an jede Navi-App.',
+        scene: TrailsCoach.sheet,
+        lit: [SheetCoach.trailHead],
+        requires: [TrailsCoach.row],
+      ),
+      _noTrailYet,
+    ]),
+  ),
   'navigate': HighlightDemo(
     route: '/trails',
     script: _demo('navigate', const [
       _openTrailFirst,
       CoachStep(
-        title: 'Zum Trailkopf',
+        title: 'In die Navi-App',
         text: 'Übergibt den Anfang des Trails an deine Navi-App — du wählst, '
             'welche. Die App selbst baut dabei keine Verbindung auf; ohne '
             'Navi-App landen die Koordinaten in der Zwischenablage.',

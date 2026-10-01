@@ -114,7 +114,9 @@ const kHelpSteps = <HelpStep>[
         '$kReportFieldLabel (gesperrt, zerstört, verändert) und der Zustand; '
         'bestätigt ist sie, wenn du ihn gefahren hast oder vor Ort bist. Ein '
         'Hinweis erzählt Buddys, was los ist, und leuchtet bei ihnen gelb. '
-        '„Anfahrt" übergibt den Anfang des Trails an deine Navi-App.',
+        '„Anfahrt" übergibt den Anfang des Trails an deine Navi-App; „Zum '
+        'Trailkopf" rechnet den Weg dorthin selbst — offline, aus deinen '
+        'gespeicherten Bereichen, mit Höhenmetern und Zeit.',
   ),
   HelpStep(
     icon: _HelpIcon(Icons.wifi_off),

@@ -243,14 +243,32 @@ class _ExampleTrailSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            CoachAnchor(
-              id: SheetCoach.navigate,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                onPressed: _nothing,
-                icon: const Icon(Icons.directions_outlined),
-                label: const Text('Anfahrt'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: CoachAnchor(
+                    id: SheetCoach.trailHead,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: _nothing,
+                      icon: const Icon(Icons.route_outlined),
+                      label: const Text('Zum Trailkopf'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CoachAnchor(
+                    id: SheetCoach.navigate,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: _nothing,
+                      icon: const Icon(Icons.directions_outlined),
+                      label: const Text('Anfahrt'),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

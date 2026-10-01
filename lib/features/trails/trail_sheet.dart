@@ -14,6 +14,7 @@ import '../../core/router_branches.dart';
 import '../../models/trail.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart' show SheetCoach;
+import '../routing/trail_head_providers.dart';
 import 'gpx_writer.dart';
 import 'grade_shield.dart';
 import 'elevation_profile_chart.dart';
@@ -386,13 +387,33 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                   ),
                 ],
               ),
-            // Anfahrt (#151) und zur Karte in einer eigenen Zeile: Drei
-            // Knöpfe nebeneinander passen auf ein kleines Telefon nicht.
-            // Die Anfahrt gibt es auch für wartende Trails — Punkte haben
-            // sie, der Trailkopf steht fest.
+            // „Zum Trailkopf" (#158 Schritt 4) und Anfahrt (#151) in einer
+            // Zeile, zur Karte darunter: Drei Knöpfe nebeneinander passen
+            // auf ein kleines Telefon nicht. Beides gibt es auch für
+            // wartende Trails — Punkte haben sie, der Trailkopf steht fest.
             if (!trail.pending) const SizedBox(height: 8),
             Row(
               children: [
+                Expanded(
+                  child: CoachAnchor(
+                    id: SheetCoach.trailHead,
+                    child: OutlinedButton.icon(
+                    key: const ValueKey('trail-head'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                    onPressed: () {
+                      // Der Weg wird auf der Karte gezeigt: erst das Blatt zu,
+                      // dann der Reiter, dann der Wunsch — die Karte löst ihn
+                      // nach dem nächsten Bild ein (wie der Fokus-Wunsch).
+                      final request = ref.read(trailHeadRequestProvider.notifier);
+                      Navigator.of(context).pop();
+                      StatefulNavigationShell.maybeOf(context)?.goBranch(kMapBranchIndex);
+                      request.state = trail.id;
+                    },
+                    icon: const Icon(Icons.route_outlined),
+                    label: const Text('Zum Trailkopf'),
+                  )),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: CoachAnchor(
                     id: SheetCoach.navigate,
@@ -404,28 +425,26 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                     label: const Text('Anfahrt'),
                   )),
                 ),
-                if (widget.showOnMapButton) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: CoachAnchor(
-                      id: SheetCoach.showOnMap,
-                      child: OutlinedButton.icon(
-                      key: const ValueKey('trail-show-on-map'),
-                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                      onPressed: () {
-                        // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
-                        Navigator.of(context).pop();
-                        StatefulNavigationShell.maybeOf(context)
-                            ?.goBranch(kMapBranchIndex);
-                        ref.read(mapFocusTrailProvider.notifier).state = trail.id;
-                      },
-                      icon: const Icon(Icons.map),
-                      label: const Text('Karte'),
-                    )),
-                  ),
-                ],
               ],
             ),
+            if (widget.showOnMapButton) ...[
+              const SizedBox(height: 8),
+              CoachAnchor(
+                id: SheetCoach.showOnMap,
+                child: OutlinedButton.icon(
+                key: const ValueKey('trail-show-on-map'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                onPressed: () {
+                  // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
+                  Navigator.of(context).pop();
+                  StatefulNavigationShell.maybeOf(context)
+                      ?.goBranch(kMapBranchIndex);
+                  ref.read(mapFocusTrailProvider.notifier).state = trail.id;
+                },
+                icon: const Icon(Icons.map),
+                label: const Text('Karte'),
+              )),
+            ],
           ],
         ),
       ),

@@ -84,6 +84,9 @@ abstract final class SheetCoach {
   /// „Anfahrt" — der Trailkopf an eine Navi-App (#151).
   static const navigate = 'sheet.navigate';
 
+  /// „Zum Trailkopf" (#158 Schritt 4) — der Weg aus den eigenen Bereichen.
+  static const trailHead = 'sheet.trailHead';
+
   /// „Als GPX exportieren" (#150).
   static const export = 'sheet.export';
 }
