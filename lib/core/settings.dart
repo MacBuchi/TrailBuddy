@@ -72,6 +72,14 @@ abstract interface class Settings {
 
   Future<void> setLoopPlannerPrefs(String value);
 
+  /// Die gelernten Werte des Zeitmodells je Profil (Schritt 6,
+  /// Konzept-Routing 2.1), kodiert von `RiderCalibrations`; null heißt
+  /// die Vorgaben. Gerätelokal — gelernt wird nur aus eigenen Fahrten,
+  /// und die verlassen das Gerät nie.
+  String? get riderCalibration;
+
+  Future<void> setRiderCalibration(String? value);
+
   /// Ist die Ebene „Offizielle Trails" an (#13)? Vorgabe: an
   /// (Entscheidung des Betreibers, Konzept offizielle Trails 2.5).
   bool get officialTrailsEnabled;
@@ -216,6 +224,16 @@ class PrefsSettings implements Settings {
 
   @override
   Future<void> setLoopPlannerPrefs(String value) => _prefs.setString(_loopPlannerPrefsKey, value);
+
+  static const _riderCalibrationKey = 'rider_calibration';
+
+  @override
+  String? get riderCalibration => _prefs.getString(_riderCalibrationKey);
+
+  @override
+  Future<void> setRiderCalibration(String? value) => value == null
+      ? _prefs.remove(_riderCalibrationKey)
+      : _prefs.setString(_riderCalibrationKey, value);
 
   static const _appearanceKey = 'appearance';
 

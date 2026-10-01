@@ -1687,6 +1687,39 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `Flexible` + `FittedBox(scaleDown)` und skaliert nur dort herunter,
   hochkant bleiben es 44 px (`map_shell_test`). Das Konzept hatte
   genau diese Messung verlangt.
+- **Kalibrierung aus eigenen Fahrten** (Schritt 6, seit 0.73.0,
+  `ride_calibration.dart` pur, `ride_calibrator.dart`; Konzept-Routing
+  2.1, Entscheidung 8.1 „Vorgaben zuerst, Lernen je Profil"). Fünf
+  Dinge, die man wissen muss:
+  - **Das Zeitmodell rechnet mit `RiderParams`, nicht mit dem Enum.**
+    `RiderProfile` implementiert die Schnittstelle (Vorgaben),
+    `CalibratedRider` überlagert sie mit den gelernten Werten; Suche,
+    Planer und „Zum Trailkopf" nehmen `RiderParams`, die Blätter lesen
+    `calibratedRiderProvider(profile)`. Die Zahlen des Enums bleiben
+    der Spiegel des Werkzeugs (`route_profile_test`).
+  - **Spiegel des Werkzeugs, nicht neu erfunden**: `ascentSections` ist
+    `ride_sections` (100 hm, 15 m, Fenster 7 — derselbe Median wie das
+    Zerlege-Blatt, `smoothElevation`), `classMixAlong` ist
+    `class_mix_along` (5 m, 15 m). Der Median über sieben Punkte kappt
+    Anfang und Gipfel: 150 hm in 10 min werden 855 hm/h, nicht 900 —
+    im Flow-Test gefunden und so erwartet, weil das Werkzeug dasselbe
+    misst. Dazu die Flachgeschwindigkeit (nicht im Werkzeug): Stücke
+    zwischen den Aufstiegen, ≥ 500 m, Steigung unter 2 %, auf
+    Forstweg/Straße.
+  - **Erst ab drei Messungen und nur in der Spanne** (`kCalibMinSections`,
+    150–1 500 hm/h, 8–30 km/h): Eine Fahrt mit hängendem GPS wäre sonst
+    die neue Wahrheit. Was fehlt, bleibt Vorgabe, und die Anzeige sagt
+    je Zahl „(gelernt)".
+  - **Auf Knopfdruck, nicht nach jeder Fahrt**: Das Einordnen baut je
+    Fahrt den Graphen ihrer Bereiche — `loadRoadGraph(requireComplete:
+    false)` liefert dafür auch einen halben Graphen (Abschnitte in
+    fehlenden Kacheln sind „abseits" und zählen nicht); geplant wird
+    nie auf einem halben. Geplante Fahrten, Fahrten ohne Profil (vor
+    0.70.0) und ohne Höhen lernen nichts; der Satz danach sagt, was
+    gezählt hat.
+  - **Gerätelokal** (`Settings.riderCalibration`, JSON je Profil,
+    `RiderCalibrations.encode/parse`, Unlesbares ⇒ Vorgaben); nie aus
+    Fahrten anderer (Konzept 12). Zurücksetzen je Profil.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

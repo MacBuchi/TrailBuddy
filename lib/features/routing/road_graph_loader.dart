@@ -28,12 +28,18 @@ typedef RoadGraphLoadResult = ({
 /// Baut den Graphen für [box] (in Grad, mit einem Rand von
 /// [marginM] Metern) aus [areas]. [open] liefert je Bereich die
 /// Kachelquelle, [heights] die Höhen — null heißt: alle Kanten flach.
+/// Mit [requireComplete] false kommt auch bei `partial` ein Graph aus
+/// den gefundenen Kacheln — für die Kalibrierung (Schritt 6), die eine
+/// Fahrt nur EINORDNET (welche Wegklasse liegt unter dem Aufstieg) und
+/// nichts plant; ein Abschnitt in einer fehlenden Kachel ist dann
+/// „abseits" und zählt nicht. Geplant wird nie auf einem halben Graphen.
 Future<RoadGraphLoadResult> loadRoadGraph({
   required List<StoredArea> areas,
   required LatBox box,
   required Future<PmTilesVectorTileProvider?> Function(StoredArea area) open,
   HeightReader? heights,
   double marginM = 0,
+  bool requireComplete = true,
 }) async {
   final dLat = marginM / 111320.0;
   final bounds = AreaBounds(
@@ -81,12 +87,13 @@ Future<RoadGraphLoadResult> loadRoadGraph({
     }
   }
   if (found == 0) return none(RoadCoverage.none, 0);
-  if (found < tiles.length) return none(RoadCoverage.partial, found);
+  final partial = found < tiles.length;
+  if (partial && requireComplete) return none(RoadCoverage.partial, found);
   final build = buildRoadGraph(lines, lat0: (box.s + box.n) / 2);
   if (heights != null) await addClimbs(build.graph, heights);
   return (
     graph: build.graph,
-    coverage: RoadCoverage.complete,
+    coverage: partial ? RoadCoverage.partial : RoadCoverage.complete,
     tilesNeeded: tiles.length,
     tilesFound: found,
     joins: build.joins,

@@ -54,7 +54,7 @@ class TrailHeadRoute {
     required this.points,
   });
 
-  final RiderProfile profile;
+  final RiderParams profile;
   final PathSummary summary;
   final List<RouteSection> sections;
 
@@ -74,7 +74,7 @@ class TrailHeadPlan {
 }
 
 /// Plant den Weg von [from] zum Trailkopf [head] auf [g] mit [profile].
-TrailHeadPlan planTrailHeadRoute(RoadGraph g, LatLng from, LatLng head, RiderProfile profile) {
+TrailHeadPlan planTrailHeadRoute(RoadGraph g, LatLng from, LatLng head, RiderParams profile) {
   final src = g.attach(from);
   if (src == null) return const TrailHeadPlan(TrailHeadOutcome.startOffNetwork);
   final dst = g.attach(head);

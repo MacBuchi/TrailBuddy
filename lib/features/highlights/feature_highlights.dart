@@ -418,6 +418,18 @@ const kFeatureHighlights = <FeatureHighlight>[
     target: '/profile/notifications',
   ),
   FeatureHighlight(
+    id: 'rider-learn',
+    since: '0.73.0',
+    kind: HighlightKind.tip,
+    tab: HighlightTab.profile,
+    icon: Icons.school_outlined,
+    title: 'Gelernt aus deinen Fahrten',
+    text: 'Unter „Fahrerprofil": „Aus meinen Fahrten lernen" liest Zeit und '
+        'GPS-Höhe deiner Aufzeichnungen und stellt Steigrate und '
+        'Flachgeschwindigkeit je Profil auf dich ein. Zurücksetzen geht jederzeit.',
+    target: '/profile/rider',
+  ),
+  FeatureHighlight(
     id: 'rider-profile',
     since: '0.70.0',
     kind: HighlightKind.tip,

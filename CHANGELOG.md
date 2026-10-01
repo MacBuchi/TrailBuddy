@@ -2,6 +2,21 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Auf dich eingestellt: gelernt aus deinen Fahrten
+
+*Version 0.73.0, 2026-10-01*
+
+- Unter „Fahrerprofil" im Profil gibt es jetzt **„Aus meinen Fahrten
+  lernen"**: Die App liest Zeit und GPS-Höhe deiner Aufzeichnungen, findet
+  die Aufstiege ab 100 Höhenmetern am Stück, ordnet sie über die Wege
+  deiner gespeicherten Bereiche ein und merkt sich je Profil deine
+  Steigrate (Forstweg, Pfad, Schieben) und deine Flachgeschwindigkeit.
+- „Zum Trailkopf" und der Rundenplaner rechnen dann mit deinen Werten
+  statt mit den Vorgaben — gelernte Zahlen stehen als „(gelernt)" dabei.
+- Gelernt wird nur aus deinen eigenen Fahrten, nur auf diesem Gerät, und
+  erst ab drei Aufstiegen je Wert; Fahrten ohne Profil oder ohne Höhen
+  zählen nicht. **Zurücksetzen** bringt die Vorgaben zurück.
+
 ## Runde planen — deine Trails, bergab verbunden
 
 *Version 0.72.0, 2026-10-01*

@@ -413,6 +413,15 @@ final kHighlightDemos = <String, HighlightDemo>{
               'Android Benachrichtigungen nicht erlaubt.'),
     ]),
   ),
+  'rider-learn': HighlightDemo(
+    route: '/profile',
+    script: _demo('rider-learn', [
+      _profileRow('rider', 'Auf dich eingestellt',
+          'Unter „Fahrerprofil" lernt die App aus deinen Aufzeichnungen, wie '
+              'schnell du wirklich bergauf kommst — je Profil, nur aus deinen '
+              'Fahrten, nur auf diesem Gerät. Die Planer rechnen dann damit.'),
+    ]),
+  ),
   'rider-profile': HighlightDemo(
     route: '/profile',
     script: _demo('rider-profile', [

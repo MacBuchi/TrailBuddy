@@ -14,10 +14,28 @@
 //
 // Rein: keine Widgets, kein Riverpod, keine Platte.
 
+/// Die Zahlen, mit denen das Zeitmodell rechnet — das Profil mit seinen
+/// Vorgaben ([RiderProfile]) oder das Profil mit gelernten Werten
+/// (`CalibratedRider`, Schritt 6). Die Engine fragt nur diese Schnitt-
+/// stelle; welches Profil dahintersteht, sagt [profile].
+abstract interface class RiderParams {
+  RiderProfile get profile;
+  double get climbTrackMPerH;
+  double get climbPathMPerH;
+  double get pushRateMPerH;
+  double get vFlatKmh;
+  double get vPathUpKmh;
+  double get vPushKmh;
+  double get vDownKmh;
+  double get pathUpFactor;
+  double get pathDownFactor;
+  double get budgetClimbM;
+}
+
 /// Bio-Bike oder E-Bike (Konzept-Routing 2.1). Das Profil ändert drei
 /// Dinge und sonst nichts: Steigraten, Aufschlag Wanderweg bergauf,
 /// Budget-Vorgabe. Wegerechte und die Trail-Seite bleiben gleich.
-enum RiderProfile {
+enum RiderProfile implements RiderParams {
   bio(
     label: 'Bio-Bike',
     climbTrackMPerH: 450,
@@ -61,24 +79,37 @@ enum RiderProfile {
 
   final String label;
 
+  @override
+  RiderProfile get profile => this;
+
   /// Steigrate auf Forstweg und Straße, auf Pfaden (fahrend) und beim
   /// Schieben (Steig, Stufen), in Höhenmetern je Stunde.
+  @override
   final double climbTrackMPerH;
+  @override
   final double climbPathMPerH;
+  @override
   final double pushRateMPerH;
 
   /// Geschwindigkeiten: flach auf Forstweg/Straße, Pfad bergauf
   /// (fahrend), schiebend, Straße/Forstweg bergab.
+  @override
   final double vFlatKmh;
+  @override
   final double vPathUpKmh;
+  @override
   final double vPushKmh;
+  @override
   final double vDownKmh;
 
   /// Aufschlag Wanderweg bergauf und bergab.
+  @override
   final double pathUpFactor;
+  @override
   final double pathDownFactor;
 
   /// Vorgabe „höchstens Höhenmeter bergauf" (Konzept-Routing 2.3).
+  @override
   final double budgetClimbM;
 
   /// Der gespeicherte Name (`Settings.riderProfile`); unbekannt ⇒ Bio.
@@ -148,8 +179,8 @@ enum WayClass {
         _ => false,
       };
 
-  double upFactor(RiderProfile p) => up ?? p.pathUpFactor;
-  double downFactor(RiderProfile p) => down ?? p.pathDownFactor;
+  double upFactor(RiderParams p) => up ?? p.pathUpFactor;
+  double downFactor(RiderParams p) => down ?? p.pathDownFactor;
 }
 
 /// Die Klasse eines `roads`-Features der Kacheln, oder null, wenn die
@@ -192,7 +223,7 @@ WayClass? classifyWay({
 /// Bergab (mehr Verlust als Gewinn) zählt nur die Strecke — mit der
 /// Abfahrtsgeschwindigkeit, auf einem Wanderweg wie auf einem Trail ohne
 /// Einschätzung, auf Stufen schiebend.
-double edgeTimeS(RiderProfile p, WayClass cls,
+double edgeTimeS(RiderParams p, WayClass cls,
     {required double lengthM, required double gainM, required double lossM}) {
   final downhill = lossM > gainM;
   final double vKmh;
@@ -221,13 +252,13 @@ double trailTimeS({required double lengthM, required int? grade}) =>
 
 /// Der Aufschlag der Kante — bergab der Abstiegs-, sonst der
 /// Anstiegsaufschlag.
-double edgeFactor(RiderProfile p, WayClass cls, {required double gainM, required double lossM}) =>
+double edgeFactor(RiderParams p, WayClass cls, {required double gainM, required double lossM}) =>
     lossM > gainM ? cls.downFactor(p) : cls.upFactor(p);
 
 /// Kosten = Zeit × Aufschlag (Konzept-Routing 2.4): Der Aufschlag sagt,
 /// was die Zeit nicht sagt — eine Bundesstraße ist nicht langsam, sie
 /// ist falsch.
-double edgeCostS(RiderProfile p, WayClass cls,
+double edgeCostS(RiderParams p, WayClass cls,
         {required double lengthM, required double gainM, required double lossM}) =>
     edgeTimeS(p, cls, lengthM: lengthM, gainM: gainM, lossM: lossM) *
     edgeFactor(p, cls, gainM: gainM, lossM: lossM);
