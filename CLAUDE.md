@@ -1502,8 +1502,16 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Reset-Konvention wie beim Hinweis). `FakeSettings.highlightsSeenVersion`
   steht auf `9999.0.0`, die App auf `null` — andersherum läge das Blatt
   über jedem Flow-Test; in der Gegenprobe (Vorgabe `null`) brechen
-  50 Tests. Die Vorschau der Neuheiten in der Run-Summary von
-  `promote.yml` (PilzBuddys `tool/highlights_preview.py`) fehlt noch.
+  50 Tests. **Die Run-Summary von `promote.yml` zeigt, was das Blatt
+  bringt** (#152, `tool/highlights_preview.py`, PilzBuddy-Port): gelesen
+  aus dem BEFÖRDERTEN Tag, gezählt ab dem letzten stabilen Stand, kein
+  Tor. Anders als in PilzBuddy zwei Grenzen: Wer von einem Stand vor
+  0.60.0 kommt (`TOUR_SINCE`), hat die Tour nie gesehen und bekommt die
+  Willkommens-Tour statt eines Blatts; bis vor 0.64.0
+  (`MEMORY_SINCE`) den Rückblick; erst danach ist „kein Highlight" eine
+  Warnung. Wird ein Merker zurückgesetzt, ziehen die Konstanten mit.
+  Der Selbsttest prüft auch die Verdrahtung in `promote.yml` — dort
+  statt in `test/`, damit ein Werkzeug-PR keinen Bump braucht.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

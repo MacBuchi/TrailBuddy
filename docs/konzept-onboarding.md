@@ -411,7 +411,7 @@ Startseite und Kette kommen in PR 3.
 - PR-Template: „Visible feature? Entry in `kFeatureHighlights` plus its
   demo — or one sentence why not.“ Dieselbe Regel in `CLAUDE.md`. Die
   Vorschau der Neuheiten in der Run-Summary von `promote.yml`
-  (PilzBuddys `tool/highlights_preview.py`) ist ein Folge-Issue.
+  (PilzBuddys `tool/highlights_preview.py`) kam mit #152.
 - Tests: `feature_highlights_test` (Kennungen einmalig, `since` ≤
   pubspec, Texte ≤ 3 Sätze, Ziel beginnt mit `/`, die
   `planHighlights`-Fälle), `feature_highlights_flow_test` (Bestand
