@@ -36,6 +36,10 @@ void main() {
         find.descendant(of: find.byKey(ValueKey('profile-$id')), matching: find.text(text));
     expect(value('notifications', 'Aus'), findsOneWidget);
     expect(value('appearance', 'Dunkel'), findsOneWidget);
+    expect(value('rider', 'Bio-Bike'), findsOneWidget, reason: 'Vorgabe Bio-Bike');
+    // Mit der Zeile „Fahrerprofil" (0.70.0) liegt das Konto unter dem Rand
+    // der faulen Liste — erst hinscrollen, sonst ist die Zeile nicht gebaut.
+    await scrollTo(tester, find.byKey(const ValueKey('profile-account')));
     expect(value('account', 'Name, E-Mail, Passwort, Geräte'), findsOneWidget);
     // Konto löschen liegt nicht mehr auf der ersten Seite.
     expect(find.text('Konto löschen'), findsNothing);

@@ -13,6 +13,7 @@ class FakeSettings implements Settings {
       this.officialTrailsEnabled = true,
       this.pushToken,
       this.appearance,
+      this.riderProfile,
       // „Schon gesehen" ist die Vorgabe (#126): Jeder Flow-Test pumpt die
       // App auf die Karte, und mit `false` läge über jedem der Hinweis.
       // Tests für Hinweis und Tour geben ihre Einstellungen ausdrücklich mit.
@@ -52,6 +53,14 @@ class FakeSettings implements Settings {
 
   @override
   String? appearance;
+
+  @override
+  String? riderProfile;
+
+  @override
+  Future<void> setRiderProfile(String value) async {
+    riderProfile = value;
+  }
 
   @override
   bool safetyNoteSeen;

@@ -2,6 +2,21 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Fahrerprofil: Bio-Bike oder E-Bike
+
+*Version 0.70.0, 2026-10-01*
+
+- Im Profil gibt es jetzt **„Fahrerprofil"**: Bio-Bike oder E-Bike. Es
+  ändert drei Dinge für die kommende Routenplanung — wie schnell es bergauf
+  geht, wie teuer ein Wanderweg bergauf ist und wie viele Höhenmeter eine
+  Runde haben darf. Bergab bleibt ein S2 ein S2.
+- Jede Fahrt merkt sich beim Start, mit welchem Profil sie gefahren wurde.
+  Daraus lernt die App später deine eigenen Steigraten — je Profil, nie aus
+  Fahrten anderer.
+- Unter der Haube steht damit der Wegegraph aus deinen gespeicherten
+  Bereichen samt Höhen: die Grundlage für „Zum Trailkopf" und den Planer,
+  die als Nächstes kommen.
+
 ## Höhendaten für gespeicherte Bereiche
 
 *Version 0.69.0, 2026-10-01*

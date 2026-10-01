@@ -1,8 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
+import '../../core/settings.dart';
 import '../../data/providers.dart';
 import '../../models/profile.dart';
+import '../routing/route_profile.dart';
+
+/// Das Fahrerprofil der Routing-Engine (Konzept-Routing 2.1), gerätelokal;
+/// Vorgabe Bio-Bike. Gelesen vom Planer und beim Start jeder Fahrt
+/// (`Ride.profile`).
+class RiderProfileNotifier extends Notifier<RiderProfile> {
+  @override
+  RiderProfile build() => RiderProfile.parse(ref.read(settingsProvider).riderProfile);
+
+  void set(RiderProfile profile) {
+    state = profile;
+    ref
+        .read(settingsProvider)
+        .setRiderProfile(profile.name)
+        .catchError((Object e, StackTrace s) => logError('Fahrerprofil merken', e, s));
+  }
+}
+
+final riderProfileProvider = NotifierProvider<RiderProfileNotifier, RiderProfile>(RiderProfileNotifier.new);
 
 class MyProfileNotifier extends AsyncNotifier<Profile?>
     with ReadAfterWrite<Profile?> {

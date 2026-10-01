@@ -115,10 +115,16 @@ class Ride {
     required this.points,
     this.events = const [],
     this.marks = const [],
+    this.profile,
   });
 
   final String id;
   final DateTime startedAt;
+
+  /// Das Fahrerprofil beim Start (`RiderProfile.name`, Konzept-Routing
+  /// 2.1) — die Kalibrierung rechnet je Profil; Fahrten ohne (vor 0.70.0)
+  /// lernen nichts. Hier nur ein Name: Die Fahrt kennt die Engine nicht.
+  final String? profile;
   final DateTime endedAt;
   final List<RidePoint> points;
 

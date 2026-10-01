@@ -130,6 +130,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                       path: 'notifications',
                       builder: (context, state) => const NotificationsScreen()),
                   GoRoute(
+                      path: 'rider',
+                      builder: (context, state) => const RiderProfileScreen()),
+                  GoRoute(
                       path: 'appearance',
                       builder: (context, state) => const AppearanceScreen()),
                   GoRoute(

@@ -19,11 +19,14 @@ class FakeRideStore implements RideStore {
   /// kann, darf nicht starten".
   bool failOnBegin = false;
 
+  String? profile;
+
   @override
-  Future<void> begin({required String uid, required DateTime startedAt}) async {
+  Future<void> begin({required String uid, required DateTime startedAt, String? profile}) async {
     if (failOnBegin) throw Exception('kein Platz (Fake)');
     this.uid = uid;
     this.startedAt = startedAt;
+    this.profile = profile;
     points.clear();
     events.clear();
     marks.clear();
