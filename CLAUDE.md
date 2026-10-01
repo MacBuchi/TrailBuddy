@@ -1529,7 +1529,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     hielte in einer Alpenkachel nur 8-m-Stufen — die Treppen, an denen
     das Hex-Gitter in M3 gescheitert ist (42 % statt 5 % Medianfehler).
     int16, Delta, gzip: gemessen 2,4 KB je Kachel in den Alpen, 1,4 KB
-    im Flachland; ganz DACH rund 200 MB auf dem Host.
+    im Flachland; ganz DACH **140 MiB** auf dem Host (erster Bau
+    2026-10-01: 95 494 Kacheln, leere ausgelassen, Mittel 1,54 KB).
   - **Format und Konstanten stehen ZWEIMAL** — `FORMAT/GRID/ZOOM/NODATA`
     im Werkzeug, `kHeightsFormat/kHeightGrid/kHeightTileZoom/kHeightNoData`
     in Dart. `test/release_workflow_test.dart` hält sie zusammen, und

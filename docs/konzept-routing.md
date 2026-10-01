@@ -271,11 +271,18 @@ dieselben Konstanten geprüft):
   als 98 640 (die Orte sind je Zelle eine Datei, weil sie je Zelle
   geladen werden; Höhen kommen nur mit einem Bereich).
 - **Gemessen** (2026-10-01, je eine 1°-Zelle): Alpen (Innsbruck) 2 420
-  B je Kachel im Mittel, Flachland (Berlin) 1 361 B; ganz DACH also
-  rund 180–240 MB auf dem Host. Ein Bereich „entlang meiner Trails"
-  mit 300 z13-Kacheln trägt ~0,7 MB Höhen neben einigen Dutzend MB
-  Karte. Der Bau ist CI-Sache (`height-data.yml`, numpy, rund 140
-  DEM-Zellen à 5 MB; die Abtastung einer Zelle dauert 2–8 s).
+  B je Kachel im Mittel, Flachland (Berlin) 1 361 B. **Der erste
+  Bau auf dem Host** (`heights-20261001.pmtiles`, Lauf vom
+  2026-10-01): 95 494 Kacheln, 146 767 166 Bytes — **140 MiB**, nicht
+  die geschätzten 180–240 MB; 3 146 der 98 640 Kacheln im Rahmen sind
+  leer (nur NODATA) und fehlen, und von den übrigen haben 86 665
+  verschiedene Inhalte (gleiche Kacheln legt der Schreiber einmal ab).
+  Im Mittel 1,54 KB je Kachel, Median 1 565 B, höchstens 3 272 B. Ein
+  Bereich „entlang meiner Trails" mit 300 z13-Kacheln trägt also
+  ~0,5 MB Höhen neben einigen Dutzend MB Karte. Der Bau ist CI-Sache
+  (`height-data.yml`, numpy, rund 140 DEM-Zellen à 5 MB; die Abtastung
+  einer Zelle dauert 2–8 s, Bau und Vollprüfung aller Kacheln zusammen
+  rund 16 min).
 - **Ein Bereich holt seine Höhenkacheln beim Speichern** (zweites
   Archiv neben dem Kartenarchiv, `StoredArea.heightTiles`); Bereiche von
   vor 0.69.0 bekommen sie über „Aktualisieren", und die Liste sagt es
