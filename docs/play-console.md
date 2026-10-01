@@ -237,7 +237,7 @@ die Antwort.
 | Paketname | `de.mcbuchi.trailbuddy` (unveränderlich ab dem ersten Upload) |
 | Kategorie | Sport (Alternative: Karten & Navigation) |
 | Tags | Mountainbike, Radfahren, Karte |
-| Kontakt-E-Mail | dieselbe wie in Datenschutzerklärung und Impressum — **offen**: heute steht dort die PilzBuddy-Adresse; eine eigene Adresse wäre an allen drei Stellen zugleich zu ändern |
+| Kontakt-E-Mail | dieselbe wie in Datenschutzerklärung und Impressum: die gemeinsame Adresse mit PilzBuddy (Betreiber, 2026-10-01: „gleich zu PilzBuddy“). Wer sie je trennt, ändert alle drei Stellen und PilzBuddy im selben Zug |
 | Website | `https://macbuchi.github.io/trailbuddy/` |
 | Datenschutzerklärung | `https://macbuchi.github.io/trailbuddy/datenschutz.html` |
 | Impressum | `https://macbuchi.github.io/trailbuddy/impressum.html` — kein eigenes Feld in der Konsole, deshalb in die lange Beschreibung |
