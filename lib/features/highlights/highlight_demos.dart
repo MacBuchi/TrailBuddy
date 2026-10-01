@@ -98,6 +98,22 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'navigate': HighlightDemo(
+    route: '/trails',
+    script: _demo('navigate', const [
+      _openTrailFirst,
+      CoachStep(
+        title: 'Zum Trailkopf',
+        text: 'Übergibt den Anfang des Trails an deine Navi-App — du wählst, '
+            'welche. Die App selbst baut dabei keine Verbindung auf; ohne '
+            'Navi-App landen die Koordinaten in der Zwischenablage.',
+        scene: TrailsCoach.sheet,
+        lit: [SheetCoach.navigate],
+        requires: [TrailsCoach.row],
+      ),
+      _noTrailYet,
+    ]),
+  ),
   'trail-ends': HighlightDemo(
     route: '/',
     script: _demo('trail-ends', const [

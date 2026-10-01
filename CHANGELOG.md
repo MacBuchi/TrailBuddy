@@ -2,6 +2,16 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Anfahrt zum Trail
+
+*Version 0.67.0, 2026-10-01*
+
+- Im Blatt eines Trails gibt es jetzt **„Anfahrt"**: Der Anfang des
+  Trails geht an deine Navi-App — welche, entscheidest du im Wähler von
+  Android. TrailBuddy selbst baut dabei keine Verbindung auf.
+- Ist keine Navi-App da (oder du bist im Browser), landen die
+  Koordinaten in der Zwischenablage, und die App sagt es.
+
 ## Anfang, Richtung und Ende auf der Karte
 
 *Version 0.66.0, 2026-10-01*

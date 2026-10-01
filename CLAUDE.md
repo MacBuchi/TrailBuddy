@@ -1216,6 +1216,29 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `trailbuddy-push` (`kPushBridgeType`, ein Test hält beide zusammen).
     `tool/check_push_worker.mjs` prüft ihn im echten Chrome (Job „Build
     Web"). `www.gstatic.com` ist `afterConsent` im Datenschutz-Wächter.
+- **Anfahrt zum Trailkopf** (#151, seit 0.67.0,
+  `lib/features/trails/trail_navigation.dart`; Vorlage PilzBuddy #367):
+  „Anfahrt" im Trail-Blatt reicht `Trail.start` als `geo:`-URI an
+  Android, welche App ihn bekommt, entscheidet der System-Wähler. Drei
+  Dinge, die man wissen muss:
+  - **Ein `<queries>`-Eintrag VIEW/geo im Manifest.** Ohne ihn sieht
+    die App ab Android 11 keinen Empfänger, der Wähler bleibt aus, und
+    der Knopf fällt still auf die Zwischenablage zurück — ein Fehler,
+    der wie eine Entscheidung aussieht. `test/android_manifest_test.dart`
+    prüft ihn gegen `kGeoScheme` aus dem Dart-Code.
+  - **Der Rückfall ist die Zwischenablage, nie ein Kartendienst**
+    (Konzept 9) — auch im Browser. Ein `https://…`-Link wäre ein fester
+    Empfänger, ein neues Netzziel und am Parkplatz ohne Empfang tot. Die
+    App sagt, dass sie kopiert hat; klappt der Wähler auf, sagt sie
+    nichts (die andere App steht im Vordergrund).
+  - **Die Koordinate steht ZWEIMAL im URI**
+    (`geo:<lat>,<lng>?q=<lat>,<lng>(<name>)`): Apps, die `q` lesen,
+    setzen Pin und Titel; Apps, die es ignorieren, zentrieren auf den
+    Pfad. `geo:0,0?q=…` schickt die zweite Gruppe in den Golf von
+    Guinea. Der Platzhalter „Trail ohne Namen" wird nicht übergeben
+    (`Trail.hasName`).
+  Kein Netzziel, keine Berechtigung, keine Weitergabe im Sinne von Data
+  Safety (nutzerinitiiert, der Wähler ist die Bestätigung).
 - **Einführung: Kurzanleitung, Sicherheitshinweis, Kontexthilfe**
   (#131, seit 0.59.0, Plan `docs/konzept-onboarding.md` 3.1; Vorlage
   PilzBuddy #350 Baustein A). `lib/features/help/help_screen.dart`

@@ -604,14 +604,21 @@ class Trail {
 
   /// Eigener Name, sonst der Name des ältesten sichtbaren Beitrags; die
   /// anderen als „auch: …" (Konzept 3, Muster Buddy-Alias).
-  String get displayName {
+  String get displayName => _namedBy ?? 'Trail ohne Namen';
+
+  /// Hat irgendein sichtbarer Beitrag einen Namen? Sonst zeigt
+  /// [displayName] den Platzhalter — und der gehört nicht in eine
+  /// fremde App (#151) oder eine Datei (#150).
+  bool get hasName => _namedBy != null;
+
+  String? get _namedBy {
     final own = myDetails?.name;
     if (own != null && own.trim().isNotEmpty) return own;
     for (final d in contributionsOrdered) {
       final n = d.name;
       if (n != null && n.trim().isNotEmpty) return n;
     }
-    return 'Trail ohne Namen';
+    return null;
   }
 
   /// Link zur Quelle wie der Name (#103): eigener, sonst der des
