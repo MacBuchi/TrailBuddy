@@ -731,6 +731,13 @@ Zeit-Eingang ist ohne Nutzerprofil grob (Aufstieg 400–600 hm/h, Abfahrt
 nach Trail-Länge), wird mit eigenen Fahrten kalibrierbar — die liegen
 ja auf dem Gerät.
 
+**Anfahrt vor Routing** (2026-10-01, #151). Bis die Messung aus Phase 4
+steht, übergibt die App den Trailkopf an eine Navi-App des Nutzers
+(`geo:`-URI, Systemwähler, Koordinate zweimal im URI — PilzBuddy #367).
+Das ist keine Routenplanung und behauptet keine; es beantwortet die
+Frage, die im Alltag zuerst kommt, und braucht kein Netzziel. Der
+Rückfall ist die Zwischenablage, nie ein fester Kartendienst.
+
 **Airtime und Ranking.** Sprünge lassen sich aus dem
 Beschleunigungssensor lesen (Freifallphase: Betrag der Beschleunigung
 nahe 0 für > 150 ms), Zuordnung zum Trail über die laufende Fahrt. Drei
@@ -819,46 +826,58 @@ Ebene außerhalb dieses Modells: `docs/konzept-offizielle-trails.md`
 
 *Rework vom 2026-09-30 (Besitz des Namens, geplante Importe, Spaß und
 Zustand, Link, Stück selbst wählen, Zwillinge, Zusammenführen):
-`docs/konzept-rework.md`, verfolgt in #109. Jeder Schritt zieht die
-betroffene Stelle hier im selben PR nach.*
+`docs/konzept-rework.md`, verfolgt in #109. Einführung (Kurzanleitung,
+Touren, „Entdecken"): `docs/konzept-onboarding.md`, #137. Jeder Schritt
+zieht die betroffene Stelle hier im selben PR nach.*
+
+*Die Reihenfolge je Issue steht in #156 (Fahrplan 2026-Q4) und wird dort
+abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
 
 - **Phase 0 — Messen, bevor gebaut wird. ERLEDIGT am 2026-09-27**,
-  Ergebnis in `docs/trail-abgleich-messung.md`; was sich dadurch am
-  Konzept geändert hat, steht dort unter „Folgen". Ein Python-Werkzeug
-  `tool/trail_match.py` (nur Standardbibliothek, wie die Werkzeuge in
-  PilzBuddy) nimmt die Locus-Tracks des Betreibers direkt aus dem Zip
-  (Pfad aus der Umgebung, nie im Repo), rechnet Deckung und Fréchet für
-  alle Paare und schreibt eine Tabelle: Welche Paare sind „gleich",
-  welche „Gabel", und stimmen die Schwellen? Ein `--self-test` mit
-  synthetischen Fällen (Kehren, Parallelen, Gegenrichtung) prüft das
-  Werkzeug, bevor es echte Daten sieht. Ergebnis ist
-  `docs/trail-abgleich-messung.md` mit Kennzahlen ohne Koordinaten.
-  Erst dann werden die Schwellen in SQL gegossen. Kein App-Code in
-  dieser Phase.
-- **Phase 1 — Grundgerüst.** Repo aus PilzBuddy-Bausteinen aufsetzen
-  (Auth, Buddys, Karte, CI, Schema-Werkzeuge, eigene `CLAUDE.md`),
-  PostGIS, Tabellen aus 3, `contribute_recording`, GPX-Import mit
-  Zerlege-Blatt, Trails auf der Karte, Trail-Blatt mit Beitrag. Damit
-  ist der Bestand des Betreibers und zweier Buddys drin, und die
-  Verschmelzung ist im Feld prüfbar.
-- **Phase 2 — Aufzeichnen.** Fahrt-Aufzeichnung aus der Pilztour
-  (#28, seit 0.13.0: Aufzeichnen, Liste „Meine Fahrten", Wiederaufnahme
-  nach Prozess-Kill), Kandidaten-Heuristik und Zerlege-Blatt (#29, seit
-  0.20.0: bekannte Trails, Kandidaten mit Griffen, auch für
-  GPX-Fahrten),
-  Ausgangskorb (#30, seit 0.14.0: Beisteuern und Beitrag ohne Netz,
-  wartende Trails gestrichelt, Android; Web bewusst noch ohne).
-- **Phase 3 — Offline und Austausch.** Offline-Karten (#31), Trails im
-  Zwischenspeicher (#32, seit 0.15.0: Kopie des Netzes auf dem Gerät, nur
-  ohne Empfang gelesen), Push für Statusmeldungen und Hinweise (#34,
-  seit 0.23.0; Nachrichten zwischen Buddys noch offen), Zusammenführen
-  im Netz (#33).
-- **Phase 4 — Routing.** Nach eigener Messung (9).
-- **Phase 5 — Community.** Airtime, Ranking unter Buddys, Fotos am
-  Trail (Fundfoto-Baustein).
+  `tool/trail_match.py` gegen 584 Locus-Tracks, Ergebnis und Folgen in
+  `docs/trail-abgleich-messung.md`. Erst danach standen die Schwellen in
+  SQL.
+- **Phase 1 — Grundgerüst. ERLEDIGT (0.1.0–0.12.x):** Auth, Buddys,
+  Karte, CI und Schema-Werkzeuge aus PilzBuddy, PostGIS, Tabellen aus 3,
+  `contribute_recording`, GPX-Import, Trails auf der Karte, Trail-Blatt
+  mit Beitrag, Hinweise für Buddys (#7), Höhen (#14).
+- **Phase 2 — Aufzeichnen. ERLEDIGT (0.13.0–0.20.0):** Fahrt-Aufzeichnung
+  aus der Pilztour (#28), Zerlege-Blatt mit Kandidaten und Griffen, auch
+  für GPX-Fahrten (#29), Ausgangskorb auf Android (#30).
+- **Rework. ERLEDIGT bis auf den Abgleich (0.46.1–0.58.0):** geplante
+  Importe, Bewertung/Meldung/Zustand, Übernehmen beim ersten Befahren,
+  Link, Stück selbst wählen, Marken, Bestätigen durch Fahren, „noch
+  gültig?", Fahrdatum. **Offen:** Abgleich gegen mehrere Aufzeichnungen
+  mit Zwillingskanten (#106), Zusammenführen (#107, schließt #33), kurze
+  Importe stutzen (#108) — alle drei warten auf Daten mehrerer Nutzer;
+  mit einem Nutzer ist nichts zu messen (#114).
+- **Einführung. ERLEDIGT (0.59.0–0.64.0, #137)**, Marke „Serpentine C3"
+  (0.65.0).
+- **Phase 3 — Offline und Austausch. ZUM TEIL:** Offline-Karten mit
+  eigenem Host, Bereichen und Werkzeugleiste (0.16.0–0.36.1, #31),
+  Zwischenspeicher des Netzes (0.15.0, #32), Push für Meldungen und
+  Hinweise, mit Inhalt (0.23.0 und 0.54.0, #34), Zusammenfassung nach dem
+  Verbinden (0.22.0, #33 Teil 1). **Offen:** Gesehene Online-Kacheln
+  bleiben liegen (#155), Nachrichten zwischen Buddys (#34 Rest),
+  Ausgangskorb und Zwischenspeicher im Browser (#153), Zusammenführen
+  (#107).
+- **Phase 3b — Alltagstauglich, vor den ersten Testern außerhalb der
+  Buddys (neu am 2026-10-01):** Start- und Endmarker auf der Karte
+  (#96), Anfahrt zum Trailkopf per Übergabe an die Navi-App (#151),
+  GPX-Export von Fahrten und Trails (#150 — Entscheidung 10.4 setzt ihn
+  voraus), Neuheiten-Vorschau bei der Freigabe (#152),
+  `docs/play-console.md` und ein Entwurf der Nutzungsbedingungen (#39,
+  Teil). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
+  aus dem Rework.
+- **Phase 4 — Routing.** Nach eigener Messung (9, #35); bis dahin die
+  Übergabe aus Phase 3b.
+- **Phase 5 — Community.** Airtime und Ranking unter Buddys (#36), Fotos
+  am Trail (#37).
+- **Play Store** (#39): rechtliche Prüfung, Store-Grafiken, Pro-Plan,
+  AAB-Probe, 1.0.0 — nach Phase 3. Danach die Entscheidung zum
+  dezentralen Weg (12, #38).
 
-Die Punkte aus Abschnitt 10 sind entschieden, Phase 0 ist gemessen. Der
-nächste Schritt ist Phase 1.
+Der nächste Schritt ist Phase 3b.
 
 ## 12. Dezentral: der offene Weg
 
@@ -937,3 +956,56 @@ kein Neubau. Wird das Motiv „der Betreiber soll nichts herausgeben
 können" wichtiger als der bequeme Start, ist das die Variante, die es
 einlöst. Wer ein Feature vorschlägt, das die Regel bricht, schreibt
 dazu, dass es diesen Weg schließt.
+
+## 13. Abgrenzung und Integration (2026-10-01)
+
+*Frage des Betreibers: Worin liegt der Mehrwert gegenüber Komoot und
+Trailforks, und soll die App Outdooractive oder Komoot einbinden?
+Entschieden am 2026-10-01: GPX-Brücke und Navi-Übergabe, keine
+Konto-Kopplung.*
+
+**Was TrailBuddy ist.** Das Netz für die Trails, die niemand auf
+Trailforks oder Komoot stellt. Vier Dinge, die die großen Apps nicht
+tun und nicht tun werden:
+
+1. **Nichts ist öffentlich.** Sichtbar ist nur, was man selbst oder ein
+   direkter Buddy gefahren hat (0, 7). Es gibt keine Karte für alle,
+   keine Suche, keine Heatmap — und deshalb auch kein öffentliches
+   Segment auf einem geduldeten Trail.
+2. **Trail ≠ Fahrt.** Der Trail ist die Einheit, nicht die Tour; nur
+   Gefahrenes wandert weiter (10.1). Komoot kennt Touren, Trailforks
+   kennt öffentliche Trails; keines kennt „mein Trail, bei meinen
+   Buddys".
+3. **Zustand unter Buddys.** Meldung und Zustand mit Push, Bestätigen
+   durch Fahren, „noch gültig?" — die Information, die auf einem
+   inoffiziellen Trail sonst nur per Chat kursiert.
+4. **Fahrten verlassen das Gerät nie** (10.4), die Karte kommt vom
+   eigenen Host, offline zuerst.
+
+**Was sie bewusst nicht ist.** Kein Routenplaner mit Abbiegehinweisen,
+keine Entdeckungs-Plattform für fremde Gegenden, kein Tourenarchiv in
+der Cloud, keine Statistik über alle. Wer das will, hat Komoot,
+Outdooractive oder Trailforks — und soll sie NEBEN TrailBuddy benutzen
+können, ohne dass eine der beiden Seiten etwas über die andere erfährt.
+
+**Integration heißt Datei, nicht Konto.** GPX hinein gibt es (5.2);
+GPX hinaus kommt mit #150 (Fahrten als Sicherung, Trails als Brücke);
+die Anfahrt übergibt #151 an die Navi-App des Nutzers. Der Fluss, den
+das trägt: Trails als GPX exportieren → in Komoot oder Outdooractive die
+Verbindung planen → die geplante Tour als Fahrt importieren → das
+Zerlege-Blatt sagt, welche Stücke bekannte Trails sind. TrailBuddy
+behält die Trails, die andere App die Straßen dazwischen.
+
+**Warum keine Konto-Kopplung.** Komoot und Outdooractive öffnen ihre
+Schnittstellen nur Partnern mit Vertrag; Strava verlangt seit 06/2026
+eine Gebühr und verbietet, fremde Aktivitäten anzuzeigen; Trailforks
+gibt Daten nur share-alike für kostenlose Apps heraus (Stand 2026-10-01,
+Websuche). Und unabhängig davon: Jede Kopplung trüge Trails auf eine
+öffentliche Plattform — genau der Fall, den 7 ausschließt. Ein Link auf
+das eigene Komoot- oder Strava-Konto fällt beim Vorschlag aus der Datei
+weg (`kLinkIgnoredHosts`, Rework 4); von Hand bleibt er erlaubt, als
+Aussage eines Nutzers.
+
+**Prüfbar.** `test/privacy_policy_test.dart` kennt jeden Host; eine
+Kopplung brächte einen neuen und ein OAuth-Paket in `pubspec.yaml`. Wer
+eines davon vorschlägt, ändert diesen Abschnitt im selben PR.
