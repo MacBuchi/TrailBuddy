@@ -1,0 +1,224 @@
+name: Height Data
+
+# The height tiles the stored areas carry (docs/konzept-routing.md 2.6,
+# way B; step 2 of its section 5): for every z13 tile of the map's area a
+# 49 x 49 grid of heights from the Copernicus DEM GLO-90, written as ONE
+# PMTiles archive next to the basemap and read by the app over the same
+# Range-request path (tool/height_tiles.py has the format).
+#
+# Same shape as map-data.yml: a dated file (`heights-<build>.pmtiles`)
+# that never changes, a small manifest (`heights.json`) that names it,
+# the previous build kept for one more run, and after the upload the
+# PUBLIC copy is read back the way the app reads it — 206 on a Range
+# request, `accept-ranges`, CORS, and sampled tiles against a fresh read
+# of the DEM. `pmtiles verify` (the official tool) checks the archive's
+# structure before anything is uploaded: the writer is our own
+# (tool/map_tiles.py), and a subtly malformed archive would fail on a
+# phone, not here.
+#
+# Only by hand: the DEM is static. A new build is due when the map's box
+# or the tile format changes (then the app's reader changes in the same
+# PR). `plan` reads a few DEM cells and projects size and time; `publish`
+# builds everything (about 140 DEM cells of 5 MB, 98 640 tiles).
+#
+# Secrets (R2 API token, Object Read & Write on the bucket) go through
+# `env:` into a detection step; `secrets.` is not available in `if:` and
+# GitHub silently drops the whole file (PilzBuddy, 2026-08-13).
+#
+# No Version Guard concern: nothing here lands in a binary.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "plan = sample a few DEM cells and project, publish = build, upload, verify"
+        required: true
+        type: choice
+        options: ["plan", "publish"]
+        default: "plan"
+      sample_cells:
+        description: "plan: how many 1° DEM cells to build for the projection"
+        required: false
+        type: string
+        default: "3"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PMTILES_VERSION: "1.28.0"
+  # The map's area, west,south,east,north — the SAME box as DACH_BBOX in
+  # map-data.yml and POI_BBOX in poi-data.yml; test/release_workflow_test.dart
+  # holds them together. A stored area has heights wherever it has map.
+  DACH_BBOX: "5.5,45.5,17.5,55.5"
+  MODE: ${{ inputs.mode || 'plan' }}
+  SAMPLE_CELLS: ${{ inputs.sample_cells || '3' }}
+  # Public values, deliberately in the file: the app carries the same
+  # host as a constant, and the privacy policy guard reads it from there.
+  R2_BUCKET: buddy-tiles
+  R2_PREFIX: trailbuddy
+  PUBLIC_BASE: https://tiles.mcbuchi.de/trailbuddy
+
+jobs:
+  heights:
+    name: Build, upload and verify the height tiles
+    runs-on: ubuntu-latest
+    # ~700 MB of DEM to download, 98 640 tiles to sample and compress,
+    # one ~250 MB upload, then the read-back.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Are the R2 secrets there?
+        id: r2
+        env:
+          ACCOUNT: ${{ secrets.R2_ACCOUNT_ID }}
+          KEY: ${{ secrets.R2_ACCESS_KEY_ID }}
+          SECRET: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -n "$ACCOUNT" ] && [ -n "$KEY" ] && [ -n "$SECRET" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Height Data: no upload"
+              echo
+              echo "One of R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY is missing."
+              echo "Create an R2 API token (Object Read & Write, bucket \`$R2_BUCKET\`) in the"
+              echo "Cloudflare dashboard and store the three values as repository secrets."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install numpy and run the self-test with it
+        # The tool's self-test runs in CI without numpy (stdlib, like
+        # every tool here); `build` needs it — 237 million bilinear reads.
+        # Run WITH numpy here, so the equality of the two sampling paths
+        # is checked where the numpy path is about to be used.
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet "numpy>=2,<3"
+          python3 tool/height_tiles.py --self-test
+
+      - name: Plan — sample a few cells and project
+        if: env.MODE == 'plan'
+        run: |
+          set -euo pipefail
+          python3 tool/height_tiles.py plan --bbox "$DACH_BBOX" \
+            --sample-cells "$SAMPLE_CELLS" --dem-cache build/dem --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Install the pmtiles tool
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        # The official Go implementation verifies the archive our Python
+        # writer produced: offsets, clustering, directory shape.
+        run: |
+          set -euo pipefail
+          url="https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"
+          if ! curl -sSL --fail "$url" -o /tmp/pmtiles.tar.gz; then
+            echo "::error::Could not download $url — check PMTILES_VERSION against the go-pmtiles releases."
+            exit 1
+          fi
+          tar -xzf /tmp/pmtiles.tar.gz -C /tmp pmtiles
+          sudo install -m 0755 /tmp/pmtiles /usr/local/bin/pmtiles
+          pmtiles version
+
+      - name: Build and check the archive
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          export BUILD="$(date -u +%Y%m%d)"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo "file=heights-${BUILD}.pmtiles" >> "$GITHUB_ENV"
+          rm -rf build/heights && mkdir -p build/heights
+          python3 tool/height_tiles.py build --bbox "$DACH_BBOX" --build "$BUILD" \
+            --out build/heights --dem-cache build/dem --summary "$GITHUB_STEP_SUMMARY"
+          ls -l build/heights
+          # Structure by the official tool, content by our own check:
+          # every tile decodes, 48 sampled tiles equal a fresh read of the
+          # DEM sample for sample (the cells are in the cache by now).
+          pmtiles verify "build/heights/heights-${BUILD}.pmtiles"
+          pmtiles show "build/heights/heights-${BUILD}.pmtiles"
+          python3 tool/height_tiles.py check --source "build/heights/heights-${BUILD}.pmtiles" \
+            --all --samples 48 --dem-cache build/dem
+          # A build far below the expected count is a broken run (a DEM
+          # cell that failed to decode, a bbox typo), not a smaller map.
+          python3 - <<'PY'
+          import json, sys
+          m = json.load(open("build/heights/heights.json"))
+          if m["tiles"] < 90000:
+              print(f"::error::Only {m['tiles']} height tiles — expected about 98 000 for the DACH box; not publishing.")
+              sys.exit(1)
+          print(f"{m['tiles']} tiles, {m['bytes']} bytes")
+          PY
+
+      - name: Upload to R2
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_DEFAULT_REGION: auto
+          AWS_EC2_METADATA_DISABLED: "true"
+        # The dated archive first, immutable and long-cached; the manifest
+        # last and short-cached — it is the pointer that flips. Older
+        # builds than the previous one are removed afterwards. `.eu.` in
+        # the endpoint: the bucket has EU jurisdiction.
+        run: |
+          set -euo pipefail
+          endpoint="https://${R2_ACCOUNT_ID}.eu.r2.cloudflarestorage.com"
+          aws --endpoint-url "$endpoint" s3 cp "build/heights/$file" \
+            "s3://${R2_BUCKET}/${R2_PREFIX}/$file" \
+            --content-type application/octet-stream \
+            --cache-control "public, max-age=31536000, immutable" --no-progress
+          aws --endpoint-url "$endpoint" s3 cp build/heights/heights.json \
+            "s3://${R2_BUCKET}/${R2_PREFIX}/heights.json" \
+            --content-type application/json \
+            --cache-control "public, max-age=300" --no-progress
+          builds=$(aws --endpoint-url "$endpoint" s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/" \
+                    | sed -n 's/.* \(heights-[0-9]\{8\}\.pmtiles\)$/\1/p' | sort)
+          keep2=$(echo "$builds" | tail -2)
+          for old in $builds; do
+            if ! echo "$keep2" | grep -qx "$old"; then
+              aws --endpoint-url "$endpoint" s3 rm "s3://${R2_BUCKET}/${R2_PREFIX}/$old"
+              echo "removed $old"
+            fi
+          done
+
+      - name: Verify the public copy the way the app reads it
+        if: env.MODE == 'publish' && steps.r2.outputs.present == 'true'
+        # The host answers a Range request with 206 and `accept-ranges`,
+        # sends `access-control-allow-origin` for the app's origin, the
+        # manifest names THIS build (fetched with a cache-busting query:
+        # the edge copy may be up to 300 s old), and sampled tiles read
+        # over Range equal a fresh read of the DEM. A Cloudflare bot
+        # challenge is named as such (map-data.yml, 2026-09-28).
+        run: |
+          set -euo pipefail
+          url="$PUBLIC_BASE/$file"
+          headers=$(curl -sSL -D - -o /dev/null -r 0-15 --max-time 60 \
+                      -H "Origin: https://macbuchi.github.io" "$url" | tr -d '\r' | tr 'A-Z' 'a-z')
+          echo "$headers"
+          if echo "$headers" | grep -q '^cf-mitigated: challenge'; then
+            ray=$(echo "$headers" | sed -n 's/^cf-ray: *//p')
+            echo "::error::$url: Cloudflare challenged the request (cf-ray $ray) — a zone setting, see #55; the bucket and the upload are fine."
+            exit 1
+          fi
+          echo "$headers" | grep -q '^http/[0-9.]* 206' || { echo "::error::$url: no 206 on a Range request — the app cannot read this host"; exit 1; }
+          echo "$headers" | grep -q '^accept-ranges: bytes' || { echo "::error::$url: no accept-ranges: bytes"; exit 1; }
+          echo "$headers" | grep -q '^access-control-allow-origin:' || { echo "::error::$url: no access-control-allow-origin — set the bucket's CORS rule"; exit 1; }
+          curl -sSL --max-time 60 -o build/heights/public-manifest.json "$PUBLIC_BASE/heights.json?verify=$BUILD"
+          python3 - <<'PY'
+          import json
+          local = json.load(open("build/heights/heights.json"))
+          public = json.load(open("build/heights/public-manifest.json"))
+          assert public == local, "the public manifest is not the one just uploaded"
+          PY
+          python3 tool/height_tiles.py check --source "$url" --samples 24 \
+            --dem-cache build/dem --summary "$GITHUB_STEP_SUMMARY"
+          {
+            echo "- \`$url\` ($(stat -c %s "build/heights/$file" | numfmt --to=iec-i --suffix=B))"
+            echo "- manifest \`$PUBLIC_BASE/heights.json\`"
+            echo "- 206 + accept-ranges + CORS verified, 24 tiles over Range equal the DEM"
+          } >> "$GITHUB_STEP_SUMMARY"

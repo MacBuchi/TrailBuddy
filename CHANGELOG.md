@@ -2,6 +2,22 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Höhendaten für gespeicherte Bereiche
+
+*Version 0.69.0, 2026-10-01*
+
+- Ein gespeicherter Bereich bringt jetzt **Höhendaten** mit: Für jedes
+  Kartenstück lädt die App ein kleines Höhenraster (aus dem Copernicus-
+  Höhenmodell, etwa 2 KB je Stück) und behält es neben der Karte auf dem
+  Gerät. Beim Speichern steht dabei, ob Höhen mitkommen; „Meine Bereiche"
+  zeigt „mit Höhen".
+- Bereiche von früher haben noch keine. Sobald der Kartenhost Höhen
+  anbietet, steht in der Liste „Höhendaten verfügbar", und **Aktualisieren**
+  holt sie nach.
+- Zu sehen ist davon noch nichts — die Höhen braucht die Routenplanung,
+  die als Nächstes kommt. Ohne Höhen bleibt ein Bereich, was er war: die
+  Karte für unterwegs.
+
 ## Fahrten und Trails als GPX-Datei
 
 *Version 0.68.0, 2026-10-01*

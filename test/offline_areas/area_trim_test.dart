@@ -13,6 +13,7 @@ import 'package:trailbuddy/features/map/poi.dart';
 import 'package:trailbuddy/features/offline_areas/area_plan.dart';
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
 import 'package:trailbuddy/features/offline_areas/area_trim.dart';
+import 'package:trailbuddy/features/offline_areas/height_tiles.dart';
 import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
 
 const _z = kAreaShapeZoom;
@@ -26,9 +27,26 @@ void main() {
   final keys = {for (var i = 0; i < 4; i++) TileSetShape.keyOf(x + i, y, _z)};
   final shape = TileSetShape(zoom: _z, keys: keys);
 
-  Future<StoredArea> seed({String id = 'a', TileSetShape? s, List<String> poiFiles = const []}) async {
+  Future<StoredArea> seed(
+      {String id = 'a', TileSetShape? s, List<String> poiFiles = const [], bool heights = false}) async {
     final sh = s ?? shape;
     final tiles = sh.tiles(maxZoom: _z);
+    var heightTiles = 0, heightBytes = 0;
+    if (heights) {
+      final z13 = sh.tiles(minZoom: kHeightTileZoom, maxZoom: kHeightTileZoom);
+      final hb = writePmTiles(
+        tiles: [
+          for (final t in z13)
+            TileToWrite(t.z, t.x, t.y, encodeHeightTile(List.filled(kHeightGrid * kHeightGrid, 700 + t.x % 50))),
+        ],
+        tileCompression: Compression.gzip,
+        bounds: TileBounds(west: sh.hull.west, south: sh.hull.south, east: sh.hull.east, north: sh.hull.north),
+        metadata: heightsMetadata('Bereich $id', '20261001'),
+      );
+      await store.putHeights(id, hb);
+      heightTiles = z13.length;
+      heightBytes = hb.length;
+    }
     final bytes = writePmTiles(
       tiles: [
         for (final t in tiles) TileToWrite(t.z, t.x, t.y, Uint8List.fromList(utf8.encode('t${t.z}/${t.x}/${t.y}'))),
@@ -49,6 +67,9 @@ void main() {
       bytes: bytes.length,
       savedAt: DateTime.utc(2026, 9, 28),
       poiFiles: poiFiles,
+      heightTiles: heightTiles,
+      heightBytes: heightBytes,
+      heightsBuild: heights ? '20261001' : null,
     );
     await store.saveIndex([...await store.list(), area]);
     return area;
@@ -82,6 +103,61 @@ void main() {
       expect(got, 't${t.z}/${t.x}/${t.y}');
     }
     expect(await archive.lookup(tileIdOf((z: _z, x: x + 3, y: y))), isNull);
+  });
+
+  test('die Höhen folgen den Kacheln: zwei raus heißt zwei Höhenkacheln raus, alle raus heißt kein Höhenarchiv', () async {
+    final area = await seed(heights: true);
+    final trimmer = AreaTrimmer(store);
+    final removes = {TileSetShape.keyOf(x + 2, y, _z), TileSetShape.keyOf(x + 3, y, _z)};
+    final plan = await trimmer.plan([area], removes);
+    final trim = plan.trims.single;
+    expect(trim.keepHeights.map((t) => t.x).toSet(), {x, x + 1});
+    final mapOnly = (await AreaTrimmer(store).plan([await seed(id: 'm')], removes)).freedBytes;
+    expect(plan.freedBytes, greaterThan(mapOnly), reason: 'die Höhenbytes zählen mit');
+    await trimmer.apply(plan);
+    final after = (await store.list()).firstWhere((a) => a.id == 'a');
+    expect(after.heightTiles, 2);
+    expect(after.heightsBuild, '20261001');
+    final hb = (await store.readHeights('a'))!;
+    expect(after.heightBytes, hb.length);
+    final archive = await PmTilesArchive.fromBytes(hb);
+    expect(archive.header.numberOfAddressedTiles, 2);
+    final source = ArchiveHeightSource(archive);
+    expect((await source.tile(x, y))!.valueAt(0, 0), 700 + x % 50);
+    expect(await source.tile(x + 3, y), isNull);
+    await source.close();
+    // Alles raus: Bereich weg, Höhen weg.
+    final all = await trimmer.plan(await store.list(), keys);
+    expect(all.trims.firstWhere((t) => t.area.id == 'a').freedBytes, after.bytes + after.heightBytes);
+    await trimmer.apply(all);
+    expect(await store.readHeights('a'), isNull);
+    expect(await store.list(), isEmpty, reason: '„m" hat dieselbe Form und geht mit');
+  });
+
+  test('bleibt keine Höhenkachel, verschwindet nur das Höhenarchiv, der Bereich bleibt', () async {
+    // Ein Bereich aus zwei 13er-Kacheln, Höhen nur für eine davon.
+    final two = TileSetShape(zoom: _z, keys: {TileSetShape.keyOf(x, y, _z), TileSetShape.keyOf(x + 1, y, _z)});
+    final area = await seed(id: 'h', s: two);
+    final hb = writePmTiles(
+      tiles: [TileToWrite(_z, x + 1, y, encodeHeightTile(List.filled(kHeightGrid * kHeightGrid, 5)))],
+      tileCompression: Compression.gzip,
+      bounds: const TileBounds(west: 11, south: 47, east: 12, north: 48),
+    );
+    await store.putHeights('h', hb);
+    await store.saveIndex([
+      StoredArea(
+        id: 'h', name: area.name, bounds: area.bounds, shape: two, minZoom: 8, maxZoom: _z,
+        build: area.build, tiles: area.tiles, bytes: area.bytes, savedAt: area.savedAt,
+        heightTiles: 1, heightBytes: hb.length, heightsBuild: '20261001',
+      ),
+    ]);
+    final trimmer = AreaTrimmer(store);
+    await trimmer.apply(await trimmer.plan(await store.list(), {TileSetShape.keyOf(x + 1, y, _z)}));
+    final after = (await store.list()).single;
+    expect(after.hasHeights, isFalse);
+    expect(after.heightsBuild, isNull);
+    expect(await store.readHeights('h'), isNull);
+    expect(await store.readArchive('h'), isNotNull);
   });
 
   test('eine Kachel, die keine Form hat, fasst der Plan nicht an', () async {

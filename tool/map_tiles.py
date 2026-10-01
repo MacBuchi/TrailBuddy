@@ -886,7 +886,8 @@ def parse_bbox(text):
 
 
 def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
-                   compression=COMPRESSION_GZIP):
+                   compression=COMPRESSION_GZIP, tile_compression=COMPRESSION_NONE,
+                   tile_type=1, bounds=(-10.0, 35.0, 30.0, 60.0), metadata=None):
     """Serialises {(z, x, y): bytes} into a PMTiles v3 archive.
 
     `leaf_size` forces leaf directories of that many entries. The fixtures
@@ -894,6 +895,13 @@ def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
     directory is so regular that gzip takes 341 entries down to 57 bytes,
     so any threshold low enough to split is also low enough to be absurd.
     Stating the intent beats tuning a number against a compressor.
+
+    `tile_compression`, `tile_type`, `bounds` (west, south, east, north)
+    and `metadata` are what the header and the metadata blob state about
+    the tiles; the tile bytes themselves are written as given. Since the
+    height tiles (tool/height_tiles.py) this is also a real writer, not
+    only a fixture: that archive is read by the app over the same reader
+    as the basemap, and `pmtiles verify` checks it in CI.
     """
     by_id = sorted((zxy_to_tile_id(z, x, y), data)
                    for (z, x, y), data in tiles.items())
@@ -939,7 +947,8 @@ def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
             if size > len(entries):
                 raise ValueError("cannot fit a root directory")
 
-    metadata = compress(json.dumps({"vector_layers": []}).encode(), compression)
+    metadata = compress(json.dumps(metadata if metadata is not None
+                                   else {"vector_layers": []}).encode(), compression)
 
     root_offset = HEADER_LEN
     metadata_offset = root_offset + len(root_raw)
@@ -961,17 +970,18 @@ def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
     header.tile_contents = len(offsets)
     header.clustered = 1
     header.internal_compression = compression
-    header.tile_compression = COMPRESSION_NONE
-    header.tile_type = 1
+    header.tile_compression = tile_compression
+    header.tile_type = tile_type
     header.min_zoom = min(zooms)
     header.max_zoom = max(zooms)
-    header.min_lon = int(-10 * 1e7)
-    header.min_lat = int(35 * 1e7)
-    header.max_lon = int(30 * 1e7)
-    header.max_lat = int(60 * 1e7)
+    west, south, east, north = bounds
+    header.min_lon = int(round(west * 1e7))
+    header.min_lat = int(round(south * 1e7))
+    header.max_lon = int(round(east * 1e7))
+    header.max_lat = int(round(north * 1e7))
     header.center_zoom = min(zooms)
-    header.center_lon = 0
-    header.center_lat = int(45 * 1e7)
+    header.center_lon = int(round((west + east) / 2 * 1e7))
+    header.center_lat = int(round((south + north) / 2 * 1e7))
 
     return header.pack() + root_raw + metadata + leaf_blob + bytes(blob)
 

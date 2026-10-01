@@ -311,11 +311,50 @@ void main() {
         RegExp('$key: "([^"]+)"').firstMatch(text)!.group(1)!;
     final poi = bboxOf(File('.github/workflows/poi-data.yml').readAsStringSync(), 'POI_BBOX');
     final map = bboxOf(File('.github/workflows/map-data.yml').readAsStringSync(), 'DACH_BBOX');
+    final heights = bboxOf(File('.github/workflows/height-data.yml').readAsStringSync(), 'DACH_BBOX');
+    expect(heights, map, reason: 'ein Bereich hat Höhen, wo er Karte hat');
     final overview = RegExp(r'overview_dach\.pmtiles --bbox=([0-9.,]+)')
         .firstMatch(File('tool/generated_assets.json').readAsStringSync())!
         .group(1)!;
     expect(poi, map);
     expect(overview, map);
+  });
+
+  test('die Höhenkacheln kommen vom selben Host als EIN Archiv, geprüft wie die Karte', () {
+    // height-data.yml (Konzept-Routing 2.6, Weg B): `heights.json` zeigt
+    // auf `heights-<build>.pmtiles`; die App liest beides unter
+    // `kMapTilesBase` (`kHeightsManifestUrl`, `HeightsManifest`). CI
+    // prüft das Archiv mit dem offiziellen Werkzeug und liest die
+    // öffentliche Kopie per Range zurück, Kacheln gegen das DEM.
+    final data = File('.github/workflows/height-data.yml').readAsStringSync();
+    final providers = File('lib/features/map/map_providers.dart').readAsStringSync();
+    final host = RegExp(r"kMapTilesBase = '([^']+)'").firstMatch(providers)!.group(1)!;
+    expect(providers, contains("kHeightsManifestUrl = '\$kMapTilesBase/heights.json'"));
+    expect(data, contains('PUBLIC_BASE: $host'));
+    expect(data, contains("R2_PREFIX: ${host.split('/').last}"));
+    expect(data, contains("steps.r2.outputs.present == 'true'"));
+    expect(data, contains('.eu.r2.cloudflarestorage.com'));
+    expect(data, contains('heights-\${BUILD}.pmtiles'));
+    expect(data, contains('max-age=31536000, immutable'));
+    expect(data, contains('max-age=300'));
+    expect(data, contains("grep -q '^http/[0-9.]* 206'"));
+    expect(data, contains('accept-ranges: bytes'));
+    expect(data, contains('access-control-allow-origin'));
+    expect(data, contains('pmtiles verify'));
+    expect(data, contains('tool/height_tiles.py build --bbox "\$DACH_BBOX"'));
+    expect(data, contains('tool/height_tiles.py check --source "\$url"'));
+    // Der Self-Test läuft WITH numpy vor dem Bau und ohne in ci.yml.
+    expect(data, contains('pip install --quiet "numpy'));
+    expect(data, contains('tool/height_tiles.py --self-test'));
+    expect(File('.github/workflows/ci.yml').readAsStringSync(), contains('tool/height_tiles.py --self-test'));
+    // Format und Raster stehen in Dart und im Werkzeug gleich.
+    final tool = File('tool/height_tiles.py').readAsStringSync();
+    final dart = File('lib/features/offline_areas/height_tiles.dart').readAsStringSync();
+    for (final (py, dt) in [('FORMAT', 'kHeightsFormat'), ('GRID', 'kHeightGrid'), ('ZOOM', 'kHeightTileZoom'), ('NODATA', 'kHeightNoData')]) {
+      final a = RegExp('^$py = (-?\\d+)', multiLine: true).firstMatch(tool)!.group(1);
+      final b = RegExp('const $dt = (-?\\d+);').firstMatch(dart)!.group(1);
+      expect(b, a, reason: '$dt gegen $py');
+    }
   });
 
   test('die Orte kommen vom selben Host, je Zelle und Gruppe, und CI liest sie zurück', () {

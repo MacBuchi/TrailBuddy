@@ -101,6 +101,13 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
 - **Aktualität**: Ein Bereich trägt das Datum seines Archivs. Ein
   neuerer Schnitt wird angeboten, nicht aufgezwungen; nur im freien Netz
   (PilzBuddy #332: `isActiveNetworkMetered`, nicht „WLAN").
+- **Höhen kommen mit** (seit 0.69.0, `docs/konzept-routing.md` 2.6):
+  Für jede z13-Kachel des Bereichs eine Höhenkachel aus dem Archiv
+  `heights-<build>.pmtiles` auf demselben Host (Copernicus DEM GLO-90,
+  49 × 49 Proben in Metern), als zweites Archiv neben dem Bereich — ein
+  bis zwei Prozent der Kartengröße. Gebraucht werden sie von der
+  Routenplanung; ein Bereich ohne (vor 0.69.0, oder ohne Höhen-Manifest)
+  ist weiter eine Karte, und „Aktualisieren" holt sie nach.
 
 ### 3.3 Engine und Übersicht
 
@@ -189,6 +196,7 @@ ohne sie geht.
 | Übersicht im Binary | ~9 MB im Web-Build (wie PilzBuddy: im Web über `fromBytes`) | ~9 MB im APK |
 | Netz online | Range-Anfragen an den Vektor-Host statt OSM-Raster | dasselbe |
 | Netz für den Bereich | einmalig, Größe vorher angezeigt | dasselbe, Vordergrunddienst |
+| Höhen je Bereich | ~2,4 KB je z13-Kachel in den Alpen, ~1,4 KB im Flachland (gemessen 2026-10-01) | dasselbe |
 
 ## 5. Was NICHT kommt
 

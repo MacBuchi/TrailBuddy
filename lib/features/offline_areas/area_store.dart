@@ -1,5 +1,6 @@
 // Die Ablage gespeicherter Bereiche (Konzept 3.2): je Bereich EIN
-// PMTiles-Archiv (Zoom 8 bis zum Zoom des Hosts), die Orte-Dateien
+// PMTiles-Archiv (Zoom 8 bis zum Zoom des Hosts), seit 0.69.0 ein
+// zweites mit den Höhenkacheln (`height_tiles.dart`), die Orte-Dateien
 // seiner Rasterzellen und ein Eintrag im Index. Auf dem Telefon Dateien
 // unter `offline_maps/areas/` (vom Backup ausgenommen — jederzeit neu
 // ladbar, und ein Bereich sprengt Googles 25 MB), im Browser IndexedDB
@@ -29,6 +30,9 @@ class StoredArea {
     required this.savedAt,
     this.poiFiles = const [],
     this.poiBuild,
+    this.heightTiles = 0,
+    this.heightBytes = 0,
+    this.heightsBuild,
   }) : shape = shape ?? RectShape(bounds);
 
   final String id;
@@ -59,6 +63,16 @@ class StoredArea {
   /// Der Bau der Orte (`pois.json` → `build`), null ohne Orte.
   final String? poiBuild;
 
+  /// Die Höhenkacheln im zweiten Archiv des Bereichs (seit 0.69.0,
+  /// `height_tiles.dart`): wie viele, wie groß, aus welchem Bau
+  /// (`heights.json` → `build`). 0 heißt: ohne Höhen gespeichert — vor
+  /// 0.69.0 oder ohne Höhen-Manifest; „Aktualisieren" holt sie nach.
+  final int heightTiles;
+  final int heightBytes;
+  final String? heightsBuild;
+
+  bool get hasHeights => heightTiles > 0;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
@@ -72,6 +86,9 @@ class StoredArea {
         'saved_at': savedAt.toUtc().toIso8601String(),
         'poi_files': poiFiles,
         'poi_build': poiBuild,
+        'height_tiles': heightTiles,
+        'height_bytes': heightBytes,
+        'heights_build': heightsBuild,
       };
 
   factory StoredArea.fromJson(Map<String, dynamic> j) => StoredArea(
@@ -87,6 +104,9 @@ class StoredArea {
         savedAt: DateTime.parse(j['saved_at'] as String),
         poiFiles: (j['poi_files'] as List? ?? const []).cast<String>(),
         poiBuild: j['poi_build'] as String?,
+        heightTiles: j['height_tiles'] as int? ?? 0,
+        heightBytes: j['height_bytes'] as int? ?? 0,
+        heightsBuild: j['heights_build'] as String?,
       );
 }
 
@@ -114,7 +134,18 @@ abstract interface class AreaStore {
   /// Die Orte-Datei [name] aus irgendeinem Bereich, der sie trägt.
   Future<String?> readPoiFile(String name);
 
-  /// Löscht Archiv, Orte-Dateien und den Index-Eintrag.
+  /// Das zweite Archiv eines Bereichs: seine Höhenkacheln (seit 0.69.0).
+  /// Dieselben Wege wie beim Kartenarchiv — Pfad auf dem Telefon, Bytes
+  /// im Browser.
+  Future<void> putHeights(String id, Uint8List bytes);
+  Future<String?> heightsPath(String id);
+  Future<Uint8List?> readHeights(String id);
+
+  /// Nimmt nur die Höhen weg (der Bereich bleibt) — wenn das Entfernen
+  /// von Kacheln keine Höhenkachel übrig lässt.
+  Future<void> deleteHeights(String id);
+
+  /// Löscht Archiv, Höhen, Orte-Dateien und den Index-Eintrag.
   Future<void> delete(String id);
 }
 
@@ -122,6 +153,7 @@ abstract interface class AreaStore {
 class MemoryAreaStore implements AreaStore {
   List<StoredArea> areas = [];
   final archives = <String, Uint8List>{};
+  final heights = <String, Uint8List>{};
   final poiFiles = <String, Map<String, String>>{};
 
   @override
@@ -153,9 +185,22 @@ class MemoryAreaStore implements AreaStore {
   }
 
   @override
+  Future<void> putHeights(String id, Uint8List bytes) async => heights[id] = bytes;
+
+  @override
+  Future<String?> heightsPath(String id) async => null;
+
+  @override
+  Future<Uint8List?> readHeights(String id) async => heights[id];
+
+  @override
+  Future<void> deleteHeights(String id) async => heights.remove(id);
+
+  @override
   Future<void> delete(String id) async {
     areas = [for (final a in areas) if (a.id != id) a];
     archives.remove(id);
+    heights.remove(id);
     poiFiles.remove(id);
   }
 }

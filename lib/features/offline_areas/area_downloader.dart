@@ -7,6 +7,13 @@
 // Rasterzellen, am Ende EIN Archiv über den Schreiber, zurückgelesen als
 // Gegenprobe, dann der Index.
 //
+// Seit 0.69.0 dazu die Höhenkacheln (docs/konzept-routing.md 2.6, Weg
+// B): für jede z13-Kachel der Form die Kachel aus dem Höhenarchiv des
+// Hosts, derselbe Weg (Verzeichnis nennt die Bytes, `tiles()`-Strom), am
+// Ende ein ZWEITES Archiv neben dem Bereich. Ohne Höhen-Manifest oder
+// Höhenarchiv kommt der Bereich ohne Höhen — das ist kein Fehler, und
+// „Aktualisieren" holt sie später nach.
+//
 // Läuft im Main-Isolate; auf Android hält der KeepAlive-Koordinator den
 // Prozess wach (Vordergrunddienst `dataSync`), im Browser der Tab. Wer
 // abbricht, bekommt nichts Halbes: Geschrieben wird erst am Ende.
@@ -19,6 +26,7 @@ import '../map/online_map.dart';
 import '../map/poi.dart';
 import 'area_plan.dart';
 import 'area_store.dart';
+import 'height_tiles.dart';
 import 'pmtiles_writer.dart';
 
 /// Der Plan: was geholt würde, und wie viel das ist.
@@ -30,6 +38,8 @@ class AreaPlan {
     required this.tiles,
     required this.bytes,
     this.poiFiles,
+    this.heightTiles = const [],
+    this.heightBytes = 0,
   });
 
   /// Die Form, die geplant wurde — wird mit dem Bereich gemerkt, damit
@@ -60,8 +70,15 @@ class AreaPlan {
   int get poiBytes =>
       poiFiles == null ? 0 : poiFiles!.values.fold<int>(0, (sum, t) => sum + utf8.encode(t).length);
 
+  /// Die Höhenkacheln (z13), die das Höhenarchiv des Hosts für die Form
+  /// hat, und ihre Bytes aus dessen Verzeichnis. Leer ohne Höhenarchiv.
+  final List<TileXYZ> heightTiles;
+  final int heightBytes;
+
+  bool get hasHeights => heightTiles.isNotEmpty;
+
   /// Alles zusammen, was auf das Gerät kommt.
-  int get totalBytes => bytes + poiBytes;
+  int get totalBytes => bytes + poiBytes + heightBytes;
 
   static int _countPois(String text) {
     try {
@@ -97,7 +114,7 @@ class AreaProgress {
   double get fraction => total == 0 ? 1 : done / total;
 }
 
-enum AreaPhase { tiles, pois, writing }
+enum AreaPhase { tiles, pois, heights, writing }
 
 class AreaDownloader {
   AreaDownloader({
@@ -106,6 +123,8 @@ class AreaDownloader {
     required this.store,
     required this.fetchPoiFile,
     this.poiManifest,
+    this.heights,
+    this.heightsManifest,
     this.chunkSize = 256,
     this.now,
   });
@@ -121,6 +140,11 @@ class AreaDownloader {
   /// Das Orte-Manifest — null heißt: keine Orte zum Bereich (noch kein
   /// Bau veröffentlicht).
   final PoiManifest? poiManifest;
+
+  /// Das Höhenarchiv des Hosts, über Range-Anfragen geöffnet — null
+  /// heißt: der Bereich kommt ohne Höhen.
+  final PmTilesArchive? heights;
+  final HeightsManifest? heightsManifest;
 
   /// So viele Kachel-Ids je `tiles()`-Aufruf: Das Paket liest je
   /// Aufruf alle zusammenhängenden Bereiche PARALLEL — ein ganzer
@@ -142,6 +166,17 @@ class AreaDownloader {
       present.add(t);
       bytes += entry.length;
     }
+    final heightTiles = <TileXYZ>[];
+    var heightBytes = 0;
+    final h = heights;
+    if (h != null) {
+      for (final t in shape.tiles(minZoom: kHeightTileZoom, maxZoom: kHeightTileZoom)) {
+        final entry = await h.lookup(tileIdOf(t));
+        if (entry == null) continue;
+        heightTiles.add(t);
+        heightBytes += entry.length;
+      }
+    }
     return AreaPlan(
       shape: shape,
       bounds: shape.hull,
@@ -149,7 +184,30 @@ class AreaDownloader {
       tiles: present,
       bytes: bytes,
       poiFiles: withPois ? await _fetchPois(shape) : null,
+      heightTiles: heightTiles,
+      heightBytes: heightBytes,
     );
+  }
+
+  /// Holt die Kacheln [wanted] aus [source] in Blöcken — die Bytes des
+  /// Hosts unverändert (mit dessen Kompression), der Schreiber trägt
+  /// dieselbe in den Header.
+  Future<List<TileToWrite>> _fetchTiles(PmTilesArchive source, List<TileXYZ> wanted,
+      {required void Function() check, required void Function(int done, int total) onProgress}) async {
+    final byId = {for (final t in wanted) tileIdOf(t): t};
+    final ids = byId.keys.toList()..sort();
+    final fetched = <TileToWrite>[];
+    onProgress(0, ids.length);
+    for (var start = 0; start < ids.length; start += chunkSize) {
+      check();
+      final chunk = ids.sublist(start, start + chunkSize > ids.length ? ids.length : start + chunkSize);
+      await for (final tile in source.tiles(chunk)) {
+        final t = byId[tile.id]!;
+        fetched.add(TileToWrite(t.z, t.x, t.y, Uint8List.fromList(tile.compressedBytes())));
+      }
+      onProgress(fetched.length, ids.length);
+    }
+    return fetched;
   }
 
   /// Die Orte der berührten Zellen, alle Gruppen — was das Manifest
@@ -190,21 +248,10 @@ class AreaDownloader {
       if (isCancelled?.call() ?? false) throw const AreaCancelled();
     }
 
-    final byId = {for (final t in plan.tiles) tileIdOf(t): t};
-    final ids = byId.keys.toList()..sort();
-    final fetched = <TileToWrite>[];
-    onProgress?.call(AreaProgress(phase: AreaPhase.tiles, done: 0, total: ids.length));
-    for (var start = 0; start < ids.length; start += chunkSize) {
-      check();
-      final chunk = ids.sublist(start, start + chunkSize > ids.length ? ids.length : start + chunkSize);
-      await for (final tile in archive.tiles(chunk)) {
-        final t = byId[tile.id]!;
-        // Die BYTES des Hosts, unverändert (mit dessen Kompression) — der
-        // Schreiber trägt dieselbe Kompression in den Header.
-        fetched.add(TileToWrite(t.z, t.x, t.y, Uint8List.fromList(tile.compressedBytes())));
-      }
-      onProgress?.call(AreaProgress(phase: AreaPhase.tiles, done: fetched.length, total: ids.length));
-    }
+    final fetched = await _fetchTiles(archive, plan.tiles,
+        check: check,
+        onProgress: (done, total) =>
+            onProgress?.call(AreaProgress(phase: AreaPhase.tiles, done: done, total: total)));
 
     // Die Orte: vom Messen mitgebracht oder jetzt geholt.
     final poiFiles = plan.poiFiles ??
@@ -216,6 +263,15 @@ class AreaDownloader {
             ) ??
         const <String, String>{};
     final pm = poiManifest;
+
+    // Die Höhen: nur, wenn der Plan welche hat UND das Archiv noch da ist.
+    final h = heights;
+    final heightTiles = h == null || plan.heightTiles.isEmpty
+        ? const <TileToWrite>[]
+        : await _fetchTiles(h, plan.heightTiles,
+            check: check,
+            onProgress: (done, total) =>
+                onProgress?.call(AreaProgress(phase: AreaPhase.heights, done: done, total: total)));
 
     check();
     onProgress?.call(const AreaProgress(phase: AreaPhase.writing, done: 0, total: 1));
@@ -233,6 +289,24 @@ class AreaDownloader {
     );
     await store.putArchive(areaId, bytes);
     await _verify(areaId, fetched);
+    var heightBytes = 0;
+    if (heightTiles.isNotEmpty) {
+      final hb = writePmTiles(
+        tiles: heightTiles,
+        tileCompression: h!.header.tileCompression,
+        bounds: TileBounds(
+            west: plan.bounds.west, south: plan.bounds.south, east: plan.bounds.east, north: plan.bounds.north),
+        metadata: heightsMetadata(name, heightsManifest?.build),
+      );
+      await store.putHeights(areaId, hb);
+      await _verifyHeights(areaId, heightTiles);
+      heightBytes = hb.length;
+    } else {
+      // Ein Bereich, der unter derselben Id neu geholt wird, trägt keine
+      // Höhen aus dem alten Stand weiter — der Index sagt 0, das Archiv
+      // ist weg.
+      await store.deleteHeights(areaId);
+    }
     for (final e in poiFiles.entries) {
       await store.putPoiFile(areaId, e.key, e.value);
     }
@@ -250,6 +324,9 @@ class AreaDownloader {
       savedAt: (now ?? DateTime.now)().toUtc(),
       poiFiles: poiFiles.keys.toList()..sort(),
       poiBuild: poiFiles.isEmpty ? null : pm?.build,
+      heightTiles: heightTiles.length,
+      heightBytes: heightBytes,
+      heightsBuild: heightTiles.isEmpty ? null : heightsManifest?.build,
     );
     final others = [for (final a in await store.list()) if (a.id != areaId) a];
     await store.saveIndex([...others, area]);
@@ -270,6 +347,35 @@ class AreaDownloader {
       if (bytes == null) throw StateError('Archiv nach dem Schreiben nicht lesbar');
       stored = await PmTilesArchive.fromBytes(bytes);
     }
+    await _verifyStored(stored, fetched);
+  }
+
+  /// Dieselbe Gegenprobe für das Höhenarchiv, dazu: Die Stichprobe
+  /// ENTPACKT sich zu einer Höhenkachel — ein Archiv aus Bytes, die der
+  /// Leser nicht versteht, wäre sonst ein gespeicherter Fehler.
+  Future<void> _verifyHeights(String areaId, List<TileToWrite> fetched) async {
+    final path = await store.heightsPath(areaId);
+    final PmTilesArchive stored;
+    if (path != null) {
+      stored = await PmTilesArchive.from(path);
+    } else {
+      final bytes = await store.readHeights(areaId);
+      if (bytes == null) throw StateError('Höhenarchiv nach dem Schreiben nicht lesbar');
+      stored = await PmTilesArchive.fromBytes(bytes);
+    }
+    await _verifyStored(stored, fetched);
+    final source = ArchiveHeightSource(stored);
+    try {
+      final probe = fetched[fetched.length ~/ 2];
+      if (await source.tile(probe.x, probe.y) == null) {
+        throw StateError('Höhenkachel ${probe.x}/${probe.y} lässt sich nicht lesen');
+      }
+    } finally {
+      await source.close();
+    }
+  }
+
+  Future<void> _verifyStored(PmTilesArchive stored, List<TileToWrite> fetched) async {
     try {
       if (stored.header.numberOfAddressedTiles != fetched.length) {
         throw StateError('Archiv zählt ${stored.header.numberOfAddressedTiles} statt ${fetched.length} Kacheln');

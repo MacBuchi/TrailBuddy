@@ -24,6 +24,7 @@ import '../help/tab_tours.dart' show ProfileCoach;
 import '../highlights/highlight_sheet.dart' show unseenHighlightCountProvider;
 import '../friends/friend_providers.dart';
 import '../offline_areas/area_providers.dart' show storedAreasProvider;
+import '../offline_areas/height_tiles.dart' show kHeightsAttribution;
 import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
 import '../trails/trail_providers.dart' show stillValidQuestionsProvider, trailCacheProvider, trailsProvider;
 import 'account_dialogs.dart';
@@ -900,6 +901,11 @@ class _AboutSection extends ConsumerWidget {
         const SizedBox(height: 8),
         Text(
           'Kartendaten: © OpenStreetMap-Mitwirkende · Protomaps (ODbL)',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Höhendaten gespeicherter Bereiche: $kHeightsAttribution',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],

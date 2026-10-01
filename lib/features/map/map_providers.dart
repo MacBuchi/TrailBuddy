@@ -21,3 +21,9 @@ const kMapManifestUrl = '$kMapTilesBase/dach.json';
 /// Gruppe eine Datei haben. Dieselbe Zeiger-Idee wie beim Archiv — die
 /// Dateien eines Baus sind unveränderlich, nur der Zeiger wechselt.
 const kPoiManifestUrl = '$kMapTilesBase/pois.json';
+
+/// Das Manifest der Höhenkacheln (`heights.json`, geschrieben von
+/// `height-data.yml`): welches Archiv `heights-<build>.pmtiles` gerade
+/// gilt. Dieselbe Zeiger-Idee; die Kacheln kommen mit einem Bereich
+/// (`lib/features/offline_areas/height_tiles.dart`).
+const kHeightsManifestUrl = '$kMapTilesBase/heights.json';

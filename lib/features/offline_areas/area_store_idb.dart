@@ -50,6 +50,29 @@ class IdbAreaStore implements AreaStore {
     return null;
   }
 
+  // Die Höhen liegen im selben Speicher wie die Archive, unter einem
+  // eigenen Schlüssel — kein neuer Speicher, keine neue DB-Version.
+  static String _heightsKey(String id) => '$id/heights';
+
+  @override
+  Future<void> putHeights(String id, Uint8List bytes) =>
+      _db.writeStore(kAreaArchiveStore, (s) => s.put(bytes, _heightsKey(id)));
+
+  @override
+  Future<String?> heightsPath(String id) async => null;
+
+  @override
+  Future<Uint8List?> readHeights(String id) async {
+    final value = await _db.readStore(kAreaArchiveStore, (s) => s.getObject(_heightsKey(id)));
+    if (value is Uint8List) return value;
+    if (value is List<int>) return Uint8List.fromList(value);
+    return null;
+  }
+
+  @override
+  Future<void> deleteHeights(String id) =>
+      _db.writeStore(kAreaArchiveStore, (s) => s.delete(_heightsKey(id)));
+
   @override
   Future<void> putPoiFile(String id, String name, String text) =>
       _db.writeStore(kAreaPoiStore, (s) => s.put(text, '$id/$name'));
@@ -70,6 +93,7 @@ class IdbAreaStore implements AreaStore {
     final gone = areas.where((a) => a.id == id).toList();
     await saveIndex([for (final a in areas) if (a.id != id) a]);
     await _db.writeStore(kAreaArchiveStore, (s) => s.delete(id));
+    await _db.writeStore(kAreaArchiveStore, (s) => s.delete(_heightsKey(id)));
     for (final area in gone) {
       for (final name in area.poiFiles) {
         await _db.writeStore(kAreaPoiStore, (s) => s.delete('${area.id}/$name'));
