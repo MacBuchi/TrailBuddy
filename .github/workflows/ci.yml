@@ -55,6 +55,7 @@ jobs:
           python3 tool/map_tiles.py --self-test > /dev/null
           python3 tool/poi_extract.py --self-test > /dev/null
           python3 tool/brand_icons.py --self-test > /dev/null
+          python3 tool/highlights_preview.py --self-test > /dev/null
       # Eigener Schritt, nicht bei den Selbsttests: Der hier prüft nicht
       # ein Werkzeug, sondern die ausgelieferten Dateien — Kartenstil und
       # Übersichtskarte sind ERZEUGT (PilzBuddy #226). Wird er rot, steht

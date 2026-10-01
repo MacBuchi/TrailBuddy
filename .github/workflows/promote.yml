@@ -76,7 +76,44 @@ jobs:
             exit 1
           fi
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Befördere v$version"
+
+      # Der letzte stabile Stand VOR dieser Beförderung — die Untergrenze
+      # der Vorschau. Gelesen, bevor dieser Tag selbst stabil wird; der
+      # Tag ist trotzdem ausgenommen, falls er es schon ist.
+      - name: Letzten stabilen Stand finden
+        id: previous
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pick.outputs.tag }}
+        run: |
+          set -euo pipefail
+          prev=$(gh release list --limit 100 --exclude-drafts \
+            --json tagName,isPrerelease \
+            --jq '.[] | select(.isPrerelease | not) | .tagName' \
+            | grep -vx "$TAG" | head -1 || true)
+          echo "tag=$prev" >> "$GITHUB_OUTPUT"
+          echo "Vorheriger stabiler Stand: ${prev:-<keiner>}"
+
+      # Was das Neuheiten-Blatt nach dem Update zeigt (#135, #152). Es
+      # sucht sich seinen Inhalt selbst aus `kFeatureHighlights` — ein
+      # vergessener Eintrag fiele nirgends auf, die Funktion käme ohne
+      # Ankündigung an. Gelesen aus dem BEFÖRDERTEN Tag, nicht aus main.
+      # Kein Tor: Manche Beförderungen bringen ehrlich nur Korrekturen.
+      - name: Vorschau des Neuheiten-Blatts
+        env:
+          TAG: ${{ steps.pick.outputs.tag }}
+          VERSION: ${{ steps.pick.outputs.version }}
+          PREV: ${{ steps.previous.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git show "$TAG:lib/features/highlights/feature_highlights.dart" \
+            > "$RUNNER_TEMP/feature_highlights.dart" 2>/dev/null || true
+          python3 tool/highlights_preview.py \
+            --version "$VERSION" --since "${PREV#v}" \
+            --source "$RUNNER_TEMP/feature_highlights.dart" \
+            >> "$GITHUB_STEP_SUMMARY"
 
       - name: Release stabil schalten
         env:
