@@ -758,6 +758,13 @@ Trails (12); eine geplante Runde ist eine `planned`-Fahrt (5.2) und
 wandert erst gefahren weiter (10.1). Das Werkzeug sagt, wo es über einen
 Wanderweg plant, und nie, dass ein Weg befahren werden darf (7).
 
+**Die Engine ist eine eigene, kein BRouter** (Betreiber, 2026-10-01).
+Anforderungsprofil (Bio-Bike/E-Bike, Zeitmodell, Budgets, Wegklassen
+und Kosten), Algorithmus, Schrittfolge und der neu geschnittene
+Messplan stehen in `docs/konzept-routing.md`; die Frage von #35 heißt
+seither nicht mehr „welche Engine?", sondern „tragen unsere Kacheln
+den Graphen?" (dort Abschnitt 6).
+
 **Airtime und Ranking.** Sprünge lassen sich aus dem
 Beschleunigungssensor lesen (Freifallphase: Betrag der Beschleunigung
 nahe 0 für > 150 ms), Zuordnung zum Trail über die laufende Fahrt. Drei
@@ -891,7 +898,8 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   Teil; ERLEDIGT, `docs/nutzungsbedingungen-entwurf.md`, wartet auf die
   Prüfung). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
   aus dem Rework.
-- **Phase 4 — Der Trail-zuerst-Planer** (9, #158): erst die Messung
+- **Phase 4 — Der Trail-zuerst-Planer** (9, #158; Plan und
+  Anforderungsprofil in `docs/konzept-routing.md`): erst die Messung
   (#35, jetzt mit der Zielfunktion des Planers), dann Höhengitter,
   Wegegraph aus den Bereichen, Aufstieg von Punkt zu Punkt mit
   Wegklasse („zum Trailkopf, offline"), zuletzt die Verkettung mit

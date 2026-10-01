@@ -22,6 +22,10 @@ jeder zieht `konzept-trails.md` nach. Die Einführung (Tour, Kurzanleitung,
 „Entdecken“; `docs/konzept-onboarding.md`, #137) übernimmt PilzBuddys
 Mechanik aus #350/#596 und schneidet den Inhalt für Trails neu — sechs
 gestapelte PRs, die Regeln für Anker, Merker und Beispiele stehen dort.
+Die Routing-Engine (#35, #158) hat ihren Plan und ihr
+Anforderungsprofil in `docs/konzept-routing.md` — eigene Engine, kein
+BRouter (Betreiber, 2026-10-01); gebaut wird erst nach der Messung aus
+dessen Abschnitt 6.
 Offizielle Trails (#13) sind eine getrennte Ebene mit eigenem Konzept:
 `docs/konzept-offizielle-trails.md`. Gebaut von `official-trails.yml`
 (`tool/official_trails.py`, Quellen in `tool/official/sources.json`)
