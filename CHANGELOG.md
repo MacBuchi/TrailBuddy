@@ -2,6 +2,14 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Schnellerer Ladekreis
+
+*Version 0.65.1, 2026-10-01*
+
+- Das Ladesymbol zeichnet jetzt jedes Mal das **ganze Zeichen** ein,
+  hält kurz und blendet aus — statt eines kurzen Stücks, das langsam
+  hindurchlief. Ein Durchlauf dauert 1,4 statt 2 Sekunden.
+
 ## Das neue Logo
 
 *Version 0.65.0, 2026-10-01*

@@ -177,7 +177,7 @@ halbeBreiteLinks, halbeBreiteRechts]` plus Endstriche). **Ein Abschnitt
 a…b der Strecke ist eine Fläche** (`LogoGeometry.range` in Dart,
 `outline()` im Skript, dieselbe Rechnung): linker Rand, runde Kappe in
 der Streckenbreite, rechter Rand zurück, Kappe — dazu die Endstriche im
-Abschnitt als Pillen. Daraus kommen Logo (`range(0, total)`), der Läufer
+Abschnitt als Pillen. Daraus kommen Logo (`range(0, total)`), das Einzeichnen
 des Loaders und das Zeichnen im Splash. Die optische Größe wählt
 `logoSizeFor` nach der Kantenlänge (≥ 30 px L, ≥ 19 px M, sonst S).
 
@@ -443,7 +443,7 @@ Jede Animation ist aus, wenn das System es will
 | | Was | Dauer (Entwurf) |
 |---|---|---|
 | 1p Splash („Splash B", C3) | das Zeichen zeichnet sich in 1,3 s linear ein, Spitze in Streckenbreite; ab 1,26 s baut sich die Wortmarke daneben von links nach rechts auf, weiche Kante 14 % der Breite, 0,52 s `easeOutQuad` | einmal, 1,78 s |
-| 1q Loader (C3) | das Logo als Spur (`line`), ein Läufer von 40 Einheiten in Streckenbreite läuft ganz hinein und hinaus und springt über die Lücken in die Endstriche | 1,5 s Lauf + 0,5 s Pause, Schleife |
+| 1q Loader (C3) | das Logo als Spur (`line`), darauf zeichnet sich das ganze Zeichen in der Marke ein (`easeInOut`, über die Lücken in die Endstriche), steht und blendet zurück in die Spur — nie ein halbes Zeichen beim Ausblenden (seit 0.65.1; vorher ein Läufer von 40 Einheiten, der nie das ganze Zeichen zeigte, Betreiber 2026-10-01: „recht langsam und nicht vollständig") | 0,85 s Zeichnen + 0,2 s Stehen + 0,35 s Ausblenden, Schleife |
 | 1r Fahrt läuft | Ring um den Positionspunkt skaliert 1 → 3,2 und blendet von 0,7 aus; die Spur wächst | 1,6 s, Schleife |
 | 1s Buddy verbunden | zwei Spuren laufen zu einer zusammen, dann der Punkt | 3 s |
 | 1t Neuer Hinweis | der gelbe Leuchtrand atmet (2 → 6/14 px Schein) | 1,8 s, nur solange ungesehen |
@@ -453,7 +453,7 @@ Jede Animation ist aus, wenn das System es will
 
 Gebaut in 0.45.0 (`lib/core/widgets/motion.dart`, `start_splash.dart`;
 die Keyframes stehen je als pure Funktion daneben — `splashAt`,
-`loaderRunAt` (seit C3, vorher `loaderSegments`), `ridePulseAt`, `connectMergeAt`, `glowAt` — und sind
+`loaderAt` (seit 0.65.1, vorher `loaderRunAt` und `loaderSegments`), `ridePulseAt`, `connectMergeAt`, `glowAt` — und sind
 ohne Pixel geprüft, `test/core/motion_test.dart`). Bei reduzierter
 Bewegung steht überall das Endbild, kein Takt läuft. Fünf Abweichungen:
 
