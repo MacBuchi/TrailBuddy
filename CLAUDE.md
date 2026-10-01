@@ -343,7 +343,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   prüft das an einem Kind OHNE GlobalKey (mit einem wäre die Gegenprobe
   grün geblieben). Der Harness schaltet ihn ab
   (`startSplashEnabledProvider`), sonst schluckte er die ersten Tipps
-  jedes Flow-Tests.
+  jedes Flow-Tests. **Der Loader zeichnet je Durchlauf das GANZE
+  Zeichen** (seit 0.65.1, `loaderAt`): einzeichnen, stehen, zurück in die
+  Spur blenden, 1,4 s. Der Läufer davor zeigte nie das ganze Zeichen und
+  wirkte langsam (Betreiber). Ausgeblendet wird nur über dem ganzen
+  Zeichen — der Test prüft jeden Zeitpunkt, die Gegenprobe (Ausblenden
+  0,3 s früher) ist rot. Und knapp unter 1 zählt als fertig: `t ·
+  Periode` landet sonst bei 849,999… ms, und am Übergang fehlt ein
+  Hauch vom letzten Strich (im Test gefunden).
 - **Link zur Quelle** (#103, seit 0.48.0, Patch 012,
   `trail_link.dart`): `trail_details.link`, nur https ohne Query und
   Fragment — `sanitizeLink` in der App, `trail_details_link_check` in der

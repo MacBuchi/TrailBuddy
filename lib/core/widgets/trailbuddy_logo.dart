@@ -73,7 +73,7 @@ class LogoGeometry {
 
   /// Die Fläche des Abschnitts [a]…[b] der Strecke (0…[total]) mit runden
   /// Kappen in der Streckenbreite dort — daraus entstehen Logo
-  /// (`range(0, total)`), der Läufer des Loaders und das Zeichnen im
+  /// (`range(0, total)`), das Einzeichnen des Loaders und das Zeichnen im
   /// Splash. Spiegel von `outline()` in `tool/brand_icons.py`.
   Path range(double a, double b) {
     final path = Path();

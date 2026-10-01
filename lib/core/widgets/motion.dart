@@ -9,23 +9,31 @@ import 'trailbuddy_logo.dart';
 /// „Animationen entfernen" (Android) bzw. „Bewegung reduzieren" im Browser.
 bool reduceMotion(BuildContext context) => MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
-/// Länge des Läufers in Einheiten der Strecke (Logo C3): Er ist so breit
-/// wie die Strecke an seiner Stelle und springt über die Lücken in die
-/// Endstriche.
-const kLoaderRun = 40.0;
+/// Ein Durchlauf des Loaders: Das Zeichen zeichnet sich ganz ein, steht
+/// kurz und blendet zurück in die Spur — 0,85 s + 0,2 s + 0,35 s.
+///
+/// Bis 0.65.0 lief statt dessen ein Läufer von 40 Einheiten hindurch
+/// (1,5 s + 0,5 s Pause). Man sah damit nie das ganze Zeichen, immer nur
+/// ein Stück davon, und das wirkte langsam und unfertig (Betreiber,
+/// 2026-10-01: „läuft recht langsam und nicht vollständig durch").
+const kLoaderDrawMs = 850;
+const kLoaderHoldMs = 200;
+const kLoaderFadeMs = 350;
 
-/// Anteil eines Durchlaufs, in dem der Läufer unterwegs ist: 1,5 s von
-/// 2 s, danach 0,5 s Pause.
-const kLoaderMoving = 0.75;
-
-/// Der sichtbare Abschnitt des Läufers bei [t] (0…1) auf einer Strecke
-/// der Länge [total] (mit Endstrichen), oder null in der Pause. Er läuft
-/// ganz hinein und ganz hinaus. Pur, damit ein Test ohne Pixel prüfen
-/// kann, dass er läuft.
-(double, double)? loaderRunAt(double t, double total) {
-  if (t >= kLoaderMoving) return null;
-  final head = (t / kLoaderMoving).clamp(0.0, 1.0) * (total + kLoaderRun);
-  return (head - kLoaderRun, head);
+/// Stand des Loaders bei [t] (0…1 über [TrailLoader.period]) auf einer
+/// Strecke der Länge [total] (mit Endstrichen): bis wohin das Zeichen
+/// steht (`to`) und wie deckend es über der Spur liegt (`opacity`). Pur,
+/// damit ein Test ohne Pixel prüfen kann, dass jeder Durchlauf das ganze
+/// Zeichen zeigt, bevor er ausblendet.
+({double to, double opacity}) loaderAt(double t, double total) {
+  final ms = t.clamp(0.0, 1.0) * TrailLoader.period.inMilliseconds;
+  // Kurveneingänge klemmen: Gleitkomma liegt sonst knapp über 1, und die
+  // Kurve lehnt das ab. Und knapp darunter ist auch fertig — sonst fehlt
+  // am Übergang zum Stehen ein Hauch vom letzten Strich.
+  final x = ms / kLoaderDrawMs;
+  final draw = x >= 1 - 1e-9 ? 1.0 : Curves.easeInOut.transform(x.clamp(0.0, 1.0));
+  final fade = ((ms - kLoaderDrawMs - kLoaderHoldMs) / kLoaderFadeMs).clamp(0.0, 1.0);
+  return (to: draw * total, opacity: 1 - Curves.easeIn.transform(fade));
 }
 
 /// Der Loader: das Logo als Spur, darauf läuft ein Stück in der Marke.
@@ -36,7 +44,7 @@ class TrailLoader extends StatefulWidget {
 
   final double size;
 
-  static const period = Duration(milliseconds: 2000);
+  static const period = Duration(milliseconds: kLoaderDrawMs + kLoaderHoldMs + kLoaderFadeMs);
 
   @override
   State<TrailLoader> createState() => _TrailLoaderState();
@@ -51,8 +59,8 @@ class _TrailLoaderState extends State<TrailLoader> with SingleTickerProviderStat
     if (reduceMotion(context)) {
       _controller
         ..stop()
-        // Still: der Läufer mitten auf der Spur, nicht am Rand.
-        ..value = kLoaderMoving / 2;
+        // Still: das ganze Zeichen, nie ein halbes.
+        ..value = (kLoaderDrawMs + kLoaderHoldMs / 2) / TrailLoader.period.inMilliseconds;
     } else if (!_controller.isAnimating) {
       _controller.repeat();
     }
@@ -76,14 +84,13 @@ class _TrailLoaderState extends State<TrailLoader> with SingleTickerProviderStat
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
-              final run = loaderRunAt(_controller.value, geo.total);
+              final s = loaderAt(_controller.value, geo.total);
               return CustomPaint(
                 painter: LogoPainter(
                   geometry: geo,
-                  color: p.brandMark,
+                  color: p.brandMark.withValues(alpha: s.opacity),
                   track: p.line,
-                  from: run?.$1 ?? 0,
-                  to: run?.$2 ?? 0,
+                  to: s.to,
                 ),
               );
             },

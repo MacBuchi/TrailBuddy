@@ -31,17 +31,24 @@ void main() {
   group('1q Loader', () {
     final total = LogoGeometry.of(LogoSize.l).total;
 
-    test('der Läufer läuft ganz hinein und hinaus, dann Pause', () {
-      expect(loaderRunAt(0, total), (-kLoaderRun, 0.0), reason: 'am Anfang noch vor der Strecke');
-      final end = loaderRunAt(kLoaderMoving - 1e-9, total)!;
-      expect(end.$1, closeTo(total, 1e-6), reason: 'am Ende ganz hinter dem letzten Strich');
-      expect(loaderRunAt(0.3, total)!.$1, greaterThan(loaderRunAt(0.2, total)!.$1));
-      expect(loaderRunAt(kLoaderMoving, total), isNull, reason: '0,5 s Pause');
-      expect(loaderRunAt(0.99, total), isNull);
-      for (var t = 0.0; t < kLoaderMoving; t += 0.01) {
-        final (a, b) = loaderRunAt(t, total)!;
-        expect(b - a, closeTo(kLoaderRun, 1e-9));
+    test('jeder Durchlauf zeigt das ganze Zeichen, bevor er ausblendet', () {
+      const period = kLoaderDrawMs + kLoaderHoldMs + kLoaderFadeMs;
+      expect(TrailLoader.period.inMilliseconds, period);
+      expect(TrailLoader.period, lessThan(const Duration(milliseconds: 2000)), reason: 'schneller als bis 0.65.0');
+      expect(loaderAt(0, total), (to: 0.0, opacity: 1.0), reason: 'beginnt leer');
+      expect(loaderAt(0.2, total).to, greaterThan(loaderAt(0.1, total).to));
+      // Stehen: ganz und deckend, vom Ende des Zeichnens bis zum Ausblenden.
+      for (var ms = kLoaderDrawMs; ms <= kLoaderDrawMs + kLoaderHoldMs; ms += 10) {
+        final s = loaderAt(ms / period, total);
+        expect(s.to, closeTo(total, 1e-9));
+        expect(s.opacity, 1);
       }
+      // Ausblenden nur über dem ganzen Zeichen.
+      for (var t = 0.0; t <= 1; t += 0.01) {
+        final s = loaderAt(t, total);
+        if (s.opacity < 1) expect(s.to, closeTo(total, 1e-9), reason: 'kein halbes Zeichen beim Ausblenden (t = $t)');
+      }
+      expect(loaderAt(1, total).opacity, closeTo(0, 1e-9), reason: 'am Ende zurück in der Spur');
     });
 
     testWidgets('läuft und sagt „Lädt …"', (tester) async {
@@ -55,6 +62,13 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(find.bySemanticsLabel('Lädt …'), findsOneWidget);
       expect(_tickers(), 0);
+      final painter = tester
+          .widgetList<CustomPaint>(find.descendant(of: find.byType(TrailLoader), matching: find.byType(CustomPaint)))
+          .map((p) => p.painter)
+          .whereType<LogoPainter>()
+          .single;
+      expect(painter.to, closeTo(painter.geometry!.total, 1e-9), reason: 'das ganze Zeichen, kein halbes');
+      expect(painter.color.a, 1);
     });
   });
 
