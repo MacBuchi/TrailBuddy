@@ -238,7 +238,16 @@ Copernicus-DEM GLO-90 (offen, ohne Konto, in CI lesbar — geprüft):
 Entschieden (Betreiber, 2026-10-01): **A zuerst, „vielleicht reicht es
 fürs Routing"; genauer wie bei Locus, wenn nicht.** Locus rechnet mit
 SRTM-Höhen in 3 Bogensekunden (~90 m) — das ist genau die Auflösung
-von B, also der Weg, der dann offensteht. Die Höhe einer
+von B, also der Weg, der dann offensteht.
+
+**Gemessen am selben Tag (M3, Tirol-Hälfte, `docs/routing-messung.md`):
+A reicht nicht.** Entlang der 168 offiziellen Trails mit Abstiegsangabe
+trifft das DEM direkt (90 m) die Zahl der Quelle mit 5 % Medianfehler
+und 67 % innerhalb ±10 %; das simulierte Gitter A (250-m-Waben, 20-m-
+Stufen) liegt bei 42 % Medianfehler und überschätzt den Abstieg um ein
+Viertel (Median 1,25) — die Stufen erzeugen entlang einer Linie Treppen,
+die die Hysterese nicht wegbekommt. **Gebaut wird B**: Höhenkacheln je
+Bereich vom eigenen Host, 1 Byte je 90-m-Zelle. Die Höhe einer
 Kante wird nicht an den Enden, sondern alle 50 m entlang der Linie
 abgetastet und mit einer Hysterese von 10 m zu Anstieg/Abstieg summiert
 (die 3 m der Trail-Höhen gelten für aufgezeichnete Höhen, nicht für ein
@@ -330,7 +339,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 |---|---|---|---|
 | 0 | dieses Dokument; Konzept 9 und 11 nachziehen | #35 | — |
 | 1 | `tool/route_measure.py` + `route-measure.yml`: Graph aus Kacheln, DEM, A*, Messung an Tirol (CI) und an den eigenen Fahrten (lokal), Bericht `docs/routing-messung.md` | #35 | — |
-| 2 | Höhen: Gitter-Asset (A) oder Höhenkacheln (B) nach M3, mit Wächter in `generated_assets.py` | #158/2 | feat |
+| 2 | Höhen: Höhenkacheln je Bereich vom eigenen Host (B — A ist in M3 durchgefallen), gebaut von einem Workflow wie die Orte, geladen mit dem Bereich | #158/2 | feat |
 | 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, speichern, GPX | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails | #158/5 | feat |
@@ -406,7 +415,8 @@ Vorschläge, bis die Messung oder die eigenen Fahrten andere liefern.
    und `access=private` bleiben gesperrt.
 5. **Höhen: zuerst das Gitter wie in PilzBuddy**, „vielleicht reicht es
    fürs Routing"; genauer wie bei Locus (90 m, Weg B), wenn die Messung
-   M3 es verlangt (2.6).
+   M3 es verlangt — sie verlangt es, am selben Tag gemessen (2.6):
+   Weg B.
 6. **Zielfunktion Trail-Meter** vor Anzahl; **ein Trail zweimal ist
    sehr teuer**, erst recht ohne 4–5 Sterne der Buddys (3).
 7. **Eigener Knopf für den Planer**, nicht der Idee-Knopf (4).
