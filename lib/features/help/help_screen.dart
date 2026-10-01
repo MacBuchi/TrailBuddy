@@ -90,8 +90,9 @@ const kHelpSteps = <HelpStep>[
         'Karte eine Fahrt auf — auch ohne Empfang, und sie bleibt auf deinem '
         'Gerät. Unterwegs markierst du mit der Fahne, wo ein Trail beginnt '
         'und endet. Danach zerlegst du die Fahrt: Bekannte Trails erkennt die '
-        'App wieder, neue Stücke wählst du selbst. In der Web-App gibt es '
-        'keine Aufzeichnung.',
+        'App wieder, neue Stücke wählst du selbst. Als GPX exportiert, kannst '
+        'du die Fahrt in jede andere App laden. In der Web-App gibt es keine '
+        'Aufzeichnung.',
   ),
   HelpStep(
     icon: _HelpIcon(Icons.group_outlined),

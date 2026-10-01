@@ -1,7 +1,8 @@
 // Die Fahrt (#28, Konzept 5.1): der aufgezeichnete Weg von Start bis
 // Ziel — Haustür bis Haustür. Sie ist ein Bewegungsprofil und verlässt
-// das Gerät nie (Konzept 10, Entscheidung 4); beigesteuert werden
-// später nur Ausschnitte, die einen Trail belegen (Zerlege-Blatt, #29).
+// das Gerät nie von selbst (Konzept 10, Entscheidung 4; die Sicherung
+// ist der GPX-Export von Hand, #150); beigesteuert werden nur
+// Ausschnitte, die einen Trail belegen (Zerlege-Blatt, #29).
 //
 // Alles hier ist rein: Punkte rein, Zahlen raus. Kein Netz, keine
 // Platte, keine Provider. Der Baustein ist die Pilztour aus PilzBuddy

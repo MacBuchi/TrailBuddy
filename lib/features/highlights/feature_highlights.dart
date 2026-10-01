@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'gpx-export',
+    since: '0.68.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.trails,
+    icon: Icons.share_outlined,
+    title: 'Trails und Fahrten als GPX',
+    text: 'Jeder Trail und jede Fahrt lässt sich als GPX-Datei weitergeben — '
+        'an Komoot, Garmin, eine Navi-App oder als Sicherung. Trails im Blatt, '
+        'Fahrten unter „Meine Fahrten".',
+    target: '/trails',
+  ),
+  FeatureHighlight(
     id: 'navigate',
     since: '0.67.0',
     kind: HighlightKind.highlight,

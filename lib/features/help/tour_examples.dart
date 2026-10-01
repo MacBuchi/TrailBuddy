@@ -230,6 +230,18 @@ class _ExampleTrailSheet extends StatelessWidget {
                 ),
               ],
             ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CoachAnchor(
+                id: SheetCoach.export,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  onPressed: _nothing,
+                  icon: const Icon(Icons.share_outlined, size: 18),
+                  label: const Text('Als GPX exportieren'),
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
             CoachAnchor(
               id: SheetCoach.navigate,

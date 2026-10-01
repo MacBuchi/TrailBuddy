@@ -2,6 +2,20 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Fahrten und Trails als GPX-Datei
+
+*Version 0.68.0, 2026-10-01*
+
+- Jeden Trail gibst du jetzt im Blatt **„Als GPX exportieren"** weiter —
+  über das Teilen-Menü an Komoot, Garmin, eine Navi-App oder einfach als
+  Datei. In der Datei stehen nur die Linie, der Name und dein eigener
+  Link; keine Buddys, keine Hinweise.
+- Unter „Meine Fahrten" hat jede Fahrt ein Menü mit **„Als GPX
+  exportieren"** und „Fahrt löschen". Die Fahrt geht ganz hinaus, mit
+  Zeiten und der vom GPS gemessenen Höhe — das ist deine Sicherung.
+- Im Browser wird die Datei heruntergeladen, wenn der Browser kein
+  Teilen kennt.
+
 ## Anfahrt zum Trail
 
 *Version 0.67.0, 2026-10-01*
