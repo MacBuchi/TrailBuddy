@@ -30,7 +30,7 @@ const kMapPanelPool = 0.45;
 
 /// Höhe, auf die das Blatt beim Ergebnis einklappt: Summen und die
 /// Knöpfe darunter sind zu sehen, die Route darüber.
-const kMapPanelResult = 0.34;
+const kMapPanelResult = 0.4;
 
 /// Griff an das offene Blatt: verkleinern/vergrößern und schließen.
 class MapPanelController {
@@ -61,7 +61,7 @@ Future<void> showMapPanel(
   final sheet = DraggableScrollableController();
   late final PersistentBottomSheetController controller;
   final panel = MapPanelController._(sheet, () => controller.close());
-  controller = scaffold.showBottomSheet(
+  controller = _current = scaffold.showBottomSheet(
     (context) => _MapPanel(
       sheet: sheet,
       initialSize: initialSize,
@@ -73,10 +73,17 @@ Future<void> showMapPanel(
     elevation: 8,
   );
   return controller.closed.whenComplete(() {
+    if (identical(_current, controller)) _current = null;
     container.read(mapPanelInsetProvider.notifier).state = 0;
     sheet.dispose();
   });
 }
+
+PersistentBottomSheetController? _current;
+
+/// Schließt das offene Routen-Blatt, wenn eins offen ist — der Planer
+/// schließt so beim Verlassen des Modus sein Ergebnis mit.
+void closeMapPanel() => _current?.close();
 
 class _MapPanel extends ConsumerWidget {
   const _MapPanel({required this.sheet, required this.initialSize, required this.maxSize, required this.builder});

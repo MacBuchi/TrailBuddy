@@ -25,15 +25,23 @@
   mehr als Abfahrt im Pool, sondern werden beim Aufstieg bevorzugt —
   auch mehrmals, auch wenn die Karte sie nicht kennt. Das Ergebnis nennt
   sie mit Namen. Forstwege dürfen wie bisher beliebig oft vorkommen.
-- **Trail antippen heißt erst auswählen:** Er leuchtet, unten steht eine
-  kleine Karte mit Name, Länge und Sternen; ein Tipp darauf (oder ein
-  zweiter auf den Trail) öffnet das Blatt. Im Planer wählt ein Tipp auf
-  einen Trail ihn für die Runde an oder ab.
+- **Der Planer hat eine eigene Leiste links**, wie „Ebenen": Start
+  (Standort oder auf der Karte getippt), **Parameter** (Profil, Zeit,
+  Höhenmeter, Wanderweg, „Start ist auch Ziel" und der Radius der
+  Liste), die **Liste** der Trails im Radius, **Gebiet dazu / weg** (mit
+  dem Finger umfahren — wie beim Zeichnen der Bereiche), Auswahl leeren
+  und **Rechnen**. Vor allem aber: **Trails auf der Karte antippen** —
+  einmal heißt dabei (sie leuchten), noch einmal heißt raus. Das Ergebnis
+  kommt von unten, die Leiste und deine Auswahl bleiben stehen, bis du
+  den Planer schließt.
+- **Außerhalb des Planers heißt Trail antippen erst auswählen:** Er
+  leuchtet, unten steht eine kleine Karte mit Name, Länge und Sternen;
+  ein Tipp darauf (oder ein zweiter auf den Trail) öffnet das Blatt.
 - **Das Navi-Symbol an jedem Trail** (Liste und kleine Karte): mit deiner
   Navi-App, oder in TrailBuddy **direkt** oder **spaßig** — spaßig nimmt
   Abfahrten auf dem Weg zum Trail mit. Einmal als Standard gemerkt, fragt
   nur noch ein langer Druck aufs Symbol.
-- **Langer Druck auf die Karte:** „Route ab hier" (eine Runde mit diesem
+- **Langer Druck auf die Karte:** „Route ab hier" (der Planer mit diesem
   Start), „Route bis hier" (der Weg von deinem Standort) oder die
   Navi-App.
 

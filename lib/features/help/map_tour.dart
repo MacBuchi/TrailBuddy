@@ -44,9 +44,13 @@ abstract final class MapCoach {
   /// Die Aufnahme — nur, wo man aufzeichnen kann (Android).
   static const record = 'map.record';
 
-  /// Der Rundenplaner (#158 Schritt 5): Knopf und Szene (das Blatt).
+  /// Der Rundenplaner (#158 Schritt 5): der Knopf rechts.
   static const loop = 'map.loop';
-  static const loopSheet = 'map.loopSheet';
+
+  /// Die Leiste des Planers (seit 0.74.0) — Anker UND Szene (sie öffnet
+  /// den Modus), und je Knopf `map.loopRail.<key>`.
+  static const loopRail = 'map.loopRail';
+  static String loopRailButton(String key) => 'map.loopRail.$key';
 
   /// Das Schild am Anfang des Trails, dessen Blatt die Tour öffnet.
   static const trailBadge = 'map.trailBadge';

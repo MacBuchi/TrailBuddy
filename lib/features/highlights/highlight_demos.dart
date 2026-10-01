@@ -24,7 +24,6 @@ import 'package:go_router/go_router.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart';
-import '../routing/loop_planner_sheet.dart' show kLoopNextAnchor;
 
 /// Eine Vorführung: wo sie beginnt und was sie zeigt.
 class HighlightDemo {
@@ -138,25 +137,25 @@ final kHighlightDemos = <String, HighlightDemo>{
   ),
   'loop-planner': HighlightDemo(
     route: '/',
-    script: _demo('loop-planner', const [
-      CoachStep(
+    script: _demo('loop-planner', [
+      const CoachStep(
         title: 'Eine Runde aus deinen Trails',
-        text: 'Der Knopf öffnet den Planer: Start (dein Standort oder ein '
-            'getippter Punkt), Profil, höchstens Zeit, Höhenmeter und '
-            'Wanderweg — dann wählst du die Trails, die in Frage kommen.',
+        text: 'Der Knopf öffnet den Planer: links eine eigene Leiste, und '
+            'jeder Trail, den du auf der Karte antippst, kommt in die Runde — '
+            'ein zweiter Tipp nimmt ihn wieder heraus.',
         lit: [MapCoach.loop],
         gesture: CoachGesture.tap,
         requires: [MapCoach.loop],
       ),
       CoachStep(
-        title: 'Budget und Pool',
-        text: 'Die Runde nimmt möglichst viele Trails bergab mit, verbunden '
-            'über die Wege deiner gespeicherten Bereiche; ein Stern heißt '
-            '„muss dabei sein". Das Ergebnis liegt auf der Karte und geht als '
-            'geplante Fahrt in „Meine Fahrten" oder als GPX an die Navi-App.',
-        scene: MapCoach.loopSheet,
-        lit: [kLoopNextAnchor],
-        requires: [MapCoach.loop],
+        title: 'Die Leiste des Planers',
+        text: 'Oben der Start (Standort oder getippt) und die Parameter — Zeit, '
+            'Höhenmeter, Wanderweg, Radius. Darunter die Liste und das Gebiet: '
+            'umfahren, und die Trails darin sind dabei. Ganz unten: rechnen.',
+        scene: MapCoach.loopRail,
+        lit: const [MapCoach.loopRail],
+        ring: [MapCoach.loopRailButton('loop-rail-compute')],
+        requires: const [MapCoach.loop],
       ),
     ]),
   ),

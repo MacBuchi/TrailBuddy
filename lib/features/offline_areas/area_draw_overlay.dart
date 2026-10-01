@@ -10,6 +10,7 @@
 // also. Die Umrechnung ist die der Trefferprüfung (map_hit_test.dart),
 // auf beiden Engines dieselbe.
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../../core/app_colors.dart';
 import '../map/map_view/map_hit_test.dart';
@@ -25,14 +26,23 @@ class AreaDrawOverlay extends StatefulWidget {
     super.key,
     required this.camera,
     required this.tool,
-    required this.onStroke,
-  });
+    this.onStroke,
+    this.onRing,
+    this.hint,
+  }) : assert(onStroke != null || onRing != null);
 
   final MapViewCamera camera;
   final AreaDrawTool tool;
 
   /// Die Kacheln des Strichs — null, wenn er zu groß war.
-  final void Function(Set<int>? keys) onStroke;
+  final void Function(Set<int>? keys)? onStroke;
+
+  /// Der Strich selbst als geschlossener Ring in Grad — für den Planer,
+  /// der damit Trails wählt (seit 0.74.0), statt Kacheln.
+  final void Function(List<LatLng> ring)? onRing;
+
+  /// Die Zeile oben; ohne: die der Bereiche.
+  final String? hint;
 
   @override
   State<AreaDrawOverlay> createState() => _AreaDrawOverlayState();
@@ -52,7 +62,11 @@ class _AreaDrawOverlayState extends State<AreaDrawOverlay> {
     setState(_points.clear);
     if (pts.length < 2) return;
     final ring = [for (final p in pts) unprojectFromScreen(widget.camera, p)];
-    widget.onStroke(tilesTouchedByRing(ring));
+    if (widget.onRing != null) {
+      widget.onRing!(ring);
+    } else {
+      widget.onStroke!(tilesTouchedByRing(ring));
+    }
   }
 
   @override
@@ -95,9 +109,10 @@ class _AreaDrawOverlayState extends State<AreaDrawOverlay> {
                   ],
                 ),
                 child: Text(
-                  add
-                      ? 'Mit dem Finger umfahren, was dazukommen soll'
-                      : 'Mit dem Finger umfahren oder überwischen, was weg soll',
+                  widget.hint ??
+                      (add
+                          ? 'Mit dem Finger umfahren, was dazukommen soll'
+                          : 'Mit dem Finger umfahren oder überwischen, was weg soll'),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),

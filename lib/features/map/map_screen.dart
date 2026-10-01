@@ -21,8 +21,10 @@ import '../rides/ride_providers.dart';
 import '../rides/ride_split_sheet.dart';
 import '../rides/ride_task_handler.dart';
 import '../rides/ride_track.dart';
+import '../routing/loop_planner_controller.dart';
 import '../routing/loop_planner_providers.dart';
 import '../routing/loop_planner_sheet.dart';
+import '../routing/loop_tool_rail.dart';
 import '../routing/map_panel.dart';
 import '../routing/trail_head_providers.dart';
 import '../routing/trail_head_sheet.dart';
@@ -200,7 +202,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         };
       }))
       ..add(coach.registerScene(MapCoach.filterSheet, () => sheet(() => showPoiFilterSheet(context))))
-      ..add(coach.registerScene(MapCoach.loopSheet, () => sheet(() => showLoopPlannerSheet(_scaffoldKey.currentState!))))
+      // Der Planer ist seit 0.74.0 ein Modus mit Leiste: Die Szene öffnet
+      // ihn und schließt ihn wieder, wenn sie ihn geöffnet hat.
+      ..add(coach.registerScene(MapCoach.loopRail, () async {
+        final wasOpen = ref.read(loopPlannerProvider).open;
+        if (!wasOpen) await _openLoopPlanner();
+        return () {
+          if (!wasOpen && mounted) ref.read(loopPlannerProvider.notifier).close();
+        };
+      }))
       ..add(coach.registerScene(MapCoach.trailSheet, () async {
         final trail = _coachTrail;
         // Ohne Trail nichts zu öffnen — der Schritt fällt über `unless`
@@ -383,30 +393,52 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
   }
 
-  /// Ein Tipp ins Leere: Wartet der Planer auf seinen Start (#158
-  /// Schritt 5), ist der Tipp der Start; sonst hebt er die Auswahl eines
-  /// Trails auf (#178).
+  /// Ein Tipp ins Leere: Wartet der Planer auf seinen Start, ist der Tipp
+  /// der Start; sonst hebt er die Auswahl eines Trails auf (#178).
   void _onMapTap(MapTap tap) {
     if (_takeLoopStart(tap)) return;
     if (_selectedTrailId != null) setState(() => _selectedTrailId = null);
   }
 
   bool _takeLoopStart(MapTap tap) {
-    if (!ref.read(loopStartPickProvider)) return false;
-    ref.read(loopStartPickProvider.notifier).state = false;
-    ref.read(loopStartProvider.notifier).state = tap.point;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_showLoopPlanner());
-    });
+    final session = ref.read(loopPlannerProvider);
+    if (!session.open || !session.pickingStart) return false;
+    ref.read(loopPlannerProvider.notifier).takeStart(tap.point);
     return true;
   }
 
-  Future<void> _showLoopPlanner() async {
+  /// Der Planer als Modus (seit 0.74.0): Leiste links, Tipps wählen
+  /// Trails. Die Leiste „Ebenen" geht dafür zu — zwei Leisten links passen
+  /// nicht nebeneinander.
+  Future<void> _openLoopPlanner({LatLng? start}) async {
+    if (ref.read(offlineOverlayProvider)) {
+      await _closeTools();
+      if (!mounted || ref.read(offlineOverlayProvider)) return;
+    }
+    setState(() => _selectedTrailId = null);
+    ref.read(loopPlannerProvider.notifier).open(start: start);
+  }
+
+  /// Schließen: Ergebnis-Blatt zu, Modus aus — die Auswahl bleibt für die
+  /// Sitzung.
+  void _closeLoopPlanner() {
+    if (_loopPanelOpen) closeMapPanel();
+    ref.read(loopPlannerProvider.notifier).close();
+  }
+
+  Future<void> _computeLoop() async {
     final scaffold = _scaffoldKey.currentState;
     if (scaffold == null) return;
-    setState(() => _selectedTrailId = null);
-    await showLoopPlannerSheet(scaffold);
+    if (_loopPanelOpen) {
+      unawaited(ref.read(loopPlannerProvider.notifier).compute());
+      return;
+    }
+    _loopPanelOpen = true;
+    await showLoopResultPanel(scaffold);
+    _loopPanelOpen = false;
   }
+
+  bool _loopPanelOpen = false;
 
   void _onHit(Object hit, MapTap tap) {
     // Auch ein Tipp auf eine Linie ist ein Punkt, solange der Planer
@@ -414,10 +446,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (_takeLoopStart(tap)) return;
     switch (hit) {
       case final Trail t:
-        // Im Pool des Planers wählt ein Tipp den Trail an oder ab (#178).
-        final pick = ref.read(loopMapPickProvider);
-        if (pick != null && pick.selectable.contains(t.id)) {
-          pick.toggle(t.id);
+        // Im Planer wählt ein Tipp den Trail an oder ab (#178).
+        if (ref.read(loopPlannerProvider).open) {
+          final result = ref.read(loopPlannerProvider.notifier).toggle(t);
+          if (result == LoopToggle.connector || result == LoopToggle.pending) {
+            ScaffoldMessenger.of(context)
+              ..clearSnackBars()
+              ..showSnackBar(SnackBar(
+                  key: const ValueKey('loop-not-pickable'),
+                  content: Text(result == LoopToggle.connector
+                      ? '„${t.displayName}" ist ein Uphill-Trail oder Verbinder — die Runde nutzt ihn von selbst bergauf.'
+                      : '„${t.displayName}" wartet noch auf Übertragung.')));
+          }
           return;
         }
         // Sonst: auswählen — er leuchtet, unten die Schnellkarte; ein
@@ -548,10 +588,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// Route ab hier (der Planer mit diesem Start), Route bis hier (der Weg
   /// vom Standort), oder die Navi-App.
   Future<void> _onLongPress(MapTap tap) async {
-    if (ref.read(loopStartPickProvider)) {
-      _takeLoopStart(tap);
-      return;
-    }
+    if (_takeLoopStart(tap)) return;
     final box = context.findRenderObject() as RenderBox?;
     final at = box?.localToGlobal(tap.screenPoint) ?? tap.screenPoint;
     setState(() {
@@ -585,8 +622,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final scaffold = _scaffoldKey.currentState;
     switch (choice) {
       case 'from':
-        ref.read(loopStartProvider.notifier).state = tap.point;
-        await _showLoopPlanner();
+        await _openLoopPlanner(start: tap.point);
       case 'to':
         if (scaffold == null) return;
         await showRouteSheet(scaffold,
@@ -632,8 +668,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final focusRide = ref.watch(mapFocusRideProvider);
     final splitPreview = ref.watch(rideSplitPreviewProvider);
     final trailHeadPreview = ref.watch(trailHeadPreviewProvider);
-    final loopPreview = ref.watch(loopPreviewProvider);
-    final loopPicking = ref.watch(loopStartPickProvider);
+    final loop = ref.watch(loopPlannerProvider);
+    final loopPicking = loop.open && loop.pickingStart;
+    final loopPlan = loop.open ? loop.plan : null;
     final panelInset = ref.watch(mapPanelInsetProvider);
     // Der ausgewählte Trail (#178) — weg, wenn er nicht mehr gezeigt wird
     // (Filter, gelöscht).
@@ -782,7 +819,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // ist — über der Fahrt, unter dem Netz.
         ...trailHeadPreview,
         // Die geplante Runde (#158 Schritt 5), solange ihr Blatt offen ist.
-        ...loopPreview,
+        // Im Planer: die gewählten Trails leuchten — liegt eine Runde auf
+        // der Karte, zeigt sie, was dabei ist.
+        if (loop.open && loopPlan == null) ...loopSelectionLines(trails, loop),
+        if (loopPlan != null) ...loopPreviewLines(loopPlan),
         // Der ausgewählte Trail leuchtet (#178) — unter dem Netz, die
         // Linie selbst behält ihre Farbe.
         if (selected != null && selected.points.length >= 2)
@@ -820,6 +860,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // Schild zuoberst, es ist das Antippbare.
         ...trailEndMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
         ...trailBadgeMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
+        // Der getippte Start des Planers.
+        if (loop.open && loop.start != null)
+          MapViewMarker(
+            key: const ValueKey('loop-start-pin'),
+            point: loop.start!,
+            width: 32,
+            height: 32,
+            alignment: Alignment.topCenter,
+            child: const Icon(Icons.flag, size: 32, color: AppColors.brand),
+          ),
         // Die Nadel des langen Drucks (#177), solange sein Menü offen ist.
         if (_pressedPoint != null)
           MapViewMarker(
@@ -847,11 +897,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // Offen gilt: Zurück schließt die Werkzeugleiste (mit Rückfrage),
       // statt die App zu verlassen; wartet der Planer auf einen Tipp,
       // bricht Zurück das Tippen ab.
-      canPop: !toolsOpen && !loopPicking && selected == null,
+      canPop: !toolsOpen && !loop.open && selected == null,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (loopPicking) {
-          ref.read(loopStartPickProvider.notifier).state = false;
+        if (loop.open) {
+          // Stufenweise: erst Start-Tipp oder Zeichnen abbrechen, dann
+          // den Planer schließen (ein Ergebnis-Blatt nimmt Zurück selbst).
+          final notifier = ref.read(loopPlannerProvider.notifier);
+          if (loop.pickingStart) {
+            notifier.cancelStartPick();
+          } else if (loop.drawTool != null) {
+            notifier.disarmDraw();
+          } else {
+            _closeLoopPlanner();
+          }
           return;
         }
         if (selected != null) {
@@ -874,7 +933,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               backgroundColor: AppColors.mapBackground,
               // Die Quellen der offiziellen Trails, solange die Ebene an
               // ist und eine ihrer Regionen geladen.
-              bottomLeftInset: toolsOpen ? kRailWidth + 8 : 0,
+              bottomLeftInset: toolsOpen || loop.open ? kRailWidth + 8 : 0,
               attributions: [
                 if (officialOn)
                   for (final src in official.loadedSources)
@@ -894,6 +953,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             Positioned.fill(
               child: AreaDrawOverlay(camera: camera, tool: drawTool, onStroke: _onStroke),
             ),
+          // Der Planer zeichnet ein Gebiet: Trails darin dazu oder weg.
+          if (loop.open && loop.drawTool != null && camera != null)
+            Positioned.fill(
+              child: AreaDrawOverlay(
+                key: const ValueKey('loop-draw'),
+                camera: camera,
+                tool: loop.drawTool!,
+                hint: loop.drawTool == AreaDrawTool.add
+                    ? 'Gebiet umfahren — die Trails darin kommen dazu'
+                    : 'Gebiet umfahren — die Trails darin fallen weg',
+                onRing: (ring) {
+                  final n = ref.read(loopPlannerProvider.notifier).applyRing(ring);
+                  ScaffoldMessenger.of(context)
+                    ..clearSnackBars()
+                    ..showSnackBar(SnackBar(
+                        content: Text(n == 0
+                            ? 'In dem Gebiet liegt kein wählbarer Trail.'
+                            : '$n ${n == 1 ? 'Trail' : 'Trails'} ${loop.drawTool == AreaDrawTool.add ? 'dazu' : 'weg'}.')));
+                },
+              ),
+            ),
           if (trailsAsync.isLoading && trails.isEmpty)
             const CenteredTrailLoader(),
           // Solange ein Werkzeug scharf ist, gehört der Platz oben der
@@ -910,6 +990,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 children: [
                   const UpdateBanner(),
                   const _OutboxBanner(),
+                  // Im Planer, solange nichts gewählt ist: wie es geht.
+                  if (loop.open && !loopPicking && loop.drawTool == null && loop.selected.isEmpty)
+                    const Card(
+                      key: ValueKey('loop-hint'),
+                      margin: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.alt_route),
+                        title: Text('Tippe die Trails an, die in die Runde sollen — '
+                            'oder nimm Liste oder Gebiet links.'),
+                      ),
+                    ),
                   // Der Planer wartet auf seinen Start (#158 Schritt 5).
                   if (loopPicking)
                     Card(
@@ -921,7 +1013,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         title: const Text('Tippe auf die Karte, wo die Runde beginnt.'),
                         trailing: TextButton(
                           key: const ValueKey('loop-pick-cancel'),
-                          onPressed: () => ref.read(loopStartPickProvider.notifier).state = false,
+                          onPressed: () => ref.read(loopPlannerProvider.notifier).cancelStartPick(),
                           child: const Text('Abbrechen'),
                         ),
                       ),
@@ -968,6 +1060,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       onManage: () => context.go('/profile/areas'),
                       onSave: _saveDraft,
                       onClose: _closeTools,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Die Leiste des Planers (seit 0.74.0) — derselbe Platz wie die
+          // Leiste „Ebenen"; beide sind nie zugleich offen.
+          if (loop.open)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 56, 0, 64),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SingleChildScrollView(
+                    child: CoachAnchor(
+                      id: MapCoach.loopRail,
+                      child: LoopToolRail(
+                        onParams: () => showLoopParamsSheet(context),
+                        onList: () => showLoopListSheet(context, ref),
+                        onCompute: _computeLoop,
+                        onClose: _closeLoopPlanner,
                       ),
                     ),
                   ),
@@ -1071,7 +1185,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               // Offen: Rand in der Marke, die Leiste links
                               // gehört zu diesem Knopf.
                               active: toolsOpen,
-                              onPressed: toolsOpen ? _closeTools : _openTools,
+                              onPressed: toolsOpen
+                                  ? _closeTools
+                                  : () {
+                                      if (loop.open) _closeLoopPlanner();
+                                      _openTools();
+                                    },
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -1083,10 +1202,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               key: const ValueKey('loop-button'),
                               tooltip: 'Runde planen',
                               icon: Icons.alt_route,
-                              onPressed: () {
-                                ref.read(loopStartProvider.notifier).state = null;
-                                unawaited(_showLoopPlanner());
-                              },
+                              // Öffnet und schließt den Planer — wie der
+                              // Ebenen-Knopf seine Leiste.
+                              active: loop.open,
+                              onPressed: () => loop.open ? _closeLoopPlanner() : unawaited(_openLoopPlanner()),
                             ),
                           ),
                           const SizedBox(height: 10),

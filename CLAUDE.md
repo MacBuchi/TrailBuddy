@@ -1636,8 +1636,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 - **Der Rundenplaner** (Schritt 5, seit 0.72.0, `loop_planner.dart` pur,
   `loop_planner_sheet.dart`, `loop_planner_providers.dart`; Konzept-
   Routing 1, 2.3, 3, 4): eigener Kartenknopf „Runde planen" zwischen
-  „Ebenen" und „Meine Position", drei Stufen im Blatt (Regler → Pool →
-  Ergebnis). Sechs Dinge, die man wissen muss:
+  „Ebenen" und „Meine Position"; bis 0.73.0 drei Stufen im Blatt (Regler
+  → Pool → Ergebnis), seit 0.74.0 ein Modus mit Leiste links (siehe
+  „Navigation rund"). Sechs Dinge, die man wissen muss:
   - **Die Zielfunktion ist Trail-Meter je ZEITzuwachs**, nicht je
     Kostenzuwachs (Konzept-Routing 3.2 sagte „Kosten"): Die Zeit ist das
     Budget, die Kosten entscheiden nur, welcher Weg zwischen zwei
@@ -1660,11 +1661,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Graph-Rahmen ist Start plus alle gewählten Trails plus 500 m; er
     bleibt stehen, solange Start und Trails dieselben sind.
   - **Der getippte Start ist ein Dialog mit der Karte**
-    (`loopStartPickProvider`/`loopStartProvider`): Das Blatt schließt
-    sich, oben steht ein Banner mit Abbrechen, der nächste Tipp — auch
-    auf eine Linie — ist der Start, das Blatt öffnet sich wieder
-    (`_takeLoopStart`); Zurück bricht ab. Keine eigene Zeichenfläche:
-    Ein Tipp ist eine Geste, die die Fassade schon hat (`onTap`).
+    (`LoopSession.pickingStart`, oberster Knopf der Leiste oder „Auf der
+    Karte tippen" in den Parametern): oben ein Banner mit Abbrechen, der
+    nächste Tipp — auch auf eine Linie — ist der Start (Fahne in der
+    Marke, `_takeLoopStart`); Zurück bricht ab. Keine eigene
+    Zeichenfläche: Ein Tipp ist eine Geste, die die Fassade schon hat.
   - **Die geplante Fahrt** (`Ride.planned`, `Ride.name`,
     `RideStore.savePlanned`, Datei am Stück über `.part` + `rename`):
     Punkte ohne Zeit und Höhe, `endedAt` = Schätzung; in „Meine Fahrten"
@@ -1768,9 +1769,22 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Leuchtrand unter dem Netz, Schnellkarte unten links neben der
     Knopfspalte, nicht solange ein Routen-Blatt offen ist; Zurück und
     ein Tipp ins Leere heben auf, ein zweiter Tipp auf denselben Trail
-    öffnet das Blatt. Im Pool des Planers geht der Tipp an den Planer
-    (`loopMapPickProvider`). Die Touren öffnen das Blatt weiter direkt
-    über ihre Szene.
+    öffnet das Blatt. Im Planer geht der Tipp an den Planer. Die Touren
+    öffnen das Blatt weiter direkt über ihre Szene.
+  - **Der Planer ist ein Modus mit Leiste links** (Betreiber, nach dem
+    ersten Entwurf mit Stufen-Blatt): `LoopToolRail` am Platz der
+    Leiste „Ebenen" (nie beide zugleich), Zustand in
+    `loopPlannerProvider` (`LoopSession`: Auswahl, Pflicht, Start,
+    Zeichenwerkzeug, Parameter, Phase, Grund, Ergebnis) — Leiste, Karte
+    und Blätter lesen dieselbe Wahrheit. Tipp auf einen Trail = an/ab,
+    ab Werk nichts gewählt; Liste (Radius `LoopPrefs.radiusKm`, 2–30 km,
+    begrenzt NUR die Liste) und Gebiet (`AreaDrawOverlay(onRing:)`,
+    `trailsInRing`: Mehrheit der Punkte drin) sind zwei weitere Wege zur
+    selben Menge. Rechnen öffnet das Ergebnis-Blatt
+    (`showLoopResultPanel`); zu = Ergebnis weg, Modus bleibt
+    (`closeMapPanel` schließt es mit, wenn der Planer zugeht). Szene der
+    Touren: `MapCoach.loopRail`, Anker je Knopf
+    `MapCoach.loopRailButton(key)`.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

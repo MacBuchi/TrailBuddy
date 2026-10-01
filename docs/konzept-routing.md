@@ -447,9 +447,8 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
   mit dem Punkt als Ziel), „Mit der Navi-App hierher".
 - **Auswählen statt öffnen** (#178): Ein Tipp auf einen Trail hebt ihn
   hervor und zeigt die Schnellkarte; ein Tipp auf sie oder ein zweiter
-  auf den Trail öffnet das Blatt. Im Pool des Planers wählt ein Tipp auf
-  einen Trail ihn an oder ab (`loopMapPickProvider`), die gewählten
-  leuchten.
+  auf den Trail öffnet das Blatt. Im Planer wählt ein Tipp auf einen
+  Trail ihn an oder ab, die gewählten leuchten.
 - **Planer-Blatt** über einen EIGENEN Knopf (Betreiber: nicht der
   Idee-Knopf, der bleibt Feedback) — **gebaut in 0.72.0** auf der Karte,
   zwischen „Ebenen" und „Meine Position" (die Knopfspalte trägt ihn
@@ -466,6 +465,26 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
   Schritt zum Pool, nicht beim Öffnen. Ohne Bereich: ein Satz, der den
   Ebenen-Knopf nennt. Ein Zielpunkt ungleich Start ist nicht gebaut
   (nur „Start ist auch Ziel" an/aus).
+  **Seit 0.74.0 kein Blatt mit Stufen mehr, sondern ein Modus mit Leiste
+  links** (Betreiber: „zum Planen links ein Menü in der Art wie rechts,
+  mit Planer-Optionen"; `loop_tool_rail.dart`, Zustand in
+  `loop_planner_controller.dart`). Der Runden-Knopf öffnet und schließt
+  ihn, wie der Ebenen-Knopf seine Leiste (beide nie zugleich). Von oben:
+  Start (Standort, oder der nächste Tipp auf die Karte), Parameter (das
+  Blatt mit Profil, den drei Reglern, „Start ist auch Ziel" und dem
+  **Radius der Liste**, 2–30 km, Vorgabe 12), Liste (die wählbaren Trails
+  im Radius, „Alle wählen", Stern = Pflicht), Gebiet dazu / weg (mit dem
+  Finger umfahren, dieselbe Zeichenfläche wie bei den Bereichen; ein
+  Trail zählt, wenn die Mehrheit seiner Punkte drin liegt), Auswahl
+  leeren, Rechnen (mit der Zahl der gewählten Trails), Schließen. **Der
+  wichtigste Weg ist die Karte selbst: ein Tipp auf einen Trail wählt ihn
+  an (er leuchtet), ein zweiter ab.** Ab Werk ist nichts gewählt — die
+  Runde besteht aus dem, was der Fahrer will, nicht aus allem im Umkreis.
+  Der Radius begrenzt nur die Liste; was angetippt ist, gehört dazu.
+  Uphill-Trails und Verbinder sind nicht wählbar (die Karte sagt es),
+  wartende auch nicht. Das Ergebnis kommt als Blatt von unten (kein
+  Modal); zu heißt Ergebnis weg, Leiste und Auswahl bleiben. Zurück geht
+  stufenweise: Start-Tipp, Zeichnen, Planer.
 - **Gespeicherte Runde** = geplante Fahrt in „Meine Fahrten" (Konzept
   5.2; `Ride.planned`, mit Namen, Punkte ohne Zeit und Höhe, Dauer =
   Schätzung) — **ohne Schere**: Abweichung vom Satz oben. Zerlegt wird,

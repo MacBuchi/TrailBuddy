@@ -340,6 +340,14 @@ das Blatt; ein Tipp ins Leere, das X oder Zurück heben auf. Ein langer
 Druck auf die Karte setzt eine Nadel in der Marke und öffnet das Menü
 „Route ab hier / Route bis hier / Mit der Navi-App hierher" (#177).
 
+**Die Leiste des Planers seit 0.74.0** (`loop_tool_rail.dart`): derselbe
+Look wie die Leiste „Ebenen" (52 dp, Knöpfe 44 dp, aktives Werkzeug in
+Gegenhelligkeit, „Rechnen" Lime, die Zahl der gewählten Trails in Mono
+darunter), am selben Platz und nie mit ihr zugleich. Der Runden-Knopf
+rechts trägt dann den Rand in der Marke. Gewählte Trails leuchten in der
+Marke (55 %, Pflicht 80 %, 8 px), der getippte Start ist eine Fahne in
+der Marke.
+
 **Anfang, Richtung, Ende seit 0.66.0** (#96, `trail_end_marks.dart`,
 Schritt 6c): je Trail eine Scheibe (14 px) in der Trail-Farbe mit weißem
 Pfeil, gedreht auf die Peilung der ersten ~30 m (`trailStartBearing`),

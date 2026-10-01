@@ -104,9 +104,9 @@ const kFeatureHighlights = <FeatureHighlight>[
     tab: HighlightTab.map,
     icon: Icons.alt_route,
     title: 'Runde planen',
-    text: 'Der Runden-Knopf auf der Karte baut aus deinen Trails eine Runde: '
-        'Start, Zeit, Höhenmeter, welche Trails — die App verbindet sie bergab '
-        'über die Wege deiner Bereiche, offline. Als geplante Fahrt oder GPX.',
+    text: 'Der Runden-Knopf öffnet den Planer: Trails antippen, links Start, '
+        'Parameter, Liste und Gebiet — die App verbindet sie bergab über die '
+        'Wege deiner Bereiche, offline. Als geplante Fahrt oder GPX.',
     target: '/',
   ),
   FeatureHighlight(

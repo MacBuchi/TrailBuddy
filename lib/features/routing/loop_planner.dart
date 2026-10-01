@@ -630,10 +630,11 @@ List<RouteSection> connectionSections(LoopPlan plan) => [
 
 // ─── Pool, Vorgaben, Name und GPX ──────────────────────────────────────
 
-/// Weiter als so viel Luftlinie vom Start kommt kein Trail in den Pool
-/// (Konzept-Routing 3.4, „zu weit"): Bei 3 h Budget wäre schon die
-/// Anfahrt die halbe Runde, und der Graph bliebe handlich (Konzept-
-/// Routing 2.7: ein 20-km-Rahmen sind rund 70 Kacheln).
+/// Vorgabe für den Radius der Trail-Liste (Konzept-Routing 3.4, „zu
+/// weit"): Bei 3 h Budget wäre schon die Anfahrt die halbe Runde, und der
+/// Graph bliebe handlich (Konzept-Routing 2.7: ein 20-km-Rahmen sind rund
+/// 70 Kacheln). Seit 0.74.0 einstellbar (`LoopPrefs.radiusKm`) — und er
+/// begrenzt nur die LISTE: Was auf der Karte angetippt ist, gehört dazu.
 const kLoopReachM = 12000.0;
 
 /// Ein Trail der Karte als Pool-Eintrag: Punkte in Trail-Richtung, Grad
@@ -658,13 +659,13 @@ PoolTrail poolTrailOf(Trail t, {bool mandatory = false}) => PoolTrail(
 /// nicht im Pool), und wie viele zu weit liegen. Wartende Trails
 /// (Ausgangskorb) zählen nicht — sie haben noch keine Kennung.
 ({List<Trail> inReach, List<Trail> warned, List<Trail> connectors, int tooFar}) loopPoolOf(
-    Iterable<Trail> trails, LatLng start) {
+    Iterable<Trail> trails, LatLng start, {double reachM = kLoopReachM}) {
   final inReach = <Trail>[], warned = <Trail>[], connectors = <Trail>[];
   var tooFar = 0;
   for (final t in trails) {
     if (t.pending || t.points.length < 2) continue;
     final a = start.distanceToM(t.start), b = start.distanceToM(t.end);
-    if (a > kLoopReachM || b > kLoopReachM) {
+    if (a > reachM || b > reachM) {
       tooFar++;
       continue;
     }
@@ -675,6 +676,32 @@ PoolTrail poolTrailOf(Trail t, {bool mandatory = false}) => PoolTrail(
     (t.status.warns ? warned : inReach).add(t);
   }
   return (inReach: inReach, warned: warned, connectors: connectors, tooFar: tooFar);
+}
+
+/// Die Trails, die ein gezeichnetes Gebiet [ring] fasst (#178): die
+/// Mehrheit ihrer Punkte liegt darin (gerade-ungerade, eben genug für
+/// ein Gebiet von ein paar Kilometern). Ein Trail, der nur angeschnitten
+/// ist, zählt nicht — sonst wählte ein Strich am Rand Trails, die
+/// niemand gemeint hat.
+Set<String> trailsInRing(Iterable<Trail> trails, List<LatLng> ring) {
+  if (ring.length < 3) return const {};
+  bool inside(LatLng p) {
+    var c = false;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      final a = ring[i], b = ring[j];
+      if ((a.latitude > p.latitude) != (b.latitude > p.latitude) &&
+          p.longitude <
+              (b.longitude - a.longitude) * (p.latitude - a.latitude) / (b.latitude - a.latitude) + a.longitude) {
+        c = !c;
+      }
+    }
+    return c;
+  }
+
+  return {
+    for (final t in trails)
+      if (t.points.isNotEmpty && t.points.where(inside).length * 2 > t.points.length) t.id,
+  };
 }
 
 /// Die Rolle eines Trails im Graphen (#185) — nach den ANGEZEIGTEN
@@ -719,6 +746,7 @@ class LoopPrefs {
     required this.climbM,
     required this.hikingKm,
     required this.returnToStart,
+    this.radiusKm = kLoopReachM / 1000,
   });
 
   final double hours;
@@ -726,9 +754,13 @@ class LoopPrefs {
   final double hikingKm;
   final bool returnToStart;
 
+  /// Der Radius der Trail-Liste um den Start (seit 0.74.0).
+  final double radiusKm;
+
   static const minHours = 1.0, maxHours = 6.0, hoursStep = 0.5;
   static const minClimb = 200.0, maxClimb = 2500.0, climbStep = 100.0;
   static const minHikingKm = 0.0, maxHikingKm = 10.0, hikingStep = 0.5;
+  static const minRadiusKm = 2.0, maxRadiusKm = 30.0, radiusStep = 1.0;
 
   /// Die Vorgaben je Profil (die Höhenmeter hängen am Profil).
   static LoopPrefs defaults(RiderProfile p) =>
@@ -751,18 +783,21 @@ class LoopPrefs {
       climbM: clamp('c', d.climbM, minClimb, maxClimb),
       hikingKm: clamp('w', d.hikingKm, minHikingKm, maxHikingKm),
       returnToStart: fields['r'] != '0',
+      radiusKm: clamp('k', d.radiusKm, minRadiusKm, maxRadiusKm),
     );
   }
 
-  String encode() => 'h=$hours;c=$climbM;w=$hikingKm;r=${returnToStart ? 1 : 0}';
+  String encode() => 'h=$hours;c=$climbM;w=$hikingKm;r=${returnToStart ? 1 : 0};k=$radiusKm';
 
   LoopBudget get budget => LoopBudget(timeS: hours * 3600, climbM: climbM, hikingM: hikingKm * 1000);
 
-  LoopPrefs copyWith({double? hours, double? climbM, double? hikingKm, bool? returnToStart}) => LoopPrefs(
+  LoopPrefs copyWith({double? hours, double? climbM, double? hikingKm, bool? returnToStart, double? radiusKm}) =>
+      LoopPrefs(
         hours: hours ?? this.hours,
         climbM: climbM ?? this.climbM,
         hikingKm: hikingKm ?? this.hikingKm,
         returnToStart: returnToStart ?? this.returnToStart,
+        radiusKm: radiusKm ?? this.radiusKm,
       );
 }
 

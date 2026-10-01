@@ -1,27 +1,18 @@
-// Das Planer-Blatt (#158 Schritt 5, Konzept-Routing 4): Start, Profil,
-// drei Regler, Pool mit Pflicht-Haken, Rechnen — und das Ergebnis mit
-// Summen, den Trails in Reihenfolge, den ausgelassenen samt Grund, der
-// Vorschau auf der Karte, „Als Fahrt speichern" und „Als GPX".
+// Die Blätter des Planers (#158 Schritt 5, seit 0.74.0 als Modus mit
+// Leiste, `loop_tool_rail.dart`; Zustand in `loop_planner_controller.dart`):
 //
-// Drei Stufen, eine nach der anderen: Erst die Regler (ohne Standort),
-// dann der Pool — der braucht den Start, also den Fix oder den getippten
-// Punkt —, dann das Ergebnis. Zurück geht es stufenweise, der Graph bleibt
-// stehen, solange der Start derselbe ist. Sechs Dinge, die man wissen muss:
-// - **Das Blatt ist kein Modal** (seit 0.74.0, `map_panel.dart`): Die Karte
-//   bleibt bedienbar, Runterziehen verkleinert nur, geschlossen wird über
-//   X oder Zurück. Beim Ergebnis klappt es ein, und die Karte passt die
-//   Runde in die Fläche darüber ein — vorher lag sie unter dem Blatt.
-// - **Im Pool wählt ein Tipp auf einen Trail der Karte ihn an oder ab**
-//   (#178, `loopMapPickProvider`); die gewählten leuchten.
-// - **Der Fix kommt beim Schritt zum Pool**, nicht beim Öffnen: Wer erst
-//   die Regler stellt, soll nicht vorher nach dem Standort gefragt werden.
-// - **Gerechnet wird NUR aus den Bereichen** (Konzept-Routing 1): Der
-//   Rahmen ist Start plus alle gewählten Trails plus Rand; `partial` heißt
-//   kein Plan, und das Blatt nennt den Ebenen-Knopf.
-// - **Trails mit warnender Meldung stehen abseits** (Entscheidung 8.8),
-//   abgewählt, einzeln hineinholbar. Wartende Trails gar nicht.
-// - **Die Regler merkt sich das Gerät** (`Settings.loopPlannerPrefs`) —
-//   die nächste Planung beginnt, wo die letzte war.
+// - **Parameter** (Knopf „Parameter" der Leiste): Start, Profil, die drei
+//   Regler aus Konzept-Routing 2.3, „Start ist auch Ziel" und der Radius
+//   der Trail-Liste. Die Regler merkt sich das Gerät.
+// - **Liste** (Knopf „Liste"): die wählbaren Trails im Radius um den Start,
+//   mit Haken, Stern („muss dabei sein"), „Alle" und „Keine". Gemeldete
+//   stehen abseits; Uphill-Trails und Verbinder sind nicht wählbar — die
+//   Runde nutzt sie von selbst bergauf (#185).
+// - **Ergebnis** (Knopf „Rechnen"): kein Modal (`map_panel.dart`), die
+//   Karte bleibt bedienbar; Fortschritt, der Grund, wenn es nicht geht,
+//   oder Summen, Reihenfolge, Ausgelassene, „Als Fahrt speichern", „Als
+//   GPX". Beim Ergebnis klappt es ein und die Karte passt die Runde
+//   DARÜBER ein. Zu heißt: Ergebnis weg, Modus und Auswahl bleiben.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -30,311 +21,363 @@ import 'package:latlong2/latlong.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_theme.dart' show AppFonts;
-import '../../core/errors.dart';
 import '../../core/geo.dart' show formatMeters;
 import '../../core/gpx_share.dart';
-import '../../core/line_geometry.dart';
-import '../../core/settings.dart';
 import '../../models/trail.dart';
-import '../coach/coach.dart';
 import '../map/map_view/map_view.dart';
-import '../map/position_provider.dart';
-import '../profile/profile_providers.dart';
 import '../rides/ride_providers.dart';
 import '../rides/ride_track.dart';
 import '../trails/gpx_writer.dart';
 import '../trails/trail_providers.dart';
 import 'loop_planner.dart';
+import 'loop_planner_controller.dart';
 import 'loop_planner_providers.dart';
 import 'map_panel.dart';
-import 'planning_graph.dart';
-import 'ride_calibrator.dart';
 import 'road_graph.dart';
 import 'route_profile.dart';
 import 'trail_head_route.dart' show routeTimeLabel;
 
-/// Der Anker auf dem Knopf, der vom Formular zum Pool führt — für die
-/// Vorführung aus „Entdecken".
-const kLoopNextAnchor = 'map.loop.next';
+/// Breite der leuchtenden Auswahl auf der Karte (#178) — breiter als eine
+/// Verbindung, schmaler als der Saum eines Trails in der Runde.
+const kLoopPickWidth = 8.0;
 
-/// Zeigt das Blatt am Scaffold der Karte; die Vorschau lebt mit dem Blatt
-/// und wird HIER geleert, nach dem `await` (wie beim Zerlege-Blatt).
-Future<void> showLoopPlannerSheet(ScaffoldState scaffold) async {
-  final container = ProviderScope.containerOf(scaffold.context, listen: false);
-  await showMapPanel(
-    scaffold,
-    initialSize: 0.6,
-    builder: (context, scroll, panel) => _LoopPlannerSheet(scroll: scroll, panel: panel),
-  );
-  container.read(loopPreviewProvider.notifier).state = const [];
-  container.read(loopMapPickProvider.notifier).state = null;
+// ─── Parameter ──────────────────────────────────────────────────────────
+
+Future<void> showLoopParamsSheet(BuildContext context) => showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.92,
+        builder: (context, scroll) => _ParamsSheet(scroll: scroll),
+      ),
+    );
+
+class _ParamsSheet extends ConsumerWidget {
+  const _ParamsSheet({required this.scroll});
+
+  final ScrollController scroll;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final session = ref.watch(loopPlannerProvider);
+    final notifier = ref.read(loopPlannerProvider.notifier);
+    final prefs = session.prefs;
+    final start = session.start;
+    return ListView(
+      controller: scroll,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      children: [
+        Text('Parameter der Runde', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 12),
+        Text(
+          start == null
+              ? 'Start: mein Standort'
+              : 'Start: getippter Punkt (${start.latitude.toStringAsFixed(4)}, ${start.longitude.toStringAsFixed(4)})',
+          key: const ValueKey('loop-start'),
+          style: theme.textTheme.bodyMedium,
+        ),
+        Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+          TextButton.icon(
+            key: const ValueKey('loop-pick'),
+            onPressed: () {
+              notifier.armStartPick();
+              Navigator.of(context).pop();
+            },
+            icon: const Icon(Icons.touch_app_outlined),
+            label: const Text('Auf der Karte tippen'),
+          ),
+          if (start != null)
+            TextButton(
+              key: const ValueKey('loop-start-me'),
+              onPressed: notifier.useMyPosition,
+              child: const Text('Mein Standort'),
+            ),
+        ]),
+        const SizedBox(height: 8),
+        SegmentedButton<RiderProfile>(
+          key: const ValueKey('loop-profile'),
+          segments: [for (final p in RiderProfile.values) ButtonSegment(value: p, label: Text(p.label))],
+          selected: {session.profile},
+          showSelectedIcon: false,
+          onSelectionChanged: (sel) => notifier.setProfile(sel.single),
+        ),
+        const SizedBox(height: 12),
+        _LoopSlider(
+          key: const ValueKey('loop-time'),
+          label: 'Höchstens ${_hoursLabel(prefs.hours)}',
+          value: prefs.hours,
+          min: LoopPrefs.minHours,
+          max: LoopPrefs.maxHours,
+          step: LoopPrefs.hoursStep,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(hours: v)),
+        ),
+        _LoopSlider(
+          key: const ValueKey('loop-climb'),
+          label: 'Höchstens ${prefs.climbM.round()} hm bergauf',
+          value: prefs.climbM,
+          min: LoopPrefs.minClimb,
+          max: LoopPrefs.maxClimb,
+          step: LoopPrefs.climbStep,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(climbM: v)),
+        ),
+        _LoopSlider(
+          key: const ValueKey('loop-hiking'),
+          label: prefs.hikingKm == 0 ? 'Kein Wanderweg' : 'Höchstens ${formatMeters(prefs.hikingKm * 1000)} Wanderweg',
+          value: prefs.hikingKm,
+          min: LoopPrefs.minHikingKm,
+          max: LoopPrefs.maxHikingKm,
+          step: LoopPrefs.hikingStep,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(hikingKm: v)),
+        ),
+        _LoopSlider(
+          key: const ValueKey('loop-radius'),
+          label: 'Trail-Liste: ${prefs.radiusKm.round()} km um den Start',
+          value: prefs.radiusKm,
+          min: LoopPrefs.minRadiusKm,
+          max: LoopPrefs.maxRadiusKm,
+          step: LoopPrefs.radiusStep,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(radiusKm: v)),
+        ),
+        SwitchListTile(
+          key: const ValueKey('loop-return'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Start ist auch Ziel'),
+          subtitle: Text(prefs.returnToStart ? 'Eine Runde' : 'Die Runde endet am letzten Trail'),
+          value: prefs.returnToStart,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(returnToStart: v)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Die Runde nimmt die gewählten Trails bergab mit und verbindet sie über die Wege deiner '
+          'gespeicherten Bereiche — offline, nach deinem Profil. Gewählt wird auf der Karte (antippen), '
+          'über die Liste oder ein umfahrenes Gebiet.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      ],
+    );
+  }
 }
 
-enum _Stage { setup, locating, pool, loading, computing, result }
+class _LoopSlider extends StatelessWidget {
+  const _LoopSlider({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.onChanged,
+  });
 
-enum _Blocker { noPosition, noArea, failed }
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final double step;
+  final ValueChanged<double> onChanged;
 
-class _LoopPlannerSheet extends ConsumerStatefulWidget {
-  const _LoopPlannerSheet({required this.scroll, required this.panel});
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontFamily: AppFonts.mono)),
+        Slider(
+          value: value.clamp(min, max).toDouble(),
+          min: min,
+          max: max,
+          divisions: ((max - min) / step).round(),
+          onChanged: onChanged,
+        ),
+      ]);
+}
+
+// ─── Liste ──────────────────────────────────────────────────────────────
+
+/// Die Liste braucht einen Mittelpunkt: getippter Start oder Standort.
+/// Ohne beides sagt eine Leiste, wie es weitergeht.
+Future<void> showLoopListSheet(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final center = await ref.read(loopPlannerProvider.notifier).listCenter();
+  if (!context.mounted) return;
+  if (center == null) {
+    messenger.showSnackBar(const SnackBar(
+        key: ValueKey('loop-list-no-center'),
+        content: Text('Kein Standort — setz den Start auf der Karte, dann zeigt die Liste die Trails darum.')));
+    return;
+  }
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      maxChildSize: 0.92,
+      builder: (context, scroll) => _ListSheet(scroll: scroll, center: center),
+    ),
+  );
+}
+
+class _ListSheet extends ConsumerWidget {
+  const _ListSheet({required this.scroll, required this.center});
+
+  final ScrollController scroll;
+  final LatLng center;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final palette = AppPalette.of(context);
+    final session = ref.watch(loopPlannerProvider);
+    final notifier = ref.read(loopPlannerProvider.notifier);
+    final trails = ref.watch(trailsProvider).valueOrNull ?? const <Trail>[];
+    final radius = session.prefs.radiusKm;
+    final pool = loopPoolOf(trails, center, reachM: radius * 1000);
+    final ids = [for (final t in pool.inReach) t.id];
+    return ListView(
+      controller: scroll,
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      children: [
+        Text('Trails in ${radius.round()} km', style: theme.textTheme.titleLarge),
+        Text(
+          session.start == null
+              ? 'Um deinen Standort — den Radius stellst du unter Parameter.'
+              : 'Um den getippten Start — den Radius stellst du unter Parameter.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+        Row(children: [
+          TextButton(
+            key: const ValueKey('loop-list-all'),
+            onPressed: ids.isEmpty ? null : () => notifier.setSelected(ids, true),
+            child: const Text('Alle wählen'),
+          ),
+          TextButton(
+            key: const ValueKey('loop-list-none'),
+            onPressed: ids.isEmpty ? null : () => notifier.setSelected(ids, false),
+            child: const Text('Keine'),
+          ),
+        ]),
+        if (pool.inReach.isEmpty)
+          Text(
+            key: const ValueKey('loop-list-empty'),
+            pool.warned.isEmpty
+                ? 'In ${radius.round()} km liegt kein Trail.'
+                : 'In ${radius.round()} km liegen nur gemeldete Trails.',
+          ),
+        for (final t in pool.inReach) _row(session, notifier, t),
+        if (pool.warned.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text('Gemeldet (${pool.warned.length})', style: theme.textTheme.titleMedium),
+          Text('Gesperrt, zerstört oder verändert — einzeln dazunehmbar.',
+              style: theme.textTheme.bodySmall?.copyWith(color: palette.warningText)),
+          for (final t in pool.warned) _row(session, notifier, t),
+        ],
+        if (pool.connectors.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            key: const ValueKey('loop-connectors'),
+            'Bergauf nutzt die Runde ${pool.connectors.length == 1 ? 'den Uphill-Trail oder Verbinder' : 'die Uphill-Trails und Verbinder'} '
+            '${pool.connectors.map((t) => t.displayName).join(', ')} von selbst — gern auch mehrmals.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          ),
+        ],
+        if (pool.tooFar > 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            '${pool.tooFar} ${pool.tooFar == 1 ? 'Trail liegt' : 'Trails liegen'} weiter weg — '
+            'auf der Karte antippen geht trotzdem.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _row(LoopSession session, LoopPlannerNotifier notifier, Trail t) {
+    final on = session.selected.contains(t.id);
+    final must = session.mandatory.contains(t.id);
+    final parts = [
+      formatMeters(t.lengthM),
+      if (t.grade != null) 'S${t.grade}',
+      if (t.rating != null) '${t.rating} ${t.rating == 1 ? 'Stern' : 'Sterne'}',
+    ];
+    return CheckboxListTile(
+      key: ValueKey('loop-trail-${t.id}'),
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
+      value: on,
+      onChanged: (v) => notifier.setSelected([t.id], v == true),
+      title: Text(t.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(parts.join(' · ')),
+      secondary: IconButton(
+        key: ValueKey('loop-must-${t.id}'),
+        tooltip: must ? 'Muss dabei sein — abwählen' : 'Muss dabei sein',
+        icon: Icon(must ? Icons.star : Icons.star_border),
+        onPressed: () => notifier.toggleMandatory(t.id),
+      ),
+    );
+  }
+}
+
+// ─── Ergebnis ───────────────────────────────────────────────────────────
+
+/// Rechnet und zeigt das Ergebnis am Scaffold der Karte. Zu heißt:
+/// Ergebnis weg, der Modus bleibt.
+Future<void> showLoopResultPanel(ScaffoldState scaffold) async {
+  final container = ProviderScope.containerOf(scaffold.context, listen: false);
+  unawaited(container.read(loopPlannerProvider.notifier).compute());
+  await showMapPanel(
+    scaffold,
+    initialSize: kMapPanelPool,
+    builder: (context, scroll, panel) => _ResultPanel(scroll: scroll, panel: panel),
+  );
+  container.read(loopPlannerProvider.notifier).clearResult();
+}
+
+class _ResultPanel extends ConsumerStatefulWidget {
+  const _ResultPanel({required this.scroll, required this.panel});
 
   final ScrollController scroll;
   final MapPanelController panel;
 
   @override
-  ConsumerState<_LoopPlannerSheet> createState() => _LoopPlannerSheetState();
+  ConsumerState<_ResultPanel> createState() => _ResultPanelState();
 }
 
-class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
-  _Stage _stage = _Stage.setup;
-  late RiderProfile _profile;
-  late LoopPrefs _prefs;
-  LatLng? _start;
-  _Blocker? _blocker;
-  int _tilesFound = 0, _tilesNeeded = 0;
-  bool _partial = false;
-
-  // Der Pool, sobald der Start steht.
-  List<Trail> _inReach = const [], _warned = const [], _connectors = const [];
-  int _tooFar = 0;
-  final _selected = <String>{};
-  final _mandatory = <String>{};
-
-  RoadGraph? _graph;
-  LatLng? _graphStart;
-  Set<String> _graphTrails = const {};
-  LoopPlan? _plan;
+class _ResultPanelState extends ConsumerState<_ResultPanel> {
+  LoopPlan? _fitted;
 
   @override
   void initState() {
     super.initState();
-    _profile = ref.read(riderProfileProvider);
-    _prefs = LoopPrefs.parse(ref.read(settingsProvider).loopPlannerPrefs, _profile);
-    final picked = ref.read(loopStartProvider);
-    if (picked != null) _start = picked;
+    // Steht schon ein Ergebnis, gleich einpassen.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeFit(ref.read(loopPlannerProvider)));
   }
 
-  // ── Stufe 1 → 2: Start finden, Pool bauen ──────────────────────────
-
-  Future<void> _toPool() async {
-    unawaitedSave();
-    var start = _start;
-    if (start == null) {
-      setState(() => _stage = _Stage.locating);
-      final fix = await ref.read(positionFixProvider)();
-      if (!mounted) return;
-      if (fix == null) {
-        setState(() {
-          _stage = _Stage.setup;
-          _blocker = _Blocker.noPosition;
-        });
-        return;
-      }
-      start = LatLng(fix.latitude, fix.longitude);
-    }
-    final trails = ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
-    final pool = loopPoolOf(trails, start);
-    setState(() {
-      _start = start;
-      _blocker = null;
-      _inReach = pool.inReach;
-      _warned = pool.warned;
-      _connectors = pool.connectors;
-      _tooFar = pool.tooFar;
-      // Vorgewählt: alles in Reichweite ohne Warnung; eine frühere Wahl
-      // bleibt, wo sie noch gilt.
-      final known = {for (final t in [..._inReach, ..._warned]) t.id};
-      if (_selected.isEmpty) {
-        _selected.addAll(_inReach.map((t) => t.id));
-      } else {
-        _selected.retainWhere(known.contains);
-      }
-      _mandatory.retainWhere(known.contains);
-      _stage = _Stage.pool;
-    });
-    _offerMapPick();
-    // Start und Pool zeigen, über dem Blatt: Die Karte ist die zweite
-    // Liste, auf der man wählt (#178). Erst auf halbe Höhe — ganz
-    // aufgezogen bliebe für die Karte ein Streifen.
-    await widget.panel.resizeTo(kMapPanelPool);
+  /// Einmal je Ergebnis: einklappen, dann über dem Blatt einpassen.
+  Future<void> _maybeFit(LoopSession s) async {
+    final plan = s.plan;
+    if (!mounted || plan == null || plan.outcome != LoopOutcome.ok || identical(plan, _fitted)) return;
+    _fitted = plan;
+    await widget.panel.resizeTo(kMapPanelResult);
     if (!mounted) return;
-    ref.read(mapFitRequestProvider.notifier).state = [
-      start,
-      for (final t in [..._inReach, ..._warned]) ...t.points,
-    ];
+    ref.read(mapFitRequestProvider.notifier).state = plan.points;
   }
-
-  // ── Pool auf der Karte (#178) ──────────────────────────────────────
-
-  void _offerMapPick() {
-    ref.read(loopMapPickProvider.notifier).state = LoopMapPick(
-      selectable: {for (final t in [..._inReach, ..._warned]) t.id},
-      toggle: (id) {
-        if (!mounted || _stage != _Stage.pool) return;
-        setState(() => _selected.contains(id) ? _deselect(id) : _selected.add(id));
-        _showSelection();
-      },
-    );
-    _showSelection();
-  }
-
-  void _deselect(String id) {
-    _selected.remove(id);
-    _mandatory.remove(id);
-  }
-
-  /// Die gewählten Trails leuchten auf der Karte, solange der Pool offen ist.
-  void _showSelection() {
-    final c = AppColors.brand;
-    ref.read(loopPreviewProvider.notifier).state = [
-      for (final t in [..._inReach, ..._warned])
-        if (_selected.contains(t.id))
-          MapViewPolyline(
-            points: t.directedPoints,
-            color: c.withValues(alpha: _mandatory.contains(t.id) ? 0.75 : 0.5),
-            width: kLoopPickWidth,
-          ),
-    ];
-  }
-
-  void _leavePool() {
-    ref.read(loopMapPickProvider.notifier).state = null;
-    ref.read(loopPreviewProvider.notifier).state = const [];
-  }
-
-  void unawaitedSave() {
-    ref.read(settingsProvider).setLoopPlannerPrefs(_prefs.encode()).catchError((Object e, StackTrace s) {
-      logError('Planer-Regler merken', e, s);
-    });
-  }
-
-  /// Den Start auf der Karte tippen: Bitte stellen, Blatt zu — die Karte
-  /// öffnet es mit dem Punkt wieder.
-  void _pickOnMap() {
-    ref.read(loopStartPickProvider.notifier).state = true;
-    widget.panel.close();
-  }
-
-  // ── Stufe 2 → 3: Graph laden, rechnen ──────────────────────────────
-
-  /// Rechnen. Jeder Ausgang ist sichtbar (Feldbericht 0.73.0: „teils hat
-  /// es nicht funktioniert ohne sichtbaren Grund"): kein Bereich ⇒ Satz
-  /// OBEN im Blatt; ein Fehler beim Lesen oder Rechnen ⇒ Satz und
-  /// Fehlerbericht; nie ein Kreisel, der stehen bleibt.
-  Future<void> _compute() async {
-    final start = _start!;
-    final chosen = [
-      for (final t in [..._inReach, ..._warned])
-        if (_selected.contains(t.id)) t,
-    ];
-    if (chosen.isEmpty) return;
-    _leavePool();
-    final ids = {for (final t in chosen) t.id};
-    try {
-      if (_graph == null || _graphStart != start || !_graphTrails.containsAll(ids)) {
-        setState(() => _stage = _Stage.loading);
-        // Der Rahmen trägt auch die Uphill-Trails und Verbinder in
-        // Reichweite — sie sind der Weg bergauf (#185).
-        final box = LatBox.of([
-          start,
-          for (final t in chosen) ...t.directedPoints,
-          for (final t in _connectors) ...t.points,
-        ]);
-        final loaded = await ref.read(planningGraphLoaderProvider)(box);
-        if (!mounted) return;
-        if (loaded.graph == null) {
-          setState(() {
-            _blocker = _Blocker.noArea;
-            _stage = _Stage.pool;
-          });
-          _offerMapPick();
-          return;
-        }
-        _graph = loaded.graph;
-        _partial = loaded.partial;
-        _tilesFound = loaded.tilesFound;
-        _tilesNeeded = loaded.tilesNeeded;
-        _graphStart = start;
-        _graphTrails = ids;
-      }
-      setState(() => _stage = _Stage.computing);
-      // Ein Bild für den Kreisel, bevor die Rechnung den Takt belegt.
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-      final pool = [for (final t in chosen) poolTrailOf(t, mandatory: _mandatory.contains(t.id))];
-      final plan = planLoop(
-        _graph!,
-        start: start,
-        // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
-        profile: ref.read(calibratedRiderProvider(_profile)),
-        budget: _prefs.budget,
-        pool: pool,
-        returnToStart: _prefs.returnToStart,
-      );
-      setState(() {
-        _plan = plan;
-        _blocker = null;
-        _stage = _Stage.result;
-      });
-      if (plan.outcome != LoopOutcome.ok) return;
-      // Erst einklappen, dann zeigen und einpassen — sonst läge die Runde
-      // unter dem Blatt.
-      await widget.panel.resizeTo(kMapPanelResult);
-      if (!mounted) return;
-      ref.read(loopPreviewProvider.notifier).state = loopPreviewLines(plan);
-      ref.read(mapFitRequestProvider.notifier).state = plan.points;
-    } catch (e, s) {
-      logError('Runde planen', e, s);
-      if (!mounted) return;
-      setState(() {
-        _blocker = _Blocker.failed;
-        _stage = _Stage.pool;
-      });
-      _offerMapPick();
-    }
-  }
-
-  // ── Ergebnis: speichern, teilen ────────────────────────────────────
-
-  Future<void> _saveRide() async {
-    final plan = _plan;
-    if (plan == null || plan.isEmpty) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final now = DateTime.now().toUtc();
-    final ride = await ref.read(ridesProvider.notifier).savePlanned(
-          name: loopName(plan),
-          points: [
-            for (final p in plan.points) RidePoint(lat: p.latitude, lng: p.longitude, at: now, accuracyM: 0),
-          ],
-          duration: Duration(seconds: plan.summary!.timeS.round()),
-          profile: _profile.name,
-        );
-    if (!mounted) return;
-    messenger.showSnackBar(SnackBar(
-        content: Text(ride == null
-            ? 'Die Runde ließ sich nicht speichern.'
-            : 'Als geplante Fahrt gespeichert — im Profil unter „Meine Fahrten".')));
-  }
-
-  void _exportGpx() {
-    final plan = _plan;
-    if (plan == null || plan.isEmpty) return;
-    final track = loopToGpx(plan);
-    shareGpx(context, ref,
-        fileName: gpxFileName(track.name), xml: writeGpx(name: track.name, points: track.points));
-  }
-
-  // ── Aufbau ─────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final blocker = _blocker;
+    ref.listen(loopPlannerProvider, (_, next) => unawaited(_maybeFit(next)));
+    final session = ref.watch(loopPlannerProvider);
+    final plan = session.plan;
     return ListView(
       controller: widget.scroll,
       padding: const EdgeInsets.fromLTRB(20, 0, 8, 24),
       children: [
         MapPanelHeader(
-          title: 'Runde planen',
-          subtitle: _stage == _Stage.result && _plan?.summary != null ? _shortSummary(_plan!.summary!) : null,
+          title: 'Runde',
+          subtitle: plan?.summary == null ? null : _shortSummary(plan!.summary!),
           closeKey: const ValueKey('loop-close'),
           onClose: widget.panel.close,
         ),
@@ -342,22 +385,14 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
           padding: const EdgeInsets.only(right: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Was die Planung aufhält, steht OBEN — nicht unter einer
-              // langen Liste, wo es niemand sieht.
-              if (blocker != null && _stage != _Stage.setup) ...[
-                _blockerCard(context, blocker),
-                const SizedBox(height: 12),
-              ],
-              ...switch (_stage) {
-                _Stage.setup => _setup(context),
-                _Stage.locating => [_progress('Standort wird ermittelt …')],
-                _Stage.pool => _pool(context),
-                _Stage.loading => [_progress('Wege und Höhen aus deinen Bereichen werden gelesen …')],
-                _Stage.computing => [_progress('Die Runde wird gerechnet …')],
-                _Stage.result => _result(context),
-              },
-            ],
+            children: switch (session.phase) {
+              LoopPhase.locating => [_progress('Standort wird ermittelt …')],
+              LoopPhase.loading => [_progress('Wege und Höhen aus deinen Bereichen werden gelesen …')],
+              LoopPhase.computing || LoopPhase.idle => [_progress('Die Runde wird gerechnet …')],
+              LoopPhase.result => session.blocker != null || plan == null
+                  ? [_blockerCard(context, session.blocker ?? LoopBlocker.failed)]
+                  : _result(context, session, plan),
+            },
           ),
         ),
       ],
@@ -370,10 +405,10 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
         Expanded(child: Text(text)),
       ]);
 
-  Widget _notice(BuildContext context, String text, {Key? key}) =>
-      Text(key: key ?? const ValueKey('loop-notice'), text, style: Theme.of(context).textTheme.bodyMedium);
+  Widget _notice(BuildContext context, String text) =>
+      Text(key: const ValueKey('loop-notice'), text, style: Theme.of(context).textTheme.bodyMedium);
 
-  Widget _blockerCard(BuildContext context, _Blocker b) {
+  Widget _blockerCard(BuildContext context, LoopBlocker b) {
     final palette = AppPalette.of(context);
     return Card(
       key: const ValueKey('loop-blocker'),
@@ -392,266 +427,18 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
   String _shortSummary(LoopSummary s) =>
       '${formatMeters(s.lengthM)} · ${s.gainM.round()} hm · etwa ${routeTimeLabel(s.timeS)}';
 
-  List<Widget> _setup(BuildContext context) {
-    final theme = Theme.of(context);
-    final start = _start;
-    return [
-      Text(
-        start == null
-            ? 'Start: mein Standort'
-            : 'Start: getippter Punkt (${start.latitude.toStringAsFixed(4)}, ${start.longitude.toStringAsFixed(4)})',
-        key: const ValueKey('loop-start'),
-        style: theme.textTheme.bodyMedium,
-      ),
-      // Wrap, nicht Row: Auf 360 px ist der Knopf mit Symbol breiter als die
-      // Zeile — ein Umbruch ist dort richtig, ein Überlauf nicht.
-      Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-        TextButton.icon(
-          key: const ValueKey('loop-pick'),
-          onPressed: _pickOnMap,
-          icon: const Icon(Icons.touch_app_outlined),
-          label: const Text('Auf der Karte tippen'),
-        ),
-        if (start != null)
-          TextButton(
-            key: const ValueKey('loop-start-me'),
-            onPressed: () {
-              ref.read(loopStartProvider.notifier).state = null;
-              setState(() => _start = null);
-            },
-            child: const Text('Mein Standort'),
-          ),
-      ]),
-      const SizedBox(height: 8),
-      SegmentedButton<RiderProfile>(
-        key: const ValueKey('loop-profile'),
-        segments: [for (final p in RiderProfile.values) ButtonSegment(value: p, label: Text(p.label))],
-        selected: {_profile},
-        showSelectedIcon: false,
-        onSelectionChanged: (sel) {
-          final next = sel.single;
-          setState(() {
-            // Steht das Höhenbudget auf der Vorgabe des alten Profils,
-            // folgt es dem neuen — wer es selbst gestellt hat, behält es.
-            if (_prefs.climbM == _profile.budgetClimbM) {
-              _prefs = _prefs.copyWith(climbM: next.budgetClimbM);
-            }
-            _profile = next;
-          });
-        },
-      ),
-      const SizedBox(height: 12),
-      _slider(
-        key: const ValueKey('loop-time'),
-        label: 'Höchstens ${_hoursLabel(_prefs.hours)}',
-        value: _prefs.hours,
-        min: LoopPrefs.minHours,
-        max: LoopPrefs.maxHours,
-        step: LoopPrefs.hoursStep,
-        onChanged: (v) => setState(() => _prefs = _prefs.copyWith(hours: v)),
-      ),
-      _slider(
-        key: const ValueKey('loop-climb'),
-        label: 'Höchstens ${_prefs.climbM.round()} hm bergauf',
-        value: _prefs.climbM,
-        min: LoopPrefs.minClimb,
-        max: LoopPrefs.maxClimb,
-        step: LoopPrefs.climbStep,
-        onChanged: (v) => setState(() => _prefs = _prefs.copyWith(climbM: v)),
-      ),
-      _slider(
-        key: const ValueKey('loop-hiking'),
-        label: _prefs.hikingKm == 0
-            ? 'Kein Wanderweg'
-            : 'Höchstens ${formatMeters(_prefs.hikingKm * 1000)} Wanderweg',
-        value: _prefs.hikingKm,
-        min: LoopPrefs.minHikingKm,
-        max: LoopPrefs.maxHikingKm,
-        step: LoopPrefs.hikingStep,
-        onChanged: (v) => setState(() => _prefs = _prefs.copyWith(hikingKm: v)),
-      ),
-      SwitchListTile(
-        key: const ValueKey('loop-return'),
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Start ist auch Ziel'),
-        subtitle: Text(_prefs.returnToStart ? 'Eine Runde' : 'Die Runde endet am letzten Trail'),
-        value: _prefs.returnToStart,
-        onChanged: (v) => setState(() => _prefs = _prefs.copyWith(returnToStart: v)),
-      ),
-      if (_blocker != null) ...[
-        const SizedBox(height: 8),
-        _blockerCard(context, _blocker!),
-      ],
-      const SizedBox(height: 12),
-      CoachAnchor(
-        id: kLoopNextAnchor,
-        child: FilledButton.icon(
-          key: const ValueKey('loop-next'),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          onPressed: _toPool,
-          icon: const Icon(Icons.arrow_forward),
-          label: const Text('Weiter: Trails wählen'),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        'Die Runde nimmt möglichst viele deiner Trails bergab mit und verbindet '
-        'sie über die Wege deiner gespeicherten Bereiche — offline, nach deinem Profil.',
-        style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-      ),
-    ];
-  }
-
-  Widget _slider({
-    required Key key,
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required double step,
-    required ValueChanged<double> onChanged,
-  }) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontFamily: AppFonts.mono)),
-        Slider(
-          key: key,
-          value: value.clamp(min, max).toDouble(),
-          min: min,
-          max: max,
-          divisions: ((max - min) / step).round(),
-          onChanged: onChanged,
-        ),
-      ]);
-
-  List<Widget> _pool(BuildContext context) {
+  List<Widget> _result(BuildContext context, LoopSession session, LoopPlan plan) {
     final theme = Theme.of(context);
     final palette = AppPalette.of(context);
-    final chosen = _selected.length;
-    return [
-      Text('Start: ${_startLabel()}', style: theme.textTheme.bodyMedium),
-      const SizedBox(height: 4),
-      Text(
-        'Tippe Trails auf der Karte an, um sie dazu- oder herauszunehmen.',
-        key: const ValueKey('loop-map-pick-hint'),
-        style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-      ),
-      const SizedBox(height: 8),
-      Text('Trails in Reichweite (${_inReach.length})', style: theme.textTheme.titleMedium),
-      if (_inReach.isEmpty)
-        _notice(context, _warned.isEmpty
-            ? 'In ${(kLoopReachM / 1000).round()} km um den Start liegt kein Trail.'
-            : 'In ${(kLoopReachM / 1000).round()} km um den Start liegen nur gemeldete Trails.'),
-      for (final t in _inReach) _poolRow(t),
-      if (_warned.isNotEmpty) ...[
-        const SizedBox(height: 8),
-        Text('Gemeldet (${_warned.length})', style: theme.textTheme.titleMedium),
-        Text(
-          'Gesperrt, zerstört oder verändert — nicht vorgewählt, einzeln dazunehmbar.',
-          style: theme.textTheme.bodySmall?.copyWith(color: palette.warningText),
-        ),
-        for (final t in _warned) _poolRow(t),
-      ],
-      if (_connectors.isNotEmpty) ...[
-        const SizedBox(height: 8),
-        Text(
-          key: const ValueKey('loop-connectors'),
-          'Bergauf nutzt die Runde ${_connectors.length == 1 ? 'den Uphill-Trail oder Verbinder' : 'die Uphill-Trails und Verbinder'} '
-          '${_connectors.map((t) => t.displayName).join(', ')} — gern auch mehrmals.',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-        ),
-      ],
-      if (_tooFar > 0) ...[
-        const SizedBox(height: 4),
-        Text(
-          '$_tooFar ${_tooFar == 1 ? 'Trail liegt' : 'Trails liegen'} weiter als '
-          '${(kLoopReachM / 1000).round()} km vom Start und ${_tooFar == 1 ? 'kommt' : 'kommen'} nicht in Frage.',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-        ),
-      ],
-      const SizedBox(height: 12),
-      FilledButton.icon(
-        key: const ValueKey('loop-compute'),
-        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        onPressed: chosen == 0 ? null : _compute,
-        icon: const Icon(Icons.alt_route),
-        label: Text(chosen == 0 ? 'Runde rechnen' : 'Runde rechnen ($chosen)'),
-      ),
-      TextButton(
-        key: const ValueKey('loop-back'),
-        onPressed: () {
-          _leavePool();
-          setState(() {
-            _blocker = null;
-            _stage = _Stage.setup;
-          });
-        },
-        child: const Text('Zurück zu den Reglern'),
-      ),
-    ];
-  }
-
-  Widget _poolRow(Trail t) {
-    final on = _selected.contains(t.id);
-    final must = _mandatory.contains(t.id);
-    final parts = [
-      formatMeters(t.lengthM),
-      if (t.grade != null) 'S${t.grade}',
-      if (t.rating != null) '${t.rating} ${t.rating == 1 ? 'Stern' : 'Sterne'}',
-    ];
-    return CheckboxListTile(
-      key: ValueKey('loop-trail-${t.id}'),
-      contentPadding: EdgeInsets.zero,
-      controlAffinity: ListTileControlAffinity.leading,
-      value: on,
-      onChanged: (v) {
-        setState(() => v == true ? _selected.add(t.id) : _deselect(t.id));
-        _showSelection();
-      },
-      title: Text(t.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(parts.join(' · ')),
-      secondary: IconButton(
-        key: ValueKey('loop-must-${t.id}'),
-        tooltip: must ? 'Muss dabei sein — abwählen' : 'Muss dabei sein',
-        icon: Icon(must ? Icons.star : Icons.star_border),
-        onPressed: () {
-          setState(() {
-            if (must) {
-              _mandatory.remove(t.id);
-            } else {
-              _mandatory.add(t.id);
-              _selected.add(t.id);
-            }
-          });
-          _showSelection();
-        },
-      ),
-    );
-  }
-
-  List<Widget> _result(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = AppPalette.of(context);
-    final plan = _plan!;
-    final back = TextButton(
-      key: const ValueKey('loop-adjust'),
-      onPressed: () {
-        ref.read(loopPreviewProvider.notifier).state = const [];
-        setState(() => _stage = _Stage.pool);
-        _offerMapPick();
-        unawaited(widget.panel.resizeTo(0.6));
-      },
-      child: const Text('Anpassen'),
-    );
     if (plan.outcome != LoopOutcome.ok) {
       return [
         _notice(context, _outcomeText(plan.outcome)),
         if (plan.excluded.isNotEmpty) ...[const SizedBox(height: 8), ..._excludedRows(context, plan)],
-        const SizedBox(height: 8),
-        back,
       ];
     }
     final s = plan.summary!;
-    final byId = {for (final t in [..._inReach, ..._warned]) t.id: t};
+    final trails = ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
+    final byId = {for (final t in trails) t.id: t};
     return [
       Text(
         key: const ValueKey('loop-summary'),
@@ -665,15 +452,15 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
         '${s.mix.isEmpty ? '' : ' · ${_mixLine(s.mix)}'}',
         style: theme.textTheme.bodyMedium,
       ),
-      // Die Knöpfe gleich unter den Summen: Eingeklappt (kMapPanelResult)
-      // sind sie zu sehen, die Runde darüber.
+      // Die Knöpfe gleich unter den Summen: Eingeklappt sind sie zu sehen,
+      // die Runde darüber.
       const SizedBox(height: 8),
       Row(children: [
         Expanded(
           child: FilledButton.icon(
             key: const ValueKey('loop-save'),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            onPressed: _saveRide,
+            onPressed: () => _saveRide(session, plan),
             icon: const Icon(Icons.bookmark_add_outlined),
             label: const Text('Als Fahrt speichern'),
           ),
@@ -683,7 +470,7 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
           child: OutlinedButton.icon(
             key: const ValueKey('loop-gpx'),
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            onPressed: _exportGpx,
+            onPressed: () => _exportGpx(plan),
             icon: const Icon(Icons.share_outlined),
             label: const Text('Als GPX'),
           ),
@@ -705,12 +492,12 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
           style: theme.textTheme.bodyMedium?.copyWith(color: palette.warningText),
         ),
       ],
-      if (_partial) ...[
+      if (session.partial) ...[
         const SizedBox(height: 8),
         Text(
           key: const ValueKey('loop-partial'),
-          'Gerechnet über $_tilesFound von $_tilesNeeded Kacheln um die Runde — nur dort kennt die App '
-          'die Wege. Ein Weg außerhalb deiner Bereiche kann kürzer sein.',
+          'Gerechnet über ${session.tilesFound} von ${session.tilesNeeded} Kacheln um die Runde — nur dort '
+          'kennt die App die Wege. Ein Weg außerhalb deiner Bereiche kann kürzer sein.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
       ],
@@ -742,7 +529,7 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
         Text('Nicht hineingepasst', style: theme.textTheme.titleMedium),
         ..._excludedRows(context, plan),
       ],
-      back,
+      const SizedBox(height: 8),
       Text(
         'Ein Vorschlag aus Kartendaten, ohne Abbiegehinweise — fahre nach Sicht.',
         style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
@@ -752,7 +539,8 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
 
   List<Widget> _excludedRows(BuildContext context, LoopPlan plan) {
     final theme = Theme.of(context);
-    final byId = {for (final t in [..._inReach, ..._warned]) t.id: t};
+    final trails = ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
+    final byId = {for (final t in trails) t.id: t};
     return [
       for (final e in plan.excluded.entries)
         Text(
@@ -763,31 +551,48 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
     ];
   }
 
-  String _startLabel() {
-    final s = _start;
-    if (s == null) return 'mein Standort';
-    return ref.read(loopStartProvider) == null
-        ? 'mein Standort'
-        : 'getippter Punkt (${s.latitude.toStringAsFixed(4)}, ${s.longitude.toStringAsFixed(4)})';
+  Future<void> _saveRide(LoopSession session, LoopPlan plan) async {
+    if (plan.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final now = DateTime.now().toUtc();
+    final ride = await ref.read(ridesProvider.notifier).savePlanned(
+          name: loopName(plan),
+          points: [
+            for (final p in plan.points) RidePoint(lat: p.latitude, lng: p.longitude, at: now, accuracyM: 0),
+          ],
+          duration: Duration(seconds: plan.summary!.timeS.round()),
+          profile: session.profile.name,
+        );
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(
+        content: Text(ride == null
+            ? 'Die Runde ließ sich nicht speichern.'
+            : 'Als geplante Fahrt gespeichert — im Profil unter „Meine Fahrten".')));
   }
 
-  String _blockerText(_Blocker b) => switch (b) {
-        _Blocker.noPosition => 'Kein Standort — ohne ihn gibt es keinen Startpunkt. Erlaube '
-            'TrailBuddy den Standort, oder tippe den Start auf der Karte.',
-        _Blocker.noArea => 'Kein gespeicherter Bereich deckt die Runde. Gerechnet wird nur offline, '
+  void _exportGpx(LoopPlan plan) {
+    if (plan.isEmpty) return;
+    final track = loopToGpx(plan);
+    shareGpx(context, ref, fileName: gpxFileName(track.name), xml: writeGpx(name: track.name, points: track.points));
+  }
+
+  String _blockerText(LoopBlocker b) => switch (b) {
+        LoopBlocker.noTrails => 'Noch kein Trail gewählt — tippe Trails auf der Karte an, nimm die Liste '
+            'oder umfahre ein Gebiet.',
+        LoopBlocker.noPosition => 'Kein Standort — ohne ihn gibt es keinen Startpunkt. Erlaube '
+            'TrailBuddy den Standort, oder setz den Start über den obersten Knopf der Leiste.',
+        LoopBlocker.noArea => 'Kein gespeicherter Bereich deckt die Runde. Gerechnet wird nur offline, '
             'aus deinen Bereichen — speichere einen über den Ebenen-Knopf auf der Karte.',
-        _Blocker.failed => 'Die Runde ließ sich nicht rechnen — ein Fehler, der gemeldet ist. '
+        LoopBlocker.failed => 'Die Runde ließ sich nicht rechnen — ein Fehler, der gemeldet ist. '
             'Versuch es mit weniger Trails noch einmal.',
       };
 
   String _outcomeText(LoopOutcome o) => switch (o) {
         LoopOutcome.ok => '',
-        LoopOutcome.startOffNetwork =>
-          'In ${kGraphAttachM.round()} m um den Start liegt kein Weg aus der Karte.',
-        LoopOutcome.endOffNetwork =>
-          'In ${kGraphAttachM.round()} m um das Ziel liegt kein Weg aus der Karte.',
+        LoopOutcome.startOffNetwork => 'In ${kGraphAttachM.round()} m um den Start liegt kein Weg aus der Karte.',
+        LoopOutcome.endOffNetwork => 'In ${kGraphAttachM.round()} m um das Ziel liegt kein Weg aus der Karte.',
         LoopOutcome.empty => 'Kein gewählter Trail passt in die Runde — die Gründe stehen je Trail. '
-            'Mehr Zeit oder Höhenmeter, oder ein anderer Start.',
+            'Mehr Zeit oder Höhenmeter unter Parameter, oder ein anderer Start.',
       };
 
   String _exclusionText(LoopExclusion e) => switch (e) {
@@ -810,9 +615,17 @@ String _mixLine(Map<WayClass, double> mix) {
   return entries.map((e) => '${e.key.label} ${formatMeters(e.value)}').join(' · ');
 }
 
-/// Breite der leuchtenden Auswahl im Pool (#178) — breiter als eine
-/// Verbindung, schmaler als der Saum eines Trails in der Runde.
-const kLoopPickWidth = 8.0;
+/// Die gewählten Trails leuchten, solange der Planer offen ist und keine
+/// Runde auf der Karte liegt (#178); ein Pflicht-Trail kräftiger.
+List<MapViewPolyline> loopSelectionLines(Iterable<Trail> trails, LoopSession s) => [
+      for (final t in trails)
+        if (s.selected.contains(t.id) && t.points.length >= 2)
+          MapViewPolyline(
+            points: t.directedPoints,
+            color: AppColors.brand.withValues(alpha: s.mandatory.contains(t.id) ? 0.8 : 0.55),
+            width: kLoopPickWidth,
+          ),
+    ];
 
 /// Die Vorschau: die ganze Linie blass, Verbindungen in der Fahrt-Farbe
 /// (Wanderweg gestrichelt), die Trails als breiter Saum darunter — die
