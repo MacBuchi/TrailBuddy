@@ -98,6 +98,27 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'trail-ends': HighlightDemo(
+    route: '/',
+    script: _demo('trail-ends', const [
+      CoachStep(
+        title: 'Wo es losgeht',
+        text: 'Der Punkt am Anfang zeigt mit seinem Pfeil die Fahrtrichtung, '
+            'das Quadrat ist das Ende — beide in der Farbe des Trails, ab der '
+            'Zoomstufe der Schilder.',
+        lit: [MapCoach.trailEnd],
+        requires: [MapCoach.trailEnd],
+      ),
+      CoachStep(
+        title: 'Erst einen Trail holen',
+        text: 'Das zeigt die Karte an einem Trail. Hol dir einen über GPX aus '
+            'einer anderen App, zeichne eine Fahrt auf oder verbinde dich mit '
+            'Buddys.',
+        lit: [MapCoach.empty],
+        unless: [MapCoach.trailEnd],
+      ),
+    ]),
+  ),
   'kurzanleitung': HighlightDemo(
     route: '/profile',
     script: _demo('kurzanleitung', [

@@ -2,7 +2,7 @@
 // Grad und die angezeigten Merkmale, in der Farbe der Linie — erst ab
 // Zoom 13 (Entwurf), darunter stünden die Schilder übereinander. Pur bis
 // auf das Widget; ein Tipp auf das Schild öffnet den Trail wie ein Tipp
-// auf die Linie.
+// auf die Linie. Seit 0.66.0 daneben die Start- und Endmarken (#96).
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -12,21 +12,18 @@ import '../coach/coach.dart';
 import '../help/map_tour.dart' show MapCoach;
 import '../trails/grade_shield.dart';
 import 'map_view/map_view.dart';
+import 'trail_end_marks.dart';
 
 /// Ab dieser (gerechneten) Zoomstufe stehen die Schilder auf der Karte.
 const kTrailBadgeMinZoom = 13.0;
 
-/// Der Anfang in Trail-Richtung: Die beste Aufzeichnung kann gegen die
-/// Richtung aufgenommen sein (`reversed`), dann ist ihr Ende der Anfang.
-LatLng trailStart(Trail t) => t.best.reversed ? t.points.last : t.points.first;
-
-/// Führt der Trail vom Anfang nach Norden (auf der Karte nach oben)? Dann
-/// steht das Schild UNTER dem Anfang, sonst darüber — es soll neben der
-/// Linie stehen, nicht auf ihr. Gemessen an einem Punkt ~30 m weiter,
-/// damit ein Zacken am Anfang die Seite nicht umwirft.
-bool trailHeadsNorth(Trail t) {
-  final pts = t.best.reversed ? t.points.reversed.toList() : t.points;
-  if (pts.length < 2) return false;
+/// Die Peilung am Anfang in Grad (0 = Nord, im Uhrzeigersinn), gemessen
+/// zu einem Punkt ~30 m weiter, damit ein Zacken am Anfang die Richtung
+/// nicht umwirft; `null` ohne zweiten Punkt. Die Startmarke dreht ihren
+/// Pfeil darauf, das Schild wählt daran seine Seite.
+double? trailStartBearing(Trail t) {
+  final pts = t.directedPoints;
+  if (pts.length < 2) return null;
   const d = Distance();
   final start = pts.first;
   var probe = pts[1];
@@ -34,7 +31,49 @@ bool trailHeadsNorth(Trail t) {
     probe = p;
     if (d.as(LengthUnit.Meter, start, p) >= 30) break;
   }
-  return probe.latitude > start.latitude;
+  return d.bearing(start, probe);
+}
+
+/// Führt der Trail vom Anfang nach Norden (auf der Karte nach oben)? Dann
+/// steht das Schild UNTER dem Anfang, sonst darüber — es soll neben der
+/// Linie stehen, nicht auf ihr.
+bool trailHeadsNorth(Trail t) {
+  final bearing = trailStartBearing(t);
+  return bearing != null && bearing.abs() < 90;
+}
+
+/// Anfang, Richtung und Ende (#96): je Trail eine Startmarke mit Pfeil
+/// und eine Endmarke, in der Farbe der Linie, ab derselben Zoomstufe wie
+/// die Schilder — darunter lägen sie übereinander (und MapLibre setzt
+/// jeden Widget-Marker in jedem Bild neu). Nicht antippbar; wartende
+/// Trails haben keine (ihre Linie ist gestrichelt und trägt die Uhr).
+///
+/// Die Endmarke von [coachTrailId] trägt den Anker `MapCoach.trailEnd`
+/// für Tour und Vorführung.
+List<MapViewMarker> trailEndMarkers(Iterable<Trail> trails, MapViewCamera? camera,
+    {String? coachTrailId}) {
+  if (camera == null || camera.zoom < kTrailBadgeMinZoom) return const [];
+  final out = <MapViewMarker>[];
+  for (final t in trails) {
+    if (t.pending || t.points.length < 2) continue;
+    final color = trailColorOf(t, AppColors.mapGrades);
+    out.add(MapViewMarker(
+      key: ValueKey('trail-start-${t.id}'),
+      point: t.start,
+      width: kTrailMarkSize,
+      height: kTrailMarkSize,
+      child: TrailStartDot(color: color, bearingDeg: trailStartBearing(t) ?? 0),
+    ));
+    final end = TrailEndSquare(color: color);
+    out.add(MapViewMarker(
+      key: ValueKey('trail-end-${t.id}'),
+      point: t.end,
+      width: kTrailMarkSize,
+      height: kTrailMarkSize,
+      child: t.id == coachTrailId ? CoachAnchor(id: MapCoach.trailEnd, child: end) : end,
+    ));
+  }
+  return out;
 }
 
 const _fontSize = 11.0;
@@ -77,7 +116,7 @@ MapViewMarker _marker(Trail t, {bool anchored = false}) {
       fontSize: _fontSize, uphill: uphill, traits: traits, palette: AppColors.mapGrades);
   return MapViewMarker(
     key: ValueKey('trail-badge-${t.id}'),
-    point: trailStart(t),
+    point: t.start,
     width: _badgeWidth(t, uphill, traits),
     height: _fontSize * 2.2,
     // Das Schild steht neben dem Anfang auf der Seite, von der die Linie

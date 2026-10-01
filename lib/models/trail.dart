@@ -545,6 +545,27 @@ class Trail {
   List<LatLng> get points => best.points;
   double get lengthM => best.lengthM;
 
+  /// Die Punkte in TRAIL-Richtung: Die beste Aufzeichnung kann gegen die
+  /// Richtung aufgenommen sein (`reversed`), dann laufen ihre Punkte
+  /// rückwärts. Anfang und Ende auf der Karte (#96), die Anfahrt (#151)
+  /// und der Export (#150) lesen alle hier — EINE Stelle für die Richtung.
+  List<LatLng> get directedPoints {
+    final b = best;
+    return b.reversed ? b.points.reversed.toList() : b.points;
+  }
+
+  /// Der Anfang in Trail-Richtung.
+  LatLng get start {
+    final b = best;
+    return b.reversed ? b.points.last : b.points.first;
+  }
+
+  /// Das Ende in Trail-Richtung.
+  LatLng get end {
+    final b = best;
+    return b.reversed ? b.points.first : b.points.last;
+  }
+
   /// Die beste sichtbare Aufzeichnung MIT Höhen — nicht unbedingt [best]:
   /// Sonst blieben Trails, deren älteste Aufzeichnung vor Patch 002
   /// entstand, für immer ohne Höhenmeter, auch wenn längst jemand sie mit

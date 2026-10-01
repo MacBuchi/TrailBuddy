@@ -77,8 +77,9 @@ const kHelpSteps = <HelpStep>[
         'Art der Linie ist der Zustand: durchgezogen, bröckelig, gestrichelt, '
         'verblasst — je lückenhafter, desto schlechter. Ein orangener Rand '
         'heißt gemeldet, ein gelber ein neuer Hinweis; Violett gestrichelt '
-        'sind offizielle Trails. Am Anfang jedes Trails steht sein Schild — '
-        'ein Tipp darauf oder auf die Linie öffnet das Blatt.',
+        'sind offizielle Trails. Am Anfang jedes Trails steht sein Schild, '
+        'darunter ein Punkt, dessen Pfeil die Fahrtrichtung zeigt; ein Quadrat '
+        'ist das Ende. Ein Tipp aufs Schild oder auf die Linie öffnet das Blatt.',
   ),
   HelpStep(
     icon: _HelpIcon(Icons.circle),

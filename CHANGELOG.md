@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Anfang, Richtung und Ende auf der Karte
+
+*Version 0.66.0, 2026-10-01*
+
+- Jeder Trail trägt jetzt am Anfang einen **Punkt mit Pfeil** in
+  Fahrtrichtung und am Ende ein **Quadrat**, beide in seiner Farbe. So
+  siehst du auf einen Blick, wo ein Trail losgeht und wohin er führt —
+  auch bei Trails ohne Schild.
+- Die Marken erscheinen wie die Schilder erst, wenn du nah genug
+  herangezoomt hast; weiter draußen bleibt die Karte ruhig.
+
 ## Schnellerer Ladekreis
 
 *Version 0.65.1, 2026-10-01*
