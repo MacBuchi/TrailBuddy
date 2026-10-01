@@ -272,8 +272,11 @@ der Strich beim Zeichnen folgt der Regel.
 ## 6. Karte mit zwei Leisten (Turn 3, Spezifikation 3e)
 
 - **Rechts unten — immer:** Aufnahme 60 px (Lime; läuft die Fahrt: Orange
-  mit Stop-Quadrat), darüber 44 px: Position, Ebenen, Idee. Ein offenes
-  Menü markiert seinen Knopf mit Rand in der Marke.
+  mit Stop-Quadrat), darüber 44 px: Position, Runde planen (seit 0.72.0,
+  #158 Schritt 5 — ein eigener Knopf, nicht die Glühbirne), Ebenen, Idee.
+  Ein offenes Menü markiert seinen Knopf mit Rand in der Marke. Nur wo
+  die Spalte nicht mehr hinpasst (kleines Telefon quer, 360 px hoch),
+  skaliert sie als Ganzes herunter; hochkant gelten die 44 px.
   Während einer Fahrt steht direkt über der Aufnahme ein weiterer
   44-px-Knopf für die Marken (#105, E12): Fahne „Trail beginnt", dann
   Zielflagge „Trail endet" mit Rand in der Marke, solange ein markierter

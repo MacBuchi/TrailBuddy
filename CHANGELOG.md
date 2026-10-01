@@ -2,6 +2,29 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Runde planen — deine Trails, bergab verbunden
+
+*Version 0.72.0, 2026-10-01*
+
+- Neuer Knopf auf der Karte: **„Runde planen"**. Du sagst, wo es losgeht
+  (dein Standort oder ein getippter Punkt), wie lange es höchstens dauern
+  darf, wie viele Höhenmeter bergauf und wie viel Wanderweg du in Kauf
+  nimmst — und welche deiner Trails in Frage kommen. Ein Stern heißt „muss
+  dabei sein".
+- Die App baut daraus eine Runde, die möglichst viele Trails BERGAB in
+  ihrer Richtung mitnimmt, verbunden über die Wege deiner gespeicherten
+  Bereiche — offline, nach deinem Fahrerprofil. Ein Trail zweimal zählt
+  nur, wenn ihn die Buddys mit 4 oder 5 Sternen bewertet haben.
+- Das Ergebnis liegt auf der Karte; das Blatt sagt Länge, Höhenmeter,
+  Trail-Meter und etwa die Zeit, nennt die Trails in Reihenfolge und sagt
+  zu jedem, der nicht hineingepasst hat, warum. Gemeldete Trails bleiben
+  draußen, bis du sie einzeln dazunimmst.
+- **„Als Fahrt speichern"** legt die Runde — und seit jetzt auch den Weg
+  „Zum Trailkopf" — als geplante Fahrt unter „Meine Fahrten" ab; von dort
+  geht sie als GPX an deine Navi-App. Geplante Fahrten haben keine Schere:
+  Zerlegt wird, was du wirklich gefahren bist.
+- Die Regler merkt sich die App für die nächste Planung.
+
 ## Zum Trailkopf — der Weg aus deinen Bereichen
 
 *Version 0.71.0, 2026-10-01*

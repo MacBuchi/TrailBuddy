@@ -17,6 +17,7 @@ import 'package:trailbuddy/features/trails/gpx.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_map_view.dart';
+import '../fakes/fake_rides.dart';
 import '../fakes/fake_tiles.dart';
 import '../fakes/fake_trails.dart';
 import '../fakes/test_app.dart';
@@ -79,6 +80,7 @@ Future<MemoryAreaStore> _areaWithTrack() async {
 void main() {
   late FakeBackend backend;
   late FakeTrailRepository trails;
+  late FakeRideStore rides;
   late List<({String fileName, String xml})> shared;
 
   Future<GpxShareOutcome> recorder({required String fileName, required String xml}) async {
@@ -93,6 +95,7 @@ void main() {
     backend.signInAs(anna.id);
     trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '', areFriends: backend.areFriends);
     trails.seedTrail(anna.id, name: 'Hexentanz', grade: 2);
+    rides = FakeRideStore();
   });
 
   Future<void> start(WidgetTester tester,
@@ -103,6 +106,7 @@ void main() {
     await pumpApp(tester, backend,
         trails: trails,
         areaStore: areaStore,
+        rideStore: rides,
         positionFix: positionFix ?? FakePositionFix(fakePosition(_fromLat, _lon)),
         extraOverrides: [gpxShareProvider.overrideWithValue(recorder)]);
     await openTab(tester, 'Trails');
@@ -148,7 +152,15 @@ void main() {
     expect(whole.points.first.latitude, closeTo(_fromLat, 1e-9));
     expect(whole.points.last.latitude, closeTo(48.0, 1e-9));
 
-    // Profilwechsel im Blatt rechnet auf dem stehenden Graphen neu.
+    // Profilwechsel im Blatt rechnet auf dem stehenden Graphen neu. Erst
+    // das Blatt hochziehen: Seit „Als Fahrt speichern" (0.72.0) reicht das
+    // halbe Blatt nicht mehr, und ein Tipp unter seinem Rand träfe die
+    // Sperre dahinter — das Blatt ginge zu.
+    final list = find
+        .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+        .first;
+    await tester.drag(list, const Offset(0, -400));
+    await settle(tester, frames: 4);
     final ebike = find.descendant(
         of: find.byKey(const ValueKey('trail-head-profile')), matching: find.text('E-Bike'));
     await tester.ensureVisible(ebike);
@@ -161,6 +173,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('trail-head-gpx')));
     await settle(tester);
     expect(shared, hasLength(1));
+    // Als Fahrt speichern (#158 Schritt 5): eine geplante Fahrt mit dem
+    // Weg als Punkten, ohne Höhen.
+    await tester.ensureVisible(find.byKey(const ValueKey('trail-head-save')));
+    await tester.tap(find.byKey(const ValueKey('trail-head-save')));
+    await settle(tester);
+    expect(rides.rides, hasLength(1));
+    expect(rides.rides.single.planned, isTrue);
+    expect(rides.rides.single.name, 'Zum Trailkopf: Hexentanz');
+    expect(rides.rides.single.points.first.lat, closeTo(_fromLat, 1e-9));
+    expect(rides.rides.single.points.every((p) => p.altM == null), isTrue);
     expect(shared.single.fileName, 'trailbuddy-zum-trailkopf-hexentanz.gpx');
     final track = parseGpx(shared.single.xml).single;
     expect(track.name, 'Zum Trailkopf: Hexentanz');

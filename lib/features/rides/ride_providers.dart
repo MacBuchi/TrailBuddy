@@ -313,6 +313,30 @@ class RidesNotifier extends AsyncNotifier<List<Ride>> {
     ref.invalidateSelf();
     await future;
   }
+
+  /// Eine geplante Runde oder den Weg zum Trailkopf in „Meine Fahrten"
+  /// ablegen (#158 Schritt 5). Null, wenn sich nichts schreiben ließ.
+  Future<Ride?> savePlanned({
+    required String name,
+    required List<RidePoint> points,
+    required Duration duration,
+    required String? profile,
+  }) async {
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return null;
+    final ride = await ref.read(rideStoreProvider).savePlanned(
+        uid: uid,
+        name: name,
+        createdAt: DateTime.now().toUtc(),
+        points: points,
+        duration: duration,
+        profile: profile);
+    if (ride != null) {
+      ref.invalidateSelf();
+      await future;
+    }
+    return ride;
+  }
 }
 
 final ridesProvider = AsyncNotifierProvider<RidesNotifier, List<Ride>>(RidesNotifier.new);

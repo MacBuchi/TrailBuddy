@@ -33,6 +33,8 @@ import '../offline_areas/area_providers.dart';
 import '../offline_areas/area_store.dart';
 import '../offline_areas/height_tiles.dart';
 import '../profile/profile_providers.dart';
+import '../rides/ride_providers.dart';
+import '../rides/ride_track.dart';
 import '../rides/road_index.dart' show RoadCoverage;
 import '../trails/gpx_writer.dart';
 import '../trails/trail_navigation.dart';
@@ -176,6 +178,28 @@ class _TrailHeadSheetState extends ConsumerState<_TrailHeadSheet> {
     ref.read(trailHeadPreviewProvider.notifier).state = previewLinesOf(plan.route);
   }
 
+  /// Den Weg als geplante Fahrt in „Meine Fahrten" (#158 Schritt 5) —
+  /// damit er auf der Karte bleibt und als GPX wiederkommt.
+  Future<void> _saveRide() async {
+    final route = _plan?.route;
+    if (route == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final now = DateTime.now().toUtc();
+    final ride = await ref.read(ridesProvider.notifier).savePlanned(
+          name: 'Zum Trailkopf: ${widget.trail.displayName}',
+          points: [
+            for (final p in route.points) RidePoint(lat: p.latitude, lng: p.longitude, at: now, accuracyM: 0),
+          ],
+          duration: Duration(seconds: route.summary.timeS.round()),
+          profile: _profile.name,
+        );
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(
+        content: Text(ride == null
+            ? 'Der Weg ließ sich nicht speichern.'
+            : 'Als geplante Fahrt gespeichert — im Profil unter „Meine Fahrten".')));
+  }
+
   void _exportGpx() {
     final route = _plan?.route;
     if (route == null) return;
@@ -222,6 +246,13 @@ class _TrailHeadSheetState extends ConsumerState<_TrailHeadSheet> {
             ),
           ],
         ),
+        if (_plan?.route != null)
+          TextButton.icon(
+            key: const ValueKey('trail-head-save'),
+            onPressed: _saveRide,
+            icon: const Icon(Icons.bookmark_add_outlined),
+            label: const Text('Als Fahrt speichern'),
+          ),
       ],
     );
   }

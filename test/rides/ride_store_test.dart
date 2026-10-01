@@ -38,6 +38,36 @@ void main() {
     expect(old!.profile, isNull);
   });
 
+  test('eine geplante Fahrt (#158 Schritt 5) liegt als eigene Datei und kommt mit Name zurück', () async {
+    final store = FileRideStore(baseDir: dir);
+    final pts = [
+      for (var i = 0; i < 3; i++) RidePoint(lat: 47 + i / 1000, lng: 11, at: start, accuracyM: 0),
+    ];
+    final saved = await store.savePlanned(
+        uid: 'me', name: 'Runde: Hang', createdAt: start, points: pts,
+        duration: const Duration(minutes: 90), profile: 'bio');
+    expect(saved, isNotNull);
+    expect(saved!.planned, isTrue);
+    expect(saved.name, 'Runde: Hang');
+    expect(saved.endedAt, start.add(const Duration(minutes: 90)));
+    final listed = (await store.list(uid: 'me')).single;
+    expect(listed.planned, isTrue);
+    expect(listed.name, 'Runde: Hang');
+    expect(listed.points, hasLength(3));
+    expect(listed.duration, const Duration(minutes: 90));
+    expect(listed.profile, 'bio');
+    // Kein `.part` bleibt liegen, und eine aufgezeichnete Fahrt daneben
+    // ist nicht geplant.
+    expect(dir.listSync(recursive: true).where((f) => f.path.endsWith('.part')), isEmpty);
+    await store.begin(uid: 'me', startedAt: start.add(const Duration(hours: 1)));
+    await store.appendPoint(point(0));
+    await store.finish(uid: 'me', endedAt: start.add(const Duration(hours: 2)));
+    final rides = await store.list(uid: 'me');
+    expect(rides.map((r) => r.planned), [false, true], reason: 'neueste zuerst');
+    // Ein fremdes Konto sieht sie nicht.
+    expect(await store.list(uid: 'other'), isEmpty);
+  });
+
   test('Punkte überstehen Schreiben und Lesen, auch die Höhe', () async {
     final store = FileRideStore(baseDir: dir);
     await store.begin(uid: 'me', startedAt: start);

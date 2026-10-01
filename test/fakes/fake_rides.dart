@@ -107,6 +107,32 @@ class FakeRideStore implements RideStore {
     marks.clear();
   }
 
+  /// Lässt [savePlanned] scheitern — die Oberfläche muss es sagen.
+  bool failOnPlanned = false;
+
+  @override
+  Future<Ride?> savePlanned({
+    required String uid,
+    required String name,
+    required DateTime createdAt,
+    required List<RidePoint> points,
+    required Duration duration,
+    String? profile,
+  }) async {
+    if (failOnPlanned) return null;
+    this.uid ??= uid;
+    final ride = Ride(
+        id: 'planned-${createdAt.toIso8601String().replaceAll(RegExp(r'[-:.]'), '')}',
+        startedAt: createdAt,
+        endedAt: createdAt.add(duration),
+        points: points,
+        profile: profile,
+        planned: true,
+        name: name);
+    rides.insert(0, ride);
+    return ride;
+  }
+
   @override
   Future<List<Ride>> list({required String uid}) async =>
       [for (final r in rides) if (this.uid == uid) r];
