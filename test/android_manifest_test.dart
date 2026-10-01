@@ -183,6 +183,18 @@ void main() {
     }
   });
 
+  test('der App-Wähler für die Anfahrt sieht geo:-Empfänger (#151)', () {
+    // Ohne den <queries>-Eintrag sieht die App ab Android 11 keinen
+    // Empfänger für geo:, der Wähler bleibt aus, und der Knopf fällt
+    // still auf die Zwischenablage zurück — ein Fehler, der wie eine
+    // Entscheidung aussieht. Das Schema steht in Dart und im Manifest.
+    final dart = File('lib/features/trails/trail_navigation.dart').readAsStringSync();
+    final scheme = RegExp(r"kGeoScheme = '(\w+)'").firstMatch(dart)!.group(1)!;
+    final queries = RegExp(r'<queries>([\s\S]*?)</queries>').firstMatch(manifest)!.group(1)!;
+    expect(queries, contains('android:scheme="$scheme"'));
+    expect(queries, contains('android.intent.action.VIEW'));
+  });
+
   test('google-services nur mit Datei — und die Datei kennt den Paketnamen', () {
     // Das Plugin bricht den Build ab, wenn google-services.json fehlt; bis
     // der Betreiber das Firebase-Projekt anlegt, baut die App ohne. Liegt

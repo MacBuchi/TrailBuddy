@@ -128,5 +128,15 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
         </intent>
+        <!-- url_launcher: den Trailkopf an eine Navi-App übergeben (#151).
+             Ohne diesen Eintrag sieht die App ab Android 11 keinen
+             Empfänger für geo:, der Wähler bleibt aus, und der Knopf
+             fällt still auf die Zwischenablage zurück. Das Schema steht
+             als kGeoScheme in trail_navigation.dart; der Manifest-Test
+             hält beide zusammen. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="geo"/>
+        </intent>
     </queries>
 </manifest>

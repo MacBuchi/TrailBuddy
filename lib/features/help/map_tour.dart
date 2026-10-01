@@ -80,6 +80,9 @@ abstract final class SheetCoach {
   static const addNote = 'sheet.addNote';
   static const report = 'sheet.report';
   static const showOnMap = 'sheet.showOnMap';
+
+  /// „Anfahrt" — der Trailkopf an eine Navi-App (#151).
+  static const navigate = 'sheet.navigate';
 }
 
 /// Die Startseite beim ERSTEN Start (#133). Sie nennt die drei Wege, auf

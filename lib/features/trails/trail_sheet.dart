@@ -21,6 +21,7 @@ import 'trail_elevation.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_link.dart';
+import 'trail_navigation.dart';
 import 'trail_notes.dart';
 import 'rating_stars.dart';
 import 'trail_condition.dart';
@@ -359,26 +360,46 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                   ),
                 ],
               ),
-            // Zur Karte in einer eigenen Zeile: Drei Knöpfe nebeneinander
-            // passen auf ein kleines Telefon nicht.
-            if (widget.showOnMapButton) ...[
-              if (!trail.pending) const SizedBox(height: 8),
-              CoachAnchor(
-                id: SheetCoach.showOnMap,
-                child: OutlinedButton.icon(
-                key: const ValueKey('trail-show-on-map'),
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                onPressed: () {
-                  // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
-                  Navigator.of(context).pop();
-                  StatefulNavigationShell.maybeOf(context)
-                      ?.goBranch(kMapBranchIndex);
-                  ref.read(mapFocusTrailProvider.notifier).state = trail.id;
-                },
-                icon: const Icon(Icons.map),
-                label: const Text('Karte'),
-              )),
-            ],
+            // Anfahrt (#151) und zur Karte in einer eigenen Zeile: Drei
+            // Knöpfe nebeneinander passen auf ein kleines Telefon nicht.
+            // Die Anfahrt gibt es auch für wartende Trails — Punkte haben
+            // sie, der Trailkopf steht fest.
+            if (!trail.pending) const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: CoachAnchor(
+                    id: SheetCoach.navigate,
+                    child: OutlinedButton.icon(
+                    key: const ValueKey('trail-navigate'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                    onPressed: () => navigateToTrailHead(context, trail),
+                    icon: const Icon(Icons.directions_outlined),
+                    label: const Text('Anfahrt'),
+                  )),
+                ),
+                if (widget.showOnMapButton) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CoachAnchor(
+                      id: SheetCoach.showOnMap,
+                      child: OutlinedButton.icon(
+                      key: const ValueKey('trail-show-on-map'),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      onPressed: () {
+                        // Erst der Reiter, dann der Wunsch (PilzBuddy #345).
+                        Navigator.of(context).pop();
+                        StatefulNavigationShell.maybeOf(context)
+                            ?.goBranch(kMapBranchIndex);
+                        ref.read(mapFocusTrailProvider.notifier).state = trail.id;
+                      },
+                      icon: const Icon(Icons.map),
+                      label: const Text('Karte'),
+                    )),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
