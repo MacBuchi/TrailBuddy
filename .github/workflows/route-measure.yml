@@ -1,0 +1,60 @@
+name: Route Measure
+
+# Die Routing-Messung (#35, docs/konzept-routing.md Abschnitt 6), die
+# öffentliche Hälfte: offizielle Trails Tirols vom Daten-Branch, z13-Kacheln
+# vom eigenen Host per Range-Anfrage (wie die App), Höhen aus dem offenen
+# Copernicus-Bucket. Beantwortet M1 (Zusammenhang des Graphen), M3 in der
+# Tirol-Hälfte (DEM gegen die Zahlen der Quelle) und M5 (Laufzeit) und
+# zeigt Beispiel-Aufstiege. Die private Hälfte (M2, M4, Kalibrierung)
+# läuft beim Betreiber: Fahrten verlassen das Gerät nie.
+#
+# Nur von Hand: Die Messung ist eine Entscheidungsgrundlage, kein Wächter.
+# Der Bericht steht in der Run-Summary und als Artefakt; was daraus folgt,
+# gehört nach docs/routing-messung.md.
+#
+# Kein Version-Guard-Thema, kein Secret: alles ist öffentlich lesbar.
+on:
+  workflow_dispatch:
+    inputs:
+      frames:
+        description: "Wie viele 20-km-Rahmen um die dichtesten Trail-Gruppen"
+        required: false
+        default: "3"
+      profile:
+        description: "Fahrerprofil für Budgets und Beispiele"
+        required: false
+        type: choice
+        options: ["bio", "ebike"]
+        default: "bio"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Tirol messen
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Selbsttest
+        run: python3 tool/route_measure.py --self-test
+      - name: Messen
+        run: |
+          python3 tool/route_measure.py tirol \
+            --frames "${{ inputs.frames || '3' }}" \
+            --profile "${{ inputs.profile || 'bio' }}" \
+            --out build/route --summary "$GITHUB_STEP_SUMMARY"
+      - name: Bericht ablegen
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: route-measure
+          path: |
+            build/route/tirol.md
+            build/route/tirol.json
+          if-no-files-found: warn
