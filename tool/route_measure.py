@@ -730,8 +730,17 @@ class Edge:
     latlon: list = field(default_factory=list)   # a -> b
 
 
+GRID_CELL_M = 50.0   # spatial index cell; every query radius here is <= 30 m
+
+
 class Graph:
-    """Undirected graph with per-edge class and climb; metric coordinates."""
+    """Undirected graph with per-edge class and climb; metric coordinates.
+
+    Nodes and edge segments sit in a uniform grid (GRID_CELL_M) so that
+    the joins and the trail attachments are local queries. The first
+    version scanned every edge per dead end — with 20 000 edges and a few
+    thousand dead ends that was minutes in CI, not seconds.
+    """
 
     def __init__(self, lat0):
         self.k = math.cos(math.radians(lat0))
@@ -740,9 +749,15 @@ class Graph:
         self.edges = []
         self.adj = []          # node -> [edge index]
         self._key = {}
+        self._node_cells = {}  # cell -> [node]
+        self._seg_cells = {}   # cell -> [(edge, segment)]
 
     def xy(self, lat, lon):
         return math.radians(lon) * R_EARTH * self.k, math.radians(lat) * R_EARTH
+
+    @staticmethod
+    def _cell(x, y):
+        return int(x // GRID_CELL_M), int(y // GRID_CELL_M)
 
     def node(self, lat, lon):
         key = (round(lon * 1e6), round(lat * 1e6))
@@ -750,24 +765,38 @@ class Graph:
         if i is None:
             i = len(self.nodes)
             self._key[key] = i
-            self.nodes.append(self.xy(lat, lon))
+            x, y = self.xy(lat, lon)
+            self.nodes.append((x, y))
             self.latlon.append((lat, lon))
             self.adj.append([])
+            self._node_cells.setdefault(self._cell(x, y), []).append(i)
         return i
+
+    def _index_segments(self, ei, first=0):
+        pts = [self.xy(*p) for p in self.edges[ei].latlon]
+        for i in range(first, len(pts) - 1):
+            (ax, ay), (bx, by) = pts[i], pts[i + 1]
+            for cx in range(int(min(ax, bx) // GRID_CELL_M), int(max(ax, bx) // GRID_CELL_M) + 1):
+                for cy in range(int(min(ay, by) // GRID_CELL_M), int(max(ay, by) // GRID_CELL_M) + 1):
+                    self._seg_cells.setdefault((cx, cy), []).append((ei, i))
 
     def add_edge(self, a, b, cls, oneway, latlon):
         xy = [self.xy(la, lo) for la, lo in latlon]
         e = Edge(a, b, cls, oneway, trail_match.polyline_length(xy), latlon=latlon)
         self.edges.append(e)
-        self.adj[a].append(len(self.edges) - 1)
-        self.adj[b].append(len(self.edges) - 1)
-        return len(self.edges) - 1
+        ei = len(self.edges) - 1
+        self.adj[a].append(ei)
+        self.adj[b].append(ei)
+        self._index_segments(ei)
+        return ei
 
     def degree(self, n):
         return len(self.adj[n])
 
     def split_edge(self, ei, t, lat, lon):
-        """Splits edge `ei` at polyline fraction position (segment i, t)."""
+        """Splits edge `ei` at polyline position (segment i, t); the first
+        part keeps `ei` (its index entries stay valid — segment `seg` is
+        only shortened), the rest becomes a new edge."""
         e = self.edges[ei]
         seg, frac = t
         mid = self.node(lat, lon)
@@ -775,18 +804,13 @@ class Graph:
             return mid
         first = e.latlon[:seg + 1] + [(lat, lon)]
         second = [(lat, lon)] + e.latlon[seg + 1:]
-        self.adj[e.b].remove(ei)
+        old_b = e.b
+        self.adj[old_b].remove(ei)
         e.latlon = first
         e.b = mid
         e.length = trail_match.polyline_length([self.xy(*p) for p in first])
         self.adj[mid].append(ei)
-        ni = len(self.edges)
-        e2 = Edge(mid, self.node(*second[-1]), e.cls, e.oneway,
-                  trail_match.polyline_length([self.xy(*p) for p in second]), latlon=second)
-        self.edges.append(e2)
-        self.adj[mid].append(ni)
-        self.adj[e2.b].append(ni)
-        return mid
+        return self.add_edge(mid, old_b, e.cls, e.oneway, second) and mid
 
     def components(self):
         parent = list(range(len(self.nodes)))
@@ -805,35 +829,52 @@ class Graph:
             comp.setdefault(find(e.a), []).append(e)
         return sorted(comp.values(), key=lambda es: -sum(x.length for x in es))
 
+    def nearest_node(self, x, y, radius, exclude=-1):
+        cx, cy = self._cell(x, y)
+        reach = int(math.ceil(radius / GRID_CELL_M))
+        best, best_d = None, radius
+        for dx in range(-reach, reach + 1):
+            for dy in range(-reach, reach + 1):
+                for n in self._node_cells.get((cx + dx, cy + dy), ()):
+                    if n == exclude:
+                        continue
+                    nx, ny = self.nodes[n]
+                    d = math.hypot(nx - x, ny - y)
+                    if d <= best_d:
+                        best, best_d = n, d
+        return best
+
     def nearest(self, lat, lon, radius):
         """(distance, edge index, (segment, t), lat, lon) of the nearest
         edge point within radius, or None."""
         x, y = self.xy(lat, lon)
+        cx, cy = self._cell(x, y)
+        reach = int(math.ceil(radius / GRID_CELL_M))
         best = None
-        for ei, e in enumerate(self.edges):
-            pts = [self.xy(*p) for p in e.latlon]
-            if min(px for px, _ in pts) - radius > x or max(px for px, _ in pts) + radius < x:
-                continue
-            if min(py for _, py in pts) - radius > y or max(py for _, py in pts) + radius < y:
-                continue
-            for i, (a, b) in enumerate(zip(pts, pts[1:])):
-                d, t = trail_match._point_segment((x, y), a, b)
-                if d <= radius and (best is None or d < best[0]):
-                    px, py = a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])
-                    best = (d, ei, (i, t), math.degrees(py / R_EARTH), math.degrees(px / (R_EARTH * self.k)))
+        seen = set()
+        for dx in range(-reach, reach + 1):
+            for dy in range(-reach, reach + 1):
+                for ei, i in self._seg_cells.get((cx + dx, cy + dy), ()):
+                    if (ei, i) in seen:
+                        continue
+                    seen.add((ei, i))
+                    pts = self.edges[ei].latlon
+                    if i + 1 >= len(pts):
+                        continue   # stale after a split
+                    a, b = self.xy(*pts[i]), self.xy(*pts[i + 1])
+                    d, tt = trail_match._point_segment((x, y), a, b)
+                    if d <= radius and (best is None or d < best[0]):
+                        px, py = a[0] + tt * (b[0] - a[0]), a[1] + tt * (b[1] - a[1])
+                        best = (d, ei, (i, tt), math.degrees(py / R_EARTH), math.degrees(px / (R_EARTH * self.k)))
         return best
 
     def attach(self, lat, lon, radius=ATTACH_M):
         """Node for a trail end: an existing node within radius, else a new
         node on the nearest edge within radius, else None."""
         x, y = self.xy(lat, lon)
-        best_n, best_d = None, radius
-        for i, (nx, ny) in enumerate(self.nodes):
-            d = math.hypot(nx - x, ny - y)
-            if d <= best_d:
-                best_n, best_d = i, d
-        if best_n is not None:
-            return best_n
+        n = self.nearest_node(x, y, radius)
+        if n is not None:
+            return n
         hit = self.nearest(lat, lon, radius)
         if hit is None:
             return None
@@ -876,12 +917,7 @@ def build_graph(lines, lat0, join_m=JOIN_M):
                 continue
             lat, lon = g.latlon[n]
             x, y = g.nodes[n]
-            # another node within reach?
-            target = None
-            for m, (mx, my) in enumerate(g.nodes):
-                if m != n and math.hypot(mx - x, my - y) <= join_m:
-                    target = m
-                    break
+            target = g.nearest_node(x, y, join_m, exclude=n)
             if target is None:
                 hit = g.nearest(lat, lon, join_m)
                 if hit is None:
