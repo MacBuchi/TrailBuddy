@@ -926,9 +926,12 @@ def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
 
     root_raw = compress(serialize_directory(entries), compression)
     leaf_blob = b""
-    entry_count = len(entries)
     if leaf_size is not None or len(root_raw) > max_root_bytes:
-        size = leaf_size or 2
+        # Leaves start at 4096 entries like go-pmtiles' optimiser and grow
+        # until the root fits. Starting at 2 (as until 2026-10-01) found the
+        # SMALLEST leaf size whose root fits — 43 641 leaves of two entries
+        # for the height archive, a leaf fetch for nearly every tile read.
+        size = leaf_size or 4096
         while True:
             leaf_blob = bytearray()
             root_entries = []
@@ -941,7 +944,6 @@ def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
             root_raw = compress(serialize_directory(root_entries), compression)
             if leaf_size is not None or len(root_raw) <= max_root_bytes:
                 leaf_blob = bytes(leaf_blob)
-                entry_count = len(entries) + len(root_entries)
                 break
             size *= 2
             if size > len(entries):
@@ -966,7 +968,11 @@ def _build_archive(tiles, leaf_size=None, max_root_bytes=16384,
     header.tile_data_offset = tile_offset
     header.tile_data_length = len(blob)
     header.addressed_tiles = sum(e.run_length for e in entries)
-    header.tile_entries = entry_count
+    # Tile entries are the entries with a run length (root or leaf); the
+    # root's pointers to leaves are not among them. Counting them in was
+    # the bug `pmtiles verify` caught on the first height build:
+    # "header TileEntriesCount=130922 but 87281 tile entries".
+    header.tile_entries = len(entries)
     header.tile_contents = len(offsets)
     header.clustered = 1
     header.internal_compression = compression
@@ -1127,6 +1133,10 @@ def _test_archive_roundtrip():
     walked = [e for e in archive.walk() if e.run_length > 0]
     addressed = sum(e.run_length for e in walked)
     assert addressed == len(tiles), (addressed, len(tiles))
+    # The header counts tile entries the way `pmtiles verify` does: the
+    # entries with a run length, not the root's pointers to leaves.
+    assert archive.header.tile_entries == len(walked), (archive.header.tile_entries, len(walked))
+    assert archive.header.addressed_tiles == addressed
 
     for (z, x, y), data in tiles.items():
         entry = archive.find(zxy_to_tile_id(z, x, y))
