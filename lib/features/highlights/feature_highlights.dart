@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'trail-ends',
+    since: '0.66.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.trending_flat,
+    title: 'Anfang, Richtung, Ende',
+    text: 'Jeder Trail hat jetzt einen Punkt mit Pfeil am Anfang und ein '
+        'Quadrat am Ende, in seiner Farbe. So siehst du auf der Karte, wo '
+        'es losgeht und in welche Richtung.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'kurzanleitung',
     since: '0.59.0',
     kind: HighlightKind.highlight,

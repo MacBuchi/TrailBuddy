@@ -328,6 +328,18 @@ Kein Schild ohne Grad und ohne Merkmale, keins für wartende Trails. Ein
 Tipp öffnet den Trail (`hitValue`); die Trefferprüfung fragt Linien vor
 Markern, am Anfang treffen beide denselben Trail.
 
+**Anfang, Richtung, Ende seit 0.66.0** (#96, `trail_end_marks.dart`,
+Schritt 6c): je Trail eine Scheibe (14 px) in der Trail-Farbe mit weißem
+Pfeil, gedreht auf die Peilung der ersten ~30 m (`trailStartBearing`),
+und am Ende ein Quadrat in derselben Farbe — die Zielmarke; beide mit
+weißem Saum wie die Linie. Dieselbe Zoomstufe wie die Schilder (unter 13
+lägen sie übereinander, und MapLibre setzt jeden Widget-Marker in jedem
+Bild neu), keine für wartende Trails, auch für Trails ohne Schild. Nicht
+antippbar: Ein Tipp dort trifft die Linie. Kein Pin und keine Fahne — die
+Fahne gehört dem Marken-Knopf (Abschnitt 6), die Nadel den Orten. Anfang
+und Ende kommen aus `Trail.start`/`Trail.end` in Trail-Richtung; das
+Schild liegt über der Startmarke und bleibt das Antippbare.
+
 **Charakter** — Mehrfachwahl je Beitrag, wie der Grad von Buddys
 vergeben; angezeigt die höchstens 2 häufigsten, als Symbol:
 Flowig (Wellen, Anlieger, Rhythmus), Jump-Line (Kicker, Drops, Tables),
@@ -498,6 +510,7 @@ Routing kommt die Übergabe an eine Navi-App (#151, Konzept 9).
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72) |
 | 6a | S-Grad-Schild, Farbe = Schwierigkeit (Karte, Liste, Schild) | 0.42.0 |
 | 6b | Schild mit Charakter am Trailanfang auf der Karte | 0.43.0 |
+| 6c | Start- und Endmarke mit Richtung auf der Karte (#96) | 0.66.0 |
 | 6c | Glatte Linien, Name entlang der Linie (Betreiber-Wunsch) | 0.44.0 |
 | 7 | Animationen (Turn 1p–1t) | 0.45.0 |
 | E1 | Einführung: Kurzanleitung, Sicherheitshinweis (#131) | 0.59.0 |

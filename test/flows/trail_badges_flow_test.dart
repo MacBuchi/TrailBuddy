@@ -1,11 +1,14 @@
 // Das Schild am Trailanfang (Design 4c, Schritt 6b): ab Zoom 13, am
 // Anfang in Trail-Richtung, mit Grad und Merkmalen in der Farbe der Linie;
-// ein Tipp öffnet den Trail.
+// ein Tipp öffnet den Trail. Dazu seit 0.66.0 die Start- und Endmarken
+// (#96, Schritt 6c): dieselbe Zoomstufe, in Trail-Richtung, nicht
+// antippbar, auch für Trails ohne Schild.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/features/map/trail_badges.dart';
+import 'package:trailbuddy/features/map/trail_end_marks.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 import '../fakes/fake_backend.dart';
@@ -16,19 +19,27 @@ import '../fakes/test_app.dart';
 void main() {
   late FakeBackend backend;
   late FakeTrailRepository trails;
+  late String hexentanz, rueckwaerts, nackt;
 
   setUp(() {
     backend = FakeBackend();
     final anna = backend.addUser(username: 'anna');
     backend.signInAs(anna.id);
     trails = FakeTrailRepository(myId: () => backend.currentUserId ?? '', areFriends: backend.areFriends);
-    trails.seedTrail(anna.id, name: 'Hexentanz', grade: 3, traits: {TrailTrait.rocky});
+    hexentanz = trails.seedTrail(anna.id, name: 'Hexentanz', grade: 3, traits: {TrailTrait.rocky});
     // Gegen die Trail-Richtung aufgenommen: Anfang ist das Ende der Linie.
-    trails.seedTrail(anna.id, name: 'Rückwärts', lat: 48.02, grade: 1, reversed: true);
+    rueckwaerts = trails.seedTrail(anna.id, name: 'Rückwärts', lat: 48.02, grade: 1, reversed: true);
     trails.seedTrail(anna.id, name: 'Auffahrt', lat: 48.04, traits: {TrailTrait.uphill});
     // Ohne Grad und ohne Merkmale: kein Schild.
-    trails.seedTrail(anna.id, name: 'Nackt', lat: 48.06);
+    nackt = trails.seedTrail(anna.id, name: 'Nackt', lat: 48.06);
   });
+
+  MapViewMarker? markerByKey(WidgetTester tester, String key) {
+    for (final m in fakeMapLayers(tester).markers) {
+      if (m.key == ValueKey(key)) return m;
+    }
+    return null;
+  }
 
   MapViewMarker? badgeOf(WidgetTester tester, String name) {
     for (final m in fakeMapLayers(tester).markers) {
@@ -57,6 +68,41 @@ void main() {
     expect(badgeOf(tester, 'Nackt'), isNull);
     expect(findLabel('Schwierigkeit S3: verblockt, hohe Stufen, enge Kehren, Verblockt'), findsOneWidget);
     expect(findLabel('Uphill'), findsOneWidget);
+  });
+
+  testWidgets('Start- und Endmarke: ab Zoom 13, in Trail-Richtung, nicht antippbar', (tester) async {
+    await pumpApp(tester, backend, trails: trails);
+    await settle(tester, frames: 20);
+
+    fakeMap(tester).move(const LatLng(48.03, 9.0), kTrailBadgeMinZoom - 1);
+    await settle(tester);
+    expect(markerByKey(tester, 'trail-start-$hexentanz'), isNull, reason: 'weit draußen bleibt die Karte ruhig');
+    expect(markerByKey(tester, 'trail-end-$hexentanz'), isNull);
+
+    fakeMap(tester).move(const LatLng(48.03, 9.0), kTrailBadgeMinZoom);
+    await settle(tester);
+    final start = markerByKey(tester, 'trail-start-$hexentanz')!;
+    final end = markerByKey(tester, 'trail-end-$hexentanz')!;
+    expect(start.point, const LatLng(48.0, 9.0));
+    expect(end.point, const LatLng(48.009, 9.0));
+    expect(start.hitValue, isNull, reason: 'ein Tipp dort trifft die Linie');
+    expect(end.hitValue, isNull);
+    expect(start.alignment, Alignment.center);
+    // Hexentanz führt nach Norden: der Pfeil zeigt nach oben.
+    expect((start.child as TrailStartDot).bearingDeg, closeTo(0, 1));
+
+    // Gegen die Richtung aufgenommen: Anfang und Ende sind vertauscht,
+    // der Pfeil zeigt nach Süden.
+    final rStart = markerByKey(tester, 'trail-start-$rueckwaerts')!;
+    expect(rStart.point, const LatLng(48.029, 9.0));
+    expect(markerByKey(tester, 'trail-end-$rueckwaerts')!.point, const LatLng(48.02, 9.0));
+    expect((rStart.child as TrailStartDot).bearingDeg.abs(), closeTo(180, 1));
+
+    // Auch ohne Schild gibt es Anfang und Ende.
+    expect(markerByKey(tester, 'trail-start-$nackt'), isNotNull);
+    expect(markerByKey(tester, 'trail-end-$nackt'), isNotNull);
+    expect(find.byType(TrailEndSquare), findsNWidgets(4));
+    expect(findLabel('Trailanfang'), findsNWidgets(4));
   });
 
   testWidgets('ein Tipp auf das Schild öffnet den Trail', (tester) async {

@@ -632,8 +632,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       markers: [
         if (camera != null && cells != null)
           ...poiMarkers(poiState, camera, cells, groups, hidden),
-        // Das Schild am Trailanfang (Design 4c) — über den Orten, weil
-        // es zum Netz gehört.
+        // Anfang, Richtung und Ende (#96) und das Schild am Trailanfang
+        // (Design 4c) — über den Orten, weil sie zum Netz gehören; das
+        // Schild zuoberst, es ist das Antippbare.
+        ...trailEndMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
         ...trailBadgeMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
         if (position != null)
           MapViewMarker(
