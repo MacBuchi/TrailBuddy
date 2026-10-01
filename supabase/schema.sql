@@ -200,6 +200,9 @@ create table public.trail_details (
   -- gefällt. Leer = noch nicht bewertet. Angezeigt als Median der
   -- sichtbaren Beiträge, auf dem Gerät gerechnet (Konzept 12).
   rating smallint constraint trail_details_rating_check check (rating between 1 and 5),
+  -- In beide Richtungen fahrbar (Patch 016, #174): Ohne diese Angabe
+  -- fährt der Planer den Trail nie gegen seine Richtung. Vorgabe aus.
+  two_way boolean not null default false,
   visibility text not null default 'buddies' check (visibility in ('buddies', 'private')),
   -- Veraltet seit Patch 013: Die Meldung steht in trail_reports. status
   -- und status_at bleiben für Clients bis 0.48.0 und werden in beide
@@ -222,6 +225,8 @@ create table public.trail_details (
 create index trail_details_user_idx on public.trail_details (user_id);
 comment on column public.trail_details.kind is
   'Veraltet seit Patch 009 (Issue #72): nur noch für Clients bis 0.33.0; ersetzt durch traits.';
+comment on column public.trail_details.two_way is
+  'Patch 016 (#174): in beide Richtungen fahrbar — der Planer fährt den Trail sonst nie gegen seine Richtung.';
 comment on column public.trail_details.status is
   'Veraltet seit Patch 013: die Meldung steht in trail_reports; bleibt für Clients bis 0.48.0 und wird abgeglichen.';
 
@@ -1873,5 +1878,6 @@ insert into public.applied_patches (filename) values
   ('patch_012_contribution_link.sql'),
   ('patch_013_rating_reports.sql'),
   ('patch_014_push_content.sql'),
-  ('patch_015_planned_ride_date.sql')
+  ('patch_015_planned_ride_date.sql'),
+  ('patch_016_two_way.sql')
 on conflict do nothing;

@@ -62,7 +62,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Zoom auf das Netz beim Start): wird bei `onMapCreated` nachgeholt,
   /// statt still verloren zu gehen.
   (LatLng, double)? _pendingMove;
-  ({List<LatLng> points, double padding, double maxZoom})? _pendingFit;
+  ({List<LatLng> points, double padding, double maxZoom, double bottomInset})? _pendingFit;
 
   /// Sichtfenster vom letzten Kamera-Idle — Grundlage des
   /// Marker-Cullings. Vorher (Karte noch nicht bereit) werden KEINE
@@ -269,10 +269,10 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   }
 
   @override
-  void fit(List<LatLng> points, {required double padding, required double maxZoom}) {
+  void fit(List<LatLng> points, {required double padding, required double maxZoom, double bottomInset = 0}) {
     final controller = _ml;
     if (controller == null) {
-      _pendingFit = (points: points, padding: padding, maxZoom: maxZoom);
+      _pendingFit = (points: points, padding: padding, maxZoom: maxZoom, bottomInset: bottomInset);
       return;
     }
     // Selbst gerechnet und OHNE Animation gesetzt (#68): `fitBounds`
@@ -281,7 +281,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     // in 0.17–0.20, jedes Einpassen. `moveCamera` kennt keine Dauer.
     final size = _size.isEmpty ? MediaQuery.sizeOf(context) : _size;
     final cam = cameraToFit(points, size,
-        padding: padding, maxZoom: maxZoom, minZoom: widget.config.minZoom);
+        padding: padding, maxZoom: maxZoom, minZoom: widget.config.minZoom, bottomInset: bottomInset);
     _moveNow(controller, cam.center, cam.zoom, 'Karte einpassen');
   }
 
@@ -365,7 +365,8 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         _pendingFit = null;
         if (pendingMove != null) move(pendingMove.$1, pendingMove.$2);
         if (pendingFit != null) {
-          fit(pendingFit.points, padding: pendingFit.padding, maxZoom: pendingFit.maxZoom);
+          fit(pendingFit.points,
+              padding: pendingFit.padding, maxZoom: pendingFit.maxZoom, bottomInset: pendingFit.bottomInset);
         }
         // Erstes Sichtfenster nach dem Aufbau — ohne diesen Aufruf
         // erschienen Marker erst nach der ersten Geste.
@@ -386,6 +387,16 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
             ),
             layers,
           );
+        }
+        if (event is ml.MapEventLongClick) {
+          final controller = _ml;
+          final camera = controller == null ? null : _cameraOf(controller);
+          if (camera == null) return;
+          widget.config.onLongPress?.call(MapTap(
+            point: LatLng(event.point.lat.toDouble(), event.point.lon.toDouble()),
+            screenPoint: event.screenPoint,
+            camera: camera,
+          ));
         }
         // Culling und Nachladen bei Kamera-Idle, NICHT pro Frame.
         if (event is ml.MapEventCameraIdle) _onIdle();

@@ -43,6 +43,10 @@ class FakeMapViewState extends State<FakeMapView>
   late double _zoom = widget.config.initialZoom;
   Size _size = const Size(800, 600);
 
+  /// Der verdeckte Rand unten beim letzten Einpassen — ein Blatt über der
+  /// Karte; Tests prüfen damit, dass die Route ÜBER dem Blatt landet.
+  double lastFitBottomInset = 0;
+
   @override
   void initState() {
     super.initState();
@@ -79,11 +83,12 @@ class FakeMapViewState extends State<FakeMapView>
   }
 
   @override
-  void fit(List<LatLng> points, {required double padding, required double maxZoom}) {
+  void fit(List<LatLng> points, {required double padding, required double maxZoom, double bottomInset = 0}) {
     // DIESELBE Rechnung wie die MapLibre-Engine (#68) — der Fake prüft
     // sie damit bei jedem Einpassen mit.
+    lastFitBottomInset = bottomInset;
     final cam = cameraToFit(points, _size,
-        padding: padding, maxZoom: maxZoom, minZoom: widget.config.minZoom);
+        padding: padding, maxZoom: maxZoom, minZoom: widget.config.minZoom, bottomInset: bottomInset);
     _center = cam.center;
     _zoom = cam.zoom.clamp(widget.config.minZoom, widget.config.maxZoom);
     _idleAfterFrame();
@@ -129,6 +134,12 @@ class FakeMapViewState extends State<FakeMapView>
       MapTap(point: point, screenPoint: projectToScreen(cam, point), camera: cam),
       widget.layers,
     );
+  }
+
+  /// Ein langer Druck auf [point] — wie die Engines: immer der Punkt.
+  void longPressAt(LatLng point) {
+    final cam = camera;
+    widget.config.onLongPress?.call(MapTap(point: point, screenPoint: projectToScreen(cam, point), camera: cam));
   }
 
   void _tapMarker(MapViewMarker m) {
@@ -193,5 +204,11 @@ FakeMapViewState fakeMap(WidgetTester tester) =>
 /// Trefferprüfung der Fassade — Linie vor Nadel, oberste zuerst.
 Future<void> tapMapAt(WidgetTester tester, LatLng point) async {
   fakeMap(tester).tapAt(point);
+  await tester.pump();
+}
+
+/// Ein langer Druck auf die Karte an der Stelle [point] (#177).
+Future<void> longPressMapAt(WidgetTester tester, LatLng point) async {
+  fakeMap(tester).longPressAt(point);
   await tester.pump();
 }

@@ -23,8 +23,10 @@ import '../rides/ride_task_handler.dart';
 import '../rides/ride_track.dart';
 import '../routing/loop_planner_providers.dart';
 import '../routing/loop_planner_sheet.dart';
+import '../routing/map_panel.dart';
 import '../routing/trail_head_providers.dart';
 import '../routing/trail_head_sheet.dart';
+import '../trails/trail_navigation.dart' show formatCoordinates, navigateToPoint;
 import '../official/official_trails.dart';
 import '../official/official_trails_layer.dart';
 import '../official/official_trails_source.dart';
@@ -47,6 +49,7 @@ import 'poi.dart';
 import 'line_smoothing.dart';
 import 'poi_layer.dart';
 import 'trail_badges.dart';
+import 'trail_quick_card.dart';
 import 'position_provider.dart';
 import 'poi_source.dart';
 
@@ -78,6 +81,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   final _controller =
       MapViewController(initialCenter: _dachCenter, initialZoom: _initialZoom);
   bool _fittedOnce = false;
+
+  /// Das Scaffold der Karte: Die Routen-Blätter hängen sich als Persistent
+  /// Bottom Sheet daran (`map_panel.dart`) — die Karte darüber bleibt
+  /// bedienbar.
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  /// Der ausgewählte Trail (#178): leuchtet, unten steht seine
+  /// Schnellkarte. Null: keiner.
+  String? _selectedTrailId;
+
+  /// Wo der lange Druck lag (#177), solange sein Menü offen ist.
+  LatLng? _pressedPoint;
 
   /// Ein Fokus-Wunsch (`mapFocusTrailProvider`) auf einen Trail, der
   /// noch nicht in der Liste ist — etwa aus einer Push-Benachrichtigung
@@ -185,7 +200,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         };
       }))
       ..add(coach.registerScene(MapCoach.filterSheet, () => sheet(() => showPoiFilterSheet(context))))
-      ..add(coach.registerScene(MapCoach.loopSheet, () => sheet(() => showLoopPlannerSheet(context))))
+      ..add(coach.registerScene(MapCoach.loopSheet, () => sheet(() => showLoopPlannerSheet(_scaffoldKey.currentState!))))
       ..add(coach.registerScene(MapCoach.trailSheet, () async {
         final trail = _coachTrail;
         // Ohne Trail nichts zu öffnen — der Schritt fällt über `unless`
@@ -369,17 +384,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// Ein Tipp ins Leere: Wartet der Planer auf seinen Start (#158
-  /// Schritt 5), ist der Tipp der Start — sonst tut er nichts.
-  void _onMapTap(MapTap tap) => _takeLoopStart(tap);
+  /// Schritt 5), ist der Tipp der Start; sonst hebt er die Auswahl eines
+  /// Trails auf (#178).
+  void _onMapTap(MapTap tap) {
+    if (_takeLoopStart(tap)) return;
+    if (_selectedTrailId != null) setState(() => _selectedTrailId = null);
+  }
 
   bool _takeLoopStart(MapTap tap) {
     if (!ref.read(loopStartPickProvider)) return false;
     ref.read(loopStartPickProvider.notifier).state = false;
     ref.read(loopStartProvider.notifier).state = tap.point;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(showLoopPlannerSheet(context));
+      if (mounted) unawaited(_showLoopPlanner());
     });
     return true;
+  }
+
+  Future<void> _showLoopPlanner() async {
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold == null) return;
+    setState(() => _selectedTrailId = null);
+    await showLoopPlannerSheet(scaffold);
   }
 
   void _onHit(Object hit, MapTap tap) {
@@ -388,9 +414,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (_takeLoopStart(tap)) return;
     switch (hit) {
       case final Trail t:
-        // Die Liste kann inzwischen frischer sein als die gezeichnete
-        // Linie — das Blatt bekommt den aktuellen Stand.
-        showTrailSheet(context, ref.read(trailByIdProvider(t.id)) ?? t);
+        // Im Pool des Planers wählt ein Tipp den Trail an oder ab (#178).
+        final pick = ref.read(loopMapPickProvider);
+        if (pick != null && pick.selectable.contains(t.id)) {
+          pick.toggle(t.id);
+          return;
+        }
+        // Sonst: auswählen — er leuchtet, unten die Schnellkarte; ein
+        // zweiter Tipp auf DENSELBEN Trail öffnet gleich das Blatt.
+        if (_selectedTrailId == t.id) {
+          _openSelected();
+        } else {
+          setState(() => _selectedTrailId = t.id);
+        }
       case final OfficialTrail o:
         showOfficialTrailSheet(context, o);
       case final Poi p:
@@ -418,7 +454,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _fitTo(List<Trail> trails) => _fitPoints([for (final t in trails) ...t.points]);
 
-  void _fitPoints(List<LatLng> pts) => _controller.fit(pts, padding: 40, maxZoom: 15);
+  /// Einpassen — in die Fläche ÜBER einem offenen Routen-Blatt
+  /// (`mapPanelInsetProvider`), sonst läge, was gezeigt werden soll,
+  /// darunter (Feldbericht 0.73.0).
+  ///
+  /// Höchstens 55 % der Höhe gelten als verdeckt: Ist das Blatt ganz
+  /// aufgezogen, passt die Karte lieber hinter den Rand ein als in einen
+  /// Streifen, der die Runde auf Länderzoom zeigt.
+  void _fitPoints(List<LatLng> pts) {
+    final inset = ref.read(mapPanelInsetProvider);
+    final cap = MediaQuery.sizeOf(context).height * 0.55;
+    _controller.fit(pts, padding: 40, maxZoom: 15, bottomInset: inset < cap ? inset : cap);
+  }
 
   /// Fahrt aufzeichnen oder beenden (#28). Beim Beenden ist die Fahrt
   /// gespeichert, BEVOR das Blatt aufgeht — wer es wegwischt, behält.
@@ -477,12 +524,76 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       })));
   }
 
-  /// „Zum Trailkopf" (#158 Schritt 4): das Blatt über der Karte; der
-  /// Trail kommt frisch aus der Liste, der Wunsch trägt nur die Kennung.
-  void _openTrailHead(String id) {
+  /// Das große Blatt des ausgewählten Trails (#178: der zweite Schritt).
+  void _openSelected() {
+    final id = _selectedTrailId;
+    if (id == null) return;
     final trail = ref.read(trailByIdProvider(id));
     if (trail == null) return;
-    unawaited(showTrailHeadSheet(context, trail));
+    unawaited(showTrailSheet(context, trail));
+  }
+
+  /// „Zum Trailkopf" (#158 Schritt 4) und das Navi-Symbol (#176): das
+  /// Blatt über der Karte; der Trail kommt frisch aus der Liste, der Wunsch
+  /// trägt nur die Kennung.
+  void _openTrailHead(TrailHeadRequest request) {
+    final trail = ref.read(trailByIdProvider(request.trailId));
+    final scaffold = _scaffoldKey.currentState;
+    if (trail == null || scaffold == null) return;
+    setState(() => _selectedTrailId = null);
+    unawaited(showTrailHeadSheet(scaffold, trail, mode: request.mode));
+  }
+
+  /// Langer Druck (#177): eine Nadel am Punkt und ein kleines Menü —
+  /// Route ab hier (der Planer mit diesem Start), Route bis hier (der Weg
+  /// vom Standort), oder die Navi-App.
+  Future<void> _onLongPress(MapTap tap) async {
+    if (ref.read(loopStartPickProvider)) {
+      _takeLoopStart(tap);
+      return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    final at = box?.localToGlobal(tap.screenPoint) ?? tap.screenPoint;
+    setState(() {
+      _pressedPoint = tap.point;
+      _selectedTrailId = null;
+    });
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(at & const Size(1, 1), Offset.zero & overlay.size),
+      items: const [
+        PopupMenuItem(
+          key: ValueKey('map-menu-from'),
+          value: 'from',
+          child: ListTile(leading: Icon(Icons.trip_origin), title: Text('Route ab hier')),
+        ),
+        PopupMenuItem(
+          key: ValueKey('map-menu-to'),
+          value: 'to',
+          child: ListTile(leading: Icon(Icons.place_outlined), title: Text('Route bis hier')),
+        ),
+        PopupMenuItem(
+          key: ValueKey('map-menu-external'),
+          value: 'external',
+          child: ListTile(leading: Icon(Icons.directions_outlined), title: Text('Mit der Navi-App hierher')),
+        ),
+      ],
+    );
+    if (!mounted) return;
+    setState(() => _pressedPoint = null);
+    final scaffold = _scaffoldKey.currentState;
+    switch (choice) {
+      case 'from':
+        ref.read(loopStartProvider.notifier).state = tap.point;
+        await _showLoopPlanner();
+      case 'to':
+        if (scaffold == null) return;
+        await showRouteSheet(scaffold,
+            RouteTarget(point: tap.point, title: formatCoordinates(tap.point.latitude, tap.point.longitude)));
+      case 'external':
+        await navigateToPoint(context, tap.point);
+    }
   }
 
   /// „Fahrt zerlegen" aus „Meine Fahrten" oder dem GPX-Import (#29):
@@ -523,6 +634,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final trailHeadPreview = ref.watch(trailHeadPreviewProvider);
     final loopPreview = ref.watch(loopPreviewProvider);
     final loopPicking = ref.watch(loopStartPickProvider);
+    final panelInset = ref.watch(mapPanelInsetProvider);
+    // Der ausgewählte Trail (#178) — weg, wenn er nicht mehr gezeigt wird
+    // (Filter, gelöscht).
+    final selected = _selectedTrailId == null
+        ? null
+        : trails.where((t) => t.id == _selectedTrailId).firstOrNull;
     final canRecord = ref.watch(rideRecordingAvailableProvider);
     final cachedAt = ref.watch(trailsCachedAtProvider);
 
@@ -554,27 +671,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // die Karte rechnet und zeigt — die Vorschau gehört hierher. Nach dem
     // Bild, nicht im Listener: Der Wunsch kommt aus einem Blatt, das
     // gerade schließt, und der Reiter wechselt im selben Zug.
-    ref.listen(trailHeadRequestProvider, (_, id) {
-      if (id == null) return;
+    ref.listen(trailHeadRequestProvider, (_, request) {
+      if (request == null) return;
       ref.read(trailHeadRequestProvider.notifier).state = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _openTrailHead(id);
+        if (mounted) _openTrailHead(request);
       });
     });
-    // Sobald die Route steht, einmal auf sie einpassen — nicht bei jedem
-    // Profilwechsel, der nur die Linie tauscht.
-    ref.listen(trailHeadPreviewProvider, (prev, next) {
-      if ((prev == null || prev.isEmpty) && next.isNotEmpty) {
-        _fittedOnce = true;
-        _fitPoints([for (final l in next) ...l.points]);
-      }
-    });
-    // Die Runde (#158 Schritt 5) genauso: einmal einpassen, wenn sie steht.
-    ref.listen(loopPreviewProvider, (prev, next) {
-      if ((prev == null || prev.isEmpty) && next.isNotEmpty) {
-        _fittedOnce = true;
-        _fitPoints([for (final l in next) ...l.points]);
-      }
+    // Ein Routen-Blatt bittet ums Einpassen — wenn es soweit ist, also
+    // nach dem Einklappen (`map_panel.dart`); eingepasst wird darüber.
+    ref.listen(mapFitRequestProvider, (_, points) {
+      if (points == null) return;
+      ref.read(mapFitRequestProvider.notifier).state = null;
+      if (points.isEmpty) return;
+      _fittedOnce = true;
+      _fitPoints(points);
     });
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#30). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
@@ -672,6 +783,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         ...trailHeadPreview,
         // Die geplante Runde (#158 Schritt 5), solange ihr Blatt offen ist.
         ...loopPreview,
+        // Der ausgewählte Trail leuchtet (#178) — unter dem Netz, die
+        // Linie selbst behält ihre Farbe.
+        if (selected != null && selected.points.length >= 2)
+          MapViewPolyline(
+            points: _smoothed(selected),
+            color: AppColors.brand.withValues(alpha: 0.55),
+            width: 12,
+          ),
         if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
         for (final t in shownTrails)
           MapViewPolyline(
@@ -701,6 +820,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         // Schild zuoberst, es ist das Antippbare.
         ...trailEndMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
         ...trailBadgeMarkers(shownTrails, camera, coachTrailId: _coachTrail?.id),
+        // Die Nadel des langen Drucks (#177), solange sein Menü offen ist.
+        if (_pressedPoint != null)
+          MapViewMarker(
+            key: const ValueKey('map-press-pin'),
+            point: _pressedPoint!,
+            width: 36,
+            height: 36,
+            alignment: Alignment.topCenter,
+            child: const Icon(Icons.location_on, size: 36, color: AppColors.brand),
+          ),
         if (position != null)
           MapViewMarker(
             key: const ValueKey('my-position'),
@@ -718,16 +847,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // Offen gilt: Zurück schließt die Werkzeugleiste (mit Rückfrage),
       // statt die App zu verlassen; wartet der Planer auf einen Tipp,
       // bricht Zurück das Tippen ab.
-      canPop: !toolsOpen && !loopPicking,
+      canPop: !toolsOpen && !loopPicking && selected == null,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (loopPicking) {
           ref.read(loopStartPickProvider.notifier).state = false;
           return;
         }
+        if (selected != null) {
+          setState(() => _selectedTrailId = null);
+          return;
+        }
         unawaited(_closeTools());
       },
       child: Scaffold(
+      key: _scaffoldKey,
       body: Stack(
         children: [
           MapView(
@@ -748,6 +882,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ],
               onHit: _onHit,
               onTap: _onMapTap,
+              onLongPress: _onLongPress,
               onCameraIdle: _onCameraIdle,
             ),
             controller: _controller,
@@ -835,6 +970,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       onClose: _closeTools,
                       ),
                     ),
+                  ),
+                ),
+              ),
+            ),
+          // Die Schnellkarte des ausgewählten Trails (#178): unten links,
+          // neben der Knopfspalte; ein offenes Routen-Blatt geht vor.
+          if (selected != null && panelInset == 0)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 76, 12),
+                  child: TrailQuickCard(
+                    trail: selected,
+                    onOpen: _openSelected,
+                    onClose: () => setState(() => _selectedTrailId = null),
                   ),
                 ),
               ),
@@ -934,7 +1085,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               icon: Icons.alt_route,
                               onPressed: () {
                                 ref.read(loopStartProvider.notifier).state = null;
-                                unawaited(showLoopPlannerSheet(context));
+                                unawaited(_showLoopPlanner());
                               },
                             ),
                           ),

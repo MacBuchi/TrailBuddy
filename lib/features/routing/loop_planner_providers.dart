@@ -19,3 +19,22 @@ final loopStartPickProvider = StateProvider<bool>((ref) => false);
 
 /// Der getippte Start (null: der eigene Standort).
 final loopStartProvider = StateProvider<LatLng?>((ref) => null);
+
+/// Ein Blatt bittet die Karte, diese Punkte einzupassen — in die Fläche
+/// ÜBER dem Blatt (`mapPanelInsetProvider`). Die Karte nimmt den Wunsch und
+/// setzt ihn auf null. Seit 0.74.0 statt „einpassen, sobald die Vorschau
+/// zum ersten Mal Linien hat": Das Blatt weiß, wann es soweit ist — nach
+/// dem Einklappen, sonst läge die Route wieder darunter.
+final mapFitRequestProvider = StateProvider<List<LatLng>?>((ref) => null);
+
+/// Der Planer wartet im Pool auf Tipps auf Trails (#178): Ein Tipp auf
+/// einen Trail aus [selectable] wählt ihn an oder ab, statt sein Blatt zu
+/// öffnen. Null, solange der Pool nicht offen ist.
+class LoopMapPick {
+  const LoopMapPick({required this.selectable, required this.toggle});
+
+  final Set<String> selectable;
+  final void Function(String trailId) toggle;
+}
+
+final loopMapPickProvider = StateProvider<LoopMapPick?>((ref) => null);

@@ -1616,8 +1616,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     — das Blatt IST der Tipp, ein zweiter Knopf davor wäre eine Hürde.
     Ohne Standort kein Startpunkt, und das Blatt sagt es und bietet die
     Anfahrt an. Ein getippter Startpunkt kommt mit dem Planer (Schritt 5).
-  - **Gerechnet wird nur aus den Bereichen, `partial` heißt kein Weg**
-    (Nicht-Ziel „kein Routing über fremde Gegenden"); der Rahmen aus
+  - **Gerechnet wird nur aus den Bereichen** (Nicht-Ziel „kein Routing
+    über fremde Gegenden"); seit 0.74.0 über die Kacheln, die da sind,
+    auch bei `partial` (siehe „Navigation rund"); der Rahmen aus
     Standort und Kopf bekommt `kTrailHeadMarginM` (500 m) Rand, sonst
     wäre er bei zwei Punkten auf einer Linie null Meter breit. Ohne
     Höhen im Bereich rechnet die Suche flach und das Blatt nennt die
@@ -1720,6 +1721,56 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Gerätelokal** (`Settings.riderCalibration`, JSON je Profil,
     `RiderCalibrations.encode/parse`, Unlesbares ⇒ Vorgaben); nie aus
     Fahrten anderer (Konzept 12). Zurücksetzen je Profil.
+- **Navigation rund** (seit 0.74.0, Feldbericht zu 0.73.0, #174 #176
+  #177 #178 #185; `docs/konzept-routing.md` 2.7, 4). Sieben Dinge, die
+  man wissen muss:
+  - **Die Routen-Blätter sind kein Modal** (`map_panel.dart`): ein
+    Persistent Bottom Sheet am Scaffold der Karte (`_scaffoldKey` in
+    `MapScreen`, `showLoopPlannerSheet`/`showRouteSheet` nehmen den
+    `ScaffoldState`). Runterziehen verkleinert, schließt nie —
+    `shouldCloseOnMinExtent: false` ist die tragende Zeile, ohne sie
+    schließt das Scaffold ein Persistent Sheet ganz unten (im Test
+    gefunden, genau der Feldbericht). Die verdeckte Höhe steht in
+    `mapPanelInsetProvider`; eingepasst wird nur noch auf WUNSCH des
+    Blatts (`mapFitRequestProvider`, nach dem Einklappen), in die Fläche
+    darüber (`cameraToFit(bottomInset:)`, höchstens 55 % gelten als
+    verdeckt — ganz aufgezogen gäbe es Länderzoom).
+  - **Geplant wird über die vorhandenen Kacheln** (`planning_graph.dart`,
+    `loadRoadGraph(requireComplete: false)`): Das Rechteck um Start und
+    Trails füllt ein Bereich „Entlang meiner Trails" nie, bis 0.73.0
+    scheiterte die Planung deshalb fast immer. Das Blatt sagt „x von y
+    Kacheln". Was aufhält, steht OBEN (`loop-blocker`); Rechnen läuft in
+    `try`, ein Fehler ist ein Satz plus `logError`, und vor der Rechnung
+    gibt es ein Bild Kreisel (`endOfFrame`).
+  - **Trails auf dem Graphen** (`trail_overlay.dart`, `applyTrails`):
+    Abfahrten gegen ihre Richtung gesperrt (`GraphEdge.blockForward/
+    blockBackward`, geprüft in `edgeOpenFrom` neben der Einbahn), außer
+    „in beide Richtungen fahrbar" (Patch 016, `Trail.twoWay`: die eigene
+    Angabe, sonst die Mehrheit, Gleichstand nein). Uphill-Trails und
+    Verbindungen sind Verbinder (`kTrailConnectorFactor` 0,8, kein
+    Wanderweg), fehlen sie in OSM, werden sie eine eigene Kante; sie
+    stehen nicht mehr im Pool (`loopPoolOf(...).connectors`).
+    `splitEdge` gibt Trail, Sperre und Höhen (anteilig) an BEIDE Hälften
+    — bis 0.73.0 verlor die zweite Hälfte ihre Höhen.
+  - **Direkt oder Spaßig** (`RouteMode` in `trail_head_providers.dart`,
+    `trailHeadRequestProvider` trägt seither `(trailId, mode)`): Spaßig
+    ist `planLoop(end:)` im Budget `kFun*` aus der direkten Route;
+    `RouteTarget` nimmt auch einen Punkt („Route hierher").
+  - **Navi-Symbol** (`navigate_choice.dart`, `TrailNavButton`) an der
+    Listenzeile (links vom Schild, das am Rand bleibt — Design 4e) und
+    auf der Schnellkarte; `Settings.navDefault` (`FakeSettings`: null).
+    Das Auswahlblatt ist `isScrollControlled` — mit vier erklärten Zeilen
+    lag der Haken auf 360 × 800 sonst unter dem Rand.
+  - **Langer Druck** (`MapViewConfig.onLongPress`, MapLibre
+    `MapEventLongClick`, flutter_map `onLongPress`, Fake `longPressMapAt`):
+    IMMER der Punkt, auch auf einer Linie.
+  - **Auswählen statt öffnen** (`_selectedTrailId`, `TrailQuickCard`):
+    Leuchtrand unter dem Netz, Schnellkarte unten links neben der
+    Knopfspalte, nicht solange ein Routen-Blatt offen ist; Zurück und
+    ein Tipp ins Leere heben auf, ein zweiter Tipp auf denselben Trail
+    öffnet das Blatt. Im Pool des Planers geht der Tipp an den Planer
+    (`loopMapPickProvider`). Die Touren öffnen das Blatt weiter direkt
+    über ihre Szene.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

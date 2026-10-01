@@ -39,13 +39,26 @@ class SearchResult {
   }
 }
 
-/// Kosten, Anstieg (in Kantenrichtung von [from]) einer Kante.
+/// Kosten, Anstieg (in Kantenrichtung von [from]) einer Kante. Auf einem
+/// Uphill-Trail oder Verbinder (#185) gilt statt des Aufschlags der Klasse
+/// [kTrailConnectorFactor] — die Zeit bleibt die der Klasse.
 ({double cost, double gain, double loss}) edgeCostFrom(RoadGraph g, int ei, int from, RiderParams p) {
   final e = g.edges[ei];
   final forward = e.a == from;
   final gain = forward ? e.gain : e.loss;
   final loss = forward ? e.loss : e.gain;
-  return (cost: edgeCostS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss), gain: gain, loss: loss);
+  final cost = e.connector
+      ? edgeTimeS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss) * kTrailConnectorFactor
+      : edgeCostS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss);
+  return (cost: cost, gain: gain, loss: loss);
+}
+
+/// Darf die Kante [e] von Knoten [from] aus befahren werden? Einbahn
+/// (nur Straßen) und Trail-Richtung (#174) sperren je eine Richtung.
+bool edgeOpenFrom(GraphEdge e, int from) {
+  final forward = e.a == from;
+  if (e.oneway && !forward) return false;
+  return forward ? !e.blockForward : !e.blockBackward;
 }
 
 /// Begrenzter Dijkstra (mit [heuristic] ein A*): alle Knoten, die mit
@@ -70,7 +83,7 @@ SearchResult dijkstra(RoadGraph g, int src, RiderParams p,
     for (final ei in g.adj[n]) {
       final e = g.edges[ei];
       final forward = e.a == n;
-      if (e.oneway && !forward) continue;
+      if (!edgeOpenFrom(e, n)) continue;
       if (allow != null && !allow(e)) continue;
       final m = forward ? e.b : e.a;
       final c = edgeCostFrom(g, ei, n, p);
@@ -109,6 +122,7 @@ class PathSummary {
     required this.mix,
     required this.points,
     required this.heightsComplete,
+    this.trailUpM = 0,
   });
 
   final double lengthM;
@@ -127,12 +141,16 @@ class PathSummary {
   /// Falsch, sobald eine Kante ohne Höhen dabei war: Dann ist der Anstieg
   /// eine Untergrenze, und das Blatt sagt es.
   final bool heightsComplete;
+
+  /// Meter auf Uphill-Trails und Verbindern (#185) — im Klassenmix stehen
+  /// sie unter ihrer Kartenklasse, das Blatt nennt sie extra.
+  final double trailUpM;
 }
 
 /// Fasst die Kanten [path] ab Knoten [src] zusammen.
 PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
   var n = src;
-  var length = 0.0, gain = 0.0, loss = 0.0, time = 0.0, hiking = 0.0;
+  var length = 0.0, gain = 0.0, loss = 0.0, time = 0.0, hiking = 0.0, trailUp = 0.0;
   var complete = true;
   final mix = <WayClass, double>{};
   final points = <LatLng>[];
@@ -147,7 +165,8 @@ PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
     loss += c.loss;
     time += edgeTimeS(p, e.cls, lengthM: e.length, gainM: c.gain, lossM: c.loss);
     mix[e.cls] = (mix[e.cls] ?? 0) + e.length;
-    if (e.cls.hiking) hiking += e.length;
+    if (e.hiking) hiking += e.length;
+    if (e.connector) trailUp += e.length;
     if (!e.hasHeights) complete = false;
     n = forward ? e.b : e.a;
   }
@@ -160,6 +179,7 @@ PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
     mix: mix,
     points: points,
     heightsComplete: complete,
+    trailUpM: trailUp,
   );
 }
 

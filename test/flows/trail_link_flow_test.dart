@@ -67,4 +67,27 @@ void main() {
         'https://anderer.example/seite');
     expect(find.text('anderer.example'), findsOneWidget, reason: 'der eigene gewinnt');
   });
+
+  testWidgets('#174: „In beide Richtungen fahrbar" im Beitrag — und der Link bleibt dabei stehen',
+      (tester) async {
+    final t = trails.seedTrail(annaId, name: 'Flach', link: 'https://www.verein.example/flach');
+    await pumpApp(tester, backend, trails: trails);
+    await openTab(tester, 'Trails');
+    await settle(tester, frames: 20);
+    await tester.tap(find.text('Flach'));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Mein Beitrag'));
+    await tester.tap(find.text('Mein Beitrag'));
+    await settle(tester);
+    final toggle = find.byKey(const ValueKey('details-two-way'));
+    await tester.ensureVisible(toggle);
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse, reason: 'Vorgabe: nur in Trail-Richtung');
+    await tester.tap(toggle);
+    await settle(tester, frames: 2);
+    await tester.tap(find.text('Speichern'));
+    await settle(tester, frames: 20);
+    final mine = trails.details.singleWhere((d) => d.trailId == t && d.userId == annaId);
+    expect(mine.twoWay, isTrue);
+    expect(mine.link, 'https://www.verein.example/flach');
+  });
 }

@@ -79,7 +79,9 @@ const kHelpSteps = <HelpStep>[
         'heißt gemeldet, ein gelber ein neuer Hinweis; Violett gestrichelt '
         'sind offizielle Trails. Am Anfang jedes Trails steht sein Schild, '
         'darunter ein Punkt, dessen Pfeil die Fahrtrichtung zeigt; ein Quadrat '
-        'ist das Ende. Ein Tipp aufs Schild oder auf die Linie öffnet das Blatt.',
+        'ist das Ende. Ein Tipp aufs Schild oder auf die Linie wählt den Trail aus '
+        '— unten steht eine kleine Karte, ein Tipp darauf öffnet das Blatt. Ein '
+        'langer Druck auf die Karte bietet „Route ab hier" und „Route bis hier".',
   ),
   HelpStep(
     icon: _HelpIcon(Icons.circle),

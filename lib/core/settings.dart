@@ -72,6 +72,13 @@ abstract interface class Settings {
 
   Future<void> setLoopPlannerPrefs(String value);
 
+  /// Was das Navi-Symbol an einem Trail tut (#176): `external` (Navi-App),
+  /// `direct` oder `fun` (Weg in TrailBuddy); null heißt: fragen.
+  /// Gerätelokal wie das Profil.
+  String? get navDefault;
+
+  Future<void> setNavDefault(String? value);
+
   /// Die gelernten Werte des Zeitmodells je Profil (Schritt 6,
   /// Konzept-Routing 2.1), kodiert von `RiderCalibrations`; null heißt
   /// die Vorgaben. Gerätelokal — gelernt wird nur aus eigenen Fahrten,
@@ -224,6 +231,15 @@ class PrefsSettings implements Settings {
 
   @override
   Future<void> setLoopPlannerPrefs(String value) => _prefs.setString(_loopPlannerPrefsKey, value);
+
+  static const _navDefaultKey = 'nav_default';
+
+  @override
+  String? get navDefault => _prefs.getString(_navDefaultKey);
+
+  @override
+  Future<void> setNavDefault(String? value) =>
+      value == null ? _prefs.remove(_navDefaultKey) : _prefs.setString(_navDefaultKey, value);
 
   static const _riderCalibrationKey = 'rider_calibration';
 

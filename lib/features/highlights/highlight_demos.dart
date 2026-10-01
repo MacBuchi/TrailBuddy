@@ -99,6 +99,43 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'map-select': HighlightDemo(
+    route: '/',
+    script: _demo('map-select', const [
+      CoachStep(
+        title: 'Erst auswählen',
+        text: 'Ein Tipp auf einen Trail hebt ihn hervor, unten steht eine '
+            'kleine Karte mit Navi-Symbol. Ein Tipp auf sie — oder ein zweiter '
+            'auf den Trail — öffnet das Blatt; ein Tipp daneben hebt sie auf.',
+        lit: [MapCoach.trailBadge],
+        gesture: CoachGesture.tap,
+        requires: [MapCoach.trailBadge],
+      ),
+      CoachStep(
+        title: 'Langer Druck auf die Karte',
+        text: 'Hält man den Finger auf eine Stelle, bietet die Karte „Route ab '
+            'hier" (eine Runde mit diesem Start), „Route bis hier" (der Weg von '
+            'deinem Standort) und die Navi-App an.',
+        lit: [MapCoach.loop],
+        requires: [MapCoach.loop],
+      ),
+    ]),
+  ),
+  'trail-nav': HighlightDemo(
+    route: '/trails',
+    script: _demo('trail-nav', const [
+      CoachStep(
+        title: 'Das Navi-Symbol',
+        text: 'Mit deiner Navi-App, oder in TrailBuddy: direkt, oder spaßig — '
+            'dann nimmt der Weg Abfahrten mit. Einmal als Standard gemerkt, '
+            'fragt nur noch ein langer Druck.',
+        lit: [TrailsCoach.nav],
+        gesture: CoachGesture.tap,
+        requires: [TrailsCoach.nav],
+      ),
+      _noTrailYet,
+    ]),
+  ),
   'loop-planner': HighlightDemo(
     route: '/',
     script: _demo('loop-planner', const [

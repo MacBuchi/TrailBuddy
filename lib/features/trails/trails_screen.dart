@@ -11,6 +11,7 @@ import '../../core/widgets/motion.dart';
 import '../../models/trail.dart';
 import '../friends/buddy_alias.dart' show buddyNamesViewProvider;
 import '../coach/coach.dart';
+import '../routing/navigate_choice.dart';
 import '../help/help_link.dart';
 import '../help/tab_tours.dart';
 import '../help/tour_examples.dart';
@@ -452,10 +453,15 @@ class _TrailTile extends ConsumerWidget {
               ),
           ],
         ),
-        // Rechts oben das Schild, darunter der Charakter (Design 4e).
-        trailing: trail.grade == null && trail.topTraits.isEmpty
-            ? null
-            : Column(
+        // Rechts oben das Schild, darunter der Charakter (Design 4e);
+        // links davon das Navi-Symbol (#176) — nicht für wartende Trails.
+        // Das Schild bleibt am Rand, wo das Auge es sucht.
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!trail.pending) _anchorIf(coach, TrailsCoach.nav, TrailNavButton(trail)),
+            if (trail.grade != null || trail.topTraits.isNotEmpty)
+              Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -465,6 +471,8 @@ class _TrailTile extends ConsumerWidget {
                   if (trail.topTraits.isNotEmpty) TrailTraitIcons(trail.topTraits, color: palette.muted),
                 ],
               ),
+          ],
+        ),
         onTap: () => showTrailSheet(context, trail, showOnMapButton: true),
       ),
     );

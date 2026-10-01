@@ -35,6 +35,7 @@ import 'road_graph.dart';
 import 'route_profile.dart';
 import 'route_search.dart';
 import 'trail_head_route.dart' show RouteSection, sectionsOf;
+import 'trail_overlay.dart';
 
 /// Reserve auf die Zeit: Geplant wird auf 90 % des Zeitbudgets
 /// (Konzept-Routing 2.3) — die Schätzung kennt keine Pausen.
@@ -110,6 +111,9 @@ enum LoopOutcome {
   /// In [kGraphAttachM] um den Start liegt kein Weg aus den Kacheln.
   startOffNetwork,
 
+  /// In [kGraphAttachM] um das Ziel liegt kein Weg aus den Kacheln.
+  endOffNetwork,
+
   /// Kein Trail des Pools passt in die Runde — die Gründe stehen je
   /// Trail in [LoopPlan.excluded].
   empty,
@@ -142,6 +146,7 @@ class LoopSection {
     this.cls,
     this.trail,
     this.secondPass = false,
+    this.onTrail,
   });
 
   final List<LatLng> points;
@@ -149,10 +154,16 @@ class LoopSection {
   final WayClass? cls;
   final PoolTrail? trail;
 
+  /// Eine Verbindung über einen Uphill-Trail oder Verbinder (#185).
+  final EdgeTrail? onTrail;
+
   /// Dieser Trail steht zum zweiten Mal in der Runde.
   final bool secondPass;
 
   bool get isTrail => trail != null;
+
+  /// Zählt gegen „höchstens Wanderweg" — gestrichelt in der Vorschau.
+  bool get hiking => (cls?.hiking ?? false) && !(onTrail?.connector ?? false);
 }
 
 /// Die Summen der Runde (Konzept-Routing 3.4).
@@ -168,9 +179,15 @@ class LoopSummary {
     required this.wastedLossM,
     required this.mix,
     required this.heightsComplete,
+    this.trailUpM = 0,
+    this.trailUpNames = const [],
   });
 
   final double lengthM;
+
+  /// Meter über Uphill-Trails und Verbinder (#185), und deren Namen.
+  final double trailUpM;
+  final List<String> trailUpNames;
 
   /// Höhenmeter bergauf — Verbindungen und Gegenanstiege auf Trails.
   final double gainM;
@@ -261,9 +278,13 @@ class _Route {
 }
 
 /// Plant die Runde auf [g]: von [start] über Trails aus [pool] zurück
-/// zum Start ([returnToStart]) oder mit offenem Ende. Trails, deren
+/// zum Start ([returnToStart]), zu einem Ziel [end] (der „spaßige" Weg zu
+/// einem Trail oder Punkt, #176/#177) oder mit offenem Ende. Trails, deren
 /// Kennung in [excluded] steht, hat der Aufrufer schon ausgeschlossen
 /// (zu weit); sie kommen so ins Ergebnis.
+///
+/// Die Trails des Netzes liegen vorher schon auf [g] (`applyTrails`):
+/// Richtung und Verbinder kennt die Suche dann von selbst.
 LoopPlan planLoop(
   RoadGraph g, {
   required LatLng start,
@@ -271,6 +292,7 @@ LoopPlan planLoop(
   required LoopBudget budget,
   required List<PoolTrail> pool,
   bool returnToStart = true,
+  LatLng? end,
   Map<String, LoopExclusion> excluded = const {},
   Duration searchBudget = kLoopSearchBudget,
 }) {
@@ -281,6 +303,16 @@ LoopPlan planLoop(
       out.putIfAbsent(t.id, () => LoopExclusion.unreachable);
     }
     return LoopPlan(LoopOutcome.startOffNetwork, excluded: out);
+  }
+  int? dst = returnToStart ? src : null;
+  if (end != null) {
+    dst = g.attach(end);
+    if (dst == null) {
+      for (final t in pool) {
+        out.putIfAbsent(t.id, () => LoopExclusion.unreachable);
+      }
+      return LoopPlan(LoopOutcome.endOffNetwork, excluded: out);
+    }
   }
   // Jeder Trail an den Graphen — ein Ende ohne Weg heißt „nicht
   // erreichbar", und zwar bevor irgendetwas gesucht wird.
@@ -296,18 +328,22 @@ LoopPlan planLoop(
     heads.add(h);
     tails.add(e);
   }
-  final planner = _Planner(g, start, src, returnToStart ? src : null, profile, budget, pool, heads, tails, out);
+  final planner = _Planner(g, start, src, dst, end ?? start, profile, budget, pool, heads, tails, out);
   return planner.run(searchBudget);
 }
 
 class _Planner {
-  _Planner(this.g, this.start, this.src, this.dst, this.p, this.budget, this.pool, this.heads, this.tails,
-      this.excluded);
+  _Planner(this.g, this.start, this.src, this.dst, this.finish, this.p, this.budget, this.pool, this.heads,
+      this.tails, this.excluded);
 
   final RoadGraph g;
   final LatLng start;
   final int src;
   final int? dst;
+
+  /// Wo die Linie endet, wenn es ein Ziel gibt: der Start oder [planLoop]s
+  /// `end`.
+  final LatLng finish;
   final RiderParams p;
   final LoopBudget budget;
   final List<PoolTrail> pool;
@@ -325,7 +361,7 @@ class _Planner {
 
   SearchResult _search(int from, {required bool noHiking}) => _searches.putIfAbsent(
       (from, noHiking),
-      () => dijkstra(g, from, p, limit: budget.timeS, allow: noHiking ? (e) => !e.cls.hiking : null));
+      () => dijkstra(g, from, p, limit: budget.timeS, allow: noHiking ? (e) => !e.hiking : null));
 
   /// Die Verbindung [from] → [to], oder null, wenn keine im Budget liegt.
   _Conn? conn(int from, int to, {bool noHiking = false}) => _conns.putIfAbsent((from, to, noHiking), () {
@@ -413,7 +449,16 @@ class _Planner {
   }
 
   LoopPlan run(Duration searchBudget) {
-    var route = evaluate(const [])!;
+    // Ohne Trail muss schon der Weg zum Ziel gehen — sonst gibt es nichts
+    // zu planen, und jeder Trail hieße „nicht erreichbar".
+    final bare = evaluate(const []);
+    if (bare == null) {
+      for (final t in pool) {
+        excluded.putIfAbsent(t.id, () => LoopExclusion.unreachable);
+      }
+      return LoopPlan(LoopOutcome.empty, excluded: excluded);
+    }
+    var route = bare;
     // 1. Pflicht-Trails, in Pool-Reihenfolge, je an die beste Stelle. Was
     //    nicht passt, bleibt draußen — mit seinem Grund.
     for (var i = 0; i < pool.length; i++) {
@@ -505,7 +550,8 @@ class _Planner {
     // bei „Zum Trailkopf" trägt der Verbinder die Linie, zählt aber nicht.
     final points = <LatLng>[start, g.nodeLatLng[src]];
     final mix = <WayClass, double>{};
-    var length = 0.0, gain = 0.0, loss = 0.0, trailLoss = 0.0;
+    final upNames = <String>[];
+    var length = 0.0, gain = 0.0, loss = 0.0, trailLoss = 0.0, trailUp = 0.0;
     var complete = true;
     final seen = <int>{};
     final stops = <LoopStop>[];
@@ -513,8 +559,16 @@ class _Planner {
     void connect(int from) {
       final c = route.legs[leg++];
       for (final s in sectionsOf(g, c.edges, from)) {
-        sections.add(LoopSection(points: s.points, lengthM: s.lengthM, cls: s.cls));
-        mix[s.cls] = (mix[s.cls] ?? 0) + s.lengthM;
+        sections.add(LoopSection(points: s.points, lengthM: s.lengthM, cls: s.cls, onTrail: s.trail));
+        final up = s.trail;
+        if (up != null && up.connector) {
+          // Uphill-Trails und Verbinder stehen für sich, nicht unter der
+          // Kartenklasse („Wanderweg"), die sie in OSM tragen.
+          trailUp += s.lengthM;
+          if (!upNames.contains(up.name)) upNames.add(up.name);
+        } else {
+          mix[s.cls] = (mix[s.cls] ?? 0) + s.lengthM;
+        }
       }
       if (c.summary.points.isNotEmpty) points.addAll(c.summary.points.skip(1));
       length += c.summary.lengthM;
@@ -541,7 +595,7 @@ class _Planner {
     final end = dst;
     if (end != null) {
       connect(at);
-      points.add(start);
+      points.add(finish);
     }
     return LoopPlan(
       LoopOutcome.ok,
@@ -557,6 +611,8 @@ class _Planner {
         wastedLossM: route.wastedM,
         mix: mix,
         heightsComplete: complete,
+        trailUpM: trailUp,
+        trailUpNames: upNames,
       ),
       stops: stops,
       excluded: excluded,
@@ -569,7 +625,7 @@ class _Planner {
 /// das Blatt dieselbe Zeichenregel wie „Zum Trailkopf" nehmen kann.
 List<RouteSection> connectionSections(LoopPlan plan) => [
       for (final s in plan.sections)
-        if (s.cls != null) RouteSection(cls: s.cls!, points: s.points, lengthM: s.lengthM),
+        if (s.cls != null) RouteSection(cls: s.cls!, points: s.points, lengthM: s.lengthM, trail: s.onTrail),
     ];
 
 // ─── Pool, Vorgaben, Name und GPX ──────────────────────────────────────
@@ -597,10 +653,13 @@ PoolTrail poolTrailOf(Trail t, {bool mandatory = false}) => PoolTrail(
 /// Was vom sichtbaren Netz für eine Runde ab [start] in Frage kommt:
 /// [inReach] mit beiden Enden in [kLoopReachM], davon getrennt die mit
 /// warnender Meldung ([warned], Entscheidung 8.8: raus aus dem Pool,
-/// einzeln hineinholbar), und wie viele zu weit liegen. Wartende Trails
+/// einzeln hineinholbar), die Uphill-Trails und Verbinder ([connectors],
+/// #185: keine Abfahrt, sondern Weg bergauf — sie liegen auf dem Graphen,
+/// nicht im Pool), und wie viele zu weit liegen. Wartende Trails
 /// (Ausgangskorb) zählen nicht — sie haben noch keine Kennung.
-({List<Trail> inReach, List<Trail> warned, int tooFar}) loopPoolOf(Iterable<Trail> trails, LatLng start) {
-  final inReach = <Trail>[], warned = <Trail>[];
+({List<Trail> inReach, List<Trail> warned, List<Trail> connectors, int tooFar}) loopPoolOf(
+    Iterable<Trail> trails, LatLng start) {
+  final inReach = <Trail>[], warned = <Trail>[], connectors = <Trail>[];
   var tooFar = 0;
   for (final t in trails) {
     if (t.pending || t.points.length < 2) continue;
@@ -609,10 +668,43 @@ PoolTrail poolTrailOf(Trail t, {bool mandatory = false}) => PoolTrail(
       tooFar++;
       continue;
     }
+    if (trailRoleOf(t) != TrailRole.downhill) {
+      connectors.add(t);
+      continue;
+    }
     (t.status.warns ? warned : inReach).add(t);
   }
-  return (inReach: inReach, warned: warned, tooFar: tooFar);
+  return (inReach: inReach, warned: warned, connectors: connectors, tooFar: tooFar);
 }
+
+/// Die Rolle eines Trails im Graphen (#185) — nach den ANGEZEIGTEN
+/// Merkmalen (`Trail.topTraits`), dieselbe Regel wie die Farbe: Steht
+/// Uphill darunter, ist er ein Uphill-Trail (das schlägt Verbindung, wie
+/// es die Stufe schlägt); sonst Verbindung; sonst eine Abfahrt.
+TrailRole trailRoleOf(Trail t) {
+  final top = t.topTraits;
+  if (top.contains(TrailTrait.uphill)) return TrailRole.uphill;
+  if (top.contains(TrailTrait.connection)) return TrailRole.connector;
+  return TrailRole.downhill;
+}
+
+/// Die Trails des Netzes für [applyTrails]: alle mit Linie, außer den
+/// wartenden (noch ohne Kennung) und denen mit warnender Meldung, die
+/// als Verbinder dienen würden — ein gesperrter Uphill ist kein Weg.
+/// Gesperrte ABFAHRTEN bleiben drin: Ihre Richtung gilt weiter.
+List<GraphTrail> graphTrailsOf(Iterable<Trail> trails) => [
+      for (final t in trails)
+        if (!t.pending && t.points.length >= 2 && !(trailRoleOf(t) != TrailRole.downhill && t.status.warns))
+          GraphTrail(
+            id: t.id,
+            name: t.displayName,
+            points: t.directedPoints,
+            role: trailRoleOf(t),
+            twoWay: t.twoWay,
+            gainM: t.elevation?.gainM,
+            lossM: t.elevation?.lossM,
+          ),
+    ];
 
 extension on LatLng {
   double distanceToM(LatLng o) => haversineM(latitude, longitude, o.latitude, o.longitude);

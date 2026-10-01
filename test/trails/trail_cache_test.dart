@@ -33,7 +33,7 @@ void main() {
   final details = TrailDetails(
     trailId: 'trail-1', userId: 'bob', username: 'bob', name: 'Roots',
     description: 'wurzelig', grade: 3, traits: const {TrailTrait.rocky, TrailTrait.steep},
-    rating: 4, link: 'https://verein.example/roots',
+    rating: 4, twoWay: true, link: 'https://verein.example/roots',
     visibility: TrailVisibility.buddies, updatedAt: at.toLocal(),
   );
   final note = TrailNote(
@@ -79,6 +79,7 @@ void main() {
     expect(d.traits, {TrailTrait.rocky, TrailTrait.steep});
     expect(d.link, 'https://verein.example/roots');
     expect(d.rating, 4);
+    expect(d.twoWay, isTrue);
     expect(d.updatedAt, details.updatedAt);
     final s1 = back.snapshot.reports[0];
     expect(s1.id, 'rep-1');

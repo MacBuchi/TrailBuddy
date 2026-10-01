@@ -12,12 +12,14 @@ import 'package:latlong2/latlong.dart';
 import 'package:pmtiles/pmtiles.dart';
 import 'package:trailbuddy/core/gpx_share.dart';
 import 'package:trailbuddy/features/offline_areas/area_plan.dart';
+import 'package:trailbuddy/features/routing/trail_head_providers.dart' show RouteMode;
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
 import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
 import 'package:trailbuddy/features/trails/gpx.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 import '../fakes/fake_backend.dart';
+import '../fakes/fake_settings.dart';
 import '../fakes/fake_map_view.dart';
 import '../fakes/fake_rides.dart';
 import '../fakes/fake_tiles.dart';
@@ -45,11 +47,14 @@ final _fromLat = math.max(_bounds.south + 0.0004, 48.0 - 0.003);
 
 /// Ein Bereich mit der Kachel des Trails und ihren acht Nachbarn; der
 /// Forstweg liegt in jeder Kachel, die er berührt (die Schere je Kachel).
-Future<MemoryAreaStore> _areaWithTrack() async {
+/// [onlyCenter]: nur die Kachel des Trails — wie ein Bereich „Entlang
+/// meiner Trails", der das Rechteck um die Runde nie ganz deckt.
+Future<MemoryAreaStore> _areaWithTrack({bool onlyCenter = false}) async {
   final store = MemoryAreaStore();
   final tiles = <TileToWrite>[];
-  for (var dx = -1; dx <= 1; dx++) {
-    for (var dy = -1; dy <= 1; dy++) {
+  final reach = onlyCenter ? 0 : 1;
+  for (var dx = -reach; dx <= reach; dx++) {
+    for (var dy = -reach; dy <= reach; dy++) {
       final x = _tile.x + dx, y = _tile.y + dy;
       tiles.add(TileToWrite(
         13,
@@ -107,7 +112,7 @@ void main() {
   });
 
   Future<void> start(WidgetTester tester,
-      {MemoryAreaStore? areaStore, FakePositionFix? positionFix}) async {
+      {MemoryAreaStore? areaStore, FakePositionFix? positionFix, FakeSettings? settings}) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -116,6 +121,7 @@ void main() {
         areaStore: areaStore,
         rideStore: rides,
         positionFix: positionFix ?? FakePositionFix(fakePosition(_fromLat, _lon)),
+        settings: settings,
         extraOverrides: [gpxShareProvider.overrideWithValue(recorder)]);
     await settle(tester, frames: 20);
   }
@@ -139,6 +145,13 @@ void main() {
     await inSheet(tester, find.byKey(key));
     await tester.tap(find.byKey(key));
     await settle(tester, frames: 30);
+  }
+
+  /// Das Navi-Symbol der Zeile — die Zeile steht so tief, dass die untere
+  /// Hälfte des Symbols unter der Reiterleiste liegt; getippt wird oben.
+  Future<void> tapNav(WidgetTester tester) async {
+    final rect = tester.getRect(find.byKey(ValueKey('trail-nav-$hex')));
+    await tester.tapAt(rect.topCenter + const Offset(0, 8));
   }
 
   Future<void> openPlanner(WidgetTester tester) async {
@@ -207,8 +220,21 @@ void main() {
     expect(track.name, 'Runde: Hexentanz');
     expect(track.points.every((p) => p.ele == null && p.time == null), isTrue);
 
-    // Blatt zu ⇒ Vorschau weg.
-    await tester.tapAt(const Offset(10, 10));
+    // Die Runde liegt ÜBER dem eingeklappten Blatt (Feldbericht 0.73.0).
+    expect(fakeMap(tester).lastFitBottomInset, greaterThan(100));
+    // Runterziehen verkleinert, schließt nie.
+    final sheetList = find
+        .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+        .first;
+    for (var i = 0; i < 4; i++) {
+      await tester.drag(sheetList, const Offset(0, 1500));
+      await settle(tester, frames: 4);
+    }
+    expect(find.text('Runde planen'), findsOneWidget);
+    expect(trailLines(tester), hasLength(2));
+
+    // Blatt zu (X) ⇒ Vorschau weg.
+    await tester.tap(find.byKey(const ValueKey('loop-close')));
     await settle(tester);
     expect(find.byKey(const ValueKey('loop-summary')), findsNothing);
     expect(trailLines(tester), isEmpty);
@@ -269,5 +295,101 @@ void main() {
     expect(find.textContaining('Kein Standort'), findsOneWidget);
     expect(fix.calls, 1);
     expect(find.byKey(const ValueKey('loop-compute')), findsNothing);
+  });
+
+  testWidgets('#178: im Pool wählt ein Tipp auf den Trail der Karte ihn ab und wieder an', (tester) async {
+    await start(tester, areaStore: await _areaWithTrack());
+    await openPlanner(tester);
+    await tapInSheet(tester, const ValueKey('loop-next'));
+    expect(find.byKey(const ValueKey('loop-map-pick-hint')), findsOneWidget);
+    bool checked() => tester.widget<CheckboxListTile>(find.byKey(ValueKey('loop-trail-$hex'))).value!;
+    Iterable<dynamic> picked() => fakeMapLayers(tester).polylines.where((l) => l.width == 8);
+    expect(checked(), isTrue);
+    expect(picked(), hasLength(1), reason: 'der gewählte Trail leuchtet');
+    // Die Karte zeigt Start und Pool über dem Blatt — nah genug zum Tippen.
+    expect(fakeMap(tester).zoom, greaterThan(13));
+
+    await tapMapAt(tester, const LatLng(48.004, _lon));
+    await settle(tester);
+    expect(checked(), isFalse);
+    expect(picked(), isEmpty);
+    expect(find.text('HEXENTANZ'), findsNothing, reason: 'kein Trail-Blatt, solange der Pool offen ist');
+
+    await tapMapAt(tester, const LatLng(48.004, _lon));
+    await settle(tester);
+    expect(checked(), isTrue);
+  });
+
+  testWidgets('Bereich deckt das Rechteck nur zum Teil: trotzdem eine Runde, mit Satz', (tester) async {
+    await start(tester, areaStore: await _areaWithTrack(onlyCenter: true));
+    await openPlanner(tester);
+    await tapInSheet(tester, const ValueKey('loop-next'));
+    await tapInSheet(tester, const ValueKey('loop-compute'));
+    expect(find.byKey(const ValueKey('loop-blocker')), findsNothing);
+    expect(find.byKey(const ValueKey('loop-summary')), findsOneWidget);
+    await inSheet(tester, find.byKey(const ValueKey('loop-partial')));
+    expect(find.byKey(const ValueKey('loop-partial')), findsOneWidget);
+  });
+
+  testWidgets('ohne Bereich steht der Grund OBEN im Blatt', (tester) async {
+    await start(tester);
+    await openPlanner(tester);
+    await tapInSheet(tester, const ValueKey('loop-next'));
+    await tapInSheet(tester, const ValueKey('loop-compute'));
+    final blocker = find.byKey(const ValueKey('loop-blocker'));
+    expect(blocker, findsOneWidget);
+    expect(tester.getTopLeft(blocker).dy, lessThan(tester.getTopLeft(find.byKey(const ValueKey('loop-compute'))).dy));
+  });
+
+  testWidgets('#177: langer Druck — „Route ab hier" plant ab dem Punkt, „Route bis hier" zeigt den Weg', (tester) async {
+    await start(tester, areaStore: await _areaWithTrack());
+    final point = LatLng(_fromLat + 0.001, _lon);
+    await longPressMapAt(tester, point);
+    await settle(tester);
+    expect(find.byKey(const ValueKey('map-press-pin')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('map-menu-from')));
+    await settle(tester, frames: 20);
+    expect(find.text('Runde planen'), findsOneWidget);
+    expect(find.textContaining('getippter Punkt'), findsOneWidget);
+    expect(find.byKey(const ValueKey('map-press-pin')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('loop-close')));
+    await settle(tester);
+
+    await longPressMapAt(tester, const LatLng(48.009, _lon));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('map-menu-to')));
+    await settle(tester, frames: 30);
+    expect(find.text('Route hierher'), findsOneWidget);
+    expect(find.byKey(const ValueKey('trail-head-summary')), findsOneWidget);
+    expect(connectionLines(tester), isNotEmpty);
+  });
+
+  testWidgets('#176: das Navi-Symbol fragt, merkt sich den Standard, „spaßig" öffnet den Weg auf der Karte',
+      (tester) async {
+    final settings = FakeSettings();
+    await start(tester, areaStore: await _areaWithTrack(), settings: settings);
+    await openTab(tester, 'Trails');
+    await settle(tester, frames: 10);
+    await tapNav(tester);
+    await settle(tester);
+    expect(find.byKey(const ValueKey('nav-choice-external')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('nav-remember')));
+    await settle(tester, frames: 2);
+    await tester.tap(find.byKey(const ValueKey('nav-choice-fun')));
+    await settle(tester, frames: 30);
+    expect(settings.navDefault, 'fun');
+    expect(find.text('Zum Trailkopf'), findsOneWidget);
+    final mode = tester.widget<SegmentedButton<RouteMode>>(find.byKey(const ValueKey('route-mode')));
+    expect(mode.selected.single, RouteMode.fun);
+    await tester.tap(find.byKey(const ValueKey('trail-head-close')));
+    await settle(tester);
+
+    // Mit Standard fragt es nicht mehr.
+    await openTab(tester, 'Trails');
+    await settle(tester, frames: 10);
+    await tapNav(tester);
+    await settle(tester, frames: 30);
+    expect(find.byKey(const ValueKey('nav-choice-external')), findsNothing);
+    expect(find.text('Zum Trailkopf'), findsOneWidget);
   });
 }

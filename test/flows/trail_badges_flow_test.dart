@@ -105,12 +105,44 @@ void main() {
     expect(findLabel('Trailanfang'), findsNWidgets(4));
   });
 
-  testWidgets('ein Tipp auf das Schild öffnet den Trail', (tester) async {
+  testWidgets('ein Tipp auf das Schild wählt den Trail aus, ein Tipp auf die Schnellkarte öffnet ihn (#178)',
+      (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await settle(tester, frames: 20);
     fakeMap(tester).move(const LatLng(48.0, 9.0), 15);
     await settle(tester);
+    final lines = fakeMapLayers(tester).polylines.length;
 
+    await tester.tap(find.byKey(badgeOf(tester, 'Hexentanz')!.key!));
+    await settle(tester);
+    // Erst die Auswahl: Schnellkarte unten, der Trail leuchtet — noch kein Blatt.
+    expect(find.byKey(const ValueKey('trail-quick-card')), findsOneWidget);
+    expect(find.text('HEXENTANZ'), findsNothing);
+    expect(fakeMapLayers(tester).polylines.length, lines + 1, reason: 'der Leuchtrand');
+    expect(find.descendant(of: find.byKey(const ValueKey('trail-quick-card')), matching: find.text('Hexentanz')),
+        findsOneWidget);
+
+    // Ein Tipp daneben hebt die Auswahl auf.
+    await tapMapAt(tester, const LatLng(48.5, 9.5));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('trail-quick-card')), findsNothing);
+    expect(fakeMapLayers(tester).polylines.length, lines);
+
+    // Wieder auswählen, dann die Schnellkarte: das große Blatt.
+    await tester.tap(find.byKey(badgeOf(tester, 'Hexentanz')!.key!));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('trail-quick-open')));
+    await settle(tester);
+    expect(find.text('HEXENTANZ'), findsOneWidget);
+  });
+
+  testWidgets('ein zweiter Tipp auf denselben Trail öffnet gleich das Blatt', (tester) async {
+    await pumpApp(tester, backend, trails: trails);
+    await settle(tester, frames: 20);
+    fakeMap(tester).move(const LatLng(48.0, 9.0), 15);
+    await settle(tester);
+    await tester.tap(find.byKey(badgeOf(tester, 'Hexentanz')!.key!));
+    await settle(tester);
     await tester.tap(find.byKey(badgeOf(tester, 'Hexentanz')!.key!));
     await settle(tester);
     expect(find.text('HEXENTANZ'), findsOneWidget);

@@ -254,6 +254,7 @@ class FakeTrailRepository implements TrailRepository {
       grade: d.grade,
       traits: d.traits,
       rating: d.rating,
+      twoWay: d.twoWay,
       link: d.link,
       visibility: d.visibility,
       updatedAt: DateTime.now(),

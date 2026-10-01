@@ -136,7 +136,7 @@ const kMapTourScript = CoachScript(
       text: 'Am Anfang jedes Trails steht sein Schild mit Grad und Charakter; '
           'der Punkt darunter zeigt mit seinem Pfeil die Fahrtrichtung, ein '
           'Quadrat das Ende. Ein Tipp aufs Schild — oder auf die Linie — '
-          'öffnet das Blatt.',
+          'wählt den Trail aus, ein zweiter öffnet das Blatt.',
       lit: [MapCoach.trailBadge],
       gesture: CoachGesture.tap,
       requires: [MapCoach.trailBadge],

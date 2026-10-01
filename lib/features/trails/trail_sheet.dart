@@ -407,7 +407,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                       final request = ref.read(trailHeadRequestProvider.notifier);
                       Navigator.of(context).pop();
                       StatefulNavigationShell.maybeOf(context)?.goBranch(kMapBranchIndex);
-                      request.state = trail.id;
+                      request.state = (trailId: trail.id, mode: RouteMode.direct);
                     },
                     icon: const Icon(Icons.route_outlined),
                     label: const Text('Zum Trailkopf'),
