@@ -40,7 +40,7 @@ class SearchResult {
 }
 
 /// Kosten, Anstieg (in Kantenrichtung von [from]) einer Kante.
-({double cost, double gain, double loss}) edgeCostFrom(RoadGraph g, int ei, int from, RiderProfile p) {
+({double cost, double gain, double loss}) edgeCostFrom(RoadGraph g, int ei, int from, RiderParams p) {
   final e = g.edges[ei];
   final forward = e.a == from;
   final gain = forward ? e.gain : e.loss;
@@ -52,7 +52,7 @@ class SearchResult {
 /// Kosten ≤ [limit] erreichbar sind; mit [target] endet die Suche dort.
 /// [allow] lässt Kanten aus — der Planer sucht damit die Verbindung OHNE
 /// Wanderweg, wenn das Budget „höchstens Wanderweg" sonst nicht hält.
-SearchResult dijkstra(RoadGraph g, int src, RiderProfile p,
+SearchResult dijkstra(RoadGraph g, int src, RiderParams p,
     {double limit = double.infinity,
     int? target,
     double Function(int node)? heuristic,
@@ -89,7 +89,7 @@ SearchResult dijkstra(RoadGraph g, int src, RiderProfile p,
 
 /// Der günstigste Weg von [src] nach [dst] (A* mit Luftlinie durch die
 /// Abfahrtsgeschwindigkeit — nie überschätzt), oder null.
-({double costS, double climbM, List<int> edges})? shortestPath(RoadGraph g, int src, int dst, RiderProfile p) {
+({double costS, double climbM, List<int> edges})? shortestPath(RoadGraph g, int src, int dst, RiderParams p) {
   final t = g.nodes[dst];
   final vMax = p.vDownKmh / 3.6;
   final r = dijkstra(g, src, p, target: dst, heuristic: (n) => g.nodes[n].distanceTo(t) / vMax);
@@ -130,7 +130,7 @@ class PathSummary {
 }
 
 /// Fasst die Kanten [path] ab Knoten [src] zusammen.
-PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderProfile p) {
+PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
   var n = src;
   var length = 0.0, gain = 0.0, loss = 0.0, time = 0.0, hiking = 0.0;
   var complete = true;

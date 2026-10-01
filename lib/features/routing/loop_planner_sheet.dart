@@ -42,6 +42,7 @@ import '../trails/gpx_writer.dart';
 import '../trails/trail_providers.dart';
 import 'loop_planner.dart';
 import 'loop_planner_providers.dart';
+import 'ride_calibrator.dart';
 import 'road_graph.dart';
 import 'road_graph_loader.dart';
 import 'route_profile.dart';
@@ -190,7 +191,8 @@ class _LoopPlannerSheetState extends ConsumerState<_LoopPlannerSheet> {
     final plan = planLoop(
       _graph!,
       start: start,
-      profile: _profile,
+      // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
+      profile: ref.read(calibratedRiderProvider(_profile)),
       budget: _prefs.budget,
       pool: pool,
       returnToStart: _prefs.returnToStart,

@@ -38,6 +38,7 @@ import '../rides/ride_track.dart';
 import '../rides/road_index.dart' show RoadCoverage;
 import '../trails/gpx_writer.dart';
 import '../trails/trail_navigation.dart';
+import 'ride_calibrator.dart';
 import 'road_graph.dart';
 import 'road_graph_loader.dart';
 import 'route_profile.dart';
@@ -170,7 +171,8 @@ class _TrailHeadSheetState extends ConsumerState<_TrailHeadSheet> {
   /// Die Suche auf dem stehenden Graphen — beim ersten Mal und bei jedem
   /// Profilwechsel.
   void _replan() {
-    final plan = planTrailHeadRoute(_graph!, _from!, widget.trail.start, _profile);
+    // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
+    final plan = planTrailHeadRoute(_graph!, _from!, widget.trail.start, ref.read(calibratedRiderProvider(_profile)));
     setState(() {
       _phase = _Phase.done;
       _plan = plan;

@@ -267,7 +267,7 @@ class _Route {
 LoopPlan planLoop(
   RoadGraph g, {
   required LatLng start,
-  required RiderProfile profile,
+  required RiderParams profile,
   required LoopBudget budget,
   required List<PoolTrail> pool,
   bool returnToStart = true,
@@ -308,7 +308,7 @@ class _Planner {
   final LatLng start;
   final int src;
   final int? dst;
-  final RiderProfile p;
+  final RiderParams p;
   final LoopBudget budget;
   final List<PoolTrail> pool;
   final List<int?> heads;

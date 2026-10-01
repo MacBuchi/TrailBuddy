@@ -26,6 +26,8 @@ import '../friends/friend_providers.dart';
 import '../offline_areas/area_providers.dart' show storedAreasProvider;
 import '../offline_areas/height_tiles.dart' show kHeightsAttribution;
 import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
+import '../routing/ride_calibration.dart';
+import '../routing/ride_calibrator.dart';
 import '../routing/route_profile.dart';
 import '../trails/trail_providers.dart' show stillValidQuestionsProvider, trailCacheProvider, trailsProvider;
 import 'account_dialogs.dart';
@@ -712,13 +714,57 @@ class _AppearanceSection extends ConsumerWidget {
 /// Das Fahrerprofil (Konzept-Routing 2.1): Bio-Bike oder E-Bike, mit
 /// den Zahlen, die es ändert — und nur denen. Gerätelokal; die
 /// Routenplanung liest es, jede Fahrt merkt es sich beim Start.
-class _RiderProfileSection extends ConsumerWidget {
+class _RiderProfileSection extends ConsumerStatefulWidget {
   const _RiderProfileSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RiderProfileSection> createState() => _RiderProfileSectionState();
+}
+
+class _RiderProfileSectionState extends ConsumerState<_RiderProfileSection> {
+  bool _learning = false;
+
+  /// Aus den eigenen Fahrten lernen (Schritt 6) — auf Knopfdruck, mit
+  /// einem Satz danach, der sagt, was gezählt hat.
+  Future<void> _learn() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _learning = true);
+    LearnResult r;
+    try {
+      r = await ref.read(riderCalibrationsProvider.notifier).learn();
+    } finally {
+      if (mounted) setState(() => _learning = false);
+    }
+    if (!mounted) return;
+    final learned = [
+      for (final p in RiderProfile.values)
+        if ((r.ridesByProfile[p] ?? 0) > 0)
+          '${p.label} aus ${r.ridesByProfile[p]} ${r.ridesByProfile[p] == 1 ? 'Fahrt' : 'Fahrten'} '
+              '(${r.sectionsByProfile[p] ?? 0} Aufstiege)',
+    ];
+    final String text;
+    if (r.rides == 0) {
+      text = 'Keine Fahrt auf diesem Gerät — gelernt wird nur aus eigenen Aufzeichnungen.';
+    } else if (r.usable == 0) {
+      text = 'Keine Fahrt mit Profil und Höhen — Fahrten seit 0.70.0 tragen beides.';
+    } else if (learned.isEmpty) {
+      text = r.withoutArea == r.usable
+          ? 'Kein gespeicherter Bereich deckt deine Fahrten — ohne Wege lässt sich kein Aufstieg einordnen.'
+          : 'Kein Aufstieg über 100 Höhenmeter am Stück gefunden — nichts zu lernen.';
+    } else {
+      text = 'Gelernt: ${learned.join(' · ')}.';
+    }
+    messenger.showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(riderProfileProvider);
     final text = Theme.of(context).textTheme;
+    final calibrations = ref.watch(riderCalibrationsProvider);
+    final params = ref.watch(calibratedRiderProvider(profile));
+    final cal = calibrations.of(profile);
+    String learned(double? v) => v == null ? '' : ' (gelernt)';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -750,8 +796,10 @@ class _RiderProfileSection extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Text(
-          'Steigrate Forstweg: ${profile.climbTrackMPerH.round()} hm/h · Pfad: '
-          '${profile.climbPathMPerH.round()} hm/h · Schieben: ${profile.pushRateMPerH.round()} hm/h\n'
+          'Steigrate Forstweg: ${params.climbTrackMPerH.round()} hm/h${learned(cal.climbTrackMPerH)} · Pfad: '
+          '${params.climbPathMPerH.round()} hm/h${learned(cal.climbPathMPerH)} · Schieben: '
+          '${params.pushRateMPerH.round()} hm/h${learned(cal.pushRateMPerH)}\n'
+          'Flach: ${params.vFlatKmh.round()} km/h${learned(cal.vFlatKmh)} · '
           'Wanderweg bergauf: ×${profile.pathUpFactor} · Vorgabe: ${profile.budgetClimbM.round()} hm',
           key: const ValueKey('rider-profile-numbers'),
           style: text.bodySmall,
@@ -762,8 +810,57 @@ class _RiderProfileSection extends ConsumerWidget {
           'auch im Planer. Jede Fahrt merkt sich das Profil beim Start.',
           style: text.bodySmall,
         ),
+        const SizedBox(height: 16),
+        Text('Aus deinen Fahrten gelernt', style: text.titleMedium),
+        const SizedBox(height: 4),
+        for (final p in RiderProfile.values)
+          Text(
+            _calibLine(p, calibrations.of(p)),
+            key: ValueKey('rider-calib-${p.name}'),
+            style: text.bodySmall,
+          ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          FilledButton.tonalIcon(
+            key: const ValueKey('rider-learn'),
+            onPressed: _learning ? null : _learn,
+            icon: _learning
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.school_outlined),
+            label: const Text('Aus meinen Fahrten lernen'),
+          ),
+          if (!cal.isEmpty)
+            TextButton(
+              key: const ValueKey('rider-reset'),
+              onPressed: () => ref.read(riderCalibrationsProvider.notifier).reset(profile),
+              child: Text('${profile.label} zurücksetzen'),
+            ),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          'Aus Zeit und GPS-Höhe deiner Aufzeichnungen: je Fahrt die Aufstiege ab 100 Höhenmetern '
+          'am Stück, eingeordnet über die Wege deiner gespeicherten Bereiche, der Median je '
+          'Wegklasse ab drei Aufstiegen. Nie aus Fahrten anderer; nichts verlässt das Gerät.',
+          style: text.bodySmall,
+        ),
       ],
     );
+  }
+
+  /// „Bio-Bike: Forstweg 520 hm/h · flach 14 km/h — aus 14 Fahrten (31
+  /// Aufstiege), Stand 1.10.2026" oder „Bio-Bike: Vorgaben".
+  String _calibLine(RiderProfile p, RiderCalibration c) {
+    if (c.isEmpty) return '${p.label}: Vorgaben — noch nichts gelernt.';
+    final parts = [
+      if (c.climbTrackMPerH != null) 'Forstweg ${c.climbTrackMPerH!.round()} hm/h',
+      if (c.climbPathMPerH != null) 'Pfad ${c.climbPathMPerH!.round()} hm/h',
+      if (c.pushRateMPerH != null) 'Schieben ${c.pushRateMPerH!.round()} hm/h',
+      if (c.vFlatKmh != null) 'flach ${c.vFlatKmh!.round()} km/h',
+    ];
+    final at = c.at?.toLocal();
+    final when = at == null ? '' : ', Stand ${at.day}.${at.month}.${at.year}';
+    return '${p.label}: ${parts.join(' · ')} — aus ${c.rides} ${c.rides == 1 ? 'Fahrt' : 'Fahrten'} '
+        '(${c.sections} ${c.sections == 1 ? 'Aufstieg' : 'Aufstiege'})$when';
   }
 }
 

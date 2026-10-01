@@ -110,6 +110,21 @@ nach Trail-Länge"). **Kalibriert werden sie aus den eigenen Fahrten auf
 dem Gerät** (Abschnitt 5, Schritt 6): Die Fahrten tragen Zeit und
 GPS-Höhe je Punkt; aus Aufstiegsabschnitten auf Forstwegen folgt die
 eigene Steigrate. Nie aus Fahrten anderer.
+**Gebaut (0.73.0) so:** auf Knopfdruck („Aus meinen Fahrten lernen"
+unter „Fahrerprofil"), nicht nach jeder Fahrt — das Einordnen liest die
+Kacheln der Bereiche. Je Fahrt mit Profil und Höhen die Aufstiege ab
+100 hm am Stück (median-geglättet über 7 Punkte, Ende nach 15 m
+Abfall — die Regel des Werkzeugs), je Aufstieg die dominante Wegklasse
+unter der Spur (alle 5 m der nächste Weg in 15 m), die Rate nur über
+fünf Minuten; dazu flache Stücke zwischen den Aufstiegen (≥ 500 m, An-
+und Abstieg je unter 2 % der Länge, auf Forstweg oder Straße) als
+Flachgeschwindigkeit. Gelernt wird der Median je Gruppe (Forstweg und
+Straßen → Steigrate Forstweg; Wanderweg und Fußweg → Pfad; Stufen →
+Schieben), erst ab drei Messungen und nur in einer plausiblen Spanne
+(150–1 500 hm/h, 8–30 km/h); was fehlt, bleibt Vorgabe. Aufschläge und
+Budget-Vorgabe lernen nicht. Eine Fahrt, deren Bereich fehlt, kann
+nicht eingeordnet werden und lernt nichts — dafür baut der Loader
+auch einen HALBEN Graphen (`requireComplete: false`, nur hier).
 
 ### 2.2 Zeitmodell
 
@@ -410,7 +425,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E — **gebaut, 0.70.0** (`lib/features/routing/`; `Ride.profile` seither im Dateikopf) | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, GPX — **gebaut, 0.71.0** (`trail_head_route.dart` pur, `trail_head_sheet.dart`; Start ist der eigene Standort — der getippte Punkt und „Als Fahrt speichern" kommen mit Schritt 5, weil beides die geplante Fahrt in „Meine Fahrten" braucht) | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails — **gebaut, 0.72.0** (`loop_planner.dart` pur, `loop_planner_sheet.dart`, `loop_planner_providers.dart`; geplante Fahrt in „Meine Fahrten", „Als Fahrt speichern" auch bei „Zum Trailkopf") | #158/5 | feat |
-| 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 | #158 | feat |
+| 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 — **gebaut, 0.73.0** (`ride_calibration.dart` pur als Spiegel von `ride_sections`/`class_mix_along` im Werkzeug, `ride_calibrator.dart`; auf Knopfdruck unter „Fahrerprofil", Median je Klassengruppe ab drei Aufstiegen, plausible Spanne; die Planer lesen `calibratedRiderProvider`) | #158 | feat |
 
 Schritt 1 entscheidet, ob 2–5 so gebaut werden oder ob vorher die
 Pipeline (2.5, letzter Punkt) dran ist. Schritte 3–5 brauchen keine
