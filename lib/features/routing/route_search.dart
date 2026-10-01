@@ -50,8 +50,13 @@ class SearchResult {
 
 /// Begrenzter Dijkstra (mit [heuristic] ein A*): alle Knoten, die mit
 /// Kosten ≤ [limit] erreichbar sind; mit [target] endet die Suche dort.
+/// [allow] lässt Kanten aus — der Planer sucht damit die Verbindung OHNE
+/// Wanderweg, wenn das Budget „höchstens Wanderweg" sonst nicht hält.
 SearchResult dijkstra(RoadGraph g, int src, RiderProfile p,
-    {double limit = double.infinity, int? target, double Function(int node)? heuristic}) {
+    {double limit = double.infinity,
+    int? target,
+    double Function(int node)? heuristic,
+    bool Function(GraphEdge edge)? allow}) {
   final r = SearchResult(src);
   r.dist[src] = 0;
   r.climb[src] = 0;
@@ -66,6 +71,7 @@ SearchResult dijkstra(RoadGraph g, int src, RiderProfile p,
       final e = g.edges[ei];
       final forward = e.a == n;
       if (e.oneway && !forward) continue;
+      if (allow != null && !allow(e)) continue;
       final m = forward ? e.b : e.a;
       final c = edgeCostFrom(g, ei, n, p);
       final nd = r.dist[n]! + c.cost;

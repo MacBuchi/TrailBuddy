@@ -71,14 +71,17 @@ class _RideTile extends ConsumerWidget {
   final Ride ride;
 
   static final _date = DateFormat('EEEE, d. MMMM yyyy, HH:mm', 'de');
+  static final _day = DateFormat('d. MMMM yyyy', 'de');
 
   Future<void> _delete(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Fahrt löschen?'),
-        content: const Text('Die Aufzeichnung wird vom Gerät gelöscht. '
-            'Beigesteuerte Trails bleiben davon unberührt.'),
+        title: Text(ride.planned ? 'Geplante Fahrt löschen?' : 'Fahrt löschen?'),
+        content: Text(ride.planned
+            ? 'Die geplante Runde wird vom Gerät gelöscht.'
+            : 'Die Aufzeichnung wird vom Gerät gelöscht. '
+                'Beigesteuerte Trails bleiben davon unberührt.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -107,23 +110,31 @@ class _RideTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Eine geplante Fahrt (#158 Schritt 5) ist eine Linie, keine Messung:
+    // ihr Name statt des Datums, „etwa" vor der Zeit, keine Schere — zerlegt
+    // wird, was gefahren wurde, und das ist dann eine eigene Aufzeichnung.
+    final planned = ride.planned;
     return ListTile(
       key: ValueKey('ride-${ride.id}'),
-      leading: const Icon(Icons.directions_bike),
-      title: Text(_date.format(ride.startedAt.toLocal())),
-      subtitle: Text('${formatMeters(ride.lengthM)} · '
-          '${rideDurationLabel(ride.duration)} · ${ride.points.length} Punkte'),
+      leading: Icon(planned ? Icons.route_outlined : Icons.directions_bike),
+      title: Text(planned ? (ride.name ?? 'Geplante Fahrt') : _date.format(ride.startedAt.toLocal())),
+      subtitle: Text(planned
+          ? 'Geplant am ${_day.format(ride.startedAt.toLocal())} · ${formatMeters(ride.lengthM)} · '
+              'etwa ${rideDurationLabel(ride.duration)}'
+          : '${formatMeters(ride.lengthM)} · '
+              '${rideDurationLabel(ride.duration)} · ${ride.points.length} Punkte'),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(
-          key: ValueKey('ride-split-${ride.id}'),
-          tooltip: 'Fahrt zerlegen',
-          icon: const Icon(Icons.content_cut),
-          onPressed: () {
-            // Erst der Reiter, dann der Wunsch — wie „auf der Karte zeigen".
-            StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);
-            ref.read(mapSplitRequestProvider.notifier).state = SplitRequest.fromRide(ride);
-          },
-        ),
+        if (!planned)
+          IconButton(
+            key: ValueKey('ride-split-${ride.id}'),
+            tooltip: 'Fahrt zerlegen',
+            icon: const Icon(Icons.content_cut),
+            onPressed: () {
+              // Erst der Reiter, dann der Wunsch — wie „auf der Karte zeigen".
+              StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);
+              ref.read(mapSplitRequestProvider.notifier).state = SplitRequest.fromRide(ride);
+            },
+          ),
         // Exportieren und Löschen in einem Menü (#150): Drei Symbole
         // nebeneinander ließen auf einem kleinen Telefon vom Datum
         // nichts mehr übrig.
@@ -141,9 +152,11 @@ class _RideTile extends ConsumerWidget {
               child: const ListTile(
                   leading: Icon(Icons.share_outlined), title: Text('Als GPX exportieren')),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'delete',
-              child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Fahrt löschen')),
+              child: ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text(planned ? 'Geplante Fahrt löschen' : 'Fahrt löschen')),
             ),
           ],
         ),

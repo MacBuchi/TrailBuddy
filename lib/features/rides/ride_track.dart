@@ -116,10 +116,24 @@ class Ride {
     this.events = const [],
     this.marks = const [],
     this.profile,
+    this.planned = false,
+    this.name,
   });
 
   final String id;
   final DateTime startedAt;
+
+  /// Eine GEPLANTE Fahrt (#158 Schritt 5, Konzept 5.2): die Linie einer
+  /// gerechneten Runde oder des Wegs zum Trailkopf, abgelegt in „Meine
+  /// Fahrten", damit sie als GPX an die Navi-App geht und auf der Karte
+  /// liegt. Keine Messung: [startedAt] ist der Zeitpunkt des Speicherns,
+  /// die Punkte tragen keine eigene Zeit und keine Höhe, [endedAt] ist
+  /// Start plus geschätzte Dauer. Nicht zerlegbar — beigesteuert wird,
+  /// was gefahren wurde, und das ist dann eine eigene Aufzeichnung.
+  final bool planned;
+
+  /// Der Name einer geplanten Fahrt („Runde: Hexentanz, Steinbruch").
+  final String? name;
 
   /// Das Fahrerprofil beim Start (`RiderProfile.name`, Konzept-Routing
   /// 2.1) — die Kalibrierung rechnet je Profil; Fahrten ohne (vor 0.70.0)

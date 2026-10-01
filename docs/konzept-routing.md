@@ -330,6 +330,18 @@ dieselben Konstanten geprüft):
    Suche (Tausch, Entfernen und Einfügen) mit festem Zeitdeckel
    (300 ms). „Diese will ich heute" (Pflicht-Trails) werden zuerst
    eingefügt und nie entfernt.
+   **Gebaut (0.72.0) mit zwei Festlegungen, die hier fehlten:** Das Maß
+   im greedy Schritt ist Trail-Meter je ZEITzuwachs, nicht je
+   Kostenzuwachs — die Zeit ist das Budget, die Kosten sind nur die
+   Wahl des Wegs. Und das Budget „höchstens Wanderweg" ist keine
+   Nachprüfung: Die günstigste Verbindung läuft oft über den
+   Wanderweg (Faktor 1,4 auf 8 km/h schlägt 15 km/h auf dem dreimal
+   längeren Forstweg); überschreitet die Runde das Budget, bekommt die
+   Verbindung mit dem meisten Wanderweg ihre Fassung OHNE Wanderweg,
+   Fußweg und Stufen (zweiter Dijkstra je Startknoten, `allow`), bis es
+   passt — erst wenn keine Fassung mehr da ist, scheitert der Trail am
+   Budget. Ohne die Regel ließ „kein Wanderweg" einen Trail aus, zu dem
+   drei Seiten Forstweg führten (im Test gefunden).
 3. **Zielfunktion**: zuerst mehr **Trail-Meter** (Länge der gefahrenen
    Trails — nicht Anzahl, sonst gewinnen drei kurze gegen einen langen),
    bei Gleichstand weniger Aufstiegs-Höhenmeter, dann weniger
@@ -361,17 +373,32 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
   Fahrt blass, Aufstieg nach Klasse), darunter die Summen und der
   Satz zum Wanderweg. „Als Fahrt speichern" (geplant) und „Als GPX".
 - **Planer-Blatt** über einen EIGENEN Knopf (Betreiber: nicht der
-  Idee-Knopf, der bleibt Feedback) — auf der Karte, wenn die Knopfspalte
-  ihn trägt (bei 0.19.0 lief sie auf einem kleinen Telefon über, deshalb
-  dort nachmessen), sonst im Reiter Trails: Start (Position
-  / getippt), Profil, drei Regler, Pool (alle sichtbaren im Rahmen,
-  abwählbar; Pflicht-Haken), Rechnen, Ergebnis wie oben. Ohne Bereich:
-  ein Satz und der Knopf „Bereich speichern".
+  Idee-Knopf, der bleibt Feedback) — **gebaut in 0.72.0** auf der Karte,
+  zwischen „Ebenen" und „Meine Position" (die Knopfspalte trägt ihn
+  auch auf 360 × 740, `map_shell_test`). Drei Stufen, eine nach der
+  anderen: Regler (Start: Standort oder auf der Karte getippt — das
+  Blatt schließt sich, der nächste Tipp auf die Karte ist der Start, das
+  Blatt kommt wieder; Profil; die drei Regler aus 2.3; „Start ist auch
+  Ziel", sonst endet die Runde am letzten Trail), dann der Pool (alle
+  sichtbaren Trails, deren beide Enden höchstens 12 km vom Start liegen
+  — `kLoopReachM`; weiter entfernte werden nur gezählt; gemeldete stehen
+  abseits und abgewählt, Entscheidung 8.8; Stern = Pflicht), dann das
+  Ergebnis wie oben, dazu die ausgelassenen Trails mit Grund (zu weit,
+  kein Weg am Ende, nicht erreichbar, Budget). Der Fix kommt erst beim
+  Schritt zum Pool, nicht beim Öffnen. Ohne Bereich: ein Satz, der den
+  Ebenen-Knopf nennt. Ein Zielpunkt ungleich Start ist nicht gebaut
+  (nur „Start ist auch Ziel" an/aus).
 - **Gespeicherte Runde** = geplante Fahrt in „Meine Fahrten" (Konzept
-  5.2), mit Schere wie jede Fahrt; nach dem Fahren geht sie durch das
-  Zerlege-Blatt wie jede andere.
-- Highlight-Eintrag und Vorführung je Schritt (PR-Vorlage); die
-  Kurzanleitung bekommt einen Abschnitt „Runde planen".
+  5.2; `Ride.planned`, mit Namen, Punkte ohne Zeit und Höhe, Dauer =
+  Schätzung) — **ohne Schere**: Abweichung vom Satz oben. Zerlegt wird,
+  was gefahren wurde, und das ist nach dem Fahren eine eigene
+  Aufzeichnung; die geplante Linie zu zerlegen hieße, Trails zu
+  belegen, die niemand gefahren ist. Auch der Weg „Zum Trailkopf" lässt
+  sich so ablegen.
+- Highlight-Eintrag und Vorführung je Schritt (PR-Vorlage). Die
+  Kurzanleitung hat SECHS Abschnitte als Obergrenze (Onboarding 3.1),
+  deshalb kein eigener Abschnitt „Runde planen": ein Satz im Abschnitt
+  „Fahrt aufzeichnen und zerlegen".
 
 ## 5. Umsetzung in Schritten (je ein PR)
 
@@ -382,7 +409,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 2 | Höhen: Höhenkacheln je Bereich vom eigenen Host (B — A ist in M3 durchgefallen), gebaut von `height-data.yml` als EIN Archiv, geladen mit dem Bereich — **gebaut, 0.69.0** (2.6) | #158/2 | feat |
 | 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E — **gebaut, 0.70.0** (`lib/features/routing/`; `Ride.profile` seither im Dateikopf) | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, GPX — **gebaut, 0.71.0** (`trail_head_route.dart` pur, `trail_head_sheet.dart`; Start ist der eigene Standort — der getippte Punkt und „Als Fahrt speichern" kommen mit Schritt 5, weil beides die geplante Fahrt in „Meine Fahrten" braucht) | #158/4 | feat |
-| 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails | #158/5 | feat |
+| 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails — **gebaut, 0.72.0** (`loop_planner.dart` pur, `loop_planner_sheet.dart`, `loop_planner_providers.dart`; geplante Fahrt in „Meine Fahrten", „Als Fahrt speichern" auch bei „Zum Trailkopf") | #158/5 | feat |
 | 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 | #158 | feat |
 
 Schritt 1 entscheidet, ob 2–5 so gebaut werden oder ob vorher die

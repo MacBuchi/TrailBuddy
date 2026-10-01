@@ -65,6 +65,19 @@ abstract interface class RideStore {
   /// Verwirft die laufende Fahrt, ohne sie zu speichern.
   Future<void> discardActive();
 
+  /// Legt eine GEPLANTE Fahrt ab (#158 Schritt 5): die Linie als Punkte
+  /// ohne Zeit und Höhe, [duration] die geschätzte Zeit. Liefert die
+  /// gespeicherte Fahrt, oder null, wenn sich nichts schreiben ließ —
+  /// das sagt die Oberfläche, still verschwinden darf eine Runde nicht.
+  Future<Ride?> savePlanned({
+    required String uid,
+    required String name,
+    required DateTime createdAt,
+    required List<RidePoint> points,
+    required Duration duration,
+    String? profile,
+  });
+
   /// Alle gespeicherten Fahrten dieses Kontos, neueste zuerst. Wirft nie.
   Future<List<Ride>> list({required String uid});
 
@@ -279,6 +292,51 @@ class FileRideStore implements RideStore {
       });
 
   @override
+  Future<Ride?> savePlanned({
+    required String uid,
+    required String name,
+    required DateTime createdAt,
+    required List<RidePoint> points,
+    required Duration duration,
+    String? profile,
+  }) =>
+      _serialized(() async {
+        try {
+          final id = _idFor(createdAt);
+          final file = File('${(await _dir()).path}/$id.jsonl');
+          final endedAt = createdAt.add(duration).toUtc();
+          final lines = [
+            jsonEncode({
+              'uid': uid,
+              'startedAt': createdAt.toUtc().toIso8601String(),
+              'planned': true,
+              'name': name,
+              'profile': ?profile,
+            }),
+            for (final p in points) jsonEncode(p.toJson()),
+            jsonEncode({'endedAt': endedAt.toIso8601String()}),
+          ];
+          // Am Stück und über `.part` + `rename`: Eine geplante Fahrt
+          // entsteht in einem Zug, ein halber Plan wäre keiner.
+          final part = File('${file.path}.part');
+          await part.writeAsString('${lines.join('\n')}\n', flush: true);
+          await part.rename(file.path);
+          return Ride(
+            id: id,
+            startedAt: createdAt.toUtc(),
+            endedAt: endedAt,
+            points: points,
+            profile: profile,
+            planned: true,
+            name: name,
+          );
+        } catch (e, stackTrace) {
+          logError('Geplante Fahrt speichern', e, stackTrace);
+          return null;
+        }
+      });
+
+  @override
   Future<List<Ride>> list({required String uid}) => _serialized(() async {
         try {
           final dir = await _dir();
@@ -300,6 +358,8 @@ class FileRideStore implements RideStore {
               events: parsed.events,
               marks: parsed.marks,
               profile: parsed.profile,
+              planned: parsed.planned,
+              name: parsed.name,
             ));
           }
           rides.sort((a, b) => b.startedAt.compareTo(a.startedAt));
@@ -335,6 +395,8 @@ class FileRideStore implements RideStore {
             List<ConfirmEvent> events,
             List<RideMark> marks,
             String? profile,
+            bool planned,
+            String? name,
           })?>
       _parse(File file, {required String uid}) async {
     try {
@@ -388,6 +450,8 @@ class FileRideStore implements RideStore {
         events: events,
         marks: marks,
         profile: head['profile'] as String?,
+        planned: head['planned'] == true,
+        name: head['name'] as String?,
       );
     } catch (_) {
       return null;

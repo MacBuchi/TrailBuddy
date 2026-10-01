@@ -12,6 +12,22 @@ void main() {
   RidePoint pt(int i, {double? alt}) => RidePoint(
       lat: 7.0 + i * 0.001, lng: 9.0, at: t0.add(Duration(seconds: 5 * i)), accuracyM: 8, altM: alt);
 
+  test('eine geplante Fahrt (#158 Schritt 5): ihr Name, keine Zeiten', () {
+    final ride = Ride(
+      id: 'planned',
+      startedAt: t0,
+      endedAt: t0.add(const Duration(hours: 2)),
+      points: [pt(0), pt(1)],
+      planned: true,
+      name: 'Runde: Hang, Steinbruch',
+    );
+    final track = rideToGpx(ride);
+    expect(track.name, 'Runde: Hang, Steinbruch');
+    expect(track.points.map((p) => p.time), [null, null],
+        reason: 'lauter gleiche Zeiten läse jede App als Stillstand');
+    expect(rideExportName(ride), 'Runde: Hang, Steinbruch');
+  });
+
   test('alle Punkte, rohe Höhe als ele, Zeit je Punkt', () {
     final ride = Ride(
       id: '20260928T090000Z',

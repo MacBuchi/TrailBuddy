@@ -91,8 +91,10 @@ const kHelpSteps = <HelpStep>[
         'Gerät. Unterwegs markierst du mit der Fahne, wo ein Trail beginnt '
         'und endet. Danach zerlegst du die Fahrt: Bekannte Trails erkennt die '
         'App wieder, neue Stücke wählst du selbst. Als GPX exportiert, kannst '
-        'du die Fahrt in jede andere App laden. In der Web-App gibt es keine '
-        'Aufzeichnung.',
+        'du die Fahrt in jede andere App laden. Vorher planst du mit dem '
+        'Runden-Knopf eine Runde aus deinen Trails — offline, aus deinen '
+        'gespeicherten Bereichen; sie liegt dann unter „Meine Fahrten". In der '
+        'Web-App gibt es keine Aufzeichnung.',
   ),
   HelpStep(
     icon: _HelpIcon(Icons.group_outlined),

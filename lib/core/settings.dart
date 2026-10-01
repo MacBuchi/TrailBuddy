@@ -65,6 +65,13 @@ abstract interface class Settings {
 
   Future<void> setRiderProfile(String value);
 
+  /// Die Regler des Rundenplaners (#158 Schritt 5, Konzept-Routing 2.3)
+  /// von der letzten Planung, kodiert von `LoopPrefs`; null heißt die
+  /// Vorgaben. Gerätelokal wie das Profil.
+  String? get loopPlannerPrefs;
+
+  Future<void> setLoopPlannerPrefs(String value);
+
   /// Ist die Ebene „Offizielle Trails" an (#13)? Vorgabe: an
   /// (Entscheidung des Betreibers, Konzept offizielle Trails 2.5).
   bool get officialTrailsEnabled;
@@ -201,6 +208,14 @@ class PrefsSettings implements Settings {
 
   @override
   Future<void> setRiderProfile(String value) => _prefs.setString(_riderProfileKey, value);
+
+  static const _loopPlannerPrefsKey = 'loop_planner_prefs';
+
+  @override
+  String? get loopPlannerPrefs => _prefs.getString(_loopPlannerPrefsKey);
+
+  @override
+  Future<void> setLoopPlannerPrefs(String value) => _prefs.setString(_loopPlannerPrefsKey, value);
 
   static const _appearanceKey = 'appearance';
 

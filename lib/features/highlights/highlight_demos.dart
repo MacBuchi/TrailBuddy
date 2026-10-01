@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart';
+import '../routing/loop_planner_sheet.dart' show kLoopNextAnchor;
 
 /// Eine Vorführung: wo sie beginnt und was sie zeigt.
 class HighlightDemo {
@@ -98,6 +99,30 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'loop-planner': HighlightDemo(
+    route: '/',
+    script: _demo('loop-planner', const [
+      CoachStep(
+        title: 'Eine Runde aus deinen Trails',
+        text: 'Der Knopf öffnet den Planer: Start (dein Standort oder ein '
+            'getippter Punkt), Profil, höchstens Zeit, Höhenmeter und '
+            'Wanderweg — dann wählst du die Trails, die in Frage kommen.',
+        lit: [MapCoach.loop],
+        gesture: CoachGesture.tap,
+        requires: [MapCoach.loop],
+      ),
+      CoachStep(
+        title: 'Budget und Pool',
+        text: 'Die Runde nimmt möglichst viele Trails bergab mit, verbunden '
+            'über die Wege deiner gespeicherten Bereiche; ein Stern heißt '
+            '„muss dabei sein". Das Ergebnis liegt auf der Karte und geht als '
+            'geplante Fahrt in „Meine Fahrten" oder als GPX an die Navi-App.',
+        scene: MapCoach.loopSheet,
+        lit: [kLoopNextAnchor],
+        requires: [MapCoach.loop],
+      ),
+    ]),
+  ),
   'gpx-export': HighlightDemo(
     route: '/trails',
     script: _demo('gpx-export', const [

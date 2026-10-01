@@ -1628,11 +1628,65 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     letzter → Trailkopf), Länge und Zeit nicht: Sie sind der Anschluss,
     keine Strecke. Die GPX-Spur (`trailHeadToGpx`) hat keine Höhen — die
     Engine kennt sie je Kante, nicht je Punkt. „Als Fahrt speichern"
-    fehlt noch; es braucht die geplante Fahrt in „Meine Fahrten" und
-    kommt mit dem Planer.
+    gibt es seit 0.72.0 (geplante Fahrt, siehe Rundenplaner).
   Nebenbefund: Der Schritttitel der Vorführung `navigate` hieß „Zum
   Trailkopf" — seit es den Knopf gibt, wäre das ein Text auf dem Schirm;
   jetzt „In die Navi-App".
+- **Der Rundenplaner** (Schritt 5, seit 0.72.0, `loop_planner.dart` pur,
+  `loop_planner_sheet.dart`, `loop_planner_providers.dart`; Konzept-
+  Routing 1, 2.3, 3, 4): eigener Kartenknopf „Runde planen" zwischen
+  „Ebenen" und „Meine Position", drei Stufen im Blatt (Regler → Pool →
+  Ergebnis). Sechs Dinge, die man wissen muss:
+  - **Die Zielfunktion ist Trail-Meter je ZEITzuwachs**, nicht je
+    Kostenzuwachs (Konzept-Routing 3.2 sagte „Kosten"): Die Zeit ist das
+    Budget, die Kosten entscheiden nur, welcher Weg zwischen zwei
+    Punkten gewählt wird. Lexikografisch danach weniger Aufstieg, dann
+    weniger verschenkte Höhe (`_Route.beats`). Zweite Abfahrt eines
+    Trails nur mit 4–5 Sternen (30 %, `kLoopSecondPassShare`), höchstens
+    zwei Durchgänge; Pflicht-Trails zuerst und nie entfernt.
+  - **„Höchstens Wanderweg" ist keine Nachprüfung.** Die günstigste
+    Verbindung läuft oft über den Wanderweg; sprengt die Runde das
+    Budget, bekommt die Verbindung mit dem meisten Wanderweg ihre
+    Fassung OHNE (`dijkstra(allow:)`, zweite Suche je Startknoten, erst
+    bei Bedarf), bis es passt. Ohne die Regel ließ „kein Wanderweg"
+    einen Trail aus, zu dem drei Seiten Forstweg führten — im
+    Planer-Test gefunden. Dijkstra-Grenze ist das ZEITbudget in
+    Kosten-Einheiten: Eine Verbindung, deren Kosten über dem ganzen
+    Zeitbudget liegen, gilt als nicht erreichbar.
+  - **Der Pool schneidet bei 12 km** (`kLoopReachM`, beide Enden
+    Luftlinie vom Start) und zählt den Rest; gemeldete Trails stehen
+    abseits und abgewählt (Entscheidung 8.8), wartende gar nicht. Der
+    Graph-Rahmen ist Start plus alle gewählten Trails plus 500 m; er
+    bleibt stehen, solange Start und Trails dieselben sind.
+  - **Der getippte Start ist ein Dialog mit der Karte**
+    (`loopStartPickProvider`/`loopStartProvider`): Das Blatt schließt
+    sich, oben steht ein Banner mit Abbrechen, der nächste Tipp — auch
+    auf eine Linie — ist der Start, das Blatt öffnet sich wieder
+    (`_takeLoopStart`); Zurück bricht ab. Keine eigene Zeichenfläche:
+    Ein Tipp ist eine Geste, die die Fassade schon hat (`onTap`).
+  - **Die geplante Fahrt** (`Ride.planned`, `Ride.name`,
+    `RideStore.savePlanned`, Datei am Stück über `.part` + `rename`):
+    Punkte ohne Zeit und Höhe, `endedAt` = Schätzung; in „Meine Fahrten"
+    mit Name, „Geplant am …", OHNE Schere (zerlegt wird, was gefahren
+    wurde); der GPX-Export lässt die Zeiten weg (lauter gleiche Zeiten
+    läse jede App als Stillstand). Auch „Zum Trailkopf" legt seinen Weg
+    so ab.
+  - **Die Regler merkt sich das Gerät** (`Settings.loopPlannerPrefs`,
+    `LoopPrefs.encode/parse`, je Wert auf seine Spanne geklemmt); das
+    Höhenbudget folgt dem Profilwechsel nur, solange es auf der Vorgabe
+    des alten Profils steht. Die Rechnung läuft im UI-Isolate — bei
+    einem Pool von 150 Trails sind es bis zu 151 begrenzte Dijkstras
+    je Rechnung; ein Isolate bräuchte einen übertragbaren Graphen und
+    ist ein eigener Schritt, wenn jemand die Dauer misst.
+  Die Kurzanleitung hat sechs Abschnitte als Obergrenze; der Planer
+  steht als Satz in „Fahrt aufzeichnen und zerlegen". Vorführung
+  `loop-planner` über Szene `MapCoach.loopSheet` und Anker
+  `kLoopNextAnchor` im Blatt. **Der fünfte Knopf ließ die Knopfspalte
+  auf einem kleinen Telefon QUER überlaufen** (640 × 360, 28 px —
+  `trail_elevation_flow_test`); die Spalte steckt seither in
+  `Flexible` + `FittedBox(scaleDown)` und skaliert nur dort herunter,
+  hochkant bleiben es 44 px (`map_shell_test`). Das Konzept hatte
+  genau diese Messung verlangt.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und
