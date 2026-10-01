@@ -16,6 +16,7 @@ import 'package:pmtiles/pmtiles.dart';
 import '../map/poi.dart';
 import 'area_plan.dart';
 import 'area_store.dart';
+import 'height_tiles.dart';
 import 'pmtiles_writer.dart';
 
 /// Was mit EINEM Bereich passiert.
@@ -26,6 +27,7 @@ class AreaTrim {
     required this.keep,
     required this.freedTiles,
     required this.freedBytes,
+    this.keepHeights = const [],
   });
 
   final StoredArea area;
@@ -36,7 +38,13 @@ class AreaTrim {
   /// Die Kacheln, die im Archiv bleiben (alle Zooms).
   final List<TileXYZ> keep;
   final int freedTiles;
+
+  /// Frei werdende Bytes beider Archive (Karte und Höhen).
   final int freedBytes;
+
+  /// Die Höhenkacheln, die im zweiten Archiv bleiben (leer: keine mehr,
+  /// oder der Bereich hatte nie welche).
+  final List<TileXYZ> keepHeights;
 }
 
 /// Der Plan des Entfernens über alle betroffenen Bereiche.
@@ -61,6 +69,16 @@ class AreaTrimmer {
     final bytes = await store.readArchive(area.id);
     if (bytes == null) throw StateError('Archiv von ${area.name} fehlt');
     return PmTilesArchive.fromBytes(bytes);
+  }
+
+  /// Das Höhenarchiv, null wenn der Bereich keins trägt — ein Index, der
+  /// Höhen nennt, deren Archiv fehlt, zählt wie keins (es ist nachladbar).
+  Future<PmTilesArchive?> _openHeights(StoredArea area) async {
+    if (!area.hasHeights) return null;
+    final path = await store.heightsPath(area.id);
+    if (path != null) return PmTilesArchive.from(path);
+    final bytes = await store.readHeights(area.id);
+    return bytes == null ? null : PmTilesArchive.fromBytes(bytes);
   }
 
   /// Was [removes] (Kacheln bei [kAreaShapeZoom]) mit den Bereichen
@@ -89,12 +107,34 @@ class AreaTrimmer {
             freedBytes += entry.length;
           }
         }
+        // Die Höhen folgen den Kacheln der Form: eine Höhenkachel je
+        // z13-Kachel, die bleibt.
+        final keepHeights = <TileXYZ>[];
+        var freedHeightBytes = 0;
+        final hArchive = await _openHeights(area);
+        if (hArchive != null) {
+          try {
+            final wantedH = shape?.tiles(minZoom: kHeightTileZoom, maxZoom: kHeightTileZoom).toSet() ?? const {};
+            for (final t in area.shape.tiles(minZoom: kHeightTileZoom, maxZoom: kHeightTileZoom)) {
+              final entry = await hArchive.lookup(tileIdOf(t));
+              if (entry == null) continue;
+              if (wantedH.contains(t)) {
+                keepHeights.add(t);
+              } else {
+                freedHeightBytes += entry.length;
+              }
+            }
+          } finally {
+            await hArchive.close();
+          }
+        }
         trims.add(AreaTrim(
           area: area,
           shape: keep.isEmpty ? null : shape,
           keep: keep,
           freedTiles: freedTiles,
-          freedBytes: keep.isEmpty ? area.bytes : freedBytes,
+          freedBytes: keep.isEmpty ? area.bytes + area.heightBytes : freedBytes + freedHeightBytes,
+          keepHeights: keep.isEmpty ? const [] : keepHeights,
         ));
       } finally {
         await archive.close();
@@ -156,6 +196,7 @@ class AreaTrimmer {
         await check.close();
       }
       await store.putArchive(area.id, bytes);
+      final heightBytes = await _rewriteHeights(area, trim);
       // Orte-Dateien nur noch für Zellen, die der Bereich noch berührt.
       final cells = shape.poiCells().toSet();
       final wantedPoi = {
@@ -175,6 +216,9 @@ class AreaTrimmer {
         savedAt: area.savedAt,
         poiFiles: [for (final f in area.poiFiles) if (wantedPoi.contains(f)) f],
         poiBuild: area.poiBuild,
+        heightTiles: trim.keepHeights.length,
+        heightBytes: heightBytes,
+        heightsBuild: trim.keepHeights.isEmpty ? null : area.heightsBuild,
       );
     }
     final next = <StoredArea>[
@@ -182,5 +226,52 @@ class AreaTrimmer {
         if (!updated.containsKey(a.id)) a else if (updated[a.id] != null) updated[a.id]!,
     ];
     await store.saveIndex(next);
+  }
+
+  /// Schreibt das Höhenarchiv ohne die wegfallenden Kacheln neu (oder
+  /// nimmt es weg, wenn keine bleibt); liefert seine neue Größe.
+  Future<int> _rewriteHeights(StoredArea area, AreaTrim trim) async {
+    final hArchive = await _openHeights(area);
+    if (hArchive == null) return 0;
+    if (trim.keepHeights.isEmpty) {
+      await hArchive.close();
+      await store.deleteHeights(area.id);
+      return 0;
+    }
+    final Uint8List bytes;
+    try {
+      final ids = {for (final t in trim.keepHeights) tileIdOf(t): t};
+      final kept = <TileToWrite>[];
+      final sorted = ids.keys.toList()..sort();
+      for (var start = 0; start < sorted.length; start += 256) {
+        final chunk = sorted.sublist(start, start + 256 > sorted.length ? sorted.length : start + 256);
+        await for (final tile in hArchive.tiles(chunk)) {
+          final t = ids[tile.id]!;
+          kept.add(TileToWrite(t.z, t.x, t.y, Uint8List.fromList(tile.compressedBytes())));
+        }
+      }
+      final hull = trim.shape!.hull;
+      bytes = writePmTiles(
+        tiles: kept,
+        tileCompression: hArchive.header.tileCompression,
+        bounds: TileBounds(west: hull.west, south: hull.south, east: hull.east, north: hull.north),
+        metadata: heightsMetadata(area.name, area.heightsBuild),
+      );
+      if (kept.length != trim.keepHeights.length) {
+        throw StateError('${area.name}: ${kept.length} statt ${trim.keepHeights.length} Höhenkacheln gelesen');
+      }
+    } finally {
+      await hArchive.close();
+    }
+    final check = await PmTilesArchive.fromBytes(bytes);
+    try {
+      if (check.header.numberOfAddressedTiles != trim.keepHeights.length) {
+        throw StateError('${area.name}: neues Höhenarchiv zählt falsch');
+      }
+    } finally {
+      await check.close();
+    }
+    await store.putHeights(area.id, bytes);
+    return bytes.length;
   }
 }

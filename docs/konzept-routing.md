@@ -247,11 +247,43 @@ und 67 % innerhalb ±10 %; das simulierte Gitter A (250-m-Waben, 20-m-
 Stufen) liegt bei 42 % Medianfehler und überschätzt den Abstieg um ein
 Viertel (Median 1,25) — die Stufen erzeugen entlang einer Linie Treppen,
 die die Hysterese nicht wegbekommt. **Gebaut wird B**: Höhenkacheln je
-Bereich vom eigenen Host, 1 Byte je 90-m-Zelle. Die Höhe einer
+Bereich vom eigenen Host. Die Höhe einer
 Kante wird nicht an den Enden, sondern alle 50 m entlang der Linie
 abgetastet und mit einer Hysterese von 10 m zu Anstieg/Abstieg summiert
 (die 3 m der Trail-Höhen gelten für aufgezeichnete Höhen, nicht für ein
 Gitter). Die Trailkanten behalten ihre aufgezeichneten Höhen.
+
+**Gebaut (Schritt 2, seit 0.69.0)** — und nicht als „1 Byte je Zelle",
+das war die Schätzung: Ein Byte hielte in einer Alpenkachel mit 2 000 m
+Relief nur 8-m-Stufen, also genau die Treppen, an denen A gescheitert
+ist. Das Format (`tool/height_tiles.py`, Leser
+`lib/features/offline_areas/height_tiles.dart`, Byte für Byte gegen
+dieselben Konstanten geprüft):
+
+- **Je z13-Kachel ein 49 × 49-Raster** in ganzen Metern (int16), bei den
+  Kachelbrüchen i/48 — die Ränder eingeschlossen, Nachbarkacheln teilen
+  ihre Randzeile, die bilineare Ablesung ist über die Grenze stetig.
+  Das sind ~70 m zwischen den Proben bei 47° N; das DEM hat 90 m.
+- **Delta-kodiert, dann gzip**; NODATA (−32768), wo kein DEM ist. **EIN
+  PMTiles-Archiv** `heights-<build>.pmtiles` auf dem Kartenhost mit
+  Manifest `heights.json`, gelesen über denselben Range-Weg wie die
+  Karte — kein neues Netzziel, und 98 640 Kacheln als ein Objekt statt
+  als 98 640 (die Orte sind je Zelle eine Datei, weil sie je Zelle
+  geladen werden; Höhen kommen nur mit einem Bereich).
+- **Gemessen** (2026-10-01, je eine 1°-Zelle): Alpen (Innsbruck) 2 420
+  B je Kachel im Mittel, Flachland (Berlin) 1 361 B; ganz DACH also
+  rund 180–240 MB auf dem Host. Ein Bereich „entlang meiner Trails"
+  mit 300 z13-Kacheln trägt ~0,7 MB Höhen neben einigen Dutzend MB
+  Karte. Der Bau ist CI-Sache (`height-data.yml`, numpy, rund 140
+  DEM-Zellen à 5 MB; die Abtastung einer Zelle dauert 2–8 s).
+- **Ein Bereich holt seine Höhenkacheln beim Speichern** (zweites
+  Archiv neben dem Kartenarchiv, `StoredArea.heightTiles`); Bereiche von
+  vor 0.69.0 bekommen sie über „Aktualisieren", und die Liste sagt es
+  („Höhendaten verfügbar"). Ohne Höhen-Manifest kommt der Bereich ohne
+  Höhen — das ist kein Fehler.
+- **Sichtbar wird davon noch nichts**: Die Höhen braucht erst der Graph
+  (Schritt 3). Deshalb gibt es dafür keinen Eintrag in „Entdecken";
+  der kommt mit dem Planer.
 
 ### 2.7 Daten und Offline
 
@@ -347,7 +379,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 |---|---|---|---|
 | 0 | dieses Dokument; Konzept 9 und 11 nachziehen | #35 | — |
 | 1 | `tool/route_measure.py` + `route-measure.yml`: Graph aus Kacheln, DEM, A*, Messung an Tirol (CI) und an den eigenen Fahrten (lokal), Bericht `docs/routing-messung.md` | #35 | — |
-| 2 | Höhen: Höhenkacheln je Bereich vom eigenen Host (B — A ist in M3 durchgefallen), gebaut von einem Workflow wie die Orte, geladen mit dem Bereich | #158/2 | feat |
+| 2 | Höhen: Höhenkacheln je Bereich vom eigenen Host (B — A ist in M3 durchgefallen), gebaut von `height-data.yml` als EIN Archiv, geladen mit dem Bereich — **gebaut, 0.69.0** (2.6) | #158/2 | feat |
 | 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, speichern, GPX | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails | #158/5 | feat |

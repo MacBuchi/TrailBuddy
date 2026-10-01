@@ -47,6 +47,11 @@ class FlatProjection {
       p.latitude * math.pi / 180 * _earthRadiusM);
 
   List<math.Point<double>> line(Iterable<LatLng> points) => [for (final p in points) xy(p)];
+
+  /// Die Umkehrung von [xy] — für Proben entlang einer Linie, die eine
+  /// Höhe brauchen (`height_tiles.dart`), wie `climb_along` im Werkzeug.
+  LatLng latLng(math.Point<double> p) => LatLng(
+      p.y / _earthRadiusM * 180 / math.pi, p.x / (_earthRadiusM * _k) * 180 / math.pi);
 }
 
 /// Ein Rahmen in Grad, für den groben Vorfilter vor jeder Rechnung.

@@ -260,7 +260,8 @@ void main() {
     await settle(tester, frames: 20);
     expect(find.text('Änderungen speichern?'), findsOneWidget);
     final size = (tester.widget(find.byKey(const ValueKey('area-size'))) as Text).data!;
-    expect(size, matches(RegExp(r'^Lädt \d+ kB · \d+ Kacheln · \d+ Orte$')));
+    expect(size, matches(RegExp(r'^Lädt \d+ kB · \d+ Kacheln · \d+ Orte · ohne Höhen$')),
+        reason: 'der Harness hat kein Höhen-Manifest, und das steht da');
     // Zwei Orte je Zelle, so viele Zellen wie der Ausschnitt berührt.
     final orte = int.parse(RegExp(r'(\d+) Orte').firstMatch(size)!.group(1)!);
     expect(orte, isPositive);

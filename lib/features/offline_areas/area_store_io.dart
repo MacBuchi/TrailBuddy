@@ -1,6 +1,7 @@
 // Die Ablage gespeicherter Bereiche als Dateien (Android): Index
 // `areas.json`, je Bereich `<id>.pmtiles` (geschrieben über `.part` +
-// rename) und `<id>/pois/<datei>` für die Orte-Zellen. Unter
+// rename), `<id>.heights.pmtiles` für die Höhenkacheln und
+// `<id>/pois/<datei>` für die Orte-Zellen. Unter
 // `offline_maps/areas/` im App-Verzeichnis, also vom Backup ausgenommen.
 import 'dart:convert';
 import 'dart:io';
@@ -25,6 +26,8 @@ class FileAreaStore implements AreaStore {
   Future<File> _index() async => File('${(await _dir()).path}/areas.json');
 
   Future<File> _archive(String id) async => File('${(await _dir()).path}/$id.pmtiles');
+
+  Future<File> _heights(String id) async => File('${(await _dir()).path}/$id.heights.pmtiles');
 
   Future<File> _poi(String id, String name) async => File('${(await _dir()).path}/$id/pois/$name');
 
@@ -53,8 +56,10 @@ class FileAreaStore implements AreaStore {
   }
 
   @override
-  Future<void> putArchive(String id, Uint8List bytes) async {
-    final file = await _archive(id);
+  Future<void> putArchive(String id, Uint8List bytes) => _write(_archive(id), bytes);
+
+  Future<void> _write(Future<File> target, Uint8List bytes) async {
+    final file = await target;
     await file.parent.create(recursive: true);
     // `.part` + rename: Ein Prozess-Kill mitten im Schreiben hinterlässt
     // kein halbes Archiv unter dem echten Namen.
@@ -62,6 +67,30 @@ class FileAreaStore implements AreaStore {
     await part.writeAsBytes(bytes, flush: true);
     await part.rename(file.path);
   }
+
+  Future<void> _remove(File file) async {
+    if (await file.exists()) await file.delete();
+    final part = File('${file.path}.part');
+    if (await part.exists()) await part.delete();
+  }
+
+  @override
+  Future<void> putHeights(String id, Uint8List bytes) => _write(_heights(id), bytes);
+
+  @override
+  Future<String?> heightsPath(String id) async {
+    final file = await _heights(id);
+    return await file.exists() ? file.path : null;
+  }
+
+  @override
+  Future<Uint8List?> readHeights(String id) async {
+    final file = await _heights(id);
+    return await file.exists() ? await file.readAsBytes() : null;
+  }
+
+  @override
+  Future<void> deleteHeights(String id) async => _remove(await _heights(id));
 
   @override
   Future<String?> archivePath(String id) async {
@@ -96,10 +125,8 @@ class FileAreaStore implements AreaStore {
   Future<void> delete(String id) async {
     final areas = await list();
     await saveIndex([for (final a in areas) if (a.id != id) a]);
-    final archive = await _archive(id);
-    if (await archive.exists()) await archive.delete();
-    final part = File('${archive.path}.part');
-    if (await part.exists()) await part.delete();
+    await _remove(await _archive(id));
+    await _remove(await _heights(id));
     final poiDir = Directory('${(await _dir()).path}/$id');
     if (await poiDir.exists()) await poiDir.delete(recursive: true);
   }

@@ -14,6 +14,7 @@ import 'package:trailbuddy/features/map/poi.dart';
 import 'package:trailbuddy/features/offline_areas/area_downloader.dart';
 import 'package:trailbuddy/features/offline_areas/area_plan.dart';
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
+import 'package:trailbuddy/features/offline_areas/height_tiles.dart';
 import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
 
 const _manifest = MapManifest(
@@ -38,7 +39,29 @@ Future<PmTilesArchive> _source() async {
   return PmTilesArchive.fromBytes(bytes);
 }
 
-const _bounds = AreaBounds(south: 47.9, west: 11.6, north: 47.95, east: 11.7);
+const _boundsSouth = 47.9, _boundsWest = 11.6;
+const _bounds = AreaBounds(south: _boundsSouth, west: _boundsWest, north: 47.95, east: 11.7);
+
+const _heightsManifest = HeightsManifest(file: 'heights-20261001.pmtiles', bytes: 1, build: '20261001');
+
+/// Das Höhenarchiv des Hosts: eine Ebene (Höhe = 1000 + x-Versatz), z13
+/// über demselben Rechteck wie die Karte, gzip wie das Werkzeug.
+Future<PmTilesArchive> _heightsSource() async {
+  const wide = AreaBounds(south: 47.0, west: 10.0, north: 48.5, east: 12.5);
+  final origin = tileAt(47.0, 10.0, kHeightTileZoom);
+  final tiles = [
+    for (final t in tilesCovering(wide, minZoom: kHeightTileZoom, maxZoom: kHeightTileZoom))
+      TileToWrite(t.z, t.x, t.y, encodeHeightTile([
+        for (var j = 0; j < kHeightGrid; j++)
+          for (var i = 0; i < kHeightGrid; i++) 1000 + (t.x - origin.x) * 10 + i ~/ 8,
+      ])),
+  ];
+  return PmTilesArchive.fromBytes(writePmTiles(
+      tiles: tiles,
+      tileCompression: Compression.gzip,
+      bounds: const TileBounds(west: 10, south: 47, east: 12.5, north: 48.5),
+      metadata: heightsMetadata('Host', '20261001')));
+}
 
 void main() {
   late PmTilesArchive source;
@@ -51,11 +74,13 @@ void main() {
     poiAsked = [];
   });
 
-  AreaDownloader make({PoiManifest? poiManifest}) => AreaDownloader(
+  AreaDownloader make({PoiManifest? poiManifest, PmTilesArchive? heights}) => AreaDownloader(
         archive: source,
         manifest: _manifest,
         store: store,
         poiManifest: poiManifest,
+        heights: heights,
+        heightsManifest: heights == null ? null : _heightsManifest,
         fetchPoiFile: (name) async {
           poiAsked.add(name);
           return name.endsWith('.water.json') ? '{"format":1,"pois":[]}' : null;
@@ -192,6 +217,67 @@ void main() {
     expect(area.poiFiles, [poiCellFileName(cells.first, PoiGroup.water)]);
     // Ohne Orte gemessen: keine Zahl.
     expect((await make().plan(const RectShape(_bounds))).poiCount, isNull);
+  });
+
+  test('mit Höhenarchiv: der Plan zählt die Höhenkacheln der z13-Form, der Download legt das zweite Archiv ab', () async {
+    final heights = await _heightsSource();
+    addTearDown(heights.close);
+    final downloader = make(heights: heights);
+    const shape = RectShape(_bounds);
+    final plan = await downloader.plan(shape);
+    final z13 = shape.tiles(minZoom: kHeightTileZoom, maxZoom: kHeightTileZoom);
+    expect(plan.heightTiles.toSet(), z13.toSet(), reason: 'eine Höhenkachel je z13-Kachel der Form');
+    expect(plan.hasHeights, isTrue);
+    var expected = 0;
+    for (final t in plan.heightTiles) {
+      expected += (await heights.lookup(tileIdOf(t)))!.length;
+    }
+    expect(plan.heightBytes, expected);
+    expect(plan.totalBytes, plan.bytes + plan.heightBytes, reason: 'ohne Orte gemessen');
+
+    final progress = <AreaProgress>[];
+    final area = await downloader.download(plan, name: 'Mit Höhen', onProgress: progress.add);
+    expect(progress.map((p) => p.phase), contains(AreaPhase.heights));
+    expect(area.heightTiles, z13.length);
+    expect(area.heightsBuild, '20261001');
+    final stored = await store.readHeights(area.id);
+    expect(stored, isNotNull);
+    expect(area.heightBytes, stored!.length);
+    // Gelesen wie die Routenplanung es tun wird: Höhe aus dem Bereich.
+    final reader = HeightReader([ArchiveHeightSource(await PmTilesArchive.fromBytes(stored))]);
+    addTearDown(reader.close);
+    final origin = tileAt(47.0, 10.0, kHeightTileZoom);
+    final probe = tileAt(_bounds.south, _bounds.west, kHeightTileZoom);
+    final h = await reader.heightAt(const LatLng(_boundsSouth, _boundsWest));
+    expect(h, isNotNull);
+    expect(h, closeTo(1000 + (probe.x - origin.x) * 10, 7));
+    // Der Index-Rundlauf trägt die Höhen.
+    final back = StoredArea.fromJson(area.toJson());
+    expect(back.hasHeights, isTrue);
+    expect(back.heightTiles, area.heightTiles);
+  });
+
+  test('ohne Höhenarchiv: kein Höhenplan, kein zweites Archiv, der Index sagt 0', () async {
+    final downloader = make();
+    final plan = await downloader.plan(const RectShape(_bounds));
+    expect(plan.hasHeights, isFalse);
+    expect(plan.heightBytes, 0);
+    final area = await downloader.download(plan, name: 'Ohne Höhen');
+    expect(area.hasHeights, isFalse);
+    expect(await store.readHeights(area.id), isNull);
+    expect(store.heights, isEmpty);
+  });
+
+  test('derselbe Bereich unter derselben Id ohne Höhen neu geholt verliert sein Höhenarchiv', () async {
+    final heights = await _heightsSource();
+    addTearDown(heights.close);
+    final withH = make(heights: heights);
+    await withH.download(await withH.plan(const RectShape(_bounds)), name: 'A', id: 'x');
+    expect(await store.readHeights('x'), isNotNull);
+    final without = make();
+    await without.download(await without.plan(const RectShape(_bounds)), name: 'A', id: 'x');
+    expect(await store.readHeights('x'), isNull);
+    expect((await store.list()).single.hasHeights, isFalse);
   });
 
   test('ein zweiter Bereich mit derselben Id ersetzt den ersten im Index', () async {

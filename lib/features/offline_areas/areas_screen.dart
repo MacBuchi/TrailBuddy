@@ -21,6 +21,7 @@ class AreasScreen extends ConsumerWidget {
     final areasAsync = ref.watch(storedAreasProvider);
     final download = ref.watch(areaDownloadProvider);
     final manifest = ref.watch(mapManifestProvider).valueOrNull;
+    final heights = ref.watch(heightsManifestProvider).valueOrNull;
     return Scaffold(
       appBar: AppBar(title: const Text('Meine Bereiche')),
       body: areasAsync.when(
@@ -36,14 +37,14 @@ class AreasScreen extends ConsumerWidget {
               child: Text(
                 'Noch kein Bereich. Speichere einen auf der Karte: Ebenen-Knopf, '
                 'dann Ausschnitt oder Fläche wählen und speichern — die Karte bis '
-                'Zoomstufe 13 samt Orten bleibt dann auf dem Gerät, für den Wald '
-                'ohne Empfang.',
+                'Zoomstufe 13 samt Orten und Höhen bleibt dann auf dem Gerät, für '
+                'den Wald ohne Empfang.',
               ),
             );
           }
           var total = 0;
           for (final a in areas) {
-            total += a.bytes;
+            total += a.bytes + a.heightBytes;
           }
           return ListView(
             children: [
@@ -62,7 +63,9 @@ class AreasScreen extends ConsumerWidget {
                   subtitle: LinearProgressIndicator(value: download.progress?.fraction),
                 ),
               for (final a in areas)
-                _AreaTile(a, newerBuild: manifest != null && manifest.sourceBuild.compareTo(a.build) > 0),
+                _AreaTile(a,
+                    newerBuild: manifest != null && manifest.sourceBuild.compareTo(a.build) > 0,
+                    heightsMissing: heights != null && !a.hasHeights),
             ],
           );
         },
@@ -72,12 +75,16 @@ class AreasScreen extends ConsumerWidget {
 }
 
 class _AreaTile extends ConsumerWidget {
-  const _AreaTile(this.area, {required this.newerBuild});
+  const _AreaTile(this.area, {required this.newerBuild, required this.heightsMissing});
 
   final StoredArea area;
 
   /// Der Host hat einen neueren Kartenstand als dieser Bereich.
   final bool newerBuild;
+
+  /// Der Host hat Höhenkacheln, dieser Bereich (von vor 0.69.0 oder
+  /// ohne Manifest gespeichert) noch keine — „Aktualisieren" holt sie.
+  final bool heightsMissing;
 
   static String _buildLabel(String build) => build.length == 8
       ? '${build.substring(6, 8)}.${build.substring(4, 6)}.${build.substring(0, 4)}'
@@ -88,7 +95,7 @@ class _AreaTile extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('„${area.name}" löschen?'),
-        content: Text('${formatBytes(area.bytes)} werden vom Gerät gelöscht. '
+        content: Text('${formatBytes(area.bytes + area.heightBytes)} werden vom Gerät gelöscht. '
             'Ohne Empfang bleibt dort dann nur die Übersichtskarte.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Abbrechen')),
@@ -124,13 +131,14 @@ class _AreaTile extends ConsumerWidget {
       key: ValueKey('area-${area.id}'),
       leading: const Icon(Icons.map_outlined),
       title: Text(area.name),
-      subtitle: Text('${formatBytes(area.bytes)} · ${area.tiles} Kacheln · '
+      subtitle: Text('${formatBytes(area.bytes + area.heightBytes)} · ${area.tiles} Kacheln · '
           'Stand ${_buildLabel(area.build)}'
           '${area.poiFiles.isEmpty ? '' : ' · mit Orten'}'
-          '${newerBuild ? '\nNeuerer Kartenstand verfügbar' : ''}'),
-      isThreeLine: newerBuild,
+          '${area.hasHeights ? ' · mit Höhen' : ''}'
+          '${newerBuild ? '\nNeuerer Kartenstand verfügbar' : heightsMissing ? '\nHöhendaten verfügbar' : ''}'),
+      isThreeLine: newerBuild || heightsMissing,
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (newerBuild)
+        if (newerBuild || heightsMissing)
           IconButton(
             key: ValueKey('area-update-${area.id}'),
             tooltip: 'Auf den neuen Stand bringen',

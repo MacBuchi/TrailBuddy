@@ -6,6 +6,7 @@ import 'package:vector_map_tiles/vector_map_tiles.dart' show TileProviders;
 
 import '../../core/connectivity.dart';
 import '../../core/errors.dart';
+import '../offline_areas/height_tiles.dart' show kHeightGrid, kHeightTileZoom, kHeightsFormat;
 import 'base_map_providers.dart';
 import 'map_providers.dart';
 import 'pmtiles_tile_provider.dart';
@@ -45,6 +46,62 @@ class MapManifest {
     );
   }
 }
+
+/// Das Manifest der Höhenkacheln (`heights.json`, geschrieben von
+/// `height-data.yml`): welche Datei gilt, mit welchem Format. Ein
+/// Format, das die App nicht kennt, wird abgelehnt — dann gibt es keine
+/// Höhen, keine falsch gelesenen.
+class HeightsManifest {
+  const HeightsManifest({
+    required this.file,
+    required this.bytes,
+    required this.build,
+  });
+
+  final String file;
+  final int bytes;
+
+  /// Das Datum des Baus (`JJJJMMTT`).
+  final String build;
+
+  Uri get archiveUri => Uri.parse('$kMapTilesBase/$file');
+
+  factory HeightsManifest.fromJson(Map<String, dynamic> j) {
+    final file = j['file'] as String;
+    if (!RegExp(r'^heights-\d{8}\.pmtiles$').hasMatch(file)) {
+      throw FormatException('Unerwarteter Archivname: $file');
+    }
+    if (j['format'] != kHeightsFormat || j['grid'] != kHeightGrid || j['zoom'] != kHeightTileZoom) {
+      throw FormatException('Höhenformat ${j['format']}/${j['grid']}/${j['zoom']} unbekannt');
+    }
+    return HeightsManifest(file: file, bytes: j['bytes'] as int, build: j['build'] as String);
+  }
+}
+
+/// Holt das Höhen-Manifest vom Host; wirft bei allem, was nicht passt.
+Future<HeightsManifest?> fetchHeightsManifest() async {
+  final response = await http.get(Uri.parse(kHeightsManifestUrl));
+  if (response.statusCode != 200) {
+    throw http.ClientException('Höhen-Manifest: HTTP ${response.statusCode}');
+  }
+  return HeightsManifest.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+}
+
+final heightsManifestLoaderProvider =
+    Provider<Future<HeightsManifest?> Function()>((ref) => fetchHeightsManifest);
+
+/// Das Höhen-Manifest — oder null: kein Empfang, Host nicht erreichbar,
+/// noch kein Bau, unbekanntes Format. Null heißt: Ein Bereich kommt ohne
+/// Höhen, und die Liste bietet keine an.
+final heightsManifestProvider = FutureProvider<HeightsManifest?>((ref) async {
+  if (ref.watch(noConnectivityProvider)) return null;
+  try {
+    return await ref.watch(heightsManifestLoaderProvider)();
+  } catch (e, s) {
+    if (!looksOffline(e) && e is! FormatException) logError('Höhen-Manifest laden', e, s);
+    return null;
+  }
+});
 
 /// Holt das Manifest vom Host — die Naht, die Tests ersetzen (kein Netz).
 Future<MapManifest?> fetchMapManifest() async {

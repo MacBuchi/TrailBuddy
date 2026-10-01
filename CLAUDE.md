@@ -1516,6 +1516,56 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Warnung. Wird ein Merker zurückgesetzt, ziehen die Konstanten mit.
   Der Selbsttest prüft auch die Verdrahtung in `promote.yml` — dort
   statt in `test/`, damit ein Werkzeug-PR keinen Bump braucht.
+- **Höhenkacheln je Bereich** (Routing Schritt 2, seit 0.69.0,
+  `docs/konzept-routing.md` 2.6; `tool/height_tiles.py`,
+  `height-data.yml`, `lib/features/offline_areas/height_tiles.dart`):
+  je z13-Kachel ein 49 × 49-Raster in ganzen Metern aus dem Copernicus-
+  DEM GLO-90, als EIN PMTiles-Archiv `heights-<build>.pmtiles` mit
+  Manifest `heights.json` auf dem Kartenhost; ein Bereich holt seine
+  Kacheln beim Speichern über denselben Range-Weg und legt sie als
+  ZWEITES Archiv neben sich (`AreaStore.putHeights`,
+  `StoredArea.heightTiles`). Sechs Dinge, die man wissen muss:
+  - **Nicht 1 Byte je Zelle**, wie die Schätzung im Konzept sagte: Das
+    hielte in einer Alpenkachel nur 8-m-Stufen — die Treppen, an denen
+    das Hex-Gitter in M3 gescheitert ist (42 % statt 5 % Medianfehler).
+    int16, Delta, gzip: gemessen 2,4 KB je Kachel in den Alpen, 1,4 KB
+    im Flachland; ganz DACH rund 200 MB auf dem Host.
+  - **Format und Konstanten stehen ZWEIMAL** — `FORMAT/GRID/ZOOM/NODATA`
+    im Werkzeug, `kHeightsFormat/kHeightGrid/kHeightTileZoom/kHeightNoData`
+    in Dart. `test/release_workflow_test.dart` hält sie zusammen, und
+    beide Seiten kodieren dasselbe Fixture-Raster zu denselben Bytes
+    (erste acht Bytes und FNV-1a als Konstante in Self-Test und
+    `height_tiles_test.dart`). Ein fremdes Format im Manifest heißt
+    „keine Höhen", nie „irgendwie lesen".
+  - **Das Paket entpackt die Kachel, nicht der Leser**: Die Kompression
+    steht im Archiv-Header (gzip), `Tile.bytes()` liefert die
+    Delta-Bytes. `HeightTile.decode` nimmt GENAU 4 802 Bytes — ein
+    zweites gunzip war der erste Fehler beim Bau, drei Tests rot.
+  - **Ränder sind geteilt**: Probe i/48 mit BEIDEN Rändern, die
+    Ostzeile einer Kachel ist die Westzeile der nächsten; ein Punkt
+    genau auf der Kante gehört rechnerisch der östlichen/südlichen
+    Kachel, und fehlt die, liest `HeightReader.heightAt` die andere an
+    ihrem Rand (dieselbe Zahl). Ohne diese Regel war der Trailkopf am
+    Ostrand eines Bereichs „ohne Höhe".
+  - **numpy nur im Bau**: 98 640 Kacheln × 2 401 Proben sind 237 Mio.
+    bilineare Ablesungen, und der Float-Prädiktor der COG-Kacheln in
+    einer Byteschleife dauerte Stunden. Der Self-Test läuft in ci.yml
+    ohne numpy (stdlib, wie jedes Werkzeug), `height-data.yml` fährt
+    ihn MIT numpy vor dem Bau — dort wird geprüft, dass beide Pfade
+    dieselben Zahlen liefern. In der letzten Pixelreihe einer 1°-Zelle
+    hält die Abtastung den letzten Pixel, statt in die Nachbarzelle zu
+    greifen: ein DEM-Pixel Unschärfe je Zellgrenze, in beiden Pfaden
+    gleich, dokumentiert.
+  - **Anstieg/Abstieg alle 50 m mit 10 m Hysterese** (`climbAlong`,
+    Spiegel von `climb_along` im Messwerkzeug, Testvektoren geteilt),
+    nicht die 3 m der aufgezeichneten Höhen. Null, sobald eine Probe
+    keine Höhe hat — ein halber Anstieg wäre eine erfundene Zahl.
+  Entfernen von Kacheln (Radierer) schreibt das Höhenarchiv genauso neu
+  wie das Kartenarchiv (`AreaTrimmer._rewriteHeights`); bleibt keine,
+  fällt nur das Höhenarchiv weg. Der Harness setzt beide Höhen-Loader
+  auf null — der Dialog sagt dann „ohne Höhen", und der Flow-Test
+  erwartet genau das. Sichtbar wird von den Höhen noch nichts, deshalb
+  kein Eintrag in „Entdecken"; der kommt mit dem Planer (Schritt 3–5).
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

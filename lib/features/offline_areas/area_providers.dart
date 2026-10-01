@@ -36,6 +36,7 @@ import 'area_downloader.dart';
 import 'area_plan.dart';
 import 'area_store.dart';
 import 'area_trim.dart';
+import 'height_tiles.dart';
 
 /// Die Liste aus dem Index, in Speicherreihenfolge.
 class StoredAreasNotifier extends AsyncNotifier<List<StoredArea>> {
@@ -82,6 +83,41 @@ final areaPoiFileLoaderProvider =
     Provider<Future<String?> Function(PoiManifest manifest, String name)>(
         (ref) => (manifest, name) => fetchPoiFileFromHost(http.Client(), manifest, name));
 
+/// Das Höhen-Manifest für den Download — null, wenn keins da ist (dann
+/// kommt der Bereich ohne Höhen). Die Naht für Tests; der Harness setzt
+/// sie auf null.
+final areaHeightsManifestLoaderProvider =
+    Provider<Future<HeightsManifest?> Function()>((ref) => () async {
+          try {
+            return await fetchHeightsManifest();
+          } catch (_) {
+            // Kein Bau, kein Netz, fremdes Format: ohne Höhen weiter.
+            return null;
+          }
+        });
+
+/// Höhen aus den gespeicherten Bereichen — der erste Bereich, der die
+/// Kachel hat, liefert. Beobachten öffnet die Archive (nur Verzeichnisse,
+/// Kacheln kommen beim Lesen); wer nichts rechnet, beobachtet nicht.
+final areaHeightReaderProvider = FutureProvider<HeightReader>((ref) async {
+  final areas = await ref.watch(storedAreasProvider.future);
+  final store = ref.watch(areaStoreProvider);
+  final sources = <HeightTileSource>[];
+  for (final area in areas) {
+    if (!area.hasHeights) continue;
+    final path = await store.heightsPath(area.id);
+    if (path != null) {
+      sources.add(ArchiveHeightSource(await PmTilesArchive.from(path)));
+      continue;
+    }
+    final bytes = await store.readHeights(area.id);
+    if (bytes != null) sources.add(ArchiveHeightSource(await PmTilesArchive.fromBytes(bytes)));
+  }
+  final reader = HeightReader(sources);
+  ref.onDispose(reader.close);
+  return reader;
+});
+
 enum AreaDownloadPhase { idle, planning, running, done, failed }
 
 /// Der Zustand des einen laufenden Downloads (es gibt höchstens einen).
@@ -122,16 +158,21 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
     if (manifest == null) throw StateError('Kein Kartenhost erreichbar');
     state = const AreaDownloadState(phase: AreaDownloadPhase.planning);
     final archive = await ref.read(areaSourceOpenerProvider)(manifest.archiveUri);
+    PmTilesArchive? heights;
     try {
       final poiManifest = await ref.read(areaPoiManifestLoaderProvider)();
       final fetchPoi = ref.read(areaPoiFileLoaderProvider);
+      final heightsManifest = await ref.read(areaHeightsManifestLoaderProvider)();
+      heights = await _openHeights(heightsManifest);
       final downloader = AreaDownloader(
           archive: archive,
           manifest: manifest,
           store: ref.read(areaStoreProvider),
           poiManifest: poiManifest,
           fetchPoiFile: (fileName) =>
-              poiManifest == null ? Future.value(null) : fetchPoi(poiManifest, fileName));
+              poiManifest == null ? Future.value(null) : fetchPoi(poiManifest, fileName),
+          heights: heights,
+          heightsManifest: heightsManifest);
       final plan = await downloader.plan(shape, withPois: true);
       state = AreaDownloadState(phase: AreaDownloadPhase.idle, plan: plan);
       return plan;
@@ -140,6 +181,19 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
       rethrow;
     } finally {
       await archive.close();
+      await heights?.close();
+    }
+  }
+
+  /// Das Höhenarchiv des Hosts — null ohne Manifest, und null, wenn es
+  /// nicht aufgeht: Ein Bereich ohne Höhen ist besser als keiner.
+  Future<PmTilesArchive?> _openHeights(HeightsManifest? manifest) async {
+    if (manifest == null) return null;
+    try {
+      return await ref.read(areaSourceOpenerProvider)(manifest.archiveUri);
+    } catch (e, s) {
+      if (!looksOffline(e)) logError('Höhenarchiv öffnen', e, s);
+      return null;
     }
   }
 
@@ -158,16 +212,21 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
     final coordinator = ref.read(keepAliveCoordinatorProvider);
     await coordinator.start(_keepAliveKey, '$name — 0 %', title: 'Bereich wird gespeichert');
     PmTilesArchive? archive;
+    PmTilesArchive? heights;
     try {
       archive = await ref.read(areaSourceOpenerProvider)(manifest.archiveUri);
       final poiManifest = await ref.read(areaPoiManifestLoaderProvider)();
       final fetchPoi = ref.read(areaPoiFileLoaderProvider);
+      final heightsManifest = await ref.read(areaHeightsManifestLoaderProvider)();
+      heights = plan.hasHeights ? await _openHeights(heightsManifest) : null;
       final downloader = AreaDownloader(
         archive: archive,
         manifest: manifest,
         store: ref.read(areaStoreProvider),
         poiManifest: poiManifest,
         fetchPoiFile: (fileName) => poiManifest == null ? Future.value(null) : fetchPoi(poiManifest, fileName),
+        heights: heights,
+        heightsManifest: heightsManifest,
       );
       final area = await downloader.download(
         plan,
@@ -180,6 +239,7 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
           final text = switch (p.phase) {
             AreaPhase.tiles => '$name — $percent %',
             AreaPhase.pois => '$name — Orte',
+            AreaPhase.heights => '$name — Höhen',
             AreaPhase.writing => '$name — wird geschrieben',
           };
           unawaited(coordinator.update(_keepAliveKey, text));
@@ -203,6 +263,7 @@ class AreaDownloadNotifier extends Notifier<AreaDownloadState> {
       return null;
     } finally {
       await archive?.close();
+      await heights?.close();
       await coordinator.stop(_keepAliveKey);
     }
   }
