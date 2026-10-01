@@ -438,7 +438,7 @@ def clip_line(line, extent):
 
 
 def lines_from_tile(tile_bytes, z, x, y):
-    """[(cls, oneway, [(lon, lat), ...])] for the usable roads of one tile."""
+    """[(cls, oneway, [(lon, lat), ...], level)] for the usable roads of one tile."""
     out = []
     for extent, props, lines in decode_mvt_lines(tile_bytes):
         cls = classify(props.get("kind"), props.get("kind_detail"),
@@ -446,12 +446,15 @@ def lines_from_tile(tile_bytes, z, x, y):
         if cls is None:
             continue
         oneway = bool(props.get("oneway")) and cls in ROAD_CLASSES
+        # Bridges and tunnels cross other ways without touching them; a
+        # geometric crossing is a junction only on the same level.
+        level = 1 if props.get("is_bridge") else (-1 if props.get("is_tunnel") else 0)
         for line in lines:
             for piece in clip_line(line, extent):
                 pts = [tile_to_lonlat(z, x, y, px, py, extent) for px, py in piece]
                 dedup = [pts[0]] + [p for a, p in zip(pts, pts[1:]) if p != a]
                 if len(dedup) >= 2:
-                    out.append((cls, oneway, dedup))
+                    out.append((cls, oneway, dedup, level))
     return out
 
 
@@ -728,10 +731,20 @@ class Edge:
     gain: float = 0.0
     loss: float = 0.0
     latlon: list = field(default_factory=list)   # a -> b
+    level: int = 0                               # 1 bridge, -1 tunnel
+
+
+GRID_CELL_M = 50.0   # spatial index cell; every query radius here is <= 30 m
 
 
 class Graph:
-    """Undirected graph with per-edge class and climb; metric coordinates."""
+    """Undirected graph with per-edge class and climb; metric coordinates.
+
+    Nodes and edge segments sit in a uniform grid (GRID_CELL_M) so that
+    the joins and the trail attachments are local queries. The first
+    version scanned every edge per dead end — with 20 000 edges and a few
+    thousand dead ends that was minutes in CI, not seconds.
+    """
 
     def __init__(self, lat0):
         self.k = math.cos(math.radians(lat0))
@@ -740,9 +753,15 @@ class Graph:
         self.edges = []
         self.adj = []          # node -> [edge index]
         self._key = {}
+        self._node_cells = {}  # cell -> [node]
+        self._seg_cells = {}   # cell -> [(edge, segment)]
 
     def xy(self, lat, lon):
         return math.radians(lon) * R_EARTH * self.k, math.radians(lat) * R_EARTH
+
+    @staticmethod
+    def _cell(x, y):
+        return int(x // GRID_CELL_M), int(y // GRID_CELL_M)
 
     def node(self, lat, lon):
         key = (round(lon * 1e6), round(lat * 1e6))
@@ -750,24 +769,38 @@ class Graph:
         if i is None:
             i = len(self.nodes)
             self._key[key] = i
-            self.nodes.append(self.xy(lat, lon))
+            x, y = self.xy(lat, lon)
+            self.nodes.append((x, y))
             self.latlon.append((lat, lon))
             self.adj.append([])
+            self._node_cells.setdefault(self._cell(x, y), []).append(i)
         return i
 
-    def add_edge(self, a, b, cls, oneway, latlon):
+    def _index_segments(self, ei, first=0):
+        pts = [self.xy(*p) for p in self.edges[ei].latlon]
+        for i in range(first, len(pts) - 1):
+            (ax, ay), (bx, by) = pts[i], pts[i + 1]
+            for cx in range(int(min(ax, bx) // GRID_CELL_M), int(max(ax, bx) // GRID_CELL_M) + 1):
+                for cy in range(int(min(ay, by) // GRID_CELL_M), int(max(ay, by) // GRID_CELL_M) + 1):
+                    self._seg_cells.setdefault((cx, cy), []).append((ei, i))
+
+    def add_edge(self, a, b, cls, oneway, latlon, level=0):
         xy = [self.xy(la, lo) for la, lo in latlon]
-        e = Edge(a, b, cls, oneway, trail_match.polyline_length(xy), latlon=latlon)
+        e = Edge(a, b, cls, oneway, trail_match.polyline_length(xy), latlon=latlon, level=level)
         self.edges.append(e)
-        self.adj[a].append(len(self.edges) - 1)
-        self.adj[b].append(len(self.edges) - 1)
-        return len(self.edges) - 1
+        ei = len(self.edges) - 1
+        self.adj[a].append(ei)
+        self.adj[b].append(ei)
+        self._index_segments(ei)
+        return ei
 
     def degree(self, n):
         return len(self.adj[n])
 
     def split_edge(self, ei, t, lat, lon):
-        """Splits edge `ei` at polyline fraction position (segment i, t)."""
+        """Splits edge `ei` at polyline position (segment i, t); the first
+        part keeps `ei` (its index entries stay valid — segment `seg` is
+        only shortened), the rest becomes a new edge."""
         e = self.edges[ei]
         seg, frac = t
         mid = self.node(lat, lon)
@@ -775,18 +808,13 @@ class Graph:
             return mid
         first = e.latlon[:seg + 1] + [(lat, lon)]
         second = [(lat, lon)] + e.latlon[seg + 1:]
-        self.adj[e.b].remove(ei)
+        old_b = e.b
+        self.adj[old_b].remove(ei)
         e.latlon = first
         e.b = mid
         e.length = trail_match.polyline_length([self.xy(*p) for p in first])
         self.adj[mid].append(ei)
-        ni = len(self.edges)
-        e2 = Edge(mid, self.node(*second[-1]), e.cls, e.oneway,
-                  trail_match.polyline_length([self.xy(*p) for p in second]), latlon=second)
-        self.edges.append(e2)
-        self.adj[mid].append(ni)
-        self.adj[e2.b].append(ni)
-        return mid
+        return self.add_edge(mid, old_b, e.cls, e.oneway, second, e.level) and mid
 
     def components(self):
         parent = list(range(len(self.nodes)))
@@ -805,35 +833,52 @@ class Graph:
             comp.setdefault(find(e.a), []).append(e)
         return sorted(comp.values(), key=lambda es: -sum(x.length for x in es))
 
-    def nearest(self, lat, lon, radius):
+    def nearest_node(self, x, y, radius, exclude=-1):
+        cx, cy = self._cell(x, y)
+        reach = int(math.ceil(radius / GRID_CELL_M))
+        best, best_d = None, radius
+        for dx in range(-reach, reach + 1):
+            for dy in range(-reach, reach + 1):
+                for n in self._node_cells.get((cx + dx, cy + dy), ()):
+                    if n == exclude:
+                        continue
+                    nx, ny = self.nodes[n]
+                    d = math.hypot(nx - x, ny - y)
+                    if d <= best_d:
+                        best, best_d = n, d
+        return best
+
+    def nearest(self, lat, lon, radius, exclude_edges=()):
         """(distance, edge index, (segment, t), lat, lon) of the nearest
         edge point within radius, or None."""
         x, y = self.xy(lat, lon)
+        cx, cy = self._cell(x, y)
+        reach = int(math.ceil(radius / GRID_CELL_M))
         best = None
-        for ei, e in enumerate(self.edges):
-            pts = [self.xy(*p) for p in e.latlon]
-            if min(px for px, _ in pts) - radius > x or max(px for px, _ in pts) + radius < x:
-                continue
-            if min(py for _, py in pts) - radius > y or max(py for _, py in pts) + radius < y:
-                continue
-            for i, (a, b) in enumerate(zip(pts, pts[1:])):
-                d, t = trail_match._point_segment((x, y), a, b)
-                if d <= radius and (best is None or d < best[0]):
-                    px, py = a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])
-                    best = (d, ei, (i, t), math.degrees(py / R_EARTH), math.degrees(px / (R_EARTH * self.k)))
+        seen = set()
+        for dx in range(-reach, reach + 1):
+            for dy in range(-reach, reach + 1):
+                for ei, i in self._seg_cells.get((cx + dx, cy + dy), ()):
+                    if (ei, i) in seen or ei in exclude_edges:
+                        continue
+                    seen.add((ei, i))
+                    pts = self.edges[ei].latlon
+                    if i + 1 >= len(pts):
+                        continue   # stale after a split
+                    a, b = self.xy(*pts[i]), self.xy(*pts[i + 1])
+                    d, tt = trail_match._point_segment((x, y), a, b)
+                    if d <= radius and (best is None or d < best[0]):
+                        px, py = a[0] + tt * (b[0] - a[0]), a[1] + tt * (b[1] - a[1])
+                        best = (d, ei, (i, tt), math.degrees(py / R_EARTH), math.degrees(px / (R_EARTH * self.k)))
         return best
 
     def attach(self, lat, lon, radius=ATTACH_M):
         """Node for a trail end: an existing node within radius, else a new
         node on the nearest edge within radius, else None."""
         x, y = self.xy(lat, lon)
-        best_n, best_d = None, radius
-        for i, (nx, ny) in enumerate(self.nodes):
-            d = math.hypot(nx - x, ny - y)
-            if d <= best_d:
-                best_n, best_d = i, d
-        if best_n is not None:
-            return best_n
+        n = self.nearest_node(x, y, radius)
+        if n is not None:
+            return n
         hit = self.nearest(lat, lon, radius)
         if hit is None:
             return None
@@ -841,21 +886,25 @@ class Graph:
         return self.split_edge(ei, t, la, lo)
 
 
-def build_graph(lines, lat0, join_m=JOIN_M):
-    """Graph from [(cls, oneway, [(lon, lat), ...])].
+def build_graph(lines, lat0, join_m=JOIN_M, split_crossings=False):
+    """Graph from [(cls, oneway, [(lon, lat), ...], level)].
 
     Pass 1 (strict): a node wherever two lines share a vertex, plus line
     ends. Pass 2 (join): every dead end within join_m of another line is
     tied to it — tile borders, and junctions the tile simplification
-    pulled apart. The report counts both so M1 can say which it was.
+    pulled apart. Pass 3 (optional): two ways on the same level that
+    CROSS without a shared vertex get a node at the crossing — the
+    junction the simplification dropped from both. The report counts
+    every pass so M1 can say which one it was. Returns (graph, joins,
+    crossings).
     """
     counts = {}
-    for _, _, pts in lines:
+    for _, _, pts, _ in lines:
         for lon, lat in pts:
             key = (round(lon * 1e6), round(lat * 1e6))
             counts[key] = counts.get(key, 0) + 1
     g = Graph(lat0)
-    for cls, oneway, pts in lines:
+    for cls, oneway, pts, level in lines:
         cut = [0]
         for i in range(1, len(pts) - 1):
             lon, lat = pts[i]
@@ -868,7 +917,7 @@ def build_graph(lines, lat0, join_m=JOIN_M):
             b = g.node(*piece[-1])
             if a == b and len(piece) < 3:
                 continue
-            g.add_edge(a, b, cls, oneway, piece)
+            g.add_edge(a, b, cls, oneway, piece, level)
     joins = 0
     if join_m > 0:
         for n in range(len(g.nodes)):
@@ -876,25 +925,81 @@ def build_graph(lines, lat0, join_m=JOIN_M):
                 continue
             lat, lon = g.latlon[n]
             x, y = g.nodes[n]
-            # another node within reach?
-            target = None
-            for m, (mx, my) in enumerate(g.nodes):
-                if m != n and math.hypot(mx - x, my - y) <= join_m:
-                    target = m
-                    break
+            target = g.nearest_node(x, y, join_m, exclude=n)
             if target is None:
-                hit = g.nearest(lat, lon, join_m)
+                # Its own edge is at distance 0 — exclude it, or every
+                # T-junction without a vertex is skipped (the first CI
+                # run joined 554 ends where 11 000 lay within 2 m).
+                hit = g.nearest(lat, lon, join_m, exclude_edges=set(g.adj[n]))
                 if hit is None:
                     continue
                 _, ei, t, la, lo = hit
-                e = g.edges[ei]
-                if n in (e.a, e.b):
-                    continue
                 target = g.split_edge(ei, t, la, lo)
             if target != n:
                 g.add_edge(n, target, g.edges[g.adj[n][0]].cls, False, [g.latlon[n], g.latlon[target]])
                 joins += 1
-    return g, joins
+    crossings = 0
+    if split_crossings:
+        for lat, lon, ea, eb in find_crossings(g):
+            # Split the first edge (attach makes the node), then the other
+            # one at the same point — the node key makes them one node.
+            mid = g.attach(lat, lon, radius=0.5)
+            if mid is None:
+                continue
+            hit = g.nearest(lat, lon, 0.5, exclude_edges=set(g.adj[mid]))
+            if hit is None:
+                continue
+            _, ei, t, la, lo = hit
+            g.split_edge(ei, t, lat, lon)
+            crossings += 1
+    return g, joins, crossings
+
+
+def _proper_crossing(a, b, c, d):
+    """Intersection point of segments ab and cd when they cross in their
+    interiors, else None. Collinear overlaps count as no crossing."""
+    r = (b[0] - a[0], b[1] - a[1])
+    q = (d[0] - c[0], d[1] - c[1])
+    den = r[0] * q[1] - r[1] * q[0]
+    if abs(den) < 1e-9:
+        return None
+    ac = (c[0] - a[0], c[1] - a[1])
+    t = (ac[0] * q[1] - ac[1] * q[0]) / den
+    u = (ac[0] * r[1] - ac[1] * r[0]) / den
+    eps = 1e-3
+    if eps < t < 1 - eps and eps < u < 1 - eps:
+        return a[0] + t * r[0], a[1] + t * r[1]
+    return None
+
+
+def find_crossings(g):
+    """[(lat, lon, edge a, edge b)] for same-level ways that cross without
+    a shared node. Walks the segment grid, so it is linear in practice."""
+    out = []
+    seen = set()
+    for cell, segs in g._seg_cells.items():
+        for i in range(len(segs)):
+            ea, ia = segs[i]
+            pa = g.edges[ea].latlon
+            if ia + 1 >= len(pa):
+                continue
+            a, b = g.xy(*pa[ia]), g.xy(*pa[ia + 1])
+            for j in range(i + 1, len(segs)):
+                eb, ib = segs[j]
+                if eb == ea:
+                    continue
+                pb = g.edges[eb].latlon
+                if ib + 1 >= len(pb) or g.edges[ea].level != g.edges[eb].level:
+                    continue
+                key = (min((ea, ia), (eb, ib)), max((ea, ia), (eb, ib)))
+                if key in seen:
+                    continue
+                seen.add(key)
+                hit = _proper_crossing(a, b, g.xy(*pb[ib]), g.xy(*pb[ib + 1]))
+                if hit is None:
+                    continue
+                out.append((math.degrees(hit[1] / R_EARTH), math.degrees(hit[0] / (R_EARTH * g.k)), ea, eb))
+    return out
 
 
 def add_climbs(g, dem):
@@ -1098,9 +1203,15 @@ def measure_frame(bbox, trails, archive, dem, profile="bio", budget_h=BUDGET_HOU
     lat0 = (bbox[1] + bbox[3]) / 2
 
     t0 = time.perf_counter()
-    strict, _ = build_graph(lines, lat0, join_m=0)
-    joined, joins = build_graph(lines, lat0)
+    strict, _, _ = build_graph(lines, lat0, join_m=0)
+    joined, joins, _ = build_graph(lines, lat0)
     t_graph = time.perf_counter() - t0
+    variants = {
+        "join5": build_graph(lines, lat0, join_m=5.0),
+        "join10": build_graph(lines, lat0, join_m=10.0),
+        "cross": build_graph(lines, lat0, split_crossings=True),
+        "cross10": build_graph(lines, lat0, join_m=10.0, split_crossings=True),
+    }
 
     def connectivity(g):
         comps = g.components()
@@ -1123,11 +1234,56 @@ def measure_frame(bbox, trails, archive, dem, profile="bio", budget_h=BUDGET_HOU
                 e = g.edges[hit[1]]
                 if e.a in big_nodes or e.b in big_nodes:
                     attached_big += 1
+        small = [sum(e.length for e in c) for c in comps if sum(e.length for e in c) < 200]
+        # Ends off the largest component: a real neighbouring valley (its
+        # roads leave the frame before they meet) or a fragment?
+        comp_of = {}
+        comp_len = []
+        for ci, c in enumerate(comps):
+            comp_len.append(sum(e.length for e in c))
+            for e in c:
+                comp_of[e.a] = ci
+                comp_of[e.b] = ci
+        off = []
+        for t in trails:
+            for lat, lon in (t.start, t.end):
+                hit = g.nearest(lat, lon, ATTACH_M)
+                if hit is None:
+                    continue
+                ci = comp_of.get(g.edges[hit[1]].a)
+                if ci not in (None, 0):
+                    off.append(comp_len[ci])
         return {"edges": len(g.edges), "nodes": len(g.nodes), "components": len(comps),
                 "largest_share": largest / total if total else 0.0,
-                "ends": ends, "attached": attached, "attached_largest": attached_big}
+                "ends": ends, "attached": attached, "attached_largest": attached_big,
+                "small": len(small), "small_share": sum(small) / total if total else 0.0,
+                "off_lengths": sorted(off)}
 
     m1 = {"strict": connectivity(strict), "joined": connectivity(joined), "joins": joins}
+    for key, (g, j, c) in variants.items():
+        m1[key] = connectivity(g)
+        m1[key]["joins"] = j
+        m1[key]["crossings"] = c
+    # Why does it fall apart? Dead ends of the strict graph and how far the
+    # nearest OTHER way is: a histogram says whether a bigger join radius
+    # would heal it or whether the gaps are real.
+    gaps = {"≤ 2 m": 0, "≤ 5 m": 0, "≤ 10 m": 0, "≤ 30 m": 0, "> 30 m": 0}
+    dead_ends = 0
+    for n in range(len(strict.nodes)):
+        if strict.degree(n) != 1:
+            continue
+        dead_ends += 1
+        lat, lon = strict.latlon[n]
+        hit = strict.nearest(lat, lon, 30.0, exclude_edges=set(strict.adj[n]))
+        d = hit[0] if hit else math.inf
+        for label, lim in (("≤ 2 m", 2), ("≤ 5 m", 5), ("≤ 10 m", 10), ("≤ 30 m", 30)):
+            if d <= lim:
+                gaps[label] += 1
+                break
+        else:
+            gaps["> 30 m"] += 1
+    m1["dead_ends"] = dead_ends
+    m1["gaps"] = gaps
 
     t0 = time.perf_counter()
     add_climbs(joined, dem)
@@ -1175,6 +1331,8 @@ def measure_frame(bbox, trails, archive, dem, profile="bio", budget_h=BUDGET_HOU
                 best = (d, o, m)
         if best is None:
             continue
+        if best[0] < 50:
+            continue   # the next trail starts where this one ends — no climb to look at
         res = astar(joined, n, best[2], profile)
         if res is None:
             continue
@@ -1230,13 +1388,26 @@ def render_report(frames, profile, source_name, note=""):
         out += ["", "### M1 — Zusammenhang", "",
                 "| Graph | Kanten | Knoten | Komponenten | größte (Länge) | Trail-Enden ≤ 30 m | davon an der größten |",
                 "|---|---|---|---|---|---|---|"]
-        for label, key in (("nur geteilte Knoten", "strict"), ("+ Enden verbunden (≤ 2 m)", "joined")):
+        for label, key in (("nur geteilte Knoten", "strict"), ("+ Enden verbunden (≤ 2 m)", "joined"),
+                           ("+ Enden verbunden (≤ 5 m)", "join5"), ("+ Enden verbunden (≤ 10 m)", "join10"),
+                           ("≤ 2 m + Kreuzungen geteilt", "cross"), ("≤ 10 m + Kreuzungen geteilt", "cross10")):
             c = m1[key]
             out.append(f"| {label} | {c['edges']} | {c['nodes']} | {c['components']} | {pct(c['largest_share'])} "
                        f"| {c['attached']} / {c['ends']} ({pct(c['attached'] / c['ends']) if c['ends'] else '—'}) "
                        f"| {c['attached_largest']} / {c['ends']} ({pct(c['attached_largest'] / c['ends']) if c['ends'] else '—'}) |")
-        out.append(f"\nVerbundene Enden: {m1['joins']}. Schwelle: ≥ 90 % der Trail-Enden an der größten Komponente, "
-                   f"größte Komponente ≥ 95 % der Kantenlänge.")
+        out.append(f"\nVerbundene Enden bei 2 m: {m1['joins']}; Kreuzungen ohne gemeinsamen Knoten (gleiche Ebene, "
+                   f"keine Brücke/Tunnel): {m1['cross']['crossings']}. Schwelle: ≥ 90 % der Trail-Enden an der "
+                   f"größten Komponente, größte Komponente ≥ 95 % der Kantenlänge.")
+        g = m1["gaps"]
+        out.append(f"\nTote Enden im strengen Graphen: {m1['dead_ends']}; Abstand zum nächsten anderen Weg: "
+                   + ", ".join(f"{k} {v}" for k, v in g.items()) + ".")
+        c = m1["cross10"]
+        out.append(f"Kleinstteile (< 200 m) nach ≤ 10 m + Kreuzungen: {c['small']} Komponenten, "
+                   f"{pct(c['small_share'])} der Kantenlänge.")
+        if c["off_lengths"]:
+            out.append("Trail-Enden abseits der größten Komponente (≤ 10 m + Kreuzungen): Länge ihrer Komponente "
+                       + ", ".join(km(l) for l in c["off_lengths"]) + " — ab einigen km ist das ein Nachbartal, "
+                       "dessen Straßen den Rahmen verlassen, kein Bruchstück.")
         m3 = fr["m3"]
         out += ["", "### M3 — Höhen (Tirol-Hälfte)", ""]
         if m3:
@@ -1333,7 +1504,7 @@ def measure_rides(trail_tracks, ride_tracks, archive, dem, profile):
         if not lines:
             m4["no_graph"] += 1
             continue
-        g, _ = build_graph(lines, lat0)
+        g, _, _ = build_graph(lines, lat0, split_crossings=True)
         add_climbs(g, dem)
         # M2 + calibration on the ascent sections
         for s, e, gain in ride_sections(ride):
@@ -1449,6 +1620,13 @@ def _synthetic_tiles():
         ({"kind": "path", "kind_detail": "path"}, [[(100, 2000), (100, 500), (2000, 100)]]),         # hiking shortcut
         ({"kind": "minor_road", "kind_detail": "service", "access": "private"}, [[(100, 2000), (100, 3000)]]),
         ({"kind": "highway", "kind_detail": "motorway"}, [[(0, 3500), (4096, 3500)]]),
+        # crosses the primary at (2000, 3200) without a shared vertex
+        ({"kind": "path", "kind_detail": "track"}, [[(500, 3200), (3500, 3200)]]),
+        # a bridge over the primary: crosses geometrically, must NOT join
+        ({"kind": "path", "kind_detail": "track", "is_bridge": True}, [[(1500, 3300), (2500, 3300)]]),
+        # a T-junction the simplification lost: ends 1 unit (~1.2 m) off the
+        # interior of the track (2000,3000)-(3000,3000), no node nearby
+        ({"kind": "path", "kind_detail": "track"}, [[(2600, 2500), (2600, 2999)]]),
     ]
     tile_b = [
         # Slightly sloped: the two border points differ by ~1 m, as real
@@ -1546,7 +1724,7 @@ def self_test():
     # MVT round trip
     z, x, y, ta, tb = _synthetic_tiles()
     decoded = decode_mvt_lines(ta)
-    expect(len(decoded) == 6, f"6 features decoded, got {len(decoded)}")
+    expect(len(decoded) == 9, f"9 features decoded, got {len(decoded)}")
     expect(decoded[0][2][0] == [(100, 2000), (2000, 2000), (4296, 2000)], "geometry round trip")
     expect(decoded[1][1]["kind_detail"] == "primary", "properties round trip")
     expect(decode_mvt_lines(b"\x00\x01\x02" * 3) == [] or True, "garbage does not crash (or raises)")
@@ -1559,18 +1737,26 @@ def self_test():
     # lines from tiles: dropped classes
     la = lines_from_tile(ta, z, x, y)
     lb = lines_from_tile(tb, z, x + 1, y)
-    expect(sorted(c for c, _, _ in la) == ["bundesstrasse", "forstweg", "forstweg", "wanderweg"], f"classes in A: {[c for c, _, _ in la]}")
+    expect(sorted(c for c, *_ in la) == ["bundesstrasse", "forstweg", "forstweg", "forstweg", "forstweg", "forstweg", "wanderweg"],
+           f"classes in A: {[c for c, *_ in la]}")
+    expect([lv for c, o, p, lv in la].count(1) == 1, "the bridge carries its level")
     expect(len(lb) == 1, "one track in B")
 
     # graph: strict vs joined
     lat0 = tile_bounds(z, x, y)[1]
-    strict, _ = build_graph(la + lb, lat0, join_m=0)
-    joined, joins = build_graph(la + lb, lat0)
+    strict, _, _ = build_graph(la + lb, lat0, join_m=0)
+    joined, joins, _ = build_graph(la + lb, lat0)
     comps_s = strict.components()
     comps_j = joined.components()
-    expect(len(comps_s) >= 2, f"strict graph is split at the border and the crossing: {len(comps_s)}")
-    expect(len(comps_j) == 1, f"joined graph is one component, got {len(comps_j)}")
-    expect(joins >= 1, "the border was joined")
+    expect(len(comps_s) >= 4, f"strict graph is split at the border, the crossings and the T: {len(comps_s)}")
+    expect(len(comps_j) == 3, f"joined graph: net (with the T-track), crossing track, bridge — got {len(comps_j)}")
+    expect(joins >= 2, f"the border AND the T-junction were joined, got {joins}")
+    crossed, _, ncross = build_graph(la + lb, lat0, split_crossings=True)
+    expect(ncross == 1, f"exactly the one same-level crossing is split, got {ncross}")
+    expect(len(crossed.components()) == 2, f"crossing joins the track, the bridge stays apart: {len(crossed.components())}")
+    expect(_proper_crossing((0, 0), (10, 0), (5, -1), (5, 1)) == (5.0, 0.0), "proper crossing")
+    expect(_proper_crossing((0, 0), (10, 0), (10, -1), (10, 1)) is None, "touching at an end is not a crossing")
+    expect(_proper_crossing((0, 0), (10, 0), (2, 0), (8, 0)) is None, "collinear overlap is not a crossing")
     # the crossing without a shared vertex stays unjoined (no dead end there) —
     # that is exactly what M1 must show, not hide.
     crossing = joined.nearest(*tile_to_lonlat(z, x, y, 2000, 2000, 4096)[::-1], 1.0)
@@ -1659,6 +1845,7 @@ def self_test():
           OfficialTrail("b", [[tile_to_lonlat(z, x + 1, y, 3000, 1000, 4096)[::-1], tile_to_lonlat(z, x + 1, y, 1500, 2000, 4096)[::-1]]], 0, 80, 500)]
     fr = measure_frame(bbox, ot, _Archive(), dem)
     expect(fr["tiles"] == 2 and fr["m1"]["joined"]["attached"] == 4, f"frame measured: {fr['m1']}")
+    expect(fr["m1"]["cross"]["crossings"] == 1 and fr["m1"]["dead_ends"] > 0, "diagnostics present")
     text = render_report([fr], "bio", "synthetic")
     expect("M1" in text and "M5" in text and "Beispiel" in text, "report renders")
 

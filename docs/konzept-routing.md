@@ -265,10 +265,18 @@ Gitter). Die Trailkanten behalten ihre aufgezeichneten Höhen.
   20-km-Rahmen sind rund 70 Kacheln und schätzungsweise 20 000
   Wegekanten — das baut ein Telefon in unter einer Sekunde (Messfrage
   M5).
-- **Knoten**: Zwei Linien teilen einen Knoten, wenn ihre Punkte auf
-  dieselbe Kachelkoordinate fallen (Extent 4096 ⇒ 1,2 m bei z13). An
-  Kachelrändern werden Enden innerhalb von 2 m verbunden. Ob die
-  Vereinfachung bei z13 Kreuzungen trennt, ist Messfrage M1.
+- **Knoten — drei Regeln, gemessen (M1, `docs/routing-messung.md`)**:
+  Jede Kachel wird auf ihren Rahmen zugeschnitten (der Puffer legte
+  Wege doppelt). Zwei Linien teilen einen Knoten, wenn ihre Punkte auf
+  dieselbe Kachelkoordinate fallen. Dann wird jedes tote Ende innerhalb
+  von **2 m** an den nächsten anderen Weg gebunden — auch mitten in
+  ein Segment, das ist der T-Knoten, den die Vereinfachung aus dem
+  durchgehenden Weg entfernt hat — und jede **Kreuzung ohne
+  gemeinsamen Knoten geteilt**, sofern beide Wege auf derselben Ebene
+  liegen (`is_bridge`/`is_tunnel` aus den Kacheln). Ohne die beiden
+  Reparaturen hält die größte Komponente 50–80 % der Kantenlänge, mit
+  ihnen 95–98 %, und 93–100 % der Trail-Enden hängen an ihr. 10 m
+  statt 2 m bringen nichts mehr.
 - **Trail-Enden** werden an den nächsten Wegeknoten innerhalb von 30 m
   geheftet (die GPS-Unschärfe des Trailanfangs); liegt keiner da, wird
   der nächste Wegepunkt im Umkreis als Knoten eingefügt. Ein Trail ohne
@@ -354,15 +362,18 @@ Stufe 3).
 
 Die alte Frage „welche Engine?" ist entschieden. Die Messung fragt
 jetzt, ob **unsere Daten** die eigene Engine tragen. Fünf Fragen, jede
-mit Schwelle:
+mit Schwelle — **Stand 2026-10-01: M1 bestanden (mit den drei
+Graph-Regeln aus 2.7), M3 entschieden (Weg B), M5 ohne Befund in
+Python; M2, M4 und die Kalibrierung warten auf den lokalen Lauf**
+(`docs/routing-messung.md`):
 
 | | Frage | Daten | Schwelle |
 |---|---|---|---|
-| M1 | **Zusammenhang**: Teilen Wege an Kreuzungen bei z13 einen Knoten? Wie groß ist die größte Komponente, wie viele Trail-Enden hängen innerhalb von 30 m an ihr? | Tirol: 181 offizielle Trails (öffentlich, CI) + eigene Trails (lokal) | ≥ 90 % der Trail-Enden angeschlossen, größte Komponente ≥ 95 % der Kanten im Rahmen |
+| M1 | **Zusammenhang**: Teilen Wege an Kreuzungen bei z13 einen Knoten? Wie groß ist die größte Komponente, wie viele Trail-Enden hängen innerhalb von 30 m an ihr? | Tirol: 181 offizielle Trails (öffentlich, CI) + eigene Trails (lokal) | ≥ 90 % der Trail-Enden angeschlossen, größte Komponente ≥ 95 % der Kanten im Rahmen — **bestanden: 95 / 97 / 98 % und 98 / 93 / 100 % in drei Rahmen, nur mit Verbindung ≤ 2 m und Kreuzungsteilung** |
 | M2 | **Wegklassen**: Wie oft führen die eigenen Aufstiege über `track`, `path`, Straße? Trägt die Tabelle 2.4 die Praxis? | eigene Fahrten (lokal; Zerlege-Logik kennt die Aufstiegsstücke) | Bericht, keine Schwelle |
-| M3 | **Höhenfehler**: hm bergauf aus Gitter A gegen GPX-Höhen derselben Linie; je Kante und je Aufstieg | eigene Tracks (lokal), Tirol `up_m`/`down_m` (CI) | Aufstiegssumme ±10 %, sonst Höhenkacheln B |
+| M3 | **Höhenfehler**: hm bergauf aus Gitter A gegen GPX-Höhen derselben Linie; je Kante und je Aufstieg | eigene Tracks (lokal), Tirol `up_m`/`down_m` (CI) | Aufstiegssumme ±10 %, sonst Höhenkacheln B — **Gitter A 42 % Medianfehler, DEM direkt 5 %: Weg B** |
 | M4 | **Aufstiegstreue**: Vom Fahrtstart zum ersten Trailkopf — findet A* den Weg, den der Betreiber gefahren ist? Länge, hm, Klassenmix gegen die Fahrt | eigene Fahrten (lokal) | ≥ 70 % der Aufstiege „gleich" nach den Abgleich-Schwellen (15 m, 0,8), Rest erklärbar |
-| M5 | **Laufzeit**: Graph bauen + 2N+1 Dijkstra + Verkettung für einen 20-km-Rahmen | Tirol (CI), auf dem Telefon nach Schritt 3 | < 2 s auf dem Rechner, < 5 s auf dem Telefon |
+| M5 | **Laufzeit**: Graph bauen + 2N+1 Dijkstra + Verkettung für einen 20-km-Rahmen | Tirol (CI), auf dem Telefon nach Schritt 3 | < 2 s auf dem Rechner, < 5 s auf dem Telefon — **Python 0,7–6 s je Rahmen (25 000 Wegstücke: Graph ~2 s, 22 Dijkstra 3,7 s); das Telefon misst Schritt 3** |
 
 Dazu die **Kalibrierung** (kein Durchfallen möglich): Steigrate und
 Flachgeschwindigkeit je Klasse aus den eigenen Fahrten, als Startwerte
@@ -381,9 +392,12 @@ M5; M2 und M4 nur der lokale.
 
 ## 7. Risiken, benannt
 
-- **Die Kacheln sind für Karten gemacht, nicht für Graphen.** M1 ist
-  die Frage, an der es scheitern kann. Ausweg: eigener Wege-Export je
-  Region (2.5), dieselbe Pipeline wie die Orte.
+- **Die Kacheln sind für Karten gemacht, nicht für Graphen.** M1 war
+  die Frage, an der es scheitern konnte — und sie ist bestanden, aber
+  nur mit den drei Reparaturen aus 2.7. Ein Graph-Bauer, der sie
+  vergisst, bekommt still einen Graphen in tausend Stücken; die
+  Dart-Engine braucht dafür denselben Test wie das Werkzeug. Der
+  Ausweg für den Belag (2.5) bleibt die eigene Pipeline.
 - **Pfad ist nicht gleich Pfad.** Ohne `sac_scale` plant die Engine im
   Zweifel über einen Steig. Der Regler, die Nennung im Ergebnis und die
   Vorgabe 2 km begrenzen den Schaden; der Nutzer sieht die Linie, bevor
