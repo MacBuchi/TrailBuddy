@@ -74,15 +74,39 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'map-select',
+    since: '0.74.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.touch_app_outlined,
+    title: 'Trail antippen, Route ab hier',
+    text: 'Ein Tipp hebt einen Trail hervor und zeigt unten eine kleine Karte; '
+        'ein zweiter öffnet sein Blatt. Ein langer Druck auf die Karte bietet '
+        '„Route ab hier" und „Route bis hier".',
+    target: '/',
+  ),
+  FeatureHighlight(
+    id: 'trail-nav',
+    since: '0.74.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.trails,
+    icon: Icons.navigation_outlined,
+    title: 'Zum Trail navigieren',
+    text: 'Das Navi-Symbol an jedem Trail: mit deiner Navi-App, oder in '
+        'TrailBuddy direkt oder spaßig — dann nimmt der Weg Trails mit. Was du '
+        'meistens willst, merkt es sich.',
+    target: '/trails',
+  ),
+  FeatureHighlight(
     id: 'loop-planner',
     since: '0.72.0',
     kind: HighlightKind.highlight,
     tab: HighlightTab.map,
     icon: Icons.alt_route,
     title: 'Runde planen',
-    text: 'Der Runden-Knopf auf der Karte baut aus deinen Trails eine Runde: '
-        'Start, Zeit, Höhenmeter, welche Trails — die App verbindet sie bergab '
-        'über die Wege deiner Bereiche, offline. Als geplante Fahrt oder GPX.',
+    text: 'Der Runden-Knopf öffnet den Planer: Trails antippen, links Start, '
+        'Parameter, Liste und Gebiet — die App verbindet sie bergab über die '
+        'Wege deiner Bereiche, offline. Als geplante Fahrt oder GPX.',
     target: '/',
   ),
   FeatureHighlight(

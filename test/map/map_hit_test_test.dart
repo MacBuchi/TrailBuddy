@@ -98,6 +98,37 @@ void main() {
         .zoom, 3);
   });
 
+  test('cameraToFit mit verdecktem Rand unten: die Punkte liegen ÜBER dem Blatt', () {
+    // Feldbericht 0.73.0: Die geplante Runde lag unter dem Planer-Blatt.
+    const size = Size(400, 800);
+    const pts = [LatLng(48.0, 11.0), LatLng(48.02, 11.02)];
+    final free = cameraToFit(pts, size, padding: 40, maxZoom: 18);
+    final covered = cameraToFit(pts, size, padding: 40, maxZoom: 18, bottomInset: 400);
+    expect(covered.zoom, lessThanOrEqualTo(free.zoom), reason: 'weniger Platz, also weiter heraus');
+    expect(covered.center.latitude, lessThan(free.center.latitude), reason: 'die Kamera rückt nach Süden');
+    // Nachgerechnet: Beide Ecken liegen auf dem Schirm oberhalb von 800 − 400.
+    final scale = 256 * math.pow(2, covered.zoom);
+    double mercY(double lat) => math.log(math.tan(math.pi / 4 + lat * math.pi / 360));
+    double latOf(double y) => (2 * math.atan(math.exp(y)) - math.pi / 2) * 180 / math.pi;
+    final yc = mercY(covered.center.latitude), halfY = size.height / 2 / (scale / (2 * math.pi));
+    final halfLon = size.width / 2 / (scale / 360);
+    final cam = MapViewCamera(
+      center: covered.center,
+      bounds: MapViewBounds(
+        west: covered.center.longitude - halfLon,
+        east: covered.center.longitude + halfLon,
+        south: latOf(yc - halfY),
+        north: latOf(yc + halfY),
+      ),
+      size: size,
+    );
+    for (final p in pts) {
+      final at = projectToScreen(cam, p);
+      expect(at.dy, lessThanOrEqualTo(400 + 0.5), reason: '$p liegt unter dem Blatt');
+      expect(at.dy, greaterThanOrEqualTo(40 - 0.5));
+    }
+  });
+
   test('Zoom aus Fenster und Breite: 256er Web-Mercator', () {
     // 0,1° auf 1000 px ⇒ 360° auf 3,6 Mio px ⇒ 2^z · 256 = 3,6 Mio ⇒ z ≈ 13,78.
     expect(_camera.zoom, closeTo(13.78, 0.01));
@@ -227,5 +258,6 @@ class _RecordingDelegate implements MapViewCameraDelegate {
   }
 
   @override
-  void fit(List<LatLng> points, {required double padding, required double maxZoom}) => fits++;
+  void fit(List<LatLng> points, {required double padding, required double maxZoom, double bottomInset = 0}) =>
+      fits++;
 }

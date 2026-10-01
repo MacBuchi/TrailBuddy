@@ -64,6 +64,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
   String? _linkError;
   late int? _grade = widget.initial.grade;
   late int? _rating = widget.initial.rating;
+  late bool _twoWay = widget.initial.twoWay;
   late final Set<TrailTrait> _traits = {...widget.initial.traits};
   late TrailVisibility _visibility = widget.initial.visibility;
 
@@ -168,6 +169,16 @@ class _DetailsDialogState extends State<_DetailsDialog> {
                   ),
               ],
             ),
+            // Richtung (#174): Der Planer fährt den Trail nie gegen seine
+            // Richtung — außer hier steht es anders. Vorgabe aus.
+            SwitchListTile(
+              key: const ValueKey('details-two-way'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('In beide Richtungen fahrbar'),
+              subtitle: const Text('Etwa ein flacher Singletrail. Sonst plant TrailBuddy ihn nur in seiner Richtung.'),
+              value: _twoWay,
+              onChanged: (v) => setState(() => _twoWay = v),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<TrailVisibility>(
               initialValue: _visibility,
@@ -230,6 +241,7 @@ class _DetailsDialogState extends State<_DetailsDialog> {
               grade: _grade,
               traits: {..._traits},
               rating: _rating,
+              twoWay: _twoWay,
               link: link,
               visibility: _visibility,
             ));

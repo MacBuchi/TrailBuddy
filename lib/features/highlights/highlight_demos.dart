@@ -24,7 +24,6 @@ import 'package:go_router/go_router.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart';
-import '../routing/loop_planner_sheet.dart' show kLoopNextAnchor;
 
 /// Eine Vorführung: wo sie beginnt und was sie zeigt.
 class HighlightDemo {
@@ -99,27 +98,64 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'map-select': HighlightDemo(
+    route: '/',
+    script: _demo('map-select', const [
+      CoachStep(
+        title: 'Erst auswählen',
+        text: 'Ein Tipp auf einen Trail hebt ihn hervor, unten steht eine '
+            'kleine Karte mit Navi-Symbol. Ein Tipp auf sie — oder ein zweiter '
+            'auf den Trail — öffnet das Blatt; ein Tipp daneben hebt sie auf.',
+        lit: [MapCoach.trailBadge],
+        gesture: CoachGesture.tap,
+        requires: [MapCoach.trailBadge],
+      ),
+      CoachStep(
+        title: 'Langer Druck auf die Karte',
+        text: 'Hält man den Finger auf eine Stelle, bietet die Karte „Route ab '
+            'hier" (eine Runde mit diesem Start), „Route bis hier" (der Weg von '
+            'deinem Standort) und die Navi-App an.',
+        lit: [MapCoach.loop],
+        requires: [MapCoach.loop],
+      ),
+    ]),
+  ),
+  'trail-nav': HighlightDemo(
+    route: '/trails',
+    script: _demo('trail-nav', const [
+      CoachStep(
+        title: 'Das Navi-Symbol',
+        text: 'Mit deiner Navi-App, oder in TrailBuddy: direkt, oder spaßig — '
+            'dann nimmt der Weg Abfahrten mit. Einmal als Standard gemerkt, '
+            'fragt nur noch ein langer Druck.',
+        lit: [TrailsCoach.nav],
+        gesture: CoachGesture.tap,
+        requires: [TrailsCoach.nav],
+      ),
+      _noTrailYet,
+    ]),
+  ),
   'loop-planner': HighlightDemo(
     route: '/',
-    script: _demo('loop-planner', const [
-      CoachStep(
+    script: _demo('loop-planner', [
+      const CoachStep(
         title: 'Eine Runde aus deinen Trails',
-        text: 'Der Knopf öffnet den Planer: Start (dein Standort oder ein '
-            'getippter Punkt), Profil, höchstens Zeit, Höhenmeter und '
-            'Wanderweg — dann wählst du die Trails, die in Frage kommen.',
+        text: 'Der Knopf öffnet den Planer: links eine eigene Leiste, und '
+            'jeder Trail, den du auf der Karte antippst, kommt in die Runde — '
+            'ein zweiter Tipp nimmt ihn wieder heraus.',
         lit: [MapCoach.loop],
         gesture: CoachGesture.tap,
         requires: [MapCoach.loop],
       ),
       CoachStep(
-        title: 'Budget und Pool',
-        text: 'Die Runde nimmt möglichst viele Trails bergab mit, verbunden '
-            'über die Wege deiner gespeicherten Bereiche; ein Stern heißt '
-            '„muss dabei sein". Das Ergebnis liegt auf der Karte und geht als '
-            'geplante Fahrt in „Meine Fahrten" oder als GPX an die Navi-App.',
-        scene: MapCoach.loopSheet,
-        lit: [kLoopNextAnchor],
-        requires: [MapCoach.loop],
+        title: 'Die Leiste des Planers',
+        text: 'Oben der Start (Standort oder getippt) und die Parameter — Zeit, '
+            'Höhenmeter, Wanderweg, Radius. Darunter die Liste und das Gebiet: '
+            'umfahren, und die Trails darin sind dabei. Ganz unten: rechnen.',
+        scene: MapCoach.loopRail,
+        lit: const [MapCoach.loopRail],
+        ring: [MapCoach.loopRailButton('loop-rail-compute')],
+        requires: const [MapCoach.loop],
       ),
     ]),
   ),

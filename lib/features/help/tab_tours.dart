@@ -45,6 +45,9 @@ abstract final class TrailsCoach {
   /// Derselbe Trail, wenn er MIR gehört: Nur dann stehen „Deine
   /// Einschätzung" und „Mein Beitrag" in seinem Blatt.
   static const rowOwn = 'trails.row.own';
+
+  /// Das Navi-Symbol derselben Zeile (#176).
+  static const nav = 'trails.nav';
   static const search = 'trails.search';
   static const sort = 'trails.sort';
   static const chips = 'trails.chips';

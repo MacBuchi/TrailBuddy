@@ -151,6 +151,8 @@ void main() {
     final whole = fakeMapLayers(tester).polylines.where((l) => l.width == 2).single;
     expect(whole.points.first.latitude, closeTo(_fromLat, 1e-9));
     expect(whole.points.last.latitude, closeTo(48.0, 1e-9));
+    // Eingepasst ÜBER dem Blatt, nicht darunter (Feldbericht 0.73.0).
+    expect(fakeMap(tester).lastFitBottomInset, greaterThan(100));
 
     // Profilwechsel im Blatt rechnet auf dem stehenden Graphen neu. Erst
     // das Blatt hochziehen: Seit „Als Fahrt speichern" (0.72.0) reicht das
@@ -190,8 +192,20 @@ void main() {
     expect(track.points.first.lat, closeTo(_fromLat, 1e-9));
     expect(track.points.every((p) => p.ele == null), isTrue);
 
-    // Blatt zu ⇒ Vorschau weg.
-    await tester.tapAt(const Offset(10, 10));
+    // Runterziehen schließt NICHT (Feldbericht 0.73.0) — es verkleinert;
+    // die Route bleibt auf der Karte.
+    final sheetList = find
+        .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+        .first;
+    for (var i = 0; i < 4; i++) {
+      await tester.drag(sheetList, const Offset(0, 1500));
+      await settle(tester, frames: 4);
+    }
+    expect(find.text('Zum Trailkopf'), findsWidgets);
+    expect(routeLines(tester), hasLength(1));
+
+    // Blatt zu (X) ⇒ Vorschau weg.
+    await tester.tap(find.byKey(const ValueKey('trail-head-close')));
     await settle(tester);
     expect(find.byKey(const ValueKey('trail-head-summary')), findsNothing);
     expect(routeLines(tester), isEmpty);

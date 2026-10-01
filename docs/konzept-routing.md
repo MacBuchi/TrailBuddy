@@ -63,7 +63,9 @@ Nicht-Ziele, damit sie nicht hineinwachsen:
   Runde geht als GPX an die Navi-App des Nutzers.
 - **Kein Routing über fremde Gegenden.** Gerechnet wird nur, wo ein
   gespeicherter Bereich liegt; ohne Bereich sagt das Blatt das und
-  bietet die Übergabe an.
+  bietet die Übergabe an. Seit 0.74.0 über die Kacheln, die DA sind,
+  auch wenn sie den Rahmen nicht ganz füllen (2.7) — die Wege außerhalb
+  kennt die Engine weiter nicht.
 - **Kein Urteil über Erlaubnis** (Konzept 7). Die Engine plant über
   Wanderwege, wenn der Aufschlag trotzdem gewinnt, und SAGT es. Sie
   sagt nie, dass ein Weg befahren werden darf.
@@ -304,8 +306,36 @@ dieselben Konstanten geprüft):
 
 - **Der Graph entsteht aus gespeicherten Bereichen**, z13, Ebene
   `roads`, lesbar über denselben Weg wie `loadRoads`. Keine Kachel, kein
-  Weg — und zwar ehrlich: `partial` heißt „nicht planbar", nicht „ein
-  halber Plan".
+  Weg. **Geändert in 0.74.0** (Feldbericht: „teils hat es nicht
+  funktioniert ohne sichtbaren Grund"): Bis dahin hieß `partial` „nicht
+  planbar" — aber der Rahmen ist ein RECHTECK um Start und Trails, und
+  ein Bereich „Entlang meiner Trails" (Kacheln in 1 km um die Trails)
+  füllt ihn nie. Der Planer verweigerte damit fast immer, obwohl jeder
+  Weg zwischen Start und Trails bekannt war. Jetzt plant die Suche über
+  die gefundenen Kacheln (`planning_graph.dart`), und das Blatt sagt
+  „Gerechnet über x von y Kacheln — ein Weg außerhalb deiner Bereiche
+  kann kürzer sein". Ein halber Plan ist das nicht: Jede Linie liegt
+  auf bekannten Wegen; nur ihre Optimalität ist auf den Bestand
+  beschränkt. Ohne eine einzige Kachel bleibt es bei „kein Plan".
+- **Die Trails des Netzes liegen auf dem Graphen** (seit 0.74.0,
+  `trail_overlay.dart`, #174/#185). Eine Kante, deren Proben zu ≥ 0,8 im
+  15-m-Korridor eines sichtbaren Trails liegen (die Schwellen des
+  Abgleichs), trägt dessen Richtung: Eine **Abfahrt** ist gegen ihre
+  Richtung gesperrt (Feldbericht: „man sollte nie rückwärts über einen
+  Trail fahren"), außer der Trail ist **„in beide Richtungen fahrbar"**
+  (Patch 016, `trail_details.two_way`; gilt die eigene Angabe, sonst die
+  Mehrheit der sichtbaren Beiträge, bei Gleichstand nein). Ein
+  **Uphill-Trail** (Uphill unter den angezeigten Merkmalen) ist ein
+  Verbinder in seiner Richtung, eine **Verbindung** einer in beide; ein
+  Verbinder kostet Zeit × 0,8 statt Zeit × Aufschlag der Klasse
+  (`kTrailConnectorFactor`, Startwert, nicht gemessen) und zählt nicht
+  als Wanderweg. Kennt die Karte einen Verbinder nicht, wird er eine
+  eigene Kante zwischen seinen angehefteten Enden, mit seinen Höhen.
+  Uphill-Trails und Verbinder stehen deshalb nicht mehr im Pool der
+  Abfahrten. Mehrfach befahren darf man Verbinder wie jeden Weg —
+  Verbindungen wurden nie bestraft, nur eine zweite ABFAHRT bringt
+  weniger (3). Gesperrte Verbinder fallen weg, gesperrte Abfahrten
+  behalten ihre Richtung.
 - **Gebaut wird je Planung** für den Rahmen Start ± Reichweite
   (Reichweite = Zeitbudget × 15 km/h / 2, höchstens 25 km), im Isolate,
   und für die Sitzung gemerkt (Schlüssel: Bereichs-Builds + Rahmen). Ein
@@ -326,7 +356,11 @@ dieselben Konstanten geprüft):
   statt 2 m bringen nichts mehr.
 - **Trail-Enden** werden an den nächsten Wegeknoten innerhalb von 30 m
   geheftet (die GPS-Unschärfe des Trailanfangs); liegt keiner da, wird
-  der nächste Wegepunkt im Umkreis als Knoten eingefügt. Ein Trail ohne
+  der nächste Wegepunkt im Umkreis als Knoten eingefügt. Die geteilte
+  Kante gibt dabei Höhen (anteilig nach Länge), Trail und Sperre an
+  BEIDE Hälften weiter — bis 0.73.0 verlor die zweite Hälfte ihre
+  Höhen, und das Blatt sagte „nicht alle Wege haben Höhen", auch wenn
+  alle da waren. Ein Trail ohne
   Anschluss an beiden Enden ist für den Planer „nicht erreichbar" und
   steht so im Blatt.
 - **Kein Netzziel, keine Berechtigung.** Alles kommt von Hosts, die
@@ -383,10 +417,38 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 
 ## 4. Oberfläche
 
+- **Die Blätter sind kein Modal** (seit 0.74.0, `map_panel.dart`;
+  Feldbericht: „der erstellte Track war nicht wirklich sichtbar. Man
+  musste das Planungsfenster nach unten ziehen, aber das beendet dann
+  gleichzeitig die Routenplanung"). Ein Persistent Bottom Sheet am
+  Scaffold der Karte: Die Karte darüber bleibt bedienbar, Runterziehen
+  verkleinert bis auf den Kopf (`shouldCloseOnMinExtent: false` — sonst
+  schließt das Scaffold es unten), geschlossen wird mit X oder Zurück.
+  Beim Ergebnis klappt das Blatt auf ein Drittel ein, und die Karte
+  passt die Route in die Fläche DARÜBER ein (`cameraToFit(bottomInset:)`,
+  höchstens 55 % der Höhe gelten als verdeckt). Was die Planung aufhält,
+  steht oben im Blatt; ein Fehler beim Rechnen ist ein Satz und ein
+  Fehlerbericht, nie ein Kreisel, der stehen bleibt.
 - **Trail-Blatt**: „Zum Trailkopf" neben „Anfahrt" (#151). Ergebnis
   als Vorschau auf der Karte (dieselbe Strecke wie das Zerlege-Blatt:
   Fahrt blass, Aufstieg nach Klasse), darunter die Summen und der
   Satz zum Wanderweg. „Als Fahrt speichern" (geplant) und „Als GPX".
+  **Seit 0.74.0 „Direkt" oder „Spaßig"** (#176): Spaßig ist der Planer
+  mit Ziel (`planLoop(end:)`, der Ziel-Trail selbst nicht im Pool) im
+  Budget 1,6 × die direkte Zeit (mindestens + 20 min) und 1,5 × deren
+  Höhenmeter (mindestens + 200) — Startwerte. Passt kein Trail, steht
+  der direkte Weg da, mit Satz. Dasselbe Blatt nimmt auch einen Punkt
+  als Ziel („Route bis hier", #177).
+- **Das Navi-Symbol an jedem Trail** (#176, Liste und Schnellkarte,
+  `navigate_choice.dart`): Navi-App, direkt oder spaßig; „Als Standard
+  merken" (`Settings.navDefault`), ein langer Druck fragt wieder.
+- **Langer Druck auf die Karte** (#177): eine Nadel und das Menü „Route
+  ab hier" (der Planer mit diesem Start), „Route bis hier" (das Blatt
+  mit dem Punkt als Ziel), „Mit der Navi-App hierher".
+- **Auswählen statt öffnen** (#178): Ein Tipp auf einen Trail hebt ihn
+  hervor und zeigt die Schnellkarte; ein Tipp auf sie oder ein zweiter
+  auf den Trail öffnet das Blatt. Im Planer wählt ein Tipp auf einen
+  Trail ihn an oder ab, die gewählten leuchten.
 - **Planer-Blatt** über einen EIGENEN Knopf (Betreiber: nicht der
   Idee-Knopf, der bleibt Feedback) — **gebaut in 0.72.0** auf der Karte,
   zwischen „Ebenen" und „Meine Position" (die Knopfspalte trägt ihn
@@ -403,6 +465,26 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
   Schritt zum Pool, nicht beim Öffnen. Ohne Bereich: ein Satz, der den
   Ebenen-Knopf nennt. Ein Zielpunkt ungleich Start ist nicht gebaut
   (nur „Start ist auch Ziel" an/aus).
+  **Seit 0.74.0 kein Blatt mit Stufen mehr, sondern ein Modus mit Leiste
+  links** (Betreiber: „zum Planen links ein Menü in der Art wie rechts,
+  mit Planer-Optionen"; `loop_tool_rail.dart`, Zustand in
+  `loop_planner_controller.dart`). Der Runden-Knopf öffnet und schließt
+  ihn, wie der Ebenen-Knopf seine Leiste (beide nie zugleich). Von oben:
+  Start (Standort, oder der nächste Tipp auf die Karte), Parameter (das
+  Blatt mit Profil, den drei Reglern, „Start ist auch Ziel" und dem
+  **Radius der Liste**, 2–30 km, Vorgabe 12), Liste (die wählbaren Trails
+  im Radius, „Alle wählen", Stern = Pflicht), Gebiet dazu / weg (mit dem
+  Finger umfahren, dieselbe Zeichenfläche wie bei den Bereichen; ein
+  Trail zählt, wenn die Mehrheit seiner Punkte drin liegt), Auswahl
+  leeren, Rechnen (mit der Zahl der gewählten Trails), Schließen. **Der
+  wichtigste Weg ist die Karte selbst: ein Tipp auf einen Trail wählt ihn
+  an (er leuchtet), ein zweiter ab.** Ab Werk ist nichts gewählt — die
+  Runde besteht aus dem, was der Fahrer will, nicht aus allem im Umkreis.
+  Der Radius begrenzt nur die Liste; was angetippt ist, gehört dazu.
+  Uphill-Trails und Verbinder sind nicht wählbar (die Karte sagt es),
+  wartende auch nicht. Das Ergebnis kommt als Blatt von unten (kein
+  Modal); zu heißt Ergebnis weg, Leiste und Auswahl bleiben. Zurück geht
+  stufenweise: Start-Tipp, Zeichnen, Planer.
 - **Gespeicherte Runde** = geplante Fahrt in „Meine Fahrten" (Konzept
   5.2; `Ride.planned`, mit Namen, Punkte ohne Zeit und Höhe, Dauer =
   Schätzung) — **ohne Schere**: Abweichung vom Satz oben. Zerlegt wird,
@@ -426,6 +508,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, GPX — **gebaut, 0.71.0** (`trail_head_route.dart` pur, `trail_head_sheet.dart`; Start ist der eigene Standort — der getippte Punkt und „Als Fahrt speichern" kommen mit Schritt 5, weil beides die geplante Fahrt in „Meine Fahrten" braucht) | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails — **gebaut, 0.72.0** (`loop_planner.dart` pur, `loop_planner_sheet.dart`, `loop_planner_providers.dart`; geplante Fahrt in „Meine Fahrten", „Als Fahrt speichern" auch bei „Zum Trailkopf") | #158/5 | feat |
 | 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 — **gebaut, 0.73.0** (`ride_calibration.dart` pur als Spiegel von `ride_sections`/`class_mix_along` im Werkzeug, `ride_calibrator.dart`; auf Knopfdruck unter „Fahrerprofil", Median je Klassengruppe ab drei Aufstiegen, plausible Spanne; die Planer lesen `calibratedRiderProvider`) | #158 | feat |
+| 7 | Rund machen nach dem ersten Feldeinsatz: Blätter ohne Modal und über der Karte eingepasst, Planung über den vorhandenen Teil der Kacheln, Trail-Richtung und Verbinder auf dem Graphen (Patch 016 „in beide Richtungen"), Direkt/Spaßig, Navi-Symbol, langer Druck, Auswählen statt öffnen — **gebaut, 0.74.0** | #174 #176 #177 #178 #185 | feat |
 
 Schritt 1 entscheidet, ob 2–5 so gebaut werden oder ob vorher die
 Pipeline (2.5, letzter Punkt) dran ist. Schritte 3–5 brauchen keine

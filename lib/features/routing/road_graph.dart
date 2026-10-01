@@ -193,6 +193,24 @@ class GraphEdge {
   int b;
   final WayClass cls;
   final bool oneway;
+
+  /// Der Trail, auf dem die Kante liegt (#174, #185) — gesetzt von
+  /// `applyTrails`, null für einen gewöhnlichen Weg.
+  EdgeTrail? trail;
+
+  /// Gesperrt in Kantenrichtung (a → b) bzw. dagegen: Ein Trail wird nie
+  /// gegen seine Richtung gefahren, außer er ist in beide Richtungen
+  /// fahrbar (#174). Wie die Einbahn, nur für jede Klasse.
+  bool blockForward = false;
+  bool blockBackward = false;
+
+  /// Ein Uphill-Trail oder Verbinder (#185): Er ist der gewollte Weg
+  /// bergauf — günstiger als Forstweg ([kTrailConnectorFactor]) und kein
+  /// Wanderweg im Sinn des Budgets, auch wenn die Karte ihn so führt.
+  bool get connector => trail?.connector ?? false;
+
+  /// Zählt gegen „höchstens Wanderweg".
+  bool get hiking => cls.hiking && !connector;
   List<LatLng> points;
   double length;
   final int level;
@@ -205,6 +223,23 @@ class GraphEdge {
   /// es ([RoadGraph.edgesWithoutHeights]).
   bool hasHeights = false;
 }
+
+/// Was auf einer Kante liegt: welcher Trail und ob er ein Verbinder ist
+/// (Uphill-Trail oder Verbindung, #185).
+class EdgeTrail {
+  const EdgeTrail({required this.id, required this.name, required this.connector});
+
+  final String id;
+  final String name;
+  final bool connector;
+}
+
+/// Der Aufschlag auf einem Uphill-Trail oder Verbinder statt dem der
+/// Wegklasse (#185, Feldbericht 0.73.0: „Uphill-Trails und Verbinder
+/// sollten belohnt werden"): unter Forstweg (1,0), damit die Suche sie
+/// vorzieht, wo sie hinführen. Ein Startwert, nicht gemessen — die Zeit
+/// bleibt die der Klasse, nur die Wahl wird günstiger.
+const kTrailConnectorFactor = 0.8;
 
 /// Ein Treffer auf einer Kante: Abstand, Kante, Segment, Anteil im
 /// Segment, Punkt.
@@ -291,7 +326,26 @@ class RoadGraph {
     e.b = mid;
     e.length = _lengthOf(first);
     adj[mid].add(ei);
-    addEdge(mid, oldB, e.cls, e.oneway, second, level: e.level);
+    final ni = addEdge(mid, oldB, e.cls, e.oneway, second, level: e.level);
+    // Die zweite Hälfte erbt, was auf der Kante liegt — sonst ließe ein
+    // angehefteter Trailkopf den Rest eines Trails rückwärts befahrbar.
+    edges[ni]
+      ..trail = e.trail
+      ..blockForward = e.blockForward
+      ..blockBackward = e.blockBackward
+      ..hasHeights = e.hasHeights;
+    if (e.gain > 0 || e.loss > 0) {
+      // Höhen anteilig nach Länge — genauer weiß es niemand, und flach
+      // wäre falscher.
+      final total = e.length + edges[ni].length;
+      final share = total == 0 ? 0.0 : edges[ni].length / total;
+      edges[ni]
+        ..gain = e.gain * share
+        ..loss = e.loss * share;
+      e
+        ..gain = e.gain * (1 - share)
+        ..loss = e.loss * (1 - share);
+    }
     return mid;
   }
 

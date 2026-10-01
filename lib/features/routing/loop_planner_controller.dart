@@ -1,0 +1,330 @@
+// Der Planer als Modus der Karte (seit 0.74.0, Betreiber: „zum Planen
+// links ein Menü in der Art wie rechts, mit Planer-Optionen"). Der Zustand
+// lebt HIER, nicht in einem Blatt: Leiste (`loop_tool_rail.dart`), Karte
+// (Hervorhebung, Start-Nadel, Tipp auf einen Trail) und Ergebnis-Blatt
+// (`loop_planner_sheet.dart`) lesen dieselbe Wahrheit.
+//
+// Vier Dinge, die man wissen muss:
+// - **Die Auswahl macht der Nutzer.** Ein Tipp auf einen Trail der Karte
+//   wählt ihn an, ein zweiter ab; die Liste (mit einstellbarem Radius) und
+//   das gezeichnete Gebiet sind zwei weitere Wege zu DERSELBEN Menge. Der
+//   Radius begrenzt nur die Liste — was angetippt ist, gehört dazu.
+// - **Uphill-Trails und Verbinder sind nicht wählbar**: Sie sind der Weg
+//   bergauf, die Runde nutzt sie von selbst (#185, `trail_overlay.dart`).
+// - **Der Start ist der Standort, solange keiner getippt ist** — der Fix
+//   kommt erst beim Rechnen (oder beim Öffnen der Liste), nie beim
+//   Öffnen des Planers.
+// - **Rechnen geht nie still schief**: Jeder Ausgang hat eine Phase oder
+//   einen Grund ([LoopBlocker]), ein Fehler wird gemeldet.
+import 'package:flutter/widgets.dart' show WidgetsBinding;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../../core/errors.dart';
+import '../../core/line_geometry.dart';
+import '../../core/settings.dart';
+import '../../models/trail.dart';
+import '../map/position_provider.dart';
+import '../offline_areas/area_draw.dart' show AreaDrawTool;
+import '../profile/profile_providers.dart';
+import '../trails/trail_providers.dart';
+import 'loop_planner.dart';
+import 'planning_graph.dart';
+import 'ride_calibrator.dart';
+import 'road_graph.dart';
+import 'route_profile.dart';
+import 'trail_overlay.dart';
+
+enum LoopPhase { idle, locating, loading, computing, result }
+
+enum LoopBlocker { noPosition, noArea, noTrails, failed }
+
+class LoopSession {
+  const LoopSession({
+    this.open = false,
+    this.start,
+    this.pickingStart = false,
+    this.drawTool,
+    this.selected = const {},
+    this.mandatory = const {},
+    required this.prefs,
+    required this.profile,
+    this.phase = LoopPhase.idle,
+    this.blocker,
+    this.plan,
+    this.planStart,
+    this.partial = false,
+    this.tilesFound = 0,
+    this.tilesNeeded = 0,
+  });
+
+  /// Der Planer-Modus ist an: Leiste links, Tipps wählen Trails.
+  final bool open;
+
+  /// Der getippte Start; null heißt der eigene Standort.
+  final LatLng? start;
+
+  /// Der nächste Tipp auf die Karte ist der Start.
+  final bool pickingStart;
+
+  /// Ein Gebiet wird gezeichnet: dazu ([AreaDrawTool.add]) oder weg.
+  final AreaDrawTool? drawTool;
+
+  final Set<String> selected;
+
+  /// Muss dabei sein (Stern in der Liste).
+  final Set<String> mandatory;
+  final LoopPrefs prefs;
+  final RiderProfile profile;
+  final LoopPhase phase;
+  final LoopBlocker? blocker;
+  final LoopPlan? plan;
+
+  /// Wo die gerechnete Runde wirklich beginnt (Standort oder Tipp).
+  final LatLng? planStart;
+  final bool partial;
+  final int tilesFound;
+  final int tilesNeeded;
+
+  bool get busy => phase == LoopPhase.locating || phase == LoopPhase.loading || phase == LoopPhase.computing;
+
+  LoopSession copyWith({
+    bool? open,
+    LatLng? start,
+    bool clearStart = false,
+    bool? pickingStart,
+    AreaDrawTool? drawTool,
+    bool clearDrawTool = false,
+    Set<String>? selected,
+    Set<String>? mandatory,
+    LoopPrefs? prefs,
+    RiderProfile? profile,
+    LoopPhase? phase,
+    LoopBlocker? blocker,
+    bool clearBlocker = false,
+    LoopPlan? plan,
+    bool clearPlan = false,
+    LatLng? planStart,
+    bool? partial,
+    int? tilesFound,
+    int? tilesNeeded,
+  }) =>
+      LoopSession(
+        open: open ?? this.open,
+        start: clearStart ? null : (start ?? this.start),
+        pickingStart: pickingStart ?? this.pickingStart,
+        drawTool: clearDrawTool ? null : (drawTool ?? this.drawTool),
+        selected: selected ?? this.selected,
+        mandatory: mandatory ?? this.mandatory,
+        prefs: prefs ?? this.prefs,
+        profile: profile ?? this.profile,
+        phase: phase ?? this.phase,
+        blocker: clearBlocker ? null : (blocker ?? this.blocker),
+        plan: clearPlan ? null : (plan ?? this.plan),
+        planStart: clearPlan ? null : (planStart ?? this.planStart),
+        partial: partial ?? this.partial,
+        tilesFound: tilesFound ?? this.tilesFound,
+        tilesNeeded: tilesNeeded ?? this.tilesNeeded,
+      );
+}
+
+/// Was ein Tipp auf einen Trail im Planer getan hat — die Karte sagt es,
+/// wenn er nicht wählbar ist.
+enum LoopToggle { selected, deselected, connector, pending }
+
+class LoopPlannerNotifier extends Notifier<LoopSession> {
+  RoadGraph? _graph;
+  LatLng? _graphStart;
+  Set<String> _graphTrails = const {};
+
+  @override
+  LoopSession build() {
+    final profile = ref.read(riderProfileProvider);
+    return LoopSession(prefs: LoopPrefs.parse(ref.read(settingsProvider).loopPlannerPrefs, profile), profile: profile);
+  }
+
+  List<Trail> get _trails => ref.read(trailsProvider).valueOrNull ?? const <Trail>[];
+
+  /// Den Modus öffnen; [start] aus „Route ab hier".
+  void open({LatLng? start}) {
+    // Ohne neuen Start bleibt ein früher getippter stehen.
+    state = state.copyWith(open: true, start: start, pickingStart: false, clearDrawTool: true);
+  }
+
+  /// Den Modus schließen. Die Auswahl bleibt für die Sitzung — wer
+  /// wiederkommt, findet seine Trails noch angewählt.
+  void close() {
+    state = state.copyWith(
+      open: false,
+      pickingStart: false,
+      clearDrawTool: true,
+      clearPlan: true,
+      clearBlocker: true,
+      phase: LoopPhase.idle,
+    );
+  }
+
+  LoopToggle toggle(Trail t) {
+    if (t.pending) return LoopToggle.pending;
+    if (trailRoleOf(t) != TrailRole.downhill) return LoopToggle.connector;
+    final selected = {...state.selected};
+    final mandatory = {...state.mandatory};
+    final on = selected.add(t.id);
+    if (!on) {
+      selected.remove(t.id);
+      mandatory.remove(t.id);
+    }
+    state = state.copyWith(selected: selected, mandatory: mandatory, clearPlan: true, clearBlocker: true);
+    return on ? LoopToggle.selected : LoopToggle.deselected;
+  }
+
+  void setSelected(Iterable<String> ids, bool on) {
+    final selected = {...state.selected};
+    final mandatory = {...state.mandatory};
+    for (final id in ids) {
+      if (on) {
+        selected.add(id);
+      } else {
+        selected.remove(id);
+        mandatory.remove(id);
+      }
+    }
+    state = state.copyWith(selected: selected, mandatory: mandatory, clearPlan: true, clearBlocker: true);
+  }
+
+  void clearSelection() =>
+      state = state.copyWith(selected: const {}, mandatory: const {}, clearPlan: true, clearBlocker: true);
+
+  void toggleMandatory(String id) {
+    final mandatory = {...state.mandatory};
+    final selected = {...state.selected};
+    if (!mandatory.remove(id)) {
+      mandatory.add(id);
+      selected.add(id);
+    }
+    state = state.copyWith(selected: selected, mandatory: mandatory, clearPlan: true);
+  }
+
+  /// Ein gezeichnetes Gebiet: was es fasst, kommt dazu bzw. fällt weg
+  /// (nur wählbare Trails — Abfahrten).
+  int applyRing(List<LatLng> ring) {
+    final tool = state.drawTool ?? AreaDrawTool.add;
+    final hits = trailsInRing(
+        _trails.where((t) => !t.pending && trailRoleOf(t) == TrailRole.downhill), ring);
+    setSelected(hits, tool == AreaDrawTool.add);
+    state = state.copyWith(clearDrawTool: true);
+    return hits.length;
+  }
+
+  /// Ein Werkzeug scharf machen; derselbe Knopf noch einmal entschärft.
+  void armDraw(AreaDrawTool tool) => state = state.drawTool == tool
+      ? state.copyWith(clearDrawTool: true)
+      : state.copyWith(drawTool: tool, pickingStart: false);
+
+  void disarmDraw() => state = state.copyWith(clearDrawTool: true);
+
+  void armStartPick() => state = state.copyWith(pickingStart: true, clearDrawTool: true);
+
+  void cancelStartPick() => state = state.copyWith(pickingStart: false);
+
+  void takeStart(LatLng p) =>
+      state = state.copyWith(start: p, pickingStart: false, clearPlan: true, clearBlocker: true);
+
+  void useMyPosition() => state = state.copyWith(clearStart: true, clearPlan: true, clearBlocker: true);
+
+  void setPrefs(LoopPrefs prefs) {
+    state = state.copyWith(prefs: prefs, clearPlan: true);
+    ref.read(settingsProvider).setLoopPlannerPrefs(prefs.encode()).catchError((Object e, StackTrace s) {
+      logError('Planer-Regler merken', e, s);
+    });
+  }
+
+  void setProfile(RiderProfile next) {
+    var prefs = state.prefs;
+    // Steht das Höhenbudget auf der Vorgabe des alten Profils, folgt es dem
+    // neuen — wer es selbst gestellt hat, behält es.
+    if (prefs.climbM == state.profile.budgetClimbM) prefs = prefs.copyWith(climbM: next.budgetClimbM);
+    state = state.copyWith(profile: next, prefs: prefs, clearPlan: true);
+  }
+
+  /// Das Ergebnis weglegen (Blatt zu); Modus und Auswahl bleiben.
+  void clearResult() =>
+      state = state.copyWith(clearPlan: true, clearBlocker: true, phase: LoopPhase.idle);
+
+  /// Der Mittelpunkt der Liste: getippter Start, sonst der Standort (mit
+  /// Fix, wenn noch keiner läuft). Null ohne beides.
+  Future<LatLng?> listCenter() async {
+    final s = state.start;
+    if (s != null) return s;
+    final known = ref.read(positionStreamProvider).valueOrNull;
+    if (known != null) return LatLng(known.latitude, known.longitude);
+    final fix = await ref.read(positionFixProvider)();
+    return fix == null ? null : LatLng(fix.latitude, fix.longitude);
+  }
+
+  /// Rechnen. Jeder Ausgang ist eine Phase oder ein Grund.
+  Future<void> compute() async {
+    if (state.busy) return;
+    final chosen = [
+      for (final t in _trails)
+        if (state.selected.contains(t.id) && !t.pending && t.points.length >= 2) t,
+    ];
+    if (chosen.isEmpty) {
+      state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noTrails, clearPlan: true);
+      return;
+    }
+    state = state.copyWith(clearPlan: true, clearBlocker: true, clearDrawTool: true, pickingStart: false);
+    try {
+      var start = state.start;
+      if (start == null) {
+        state = state.copyWith(phase: LoopPhase.locating);
+        final fix = await ref.read(positionFixProvider)();
+        if (fix == null) {
+          state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noPosition);
+          return;
+        }
+        start = LatLng(fix.latitude, fix.longitude);
+      }
+      final ids = {for (final t in chosen) t.id};
+      if (_graph == null || _graphStart != start || !_graphTrails.containsAll(ids)) {
+        state = state.copyWith(phase: LoopPhase.loading);
+        final s0 = start;
+        // Die Uphill-Trails und Verbinder im Umkreis gehören in den Rahmen —
+        // sie sind der Weg bergauf (#185).
+        final connectors = loopPoolOf(_trails, s0, reachM: state.prefs.radiusKm * 1000).connectors;
+        final loaded = await ref.read(planningGraphLoaderProvider)(LatBox.of([
+          s0,
+          for (final t in chosen) ...t.directedPoints,
+          for (final t in connectors) ...t.points,
+        ]));
+        if (loaded.graph == null) {
+          state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noArea);
+          return;
+        }
+        _graph = loaded.graph;
+        _graphStart = start;
+        _graphTrails = ids;
+        state = state.copyWith(
+            partial: loaded.partial, tilesFound: loaded.tilesFound, tilesNeeded: loaded.tilesNeeded);
+      }
+      state = state.copyWith(phase: LoopPhase.computing);
+      // Ein Bild für den Kreisel, bevor die Rechnung den Takt belegt.
+      await WidgetsBinding.instance.endOfFrame;
+      final plan = planLoop(
+        _graph!,
+        start: start,
+        // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
+        profile: ref.read(calibratedRiderProvider(state.profile)),
+        budget: state.prefs.budget,
+        pool: [for (final t in chosen) poolTrailOf(t, mandatory: state.mandatory.contains(t.id))],
+        returnToStart: state.prefs.returnToStart,
+      );
+      state = state.copyWith(phase: LoopPhase.result, plan: plan, planStart: start);
+    } catch (e, s) {
+      logError('Runde planen', e, s);
+      state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.failed);
+    }
+  }
+}
+
+final loopPlannerProvider = NotifierProvider<LoopPlannerNotifier, LoopSession>(LoopPlannerNotifier.new);

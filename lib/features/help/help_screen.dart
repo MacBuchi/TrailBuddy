@@ -79,7 +79,9 @@ const kHelpSteps = <HelpStep>[
         'heißt gemeldet, ein gelber ein neuer Hinweis; Violett gestrichelt '
         'sind offizielle Trails. Am Anfang jedes Trails steht sein Schild, '
         'darunter ein Punkt, dessen Pfeil die Fahrtrichtung zeigt; ein Quadrat '
-        'ist das Ende. Ein Tipp aufs Schild oder auf die Linie öffnet das Blatt.',
+        'ist das Ende. Ein Tipp aufs Schild oder auf die Linie wählt den Trail aus '
+        '— unten steht eine kleine Karte, ein Tipp darauf öffnet das Blatt. Ein '
+        'langer Druck auf die Karte bietet „Route ab hier" und „Route bis hier".',
   ),
   HelpStep(
     icon: _HelpIcon(Icons.circle),
@@ -92,7 +94,8 @@ const kHelpSteps = <HelpStep>[
         'und endet. Danach zerlegst du die Fahrt: Bekannte Trails erkennt die '
         'App wieder, neue Stücke wählst du selbst. Als GPX exportiert, kannst '
         'du die Fahrt in jede andere App laden. Vorher planst du mit dem '
-        'Runden-Knopf eine Runde aus deinen Trails — offline, aus deinen '
+        'Runden-Knopf eine Runde: Trails antippen (noch einmal heißt ab), links '
+        'Parameter, Liste und Gebiet, dann rechnen — offline, aus deinen '
         'gespeicherten Bereichen; sie liegt dann unter „Meine Fahrten". In der '
         'Web-App gibt es keine Aufzeichnung.',
   ),

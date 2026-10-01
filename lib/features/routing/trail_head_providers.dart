@@ -7,9 +7,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../map/map_view/map_view.dart';
 
-/// Der Trail, zu dessen Kopf die Karte den Weg zeigen soll; die Karte
-/// nimmt den Wunsch und setzt ihn auf null.
-final trailHeadRequestProvider = StateProvider<String?>((ref) => null);
+/// Direkt oder spaßig (#176): der günstigste Weg, oder einer, der
+/// Abfahrten auf dem Weg mitnimmt.
+enum RouteMode { direct, fun }
+
+/// Der Trail, zu dessen Kopf die Karte den Weg zeigen soll, und wie; die
+/// Karte nimmt den Wunsch und setzt ihn auf null.
+typedef TrailHeadRequest = ({String trailId, RouteMode mode});
+
+final trailHeadRequestProvider = StateProvider<TrailHeadRequest?>((ref) => null);
 
 /// Die Vorschau der Route — gezeichnet vom Blatt, gemalt vom
 /// Karten-Screen über der Fahrt und unter dem Netz; ohne Blatt leer.

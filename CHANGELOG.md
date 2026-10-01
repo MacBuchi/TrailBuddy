@@ -2,6 +2,49 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Navigation rund: sichtbar, ehrlich, nie gegen den Trail
+
+*Version 0.74.0, 2026-10-01*
+
+- **Die geplante Route liegt jetzt über dem Blatt, nicht darunter.**
+  Planer und „Zum Trailkopf" sind kein Fenster mehr, das die Karte
+  sperrt: Die Karte bleibt bedienbar, beim Ergebnis klappt das Blatt
+  ein und die Karte zeigt die ganze Route darüber. **Runterziehen
+  verkleinert nur** — geschlossen wird mit dem X oder Zurück.
+- **Kein Scheitern mehr ohne Grund.** Gerechnet wird über die Kacheln
+  deiner Bereiche, die da sind — auch wenn sie das Rechteck um die Runde
+  nicht ganz füllen (das war bei „Entlang meiner Trails" fast immer so).
+  Was eine Planung aufhält, steht oben im Blatt; geht beim Rechnen etwas
+  schief, sagt das Blatt es, statt weiter zu kreiseln. Und Wege, an die
+  ein Trailkopf angeheftet wird, verlieren ihre Höhen nicht mehr.
+- **Nie rückwärts über einen Trail.** Liegt ein Trail auf einem Pfad der
+  Karte, fährt die Planung ihn nur noch in seiner Richtung — nicht mehr
+  hinauf. Ein flacher Trail darf auch andersherum: dafür gibt es im
+  eigenen Beitrag **„In beide Richtungen fahrbar"**.
+- **Uphill-Trails und Verbinder sind der Weg bergauf.** Sie stehen nicht
+  mehr als Abfahrt im Pool, sondern werden beim Aufstieg bevorzugt —
+  auch mehrmals, auch wenn die Karte sie nicht kennt. Das Ergebnis nennt
+  sie mit Namen. Forstwege dürfen wie bisher beliebig oft vorkommen.
+- **Der Planer hat eine eigene Leiste links**, wie „Ebenen": Start
+  (Standort oder auf der Karte getippt), **Parameter** (Profil, Zeit,
+  Höhenmeter, Wanderweg, „Start ist auch Ziel" und der Radius der
+  Liste), die **Liste** der Trails im Radius, **Gebiet dazu / weg** (mit
+  dem Finger umfahren — wie beim Zeichnen der Bereiche), Auswahl leeren
+  und **Rechnen**. Vor allem aber: **Trails auf der Karte antippen** —
+  einmal heißt dabei (sie leuchten), noch einmal heißt raus. Das Ergebnis
+  kommt von unten, die Leiste und deine Auswahl bleiben stehen, bis du
+  den Planer schließt.
+- **Außerhalb des Planers heißt Trail antippen erst auswählen:** Er
+  leuchtet, unten steht eine kleine Karte mit Name, Länge und Sternen;
+  ein Tipp darauf (oder ein zweiter auf den Trail) öffnet das Blatt.
+- **Das Navi-Symbol an jedem Trail** (Liste und kleine Karte): mit deiner
+  Navi-App, oder in TrailBuddy **direkt** oder **spaßig** — spaßig nimmt
+  Abfahrten auf dem Weg zum Trail mit. Einmal als Standard gemerkt, fragt
+  nur noch ein langer Druck aufs Symbol.
+- **Langer Druck auf die Karte:** „Route ab hier" (der Planer mit diesem
+  Start), „Route bis hier" (der Weg von deinem Standort) oder die
+  Navi-App.
+
 ## Auf dich eingestellt: gelernt aus deinen Fahrten
 
 *Version 0.73.0, 2026-10-01*

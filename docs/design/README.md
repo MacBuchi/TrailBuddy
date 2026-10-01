@@ -328,8 +328,25 @@ die Karte ist immer hell). Abweichung vom Entwurf: Das Schild steht auf
 der Seite, von der die Linie WEGführt (`trailHeadsNorth`, gemessen an
 einem Punkt ~30 m weiter) — über dem Anfang lag es sonst auf der Linie.
 Kein Schild ohne Grad und ohne Merkmale, keins für wartende Trails. Ein
-Tipp öffnet den Trail (`hitValue`); die Trefferprüfung fragt Linien vor
+Tipp wählt den Trail aus (`hitValue`); die Trefferprüfung fragt Linien vor
 Markern, am Anfang treffen beide denselben Trail.
+
+**Auswählen statt öffnen seit 0.74.0** (#178, `trail_quick_card.dart`):
+Ein Tipp legt einen Leuchtrand in der Marke (Lime, 55 %, 12 px) unter
+die Linie und zeigt unten links, neben der Knopfspalte, die
+Schnellkarte — Schild, Name, Länge, Sterne, das Navi-Symbol (#176), ein
+Pfeil und ein X. Ein Tipp auf sie oder ein zweiter auf den Trail öffnet
+das Blatt; ein Tipp ins Leere, das X oder Zurück heben auf. Ein langer
+Druck auf die Karte setzt eine Nadel in der Marke und öffnet das Menü
+„Route ab hier / Route bis hier / Mit der Navi-App hierher" (#177).
+
+**Die Leiste des Planers seit 0.74.0** (`loop_tool_rail.dart`): derselbe
+Look wie die Leiste „Ebenen" (52 dp, Knöpfe 44 dp, aktives Werkzeug in
+Gegenhelligkeit, „Rechnen" Lime, die Zahl der gewählten Trails in Mono
+darunter), am selben Platz und nie mit ihr zugleich. Der Runden-Knopf
+rechts trägt dann den Rand in der Marke. Gewählte Trails leuchten in der
+Marke (55 %, Pflicht 80 %, 8 px), der getippte Start ist eine Fahne in
+der Marke.
 
 **Anfang, Richtung, Ende seit 0.66.0** (#96, `trail_end_marks.dart`,
 Schritt 6c): je Trail eine Scheibe (14 px) in der Trail-Farbe mit weißem
@@ -402,7 +419,8 @@ Schwierigkeit (E9) —, eine unbestätigte Meldung gedämpft mit „?"
   (`trails_screen.dart`, Regel `trailRowTags` in `trail_list.dart`), mit
   drei Abweichungen: Das Wort steht unter den Zahlen, nicht rechts —
   rechts stehen seit 4e Schild und Charakter-Symbole, beides zusammen
-  liefe auf 360 dp über. Ein Zustand (wartet, gemeldet, neuer Hinweis)
+  liefe auf 360 dp über. Seit 0.74.0 steht LINKS davon das Navi-Symbol
+  (#176); das Schild bleibt am rechten Rand. Ein Zustand (wartet, gemeldet, neuer Hinweis)
   schlägt die Beziehung; nur ohne Zustand steht „MEIN · 2 BUDDYS" bzw.
   die Namen (höchstens zwei, Alias vor Name). Die Karten sind flach
   (`elevation: 0`) mit Rand in der Linienfarbe; der gelbe Rahmen trägt

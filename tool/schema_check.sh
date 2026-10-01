@@ -243,7 +243,7 @@ check_get_protected "recordings_visible-Spalten (Aufzeichnungen)" \
 # status_at liest die App seit Patch 013 nicht mehr, Clients bis 0.48.0
 # schon — deshalb stehen sie weiter hier.
 check_get_protected "trail_details-Spalten (Beiträge)" \
-  "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,traits,rating,link,visibility,status,status_at,created_at,updated_at&limit=1"
+  "/rest/v1/trail_details?select=trail_id,user_id,name,description,grade,traits,rating,two_way,link,visibility,status,status_at,created_at,updated_at&limit=1"
 
 # trail_reports (Patch 013): Meldungen und Zustände, exakt die Query aus
 # TrailRepository.fetchReports samt Embed über den Constraint-NAMEN.

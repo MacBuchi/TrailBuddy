@@ -17,6 +17,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/trail.dart';
@@ -123,18 +124,21 @@ String? navigationLabelOf(Trail trail) => trail.hasName ? trail.displayName : nu
 /// App-Wähler auf, steht die andere App im Vordergrund und eine SnackBar
 /// dahinter wäre für niemanden. Die beiden Rückfälle dagegen sähen ohne
 /// Meldung aus wie ein Knopf, der nichts tut.
-Future<void> navigateToTrailHead(BuildContext context, Trail trail) async {
+Future<void> navigateToTrailHead(BuildContext context, Trail trail) =>
+    navigateToPoint(context, trail.start, name: navigationLabelOf(trail), what: 'des Trailkopfs');
+
+/// Dasselbe für einen beliebigen Punkt (#177: „Route bis hier" mit der
+/// Navi-App). [what] steht im Satz der Rückfälle („Koordinaten des …").
+Future<void> navigateToPoint(BuildContext context, LatLng point, {String? name, String what = 'des Ziels'}) async {
   final messenger = ScaffoldMessenger.of(context);
-  final head = trail.start;
-  final outcome = await openInNavigationApp(
-      lat: head.latitude, lng: head.longitude, label: navigationLabelOf(trail));
+  final outcome = await openInNavigationApp(lat: point.latitude, lng: point.longitude, label: name);
   if (outcome == NavigationOutcome.opened) return;
-  final coordinates = formatCoordinates(head.latitude, head.longitude);
+  final coordinates = formatCoordinates(point.latitude, point.longitude);
   messenger
     ..clearSnackBars()
     ..showSnackBar(SnackBar(
       content: Text(outcome == NavigationOutcome.copiedNoApp
-          ? 'Keine Navi-App gefunden — Koordinaten des Trailkopfs kopiert: $coordinates'
-          : 'Koordinaten des Trailkopfs kopiert: $coordinates'),
+          ? 'Keine Navi-App gefunden — Koordinaten $what kopiert: $coordinates'
+          : 'Koordinaten $what kopiert: $coordinates'),
     ));
 }

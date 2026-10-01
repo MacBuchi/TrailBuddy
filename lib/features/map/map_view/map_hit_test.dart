@@ -69,12 +69,18 @@ LatLng unprojectFromScreen(MapViewCamera camera, Offset at) {
 /// von 0 ms („Null duration passed into animateCamera"). Mit dieser
 /// Rechnung setzt die Engine die Kamera ohne Animation, in EINEM
 /// Schritt samt Obergrenze — und der Fake der Tests rechnet dasselbe.
+///
+/// [bottomInset] ist die Höhe, die unten verdeckt ist (ein offenes Blatt
+/// über der Karte): Die Punkte kommen dann in die Fläche DARÜBER, die
+/// Mitte rückt um die halbe Höhe nach Süden. Ohne sie lag eine geplante
+/// Runde unter dem Planer-Blatt (Feldbericht 0.73.0).
 ({LatLng center, double zoom}) cameraToFit(
   List<LatLng> points,
   Size size, {
   required double padding,
   required double maxZoom,
   double minZoom = 0,
+  double bottomInset = 0,
 }) {
   var s = 90.0, n = -90.0, w = 180.0, e = -180.0;
   for (final p in points) {
@@ -85,8 +91,8 @@ LatLng unprojectFromScreen(MapViewCamera camera, Offset at) {
   }
   final yN = _mercY(n), yS = _mercY(s);
   final yMid = (yN + yS) / 2;
-  final center = LatLng((2 * math.atan(math.exp(yMid)) - math.pi / 2) * 180 / math.pi, (w + e) / 2);
-  final usableW = size.width - 2 * padding, usableH = size.height - 2 * padding;
+  final inset = bottomInset.clamp(0.0, math.max(0.0, size.height - 2 * padding - 1)).toDouble();
+  final usableW = size.width - 2 * padding, usableH = size.height - 2 * padding - inset;
   var zoom = maxZoom;
   if (usableW > 0 && usableH > 0) {
     final lonSpan = e - w, ySpan = yN - yS;
@@ -97,7 +103,12 @@ LatLng unprojectFromScreen(MapViewCamera camera, Offset at) {
       zoom = math.min(zoom, math.log(usableH * 2 * math.pi / (256 * ySpan)) / math.ln2);
     }
   }
-  return (center: center, zoom: zoom.clamp(minZoom, maxZoom).toDouble());
+  final z = zoom.clamp(minZoom, maxZoom).toDouble();
+  // Die sichtbare Mitte liegt [inset]/2 Pixel über der Bildmitte — die
+  // Kamera also um so viel südlicher (Mercator-y wächst nach Norden).
+  final yCenter = yMid - (inset / 2) / (256 * math.pow(2, z) / (2 * math.pi));
+  final center = LatLng((2 * math.atan(math.exp(yCenter)) - math.pi / 2) * 180 / math.pi, (w + e) / 2);
+  return (center: center, zoom: z);
 }
 
 /// Abstand von [p] zur Strecke [a]–[b].

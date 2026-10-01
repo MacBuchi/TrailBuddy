@@ -39,11 +39,18 @@ enum TrailHeadOutcome {
 /// Ein Stück der Route mit EINER Wegklasse — die Vorschau zeichnet
 /// Wanderweg anders als Forstweg, und die Liste nennt den Mix.
 class RouteSection {
-  const RouteSection({required this.cls, required this.points, required this.lengthM});
+  const RouteSection({required this.cls, required this.points, required this.lengthM, this.trail});
 
   final WayClass cls;
   final List<LatLng> points;
   final double lengthM;
+
+  /// Der Trail, auf dem das Stück liegt (#185: ein Uphill-Trail oder
+  /// Verbinder) — die Vorschau zeichnet es dann nicht als Wanderweg.
+  final EdgeTrail? trail;
+
+  /// Zählt gegen „höchstens Wanderweg" und wird gestrichelt gezeichnet.
+  bool get hiking => cls.hiking && !(trail?.connector ?? false);
 }
 
 class TrailHeadRoute {
@@ -101,25 +108,29 @@ TrailHeadPlan planTrailHeadRoute(RoadGraph g, LatLng from, LatLng head, RiderPar
 }
 
 /// Die Kanten [path] ab [src] zu Abschnitten je Wegklasse: aufeinander-
-/// folgende Kanten derselben Klasse werden EIN Abschnitt, die Punkte
+/// folgende Kanten derselben Klasse und desselben Trails werden EIN Abschnitt, die Punkte
 /// hängen aneinander (der gemeinsame Knoten steht einmal).
 List<RouteSection> sectionsOf(RoadGraph g, List<int> path, int src) {
   final out = <RouteSection>[];
   var n = src;
   WayClass? cls;
+  EdgeTrail? trail;
   var pts = <LatLng>[];
   var length = 0.0;
   void flush() {
-    if (cls != null && pts.length >= 2) out.add(RouteSection(cls: cls, points: pts, lengthM: length));
+    if (cls != null && pts.length >= 2) {
+      out.add(RouteSection(cls: cls, points: pts, lengthM: length, trail: trail));
+    }
   }
 
   for (final ei in path) {
     final e = g.edges[ei];
     final forward = e.a == n;
     final ep = forward ? e.points : e.points.reversed.toList();
-    if (e.cls != cls) {
+    if (e.cls != cls || e.trail?.id != trail?.id) {
       flush();
       cls = e.cls;
+      trail = e.trail;
       pts = [ep.first];
       length = 0;
     }

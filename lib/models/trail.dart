@@ -190,6 +190,7 @@ class TrailDetails {
     this.grade,
     this.traits = const {},
     this.rating,
+    this.twoWay = false,
     this.link,
     this.visibility = TrailVisibility.buddies,
     this.updatedAt,
@@ -212,6 +213,10 @@ class TrailDetails {
   /// bewertet. Unbekannte Werte fallen beim Lesen weg.
   final int? rating;
 
+  /// In beide Richtungen fahrbar (#174, Patch 016) — sonst fährt der
+  /// Planer den Trail nie gegen seine Richtung. Vorgabe aus.
+  final bool twoWay;
+
   /// Link zur Quelle (#103, Patch 012): https, ohne Query — geprüft von
   /// `sanitizeLink` und vom Check in der Datenbank.
   final String? link;
@@ -229,6 +234,7 @@ class TrailDetails {
       grade: json['grade'] as int?,
       traits: _traitsFromJson(json),
       rating: _ratingFromJson(json['rating']),
+      twoWay: json['two_way'] == true,
       link: json['link'] as String?,
       visibility: TrailVisibility.fromDb(json['visibility'] as String?),
       updatedAt: json['updated_at'] == null
@@ -247,6 +253,7 @@ class TrailDetails {
         // alten Wert, bis Patch-Folge die Spalte entfernt.
         'traits': [for (final t in TrailTrait.values) if (traits.contains(t)) t.db],
         'rating': rating,
+        'two_way': twoWay,
         'link': link,
         'visibility': visibility.db,
         // `status`/`status_at` schreibt die App seit 0.49.0 nicht mehr: Die
@@ -262,6 +269,7 @@ class TrailDetails {
     Set<TrailTrait>? traits,
     int? rating,
     bool clearRating = false,
+    bool? twoWay,
     String? link,
     bool clearLink = false,
     TrailVisibility? visibility,
@@ -275,6 +283,7 @@ class TrailDetails {
         grade: clearGrade ? null : (grade ?? this.grade),
         traits: traits ?? this.traits,
         rating: clearRating ? null : (rating ?? this.rating),
+        twoWay: twoWay ?? this.twoWay,
         link: clearLink ? null : (link ?? this.link),
         visibility: visibility ?? this.visibility,
         updatedAt: updatedAt,
@@ -741,6 +750,19 @@ class Trail {
     final ratings = details.map((d) => d.rating).whereType<int>().toList()..sort();
     if (ratings.isEmpty) return null;
     return ratings[ratings.length ~/ 2];
+  }
+
+  /// In beide Richtungen fahrbar (#174)? Die EIGENE Angabe gilt für die
+  /// eigene Planung; ohne eigenen Beitrag die Mehrheit der sichtbaren
+  /// Beiträge, bei Gleichstand NEIN — im Zweifel die Richtung des Trails,
+  /// ein Planer, der jemanden einen Trail hinaufschickt, ist der teure
+  /// Fehler. Ohne Beitrag: nein.
+  bool get twoWay {
+    final own = myDetails;
+    if (own != null) return own.twoWay;
+    if (details.isEmpty) return false;
+    final yes = details.where((d) => d.twoWay).length;
+    return yes * 2 > details.length;
   }
 
   /// Ich habe den Trail belegt, aber noch nicht bewertet: verblasste

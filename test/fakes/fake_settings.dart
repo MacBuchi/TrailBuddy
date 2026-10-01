@@ -15,6 +15,7 @@ class FakeSettings implements Settings {
       this.appearance,
       this.riderProfile,
       this.loopPlannerPrefs,
+      this.navDefault,
       this.riderCalibration,
       // „Schon gesehen" ist die Vorgabe (#126): Jeder Flow-Test pumpt die
       // App auf die Karte, und mit `false` läge über jedem der Hinweis.
@@ -70,6 +71,14 @@ class FakeSettings implements Settings {
   @override
   Future<void> setLoopPlannerPrefs(String value) async {
     loopPlannerPrefs = value;
+  }
+
+  @override
+  String? navDefault;
+
+  @override
+  Future<void> setNavDefault(String? value) async {
+    navDefault = value;
   }
 
   @override

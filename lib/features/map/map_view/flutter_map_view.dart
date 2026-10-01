@@ -77,10 +77,10 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
   void move(LatLng center, double zoom) => _mapController.move(center, zoom);
 
   @override
-  void fit(List<LatLng> points, {required double padding, required double maxZoom}) {
+  void fit(List<LatLng> points, {required double padding, required double maxZoom, double bottomInset = 0}) {
     _mapController.fitCamera(CameraFit.bounds(
       bounds: LatLngBounds.fromPoints(points),
-      padding: EdgeInsets.all(padding),
+      padding: EdgeInsets.fromLTRB(padding, padding, padding, padding + bottomInset),
       maxZoom: maxZoom,
     ));
   }
@@ -136,6 +136,14 @@ class _FlutterMapViewState extends ConsumerState<FlutterMapView>
             ),
             layers,
           );
+        },
+        onLongPress: (tapPosition, latLng) {
+          final camera = _mapController.camera;
+          config.onLongPress?.call(MapTap(
+            point: latLng,
+            screenPoint: tapPosition.relative ?? camera.latLngToScreenOffset(latLng),
+            camera: _cameraOf(camera),
+          ));
         },
         onMapReady: () => _reportIdle(_mapController.camera),
         onMapEvent: (event) {

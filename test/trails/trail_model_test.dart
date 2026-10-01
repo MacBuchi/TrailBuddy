@@ -77,6 +77,24 @@ void main() {
     expect(rec('t', 'x').ridden, isTrue);
   });
 
+  test('#174 in beide Richtungen: die eigene Angabe, sonst die Mehrheit, im Zweifel nein', () {
+    Trail t(List<TrailDetails> details) =>
+        Trail(id: 't1', myId: 'me', recordings: [rec('t1', 'anna')], details: details);
+    TrailDetails d(String user, bool twoWay) => TrailDetails(trailId: 't1', userId: user, twoWay: twoWay);
+    expect(t(const []).twoWay, isFalse);
+    expect(t([d('anna', true)]).twoWay, isTrue);
+    expect(t([d('anna', true), d('bob', false)]).twoWay, isFalse, reason: 'Gleichstand: die Richtung gilt');
+    expect(t([d('anna', true), d('bob', true), d('cleo', false)]).twoWay, isTrue);
+    expect(t([d('anna', true), d('bob', true), d('me', false)]).twoWay, isFalse, reason: 'meine Angabe für meine Planung');
+    expect(t([d('anna', false), d('me', true)]).twoWay, isTrue);
+    // Zeile: geschrieben und gelesen, ältere Zeilen ohne Spalte heißen nein.
+    final row = d('me', true).toRow();
+    expect(row['two_way'], isTrue);
+    expect(TrailDetails.fromJson({...row, 'trail_id': 't1', 'user_id': 'me'}).twoWay, isTrue);
+    expect(TrailDetails.fromJson(const {'trail_id': 't1', 'user_id': 'me'}).twoWay, isFalse);
+    expect(d('me', true).copyWith(name: 'X').twoWay, isTrue, reason: 'copyWith verliert es nicht');
+  });
+
   test('eigener Name vor dem des ältesten Beitrags, Rest als „auch"', () {
     final t = Trail(
       id: 't1',

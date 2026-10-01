@@ -122,6 +122,7 @@ class MapViewConfig {
     this.bottomLeftInset = 0,
     this.onTap,
     this.onHit,
+    this.onLongPress,
     this.onCameraIdle,
   });
 
@@ -149,6 +150,11 @@ class MapViewConfig {
   /// [MapViewMarker.hitValue]). Was die Kennung ist, entscheidet der
   /// Screen (Trail, offizieller Trail, Ort).
   final void Function(Object hitValue, MapTap tap)? onHit;
+
+  /// Langer Druck auf die Karte (#177) — IMMER der Punkt, auch auf einer
+  /// Linie: Das Menü daran („Route ab hier", „Route bis hier") gilt dem
+  /// Ort, nicht dem, was dort liegt. Beide Engines melden ihn selbst.
+  final void Function(MapTap tap)? onLongPress;
 
   /// Die Karte ist zum Stehen gekommen. BEWUSST nur bei Stillstand: Daran
   /// hängen das Nachladen der Orte und der offiziellen Trails — beides
@@ -317,7 +323,9 @@ abstract class MapViewCameraDelegate {
 
   /// Alle Punkte ins Bild — mit Rand und einer Obergrenze für den Zoom,
   /// damit ein 200-m-Trail nicht auf Hausnummern-Maßstab landet.
-  void fit(List<LatLng> points, {required double padding, required double maxZoom});
+  /// [bottomInset]: so viele Pixel unten sind verdeckt (ein Blatt über
+  /// der Karte) — eingepasst wird in die Fläche darüber (`cameraToFit`).
+  void fit(List<LatLng> points, {required double padding, required double maxZoom, double bottomInset = 0});
   LatLng get center;
   double get zoom;
 }
@@ -338,14 +346,14 @@ class MapViewController {
   MapViewCameraDelegate? _delegate;
   LatLng _center;
   double _zoom;
-  ({List<LatLng> points, double padding, double maxZoom})? _pendingFit;
+  ({List<LatLng> points, double padding, double maxZoom, double bottomInset})? _pendingFit;
 
   void attach(MapViewCameraDelegate delegate) {
     _delegate = delegate;
     final fit = _pendingFit;
     if (fit != null) {
       _pendingFit = null;
-      delegate.fit(fit.points, padding: fit.padding, maxZoom: fit.maxZoom);
+      delegate.fit(fit.points, padding: fit.padding, maxZoom: fit.maxZoom, bottomInset: fit.bottomInset);
     }
   }
 
@@ -367,14 +375,14 @@ class MapViewController {
     delegate.move(center, zoom);
   }
 
-  void fit(List<LatLng> points, {double padding = 40, double maxZoom = 15}) {
+  void fit(List<LatLng> points, {double padding = 40, double maxZoom = 15, double bottomInset = 0}) {
     if (points.isEmpty) return;
     final delegate = _delegate;
     if (delegate == null) {
-      _pendingFit = (points: points, padding: padding, maxZoom: maxZoom);
+      _pendingFit = (points: points, padding: padding, maxZoom: maxZoom, bottomInset: bottomInset);
       return;
     }
-    delegate.fit(points, padding: padding, maxZoom: maxZoom);
+    delegate.fit(points, padding: padding, maxZoom: maxZoom, bottomInset: bottomInset);
   }
 
   LatLng get center => _delegate?.center ?? _center;
