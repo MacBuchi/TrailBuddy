@@ -240,17 +240,24 @@ class HeightReader {
   }
 
   /// Die Höhe am Punkt, null ohne Kachel oder auf NODATA. Ein Punkt
-  /// GENAU auf einer Kachelkante gehört rechnerisch der östlichen bzw.
-  /// südlichen Kachel; fehlt die, liest die westliche/nördliche an ihrem
-  /// Rand — die Ränder sind geteilt, es ist dieselbe Zahl.
+  /// GENAU auf einer Kachelkante gehört rechnerisch einer der beiden
+  /// Kacheln — welcher, entscheidet das letzte Bit des Rundlaufs Grad →
+  /// Meter → Grad. Fehlt die, liest die Nachbarkachel an ihrem Rand: Die
+  /// Ränder sind geteilt, es ist dieselbe Zahl. Ohne diese Regel war ein
+  /// Weg am Rand des einzigen Bereichs „ohne Höhe".
   Future<double?> heightAt(LatLng p) async {
     final t = heightTileOf(p);
     final tile = await tileAt(t.x, t.y);
     if (tile != null) return tile.at(t.fx, t.fy);
-    for (final (dx, dy) in [(1, 0), (0, 1), (1, 1)]) {
-      if ((dx == 1 && t.fx != 0) || (dy == 1 && t.fy != 0)) continue;
-      final edge = await tileAt(t.x - dx, t.y - dy);
-      if (edge != null) return edge.at(dx == 1 ? 1 : t.fx, dy == 1 ? 1 : t.fy);
+    const eps = 1e-9;
+    final xs = [(t.x, t.fx), if (t.fx <= eps) (t.x - 1, 1.0), if (t.fx >= 1 - eps) (t.x + 1, 0.0)];
+    final ys = [(t.y, t.fy), if (t.fy <= eps) (t.y - 1, 1.0), if (t.fy >= 1 - eps) (t.y + 1, 0.0)];
+    for (final (x, fx) in xs) {
+      for (final (y, fy) in ys) {
+        if (x == t.x && y == t.y) continue;
+        final edge = await tileAt(x, y);
+        if (edge != null) return edge.at(fx, fy);
+      }
     }
     return null;
   }

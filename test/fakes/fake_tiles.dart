@@ -7,13 +7,23 @@ import 'dart:typed_data';
 import 'package:vector_tile/raw/raw_vector_tile.dart' as raw;
 import 'package:vector_tile/util/command.dart';
 
-/// Eine Linie in Kachel-Pixeln (0 … [kTileExtent]) mit ihren Eigenschaften.
-typedef RoadLine = ({List<(int, int)> px, String kind, String? kindDetail, String layer});
+/// Eine Linie in Kachel-Pixeln (0 … [kTileExtent]) mit ihren Eigenschaften;
+/// [extra] trägt, was die Routing-Engine liest (`access`, `service`,
+/// `oneway`, `is_bridge`, `is_tunnel`) — Strings und Bools, wie Protomaps
+/// sie schreibt.
+typedef RoadLine = ({
+  List<(int, int)> px,
+  String kind,
+  String? kindDetail,
+  String layer,
+  Map<String, Object> extra,
+});
 
 const kTileExtent = 4096;
 
-RoadLine road(List<(int, int)> px, String kind, {String? kindDetail, String layer = 'roads'}) =>
-    (px: px, kind: kind, kindDetail: kindDetail, layer: layer);
+RoadLine road(List<(int, int)> px, String kind,
+        {String? kindDetail, String layer = 'roads', Map<String, Object> extra = const {}}) =>
+    (px: px, kind: kind, kindDetail: kindDetail, layer: layer, extra: extra);
 
 /// Kodiert die Linien je Ebene in EINE Kachel.
 Uint8List mvtTile(List<RoadLine> lines) {
@@ -24,11 +34,26 @@ Uint8List mvtTile(List<RoadLine> lines) {
   final tile = raw.VectorTile();
   for (final entry in byLayer.entries) {
     final keys = <String>['kind', 'kind_detail'];
-    final values = <raw.VectorTile_Value>[];
-    int valueIndex(String v) {
-      final i = values.indexWhere((x) => x.stringValue == v);
+    int keyIndex(String k) {
+      final i = keys.indexOf(k);
       if (i >= 0) return i;
-      values.add(raw.VectorTile_Value(stringValue: v));
+      keys.add(k);
+      return keys.length - 1;
+    }
+
+    final values = <raw.VectorTile_Value>[];
+    int valueIndex(Object v) {
+      final i = values.indexWhere((x) => switch (v) {
+            final String s => x.hasStringValue() && x.stringValue == s,
+            final bool b => x.hasBoolValue() && x.boolValue == b,
+            _ => false,
+          });
+      if (i >= 0) return i;
+      values.add(switch (v) {
+        final String s => raw.VectorTile_Value(stringValue: s),
+        final bool b => raw.VectorTile_Value(boolValue: b),
+        _ => throw ArgumentError('Eigenschaft $v: nur String und bool'),
+      });
       return values.length - 1;
     }
 
@@ -36,6 +61,9 @@ Uint8List mvtTile(List<RoadLine> lines) {
     for (final l in entry.value) {
       final tags = <int>[0, valueIndex(l.kind)];
       if (l.kindDetail != null) tags.addAll([1, valueIndex(l.kindDetail!)]);
+      for (final e in l.extra.entries) {
+        tags.addAll([keyIndex(e.key), valueIndex(e.value)]);
+      }
       final geometry = <int>[];
       var x = 0, y = 0;
       for (var i = 0; i < l.px.length; i++) {

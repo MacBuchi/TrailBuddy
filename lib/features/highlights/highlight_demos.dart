@@ -371,6 +371,15 @@ final kHighlightDemos = <String, HighlightDemo>{
               'Android Benachrichtigungen nicht erlaubt.'),
     ]),
   ),
+  'rider-profile': HighlightDemo(
+    route: '/profile',
+    script: _demo('rider-profile', [
+      _profileRow('rider', 'Bio-Bike oder E-Bike',
+          'Das Profil ändert, wie schnell es bergauf geht, wie teuer ein '
+              'Wanderweg bergauf ist und wie viele Höhenmeter eine Runde haben '
+              'darf. Jede Fahrt merkt es sich beim Start.'),
+    ]),
+  ),
   'appearance': HighlightDemo(
     route: '/profile',
     script: _demo('appearance', [

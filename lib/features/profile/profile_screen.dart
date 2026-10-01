@@ -26,6 +26,7 @@ import '../friends/friend_providers.dart';
 import '../offline_areas/area_providers.dart' show storedAreasProvider;
 import '../offline_areas/height_tiles.dart' show kHeightsAttribution;
 import '../rides/ride_providers.dart' show rideRecordingAvailableProvider, ridesProvider;
+import '../routing/route_profile.dart';
 import '../trails/trail_providers.dart' show stillValidQuestionsProvider, trailCacheProvider, trailsProvider;
 import 'account_dialogs.dart';
 import 'profile_providers.dart';
@@ -124,6 +125,13 @@ class ProfileScreen extends ConsumerWidget {
             title: 'Benachrichtigungen',
             value: push ? 'Ein' : 'Aus',
             onTap: () => context.push('/profile/notifications'),
+          ),
+          _ProfileRow(
+            id: 'rider',
+            icon: Icons.pedal_bike_outlined,
+            title: 'Fahrerprofil',
+            value: ref.watch(riderProfileProvider).label,
+            onTap: () => context.push('/profile/rider'),
           ),
           _ProfileRow(
             id: 'appearance',
@@ -372,6 +380,14 @@ class AppearanceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       const _ProfilePage(title: 'Erscheinungsbild', children: [_AppearanceSection()]);
+}
+
+class RiderProfileScreen extends StatelessWidget {
+  const RiderProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const _ProfilePage(title: 'Fahrerprofil', children: [_RiderProfileSection()]);
 }
 
 class AboutScreen extends StatelessWidget {
@@ -688,6 +704,64 @@ class _AppearanceSection extends ConsumerWidget {
         const SizedBox(height: 4),
         Text('Gilt nur für dieses Gerät. Die Karte selbst bleibt hell.',
             style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+/// Das Fahrerprofil (Konzept-Routing 2.1): Bio-Bike oder E-Bike, mit
+/// den Zahlen, die es ändert — und nur denen. Gerätelokal; die
+/// Routenplanung liest es, jede Fahrt merkt es sich beim Start.
+class _RiderProfileSection extends ConsumerWidget {
+  const _RiderProfileSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(riderProfileProvider);
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<RiderProfile>(
+            key: const ValueKey('rider-profile'),
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                  value: RiderProfile.bio,
+                  icon: Icon(Icons.pedal_bike_outlined),
+                  label: Text('Bio-Bike')),
+              ButtonSegment(
+                  value: RiderProfile.ebike,
+                  icon: Icon(Icons.electric_bike_outlined),
+                  label: Text('E-Bike')),
+            ],
+            selected: {profile},
+            onSelectionChanged: (s) => ref.read(riderProfileProvider.notifier).set(s.single),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Das Profil ändert drei Dinge für die Routenplanung: wie schnell es '
+          'bergauf geht, wie teuer ein Wanderweg bergauf ist und die Vorgabe '
+          'für die Höhenmeter einer Runde. Bergab bleibt ein S2 ein S2.',
+          style: text.bodyMedium,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Steigrate Forstweg: ${profile.climbTrackMPerH.round()} hm/h · Pfad: '
+          '${profile.climbPathMPerH.round()} hm/h · Schieben: ${profile.pushRateMPerH.round()} hm/h\n'
+          'Wanderweg bergauf: ×${profile.pathUpFactor} · Vorgabe: ${profile.budgetClimbM.round()} hm',
+          key: const ValueKey('rider-profile-numbers'),
+          style: text.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Gilt nur für dieses Gerät. Viele fahren beides — umschalten geht jederzeit, '
+          'auch im Planer. Jede Fahrt merkt sich das Profil beim Start.',
+          style: text.bodySmall,
+        ),
       ],
     );
   }

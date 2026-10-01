@@ -57,6 +57,14 @@ abstract interface class Settings {
 
   Future<void> setStillValidSnoozes(List<String> entries);
 
+  /// Das Fahrerprofil der Routing-Engine (docs/konzept-routing.md 2.1):
+  /// `RiderProfile.name`, null heißt Vorgabe Bio-Bike. Gerätelokal wie
+  /// alles hier — viele fahren beides, und das Zweitgerät darf anders
+  /// stehen.
+  String? get riderProfile;
+
+  Future<void> setRiderProfile(String value);
+
   /// Ist die Ebene „Offizielle Trails" an (#13)? Vorgabe: an
   /// (Entscheidung des Betreibers, Konzept offizielle Trails 2.5).
   bool get officialTrailsEnabled;
@@ -185,6 +193,14 @@ class PrefsSettings implements Settings {
   @override
   Future<void> setOfficialTrailsEnabled(bool value) =>
       _prefs.setBool(_officialTrailsEnabledKey, value);
+
+  static const _riderProfileKey = 'rider_profile';
+
+  @override
+  String? get riderProfile => _prefs.getString(_riderProfileKey);
+
+  @override
+  Future<void> setRiderProfile(String value) => _prefs.setString(_riderProfileKey, value);
 
   static const _appearanceKey = 'appearance';
 

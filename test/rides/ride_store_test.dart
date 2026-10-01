@@ -23,6 +23,21 @@ void main() {
       accuracyM: 6, altM: 900.0 - i);
   File active(Directory d) => File('${d.path}/${FileRideStore.dirName}/active.jsonl');
 
+  test('das Fahrerprofil steht im Kopf der Datei und kommt mit der Fahrt zurück', () async {
+    final store = FileRideStore(baseDir: dir);
+    await store.begin(uid: 'me', startedAt: start, profile: 'ebike');
+    await store.appendPoint(point(0));
+    expect(await active(dir).readAsString(), contains('"profile":"ebike"'));
+    final ride = await store.finish(uid: 'me', endedAt: start.add(const Duration(minutes: 5)));
+    expect(ride!.profile, 'ebike');
+    expect((await store.list(uid: 'me')).single.profile, 'ebike');
+    // Ohne Profil (vor 0.70.0): kein Feld, kein Fehler.
+    await store.begin(uid: 'me', startedAt: start.add(const Duration(hours: 1)));
+    expect(await active(dir).readAsString(), isNot(contains('profile')));
+    final old = await store.finish(uid: 'me', endedAt: start.add(const Duration(hours: 2)));
+    expect(old!.profile, isNull);
+  });
+
   test('Punkte überstehen Schreiben und Lesen, auch die Höhe', () async {
     final store = FileRideStore(baseDir: dir);
     await store.begin(uid: 'me', startedAt: start);

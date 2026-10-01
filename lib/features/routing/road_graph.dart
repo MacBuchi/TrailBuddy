@@ -1,0 +1,526 @@
+// Der Wegegraph der Routing-Engine (docs/konzept-routing.md 2.7): aus
+// der `roads`-Ebene der z13-Kacheln gespeicherter Bereiche, mit den drei
+// gemessenen Reparaturen (M1, docs/routing-messung.md) — Zuschnitt jeder
+// Kachel auf ihren Rahmen, tote Enden innerhalb von 2 m an den nächsten
+// anderen Weg gebunden (auch mitten in ein Segment: der T-Knoten, den die
+// Vereinfachung aus dem durchgehenden Weg entfernt hat), Kreuzungen ohne
+// gemeinsamen Knoten geteilt, sofern beide Wege auf derselben Ebene
+// liegen (Brücke, Tunnel). Ohne die beiden Reparaturen hielt die größte
+// Komponente 50–80 % der Kantenlänge, mit ihnen 95–98 %.
+//
+// Port von `Graph`, `build_graph`, `find_crossings`, `clip_line` und
+// `lines_from_tile` in `tool/route_measure.py` — das Werkzeug ist die
+// Referenz; `test/routing/road_graph_test.dart` fährt dieselben Fälle
+// (T-Knoten, Brücke über Kreuzung, Einbahn, Anheften).
+//
+// Rein: keine Widgets, kein Riverpod. Knoten und Segmente liegen in einem
+// Gitter von [kGraphCellM], damit Join und Anheften lokale Abfragen
+// bleiben — die erste Fassung des Werkzeugs sah jede Kante je totem Ende
+// an, das waren Minuten statt Sekunden.
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:latlong2/latlong.dart';
+import 'package:vector_tile/vector_tile.dart';
+
+import '../../core/line_geometry.dart';
+import '../offline_areas/height_tiles.dart';
+import 'route_profile.dart';
+
+/// Tote Enden bis zu so vielen Metern werden angebunden (M1: 10 m
+/// brachten nichts mehr).
+const kGraphJoinM = 2.0;
+
+/// Ein Trail-Ende wird bis zu so weit an den Graphen geheftet — die
+/// GPS-Unschärfe eines Trailanfangs.
+const kGraphAttachM = 30.0;
+
+/// Zellgröße des Gitters über Knoten und Segmenten, in Metern.
+const kGraphCellM = 50.0;
+
+/// Der Zoom, aus dem die Wege kommen — derselbe wie beim Wege-Index.
+const kRoadGraphZoom = 13;
+
+/// Ein brauchbarer Weg aus einer Kachel, in Grad, auf die Kachel
+/// zugeschnitten.
+class WayLine {
+  const WayLine({required this.cls, required this.oneway, required this.points, this.level = 0});
+
+  final WayClass cls;
+
+  /// Einbahn — nur auf Straßenklassen überhaupt gesetzt.
+  final bool oneway;
+  final List<LatLng> points;
+
+  /// 1 Brücke, −1 Tunnel, 0 ebenerdig: Eine geometrische Kreuzung ist
+  /// nur auf derselben Ebene eine Abzweigung.
+  final int level;
+}
+
+/// Die brauchbaren Wege einer Kachel (`roads`, Linien), klassifiziert,
+/// auf den Kachelrahmen zugeschnitten, doppelte Punkte entfernt. Eine
+/// Kachel, die sich nicht lesen lässt, liefert keine Linien.
+List<WayLine> wayLinesFromTile(Uint8List mvt, {required int z, required int x, required int y}) {
+  final VectorTile tile;
+  try {
+    tile = VectorTile.fromBytes(bytes: mvt);
+  } catch (_) {
+    return const [];
+  }
+  final n = 1 << z;
+  final out = <WayLine>[];
+  for (final layer in tile.layers) {
+    if (layer.name != 'roads') continue;
+    final extent = layer.extent.toDouble();
+    for (final f in layer.features) {
+      if (f.type != VectorTileGeomType.LINESTRING) continue;
+      final props = f.decodeProperties();
+      final cls = classifyWay(
+        kind: props['kind']?.dartStringValue,
+        kindDetail: props['kind_detail']?.dartStringValue,
+        access: props['access']?.dartStringValue,
+        service: props['service']?.dartStringValue,
+      );
+      if (cls == null) continue;
+      final oneway = _truthy(props['oneway']) && cls.isRoad;
+      final level = _truthy(props['is_bridge'])
+          ? 1
+          : _truthy(props['is_tunnel'])
+              ? -1
+              : 0;
+      for (final line in f.decodeLineString()) {
+        final px = [for (final p in line) math.Point(p[0].toDouble(), p[1].toDouble())];
+        for (final piece in clipToTile(px, extent)) {
+          final pts = <LatLng>[];
+          for (final p in piece) {
+            final ll = _tileToLatLng(x + p.x / extent, y + p.y / extent, n);
+            if (pts.isEmpty || pts.last != ll) pts.add(ll);
+          }
+          if (pts.length >= 2) out.add(WayLine(cls: cls, oneway: oneway, points: pts, level: level));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+bool _truthy(VectorTileValue? v) {
+  if (v == null) return false;
+  if (v.dartBoolValue case final b?) return b;
+  if (v.dartIntValue case final i?) return i.toInt() != 0;
+  final s = v.dartStringValue;
+  return s != null && s != '' && s != 'no' && s != 'false' && s != '0';
+}
+
+LatLng _tileToLatLng(double tx, double ty, int n) {
+  final lon = tx / n * 360 - 180;
+  final latRad = math.atan(_sinh(math.pi * (1 - 2 * ty / n)));
+  return LatLng(latRad * 180 / math.pi, lon);
+}
+
+double _sinh(double v) => (math.exp(v) - math.exp(-v)) / 2;
+
+/// Schneidet eine Linie in Kacheleinheiten auf [0, extent]² zu und
+/// liefert die Stücke innerhalb. Kacheln tragen einen Puffer über ihren
+/// Rand hinaus; ein Weg nahe der Grenze liegt in BEIDEN Nachbarn. Ohne
+/// Zuschnitt hielte der Graph ihn doppelt; mit ihm enden beide Kacheln am
+/// selben Grenzpunkt (± Quantisierung), und der Join bindet sie zusammen.
+List<List<math.Point<double>>> clipToTile(List<math.Point<double>> line, double extent) {
+  bool inside(math.Point<double> p) => p.x >= 0 && p.x <= extent && p.y >= 0 && p.y <= extent;
+
+  (math.Point<double>, math.Point<double>)? cross(math.Point<double> a, math.Point<double> b) {
+    // Liang–Barsky auf dem Kasten.
+    var t0 = 0.0, t1 = 1.0;
+    final dx = b.x - a.x, dy = b.y - a.y;
+    for (final (p, q) in [(-dx, a.x), (dx, extent - a.x), (-dy, a.y), (dy, extent - a.y)]) {
+      if (p == 0) {
+        if (q < 0) return null;
+        continue;
+      }
+      final r = q / p;
+      if (p < 0) {
+        if (r > t1) return null;
+        t0 = math.max(t0, r);
+      } else {
+        if (r < t0) return null;
+        t1 = math.min(t1, r);
+      }
+    }
+    if (t0 > t1) return null;
+    return (math.Point(a.x + t0 * dx, a.y + t0 * dy), math.Point(a.x + t1 * dx, a.y + t1 * dy));
+  }
+
+  final pieces = <List<math.Point<double>>>[];
+  var cur = <math.Point<double>>[];
+  for (var i = 1; i < line.length; i++) {
+    final a = line[i - 1], b = line[i];
+    final seg = cross(a, b);
+    if (seg == null) {
+      if (cur.length >= 2) pieces.add(cur);
+      cur = [];
+      continue;
+    }
+    final (p, q) = seg;
+    if (cur.isEmpty || cur.last != p) {
+      if (cur.isNotEmpty && inside(a) && cur.last != a) cur.add(a);
+      if (cur.isEmpty) {
+        cur = [p];
+      } else if (cur.last != p) {
+        if (cur.length >= 2) pieces.add(cur);
+        cur = [p];
+      }
+    }
+    cur.add(q);
+  }
+  if (cur.length >= 2) pieces.add(cur);
+  return pieces;
+}
+
+/// Eine Kante: zwei Knoten, Klasse, Einbahn, Länge in Metern, Anstieg
+/// und Abstieg in Kantenrichtung (a → b), die Punkte in Grad.
+class GraphEdge {
+  GraphEdge({
+    required this.a,
+    required this.b,
+    required this.cls,
+    required this.oneway,
+    required this.points,
+    required this.length,
+    this.level = 0,
+  });
+
+  int a;
+  int b;
+  final WayClass cls;
+  final bool oneway;
+  List<LatLng> points;
+  double length;
+  final int level;
+
+  double gain = 0;
+  double loss = 0;
+
+  /// Falsch, solange keine Höhen gelesen wurden oder eine Probe der Kante
+  /// keine Höhe hatte — dann rechnet die Kante flach, und der Graph sagt
+  /// es ([RoadGraph.edgesWithoutHeights]).
+  bool hasHeights = false;
+}
+
+/// Ein Treffer auf einer Kante: Abstand, Kante, Segment, Anteil im
+/// Segment, Punkt.
+typedef EdgeHit = ({double d, int edge, int seg, double t, LatLng at});
+
+class RoadGraph {
+  RoadGraph(double lat0) : proj = FlatProjection(lat0);
+
+  final FlatProjection proj;
+  final nodes = <math.Point<double>>[];
+  final nodeLatLng = <LatLng>[];
+  final edges = <GraphEdge>[];
+  final adj = <List<int>>[];
+  final _key = <(int, int), int>{};
+  final _nodeCells = <(int, int), List<int>>{};
+  final _segCells = <(int, int), List<(int, int)>>{};
+
+  static (int, int) _cell(math.Point<double> p) => ((p.x / kGraphCellM).floor(), (p.y / kGraphCellM).floor());
+
+  static (int, int) _keyOf(LatLng p) => ((p.longitude * 1e6).round(), (p.latitude * 1e6).round());
+
+  /// Der Knoten an [p] — zwei Punkte auf derselben Mikrograd-Koordinate
+  /// sind EIN Knoten (so teilen zwei Linien ihren Scheitel).
+  int node(LatLng p) {
+    final key = _keyOf(p);
+    final existing = _key[key];
+    if (existing != null) return existing;
+    final i = nodes.length;
+    _key[key] = i;
+    final xy = proj.xy(p);
+    nodes.add(xy);
+    nodeLatLng.add(p);
+    adj.add([]);
+    (_nodeCells[_cell(xy)] ??= []).add(i);
+    return i;
+  }
+
+  void _indexSegments(int ei) {
+    final pts = proj.line(edges[ei].points);
+    for (var i = 0; i < pts.length - 1; i++) {
+      final a = pts[i], b = pts[i + 1];
+      for (var cx = (math.min(a.x, b.x) / kGraphCellM).floor(); cx <= (math.max(a.x, b.x) / kGraphCellM).floor(); cx++) {
+        for (var cy = (math.min(a.y, b.y) / kGraphCellM).floor(); cy <= (math.max(a.y, b.y) / kGraphCellM).floor(); cy++) {
+          (_segCells[(cx, cy)] ??= []).add((ei, i));
+        }
+      }
+    }
+  }
+
+  double _lengthOf(List<LatLng> points) {
+    final xy = proj.line(points);
+    var sum = 0.0;
+    for (var i = 1; i < xy.length; i++) {
+      sum += xy[i - 1].distanceTo(xy[i]);
+    }
+    return sum;
+  }
+
+  int addEdge(int a, int b, WayClass cls, bool oneway, List<LatLng> points, {int level = 0}) {
+    final e = GraphEdge(a: a, b: b, cls: cls, oneway: oneway, points: points, length: _lengthOf(points), level: level);
+    edges.add(e);
+    final ei = edges.length - 1;
+    adj[a].add(ei);
+    adj[b].add(ei);
+    _indexSegments(ei);
+    return ei;
+  }
+
+  int degree(int n) => adj[n].length;
+
+  /// Teilt die Kante [ei] an Segment [seg], Anteil [t], beim Punkt [at];
+  /// der erste Teil behält [ei] (seine Gittereinträge bleiben gültig —
+  /// das Segment wird nur kürzer), der Rest wird eine neue Kante.
+  /// Liefert den Knoten an der Teilung.
+  int splitEdge(int ei, int seg, LatLng at) {
+    final e = edges[ei];
+    final mid = node(at);
+    if (mid == e.a || mid == e.b) return mid;
+    final first = [...e.points.sublist(0, seg + 1), at];
+    final second = [at, ...e.points.sublist(seg + 1)];
+    final oldB = e.b;
+    adj[oldB].remove(ei);
+    e.points = first;
+    e.b = mid;
+    e.length = _lengthOf(first);
+    adj[mid].add(ei);
+    addEdge(mid, oldB, e.cls, e.oneway, second, level: e.level);
+    return mid;
+  }
+
+  int? nearestNode(math.Point<double> p, double radius, {int exclude = -1}) {
+    final (cx, cy) = _cell(p);
+    final reach = (radius / kGraphCellM).ceil();
+    int? best;
+    var bestD = radius;
+    for (var dx = -reach; dx <= reach; dx++) {
+      for (var dy = -reach; dy <= reach; dy++) {
+        for (final n in _nodeCells[(cx + dx, cy + dy)] ?? const <int>[]) {
+          if (n == exclude) continue;
+          final d = nodes[n].distanceTo(p);
+          if (d <= bestD) {
+            best = n;
+            bestD = d;
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  /// Der nächste Kantenpunkt innerhalb von [radius] Metern, oder null.
+  EdgeHit? nearest(LatLng p, double radius, {Set<int> excludeEdges = const {}}) {
+    final xy = proj.xy(p);
+    final (cx, cy) = _cell(xy);
+    final reach = (radius / kGraphCellM).ceil();
+    EdgeHit? best;
+    final seen = <(int, int)>{};
+    for (var dx = -reach; dx <= reach; dx++) {
+      for (var dy = -reach; dy <= reach; dy++) {
+        for (final (ei, i) in _segCells[(cx + dx, cy + dy)] ?? const <(int, int)>[]) {
+          if (excludeEdges.contains(ei) || !seen.add((ei, i))) continue;
+          final pts = edges[ei].points;
+          if (i + 1 >= pts.length) continue; // veraltet nach einer Teilung
+          final a = proj.xy(pts[i]), b = proj.xy(pts[i + 1]);
+          final (d, t) = _pointSegment(xy, a, b);
+          if (d <= radius && (best == null || d < best.d)) {
+            final px = math.Point(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y));
+            best = (d: d, edge: ei, seg: i, t: t, at: proj.latLng(px));
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  static (double, double) _pointSegment(math.Point<double> p, math.Point<double> a, math.Point<double> b) {
+    final dx = b.x - a.x, dy = b.y - a.y;
+    final len2 = dx * dx + dy * dy;
+    if (len2 == 0) return (p.distanceTo(a), 0.0);
+    final t = (((p.x - a.x) * dx + (p.y - a.y) * dy) / len2).clamp(0.0, 1.0);
+    final q = math.Point(a.x + t * dx, a.y + t * dy);
+    return (p.distanceTo(q), t);
+  }
+
+  /// Der Knoten für ein Trail-Ende: ein vorhandener innerhalb von
+  /// [radius], sonst ein neuer auf der nächsten Kante innerhalb von
+  /// [radius], sonst null („nicht erreichbar").
+  int? attach(LatLng p, {double radius = kGraphAttachM}) {
+    final n = nearestNode(proj.xy(p), radius);
+    if (n != null) return n;
+    final hit = nearest(p, radius);
+    if (hit == null) return null;
+    return splitEdge(hit.edge, hit.seg, hit.at);
+  }
+
+  /// Zusammenhangskomponenten als Kantenlisten, längste zuerst.
+  List<List<int>> components() {
+    final parent = List<int>.generate(nodes.length, (i) => i);
+    int find(int i) {
+      while (parent[i] != i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    }
+
+    for (final e in edges) {
+      final ra = find(e.a), rb = find(e.b);
+      if (ra != rb) parent[ra] = rb;
+    }
+    final comp = <int, List<int>>{};
+    for (var i = 0; i < edges.length; i++) {
+      (comp[find(edges[i].a)] ??= []).add(i);
+    }
+    double lengthOf(List<int> es) => es.fold(0.0, (s, i) => s + edges[i].length);
+    return comp.values.toList()..sort((x, y) => lengthOf(y).compareTo(lengthOf(x)));
+  }
+
+  double get totalLength => edges.fold(0.0, (s, e) => s + e.length);
+
+  /// Anteil der Kantenlänge in der größten Komponente — die Zahl aus M1.
+  double get largestComponentShare {
+    final total = totalLength;
+    if (total == 0) return 0;
+    final largest = components().firstOrNull;
+    return largest == null ? 0 : largest.fold(0.0, (s, i) => s + edges[i].length) / total;
+  }
+
+  int get edgesWithoutHeights => edges.where((e) => !e.hasHeights).length;
+}
+
+/// Was der Bau gemacht hat — die Zahlen, die M1 je Lauf nennt.
+typedef GraphBuild = ({RoadGraph graph, int joins, int crossings});
+
+/// Baut den Graphen aus Wegen (Konzept-Routing 2.7): ein Knoten, wo zwei
+/// Linien einen Scheitel teilen, plus Linienenden; dann jedes tote Ende
+/// innerhalb von [joinM] an den nächsten anderen Weg gebunden; dann
+/// (wenn [splitCrossings]) jede Kreuzung zweier Wege derselben Ebene
+/// ohne gemeinsamen Knoten geteilt.
+GraphBuild buildRoadGraph(Iterable<WayLine> lines,
+    {required double lat0, double joinM = kGraphJoinM, bool splitCrossings = true}) {
+  final counts = <(int, int), int>{};
+  final all = lines.toList();
+  for (final l in all) {
+    for (final p in l.points) {
+      final k = RoadGraph._keyOf(p);
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+  }
+  final g = RoadGraph(lat0);
+  for (final l in all) {
+    final cut = [0];
+    for (var i = 1; i < l.points.length - 1; i++) {
+      if ((counts[RoadGraph._keyOf(l.points[i])] ?? 0) >= 2) cut.add(i);
+    }
+    cut.add(l.points.length - 1);
+    for (var c = 0; c + 1 < cut.length; c++) {
+      final piece = l.points.sublist(cut[c], cut[c + 1] + 1);
+      final a = g.node(piece.first), b = g.node(piece.last);
+      if (a == b && piece.length < 3) continue;
+      g.addEdge(a, b, l.cls, l.oneway, piece, level: l.level);
+    }
+  }
+  var joins = 0;
+  if (joinM > 0) {
+    final count = g.nodes.length; // neue Knoten aus Teilungen brauchen keinen Join
+    for (var n = 0; n < count; n++) {
+      if (g.degree(n) != 1) continue;
+      var target = g.nearestNode(g.nodes[n], joinM, exclude: n);
+      if (target == null) {
+        // Die eigene Kante liegt bei Abstand 0 — ohne Ausschluss würde
+        // jeder T-Knoten ohne Scheitel übersprungen (so im ersten CI-Lauf
+        // des Werkzeugs: 554 statt 11 000 Anbindungen).
+        final hit = g.nearest(g.nodeLatLng[n], joinM, excludeEdges: g.adj[n].toSet());
+        if (hit == null) continue;
+        target = g.splitEdge(hit.edge, hit.seg, hit.at);
+      }
+      if (target != n) {
+        g.addEdge(n, target, g.edges[g.adj[n].first].cls, false, [g.nodeLatLng[n], g.nodeLatLng[target]]);
+        joins++;
+      }
+    }
+  }
+  var crossings = 0;
+  if (splitCrossings) {
+    for (final c in findCrossings(g)) {
+      // Erst die eine Kante teilen (attach legt den Knoten an), dann die
+      // andere am selben Punkt — der Knotenschlüssel macht beide eins.
+      final mid = g.attach(c.at, radius: 0.5);
+      if (mid == null) continue;
+      final hit = g.nearest(c.at, 0.5, excludeEdges: g.adj[mid].toSet());
+      if (hit == null) continue;
+      g.splitEdge(hit.edge, hit.seg, c.at);
+      crossings++;
+    }
+  }
+  return (graph: g, joins: joins, crossings: crossings);
+}
+
+/// Schnittpunkt zweier Strecken, wenn sie sich in ihrem Inneren kreuzen,
+/// sonst null. Kollineare Überlappungen zählen nicht als Kreuzung.
+math.Point<double>? properCrossing(
+    math.Point<double> a, math.Point<double> b, math.Point<double> c, math.Point<double> d) {
+  final rx = b.x - a.x, ry = b.y - a.y;
+  final qx = d.x - c.x, qy = d.y - c.y;
+  final den = rx * qy - ry * qx;
+  if (den.abs() < 1e-9) return null;
+  final acx = c.x - a.x, acy = c.y - a.y;
+  final t = (acx * qy - acy * qx) / den;
+  final u = (acx * ry - acy * rx) / den;
+  const eps = 1e-3;
+  if (t > eps && t < 1 - eps && u > eps && u < 1 - eps) {
+    return math.Point(a.x + t * rx, a.y + t * ry);
+  }
+  return null;
+}
+
+/// Kreuzungen zweier Wege derselben Ebene ohne gemeinsamen Knoten —
+/// über das Segmentgitter, also praktisch linear.
+List<({LatLng at, int edgeA, int edgeB})> findCrossings(RoadGraph g) {
+  final out = <({LatLng at, int edgeA, int edgeB})>[];
+  final seen = <((int, int), (int, int))>{};
+  for (final segs in g._segCells.values) {
+    for (var i = 0; i < segs.length; i++) {
+      final (ea, ia) = segs[i];
+      final pa = g.edges[ea].points;
+      if (ia + 1 >= pa.length) continue;
+      final a = g.proj.xy(pa[ia]), b = g.proj.xy(pa[ia + 1]);
+      for (var j = i + 1; j < segs.length; j++) {
+        final (eb, ib) = segs[j];
+        if (eb == ea) continue;
+        final pb = g.edges[eb].points;
+        if (ib + 1 >= pb.length || g.edges[ea].level != g.edges[eb].level) continue;
+        final key = ea < eb || (ea == eb && ia < ib) ? ((ea, ia), (eb, ib)) : ((eb, ib), (ea, ia));
+        if (!seen.add(key)) continue;
+        final hit = properCrossing(a, b, g.proj.xy(pb[ib]), g.proj.xy(pb[ib + 1]));
+        if (hit == null) continue;
+        out.add((at: g.proj.latLng(hit), edgeA: ea, edgeB: eb));
+      }
+    }
+  }
+  return out;
+}
+
+/// Liest je Kante Anstieg und Abstieg aus den Höhenkacheln (alle 50 m,
+/// 10 m Hysterese — `HeightReader.climbAlong`). Eine Kante ohne Höhe an
+/// einer Probe bleibt flach und ist als solche markiert.
+Future<void> addClimbs(RoadGraph g, HeightReader heights) async {
+  for (final e in g.edges) {
+    final climb = await heights.climbAlong(e.points);
+    if (climb == null) {
+      e.hasHeights = false;
+      continue;
+    }
+    e.gain = climb.gain;
+    e.loss = climb.loss;
+    e.hasHeights = true;
+  }
+}

@@ -1566,6 +1566,39 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   auf null — der Dialog sagt dann „ohne Höhen", und der Flow-Test
   erwartet genau das. Sichtbar wird von den Höhen noch nichts, deshalb
   kein Eintrag in „Entdecken"; der kommt mit dem Planer (Schritt 3–5).
+- **Die Routing-Engine, Schritt 3: Graph, Profil, Suche** (seit 0.70.0,
+  `lib/features/routing/`, Konzept-Routing 2.1–2.4, 2.7, 3.1; Port von
+  `tool/route_measure.py`, mit dem die Engine gemessen wurde). Fünf
+  Dinge, die man wissen muss:
+  - **Das Werkzeug ist die Referenz, Zahl für Zahl.** `route_profile.dart`
+    spiegelt `PROFILES`/`CLASSES`/`classify`/`edge_time_s`/`edge_cost_s`;
+    `test/routing/route_profile_test.dart` hält die im Werkzeug
+    gerechneten Kosten (elf Fälle) auf 1e-5 fest. Wer dort eine Zahl
+    ändert, ändert sie hier im selben PR — sonst plant die App etwas
+    anderes, als gemessen wurde.
+  - **Die drei Graph-Regeln aus M1 stehen in `buildRoadGraph`**:
+    Zuschnitt jeder Kachel auf ihren Rahmen (`clipToTile`, Liang–Barsky;
+    der Puffer legte Wege doppelt), tote Enden ≤ 2 m an den nächsten
+    ANDEREN Weg (die eigene Kante liegt bei Abstand 0 — ohne Ausschluss
+    wird jeder T-Knoten übersprungen), Kreuzungen ohne Knoten nur auf
+    derselben Ebene (`is_bridge`/`is_tunnel`). Einbahn gilt nur auf
+    Straßenklassen (`WayClass.isRoad`).
+  - **Der Test-Helfer rechnet Meter über DIESELBE Projektion wie der
+    Graph** (`FlatProjection`, R = 6 371 km). Mit 111 320 m je Grad
+    waren „1 000 m" im Graphen 998,9 m — fünf Tests rot um ein Promille.
+  - **Höhen je Kante über `HeightReader.climbAlong`** (`addClimbs`); eine
+    Kante ohne Höhe bleibt flach und zählt (`edgesWithoutHeights`,
+    `PathSummary.heightsComplete`). Dabei gefunden: Ein Punkt genau auf
+    einer Kachelkante landet je nach letztem Bit in der Nachbarkachel,
+    auch nördlich/westlich — `heightAt` liest seither die Nachbarn an
+    BEIDEN Rändern.
+  - **`loadRoadGraph` ist `loadRoads` für den Graphen**: dieselbe
+    Deckungsregel (`partial` ⇒ kein Graph), Höhen aus dem Leser der
+    Bereiche. Der Graph rechnet in Metern um die Mitte des Rahmens.
+  Das Fahrerprofil (`RiderProfile`, `Settings.riderProfile`, Vorgabe
+  Bio) steht im Profil als Seite „Fahrerprofil"; jede Fahrt merkt es
+  sich beim Start im Kopf der Datei (`Ride.profile`). Sichtbar sonst
+  nichts — „Zum Trailkopf" und der Planer sind Schritt 4 und 5.
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

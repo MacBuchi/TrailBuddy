@@ -394,6 +394,18 @@ const kFeatureHighlights = <FeatureHighlight>[
     target: '/profile/notifications',
   ),
   FeatureHighlight(
+    id: 'rider-profile',
+    since: '0.70.0',
+    kind: HighlightKind.tip,
+    tab: HighlightTab.profile,
+    icon: Icons.pedal_bike_outlined,
+    title: 'Bio-Bike oder E-Bike',
+    text: 'Unter „Fahrerprofil" im Profil: wie schnell es bergauf geht, wie '
+        'teuer ein Wanderweg ist, wie viele Höhenmeter eine Runde haben darf. '
+        'Die Routenplanung rechnet damit; jede Fahrt merkt es sich.',
+    target: '/profile/rider',
+  ),
+  FeatureHighlight(
     id: 'appearance',
     since: '0.28.0',
     kind: HighlightKind.tip,

@@ -380,7 +380,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 0 | dieses Dokument; Konzept 9 und 11 nachziehen | #35 | — |
 | 1 | `tool/route_measure.py` + `route-measure.yml`: Graph aus Kacheln, DEM, A*, Messung an Tirol (CI) und an den eigenen Fahrten (lokal), Bericht `docs/routing-messung.md` | #35 | — |
 | 2 | Höhen: Höhenkacheln je Bereich vom eigenen Host (B — A ist in M3 durchgefallen), gebaut von `height-data.yml` als EIN Archiv, geladen mit dem Bereich — **gebaut, 0.69.0** (2.6) | #158/2 | feat |
-| 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E | #158/3 | feat |
+| 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E — **gebaut, 0.70.0** (`lib/features/routing/`; `Ride.profile` seither im Dateikopf) | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, speichern, GPX | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails | #158/5 | feat |
 | 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 | #158 | feat |

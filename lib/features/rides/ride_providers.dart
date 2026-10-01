@@ -14,7 +14,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/errors.dart';
+import '../../core/settings.dart';
 import '../../data/providers.dart';
+import '../routing/route_profile.dart';
 import '../trails/trail_providers.dart';
 import 'ride_confirm.dart';
 import 'ride_service.dart';
@@ -163,7 +165,10 @@ class RideNotifier extends Notifier<RecordedRide?> {
 
     final startedAt = DateTime.now().toUtc();
     try {
-      await ref.read(rideStoreProvider).begin(uid: uid, startedAt: startedAt);
+      // Das Fahrerprofil beim Start in den Kopf der Datei — die
+      // Kalibrierung (Konzept-Routing 5, Schritt 6) rechnet je Profil.
+      await ref.read(rideStoreProvider).begin(
+          uid: uid, startedAt: startedAt, profile: RiderProfile.parse(ref.read(settingsProvider).riderProfile).name);
     } catch (e, stackTrace) {
       logError('Fahrt beginnen', e, stackTrace);
       return RideStartResult.failed;

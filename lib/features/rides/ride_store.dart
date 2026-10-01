@@ -24,7 +24,9 @@ abstract interface class RideStore {
   /// **Wirft**, wenn sich nichts anlegen lässt: Eine Fahrt zu starten,
   /// die gar nicht aufgezeichnet werden kann, wäre ein Versprechen, das
   /// erst zu Hause auffliegt.
-  Future<void> begin({required String uid, required DateTime startedAt});
+  /// [profile] ist das Fahrerprofil beim Start (`RiderProfile.name`,
+  /// seit 0.70.0) und steht im Kopf der Datei.
+  Future<void> begin({required String uid, required DateTime startedAt, String? profile});
 
   /// Hängt einen Punkt an. **Wirft nie** — ein verlorener Fix ist ein
   /// verlorener Fix, kein Grund, die laufende Fahrt abzubrechen.
@@ -106,13 +108,14 @@ class FileRideStore implements RideStore {
       .replaceAll(RegExp(r'\.\d+'), '');
 
   @override
-  Future<void> begin({required String uid, required DateTime startedAt}) =>
+  Future<void> begin({required String uid, required DateTime startedAt, String? profile}) =>
       _serialized(() async {
         final file = await _active();
         await file.writeAsString(
           '${jsonEncode({
                 'uid': uid,
                 'startedAt': startedAt.toUtc().toIso8601String(),
+                'profile': ?profile,
               })}\n',
           flush: true,
         );
@@ -255,7 +258,8 @@ class FileRideStore implements RideStore {
               endedAt: endedAt.toUtc(),
               points: parsed.points,
               events: parsed.events,
-              marks: parsed.marks);
+              marks: parsed.marks,
+              profile: parsed.profile);
         } catch (e, stackTrace) {
           logError('Fahrt abschließen', e, stackTrace);
           return null;
@@ -295,6 +299,7 @@ class FileRideStore implements RideStore {
               points: parsed.points,
               events: parsed.events,
               marks: parsed.marks,
+              profile: parsed.profile,
             ));
           }
           rides.sort((a, b) => b.startedAt.compareTo(a.startedAt));
@@ -329,6 +334,7 @@ class FileRideStore implements RideStore {
             List<RidePoint> points,
             List<ConfirmEvent> events,
             List<RideMark> marks,
+            String? profile,
           })?>
       _parse(File file, {required String uid}) async {
     try {
@@ -381,6 +387,7 @@ class FileRideStore implements RideStore {
         points: points,
         events: events,
         marks: marks,
+        profile: head['profile'] as String?,
       );
     } catch (_) {
       return null;
