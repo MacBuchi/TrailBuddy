@@ -1597,8 +1597,42 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Bereiche. Der Graph rechnet in Metern um die Mitte des Rahmens.
   Das Fahrerprofil (`RiderProfile`, `Settings.riderProfile`, Vorgabe
   Bio) steht im Profil als Seite „Fahrerprofil"; jede Fahrt merkt es
-  sich beim Start im Kopf der Datei (`Ride.profile`). Sichtbar sonst
-  nichts — „Zum Trailkopf" und der Planer sind Schritt 4 und 5.
+  sich beim Start im Kopf der Datei (`Ride.profile`).
+- **„Zum Trailkopf"** (Schritt 4, seit 0.71.0, `trail_head_route.dart`
+  pur, `trail_head_sheet.dart`, `trail_head_providers.dart`): im
+  Trail-Blatt neben „Anfahrt", vom eigenen Standort zum Anfang des
+  Trails über den Graphen der Bereiche (A*). Vier Dinge, die man wissen
+  muss:
+  - **Das Blatt stellt einen WUNSCH, die Karte löst ihn ein**
+    (`trailHeadRequestProvider`, Muster `mapFocusTrailProvider`): Das
+    Trail-Blatt kann über dem Reiter „Trails" offen sein, die Vorschau
+    gehört aber auf die Karte. Erst das Blatt zu, dann der Reiter, dann
+    der Wunsch; `MapScreen` öffnet das Blatt „Zum Trailkopf" nach dem
+    nächsten Bild und passt die Kamera EINMAL auf die Linie ein — nicht
+    bei jedem Profilwechsel. Die Vorschau (`trailHeadPreviewProvider`)
+    lebt mit dem Blatt und wird nach dem `await` geleert, nicht im
+    `dispose` (dort ist `ref` tot — wie beim Zerlege-Blatt).
+  - **Der Fix kommt beim Öffnen des Blatts**, über `positionFixProvider`
+    — das Blatt IST der Tipp, ein zweiter Knopf davor wäre eine Hürde.
+    Ohne Standort kein Startpunkt, und das Blatt sagt es und bietet die
+    Anfahrt an. Ein getippter Startpunkt kommt mit dem Planer (Schritt 5).
+  - **Gerechnet wird nur aus den Bereichen, `partial` heißt kein Weg**
+    (Nicht-Ziel „kein Routing über fremde Gegenden"); der Rahmen aus
+    Standort und Kopf bekommt `kTrailHeadMarginM` (500 m) Rand, sonst
+    wäre er bei zwei Punkten auf einer Linie null Meter breit. Ohne
+    Höhen im Bereich rechnet die Suche flach und das Blatt nennt die
+    Zahlen eine Untergrenze. Wanderweg im Weg steht als Satz dabei (die
+    App urteilt nicht über Erlaubnis, Konzept 7), die Linie ist dort
+    gestrichelt.
+  - **Die Linie trägt die Verbinder** (Standort → erster Wegpunkt,
+    letzter → Trailkopf), Länge und Zeit nicht: Sie sind der Anschluss,
+    keine Strecke. Die GPX-Spur (`trailHeadToGpx`) hat keine Höhen — die
+    Engine kennt sie je Kante, nicht je Punkt. „Als Fahrt speichern"
+    fehlt noch; es braucht die geplante Fahrt in „Meine Fahrten" und
+    kommt mit dem Planer.
+  Nebenbefund: Der Schritttitel der Vorführung `navigate` hieß „Zum
+  Trailkopf" — seit es den Knopf gibt, wäre das ein Text auf dem Schirm;
+  jetzt „In die Navi-App".
 - **Noch nicht da, bewusst** (jeweils eigener PR, Muster in PilzBuddy):
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und

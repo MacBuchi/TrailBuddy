@@ -86,6 +86,18 @@ const kFeatureHighlights = <FeatureHighlight>[
     target: '/trails',
   ),
   FeatureHighlight(
+    id: 'trail-head',
+    since: '0.71.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.trails,
+    icon: Icons.route_outlined,
+    title: 'Zum Trailkopf, offline',
+    text: '„Zum Trailkopf" im Blatt rechnet den Weg von deinem Standort zum '
+        'Anfang des Trails — aus deinen gespeicherten Bereichen, ohne Netz: '
+        'Linie auf der Karte, Höhenmeter, Zeit, und ob ein Wanderweg dabei ist.',
+    target: '/trails',
+  ),
+  FeatureHighlight(
     id: 'navigate',
     since: '0.67.0',
     kind: HighlightKind.highlight,

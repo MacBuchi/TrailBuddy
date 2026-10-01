@@ -2,6 +2,22 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Zum Trailkopf — der Weg aus deinen Bereichen
+
+*Version 0.71.0, 2026-10-01*
+
+- Im Trail-Blatt gibt es jetzt **„Zum Trailkopf"**: Die App rechnet den Weg
+  von deinem Standort zum Anfang des Trails selbst — offline, aus den Wegen
+  und Höhen deiner gespeicherten Bereiche, nach deinem Fahrerprofil. Die
+  Karte zeigt die Linie, das Blatt sagt Länge, Höhenmeter und etwa die Zeit.
+- Führt der Weg über Wanderweg, Fußweg oder Stufen, steht es dabei (die
+  Linie ist dort gestrichelt). Ob du dort fahren darfst, sagt die App nicht.
+- **„Als GPX"** gibt den Weg an deine Navi-App weiter; „Anfahrt" bleibt
+  daneben — die Navi-App kennt die Straße zum Parkplatz, die App den
+  Forstweg vom Parkplatz zum Trail.
+- Ohne gespeicherten Bereich gibt es keinen Weg, und das Blatt sagt es.
+  Gerechnet wird nie über Gegenden, die du nicht gespeichert hast.
+
 ## Fahrerprofil: Bio-Bike oder E-Bike
 
 *Version 0.70.0, 2026-10-01*
