@@ -1516,7 +1516,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   der Kachel-Zwischenspeicher der Online-Karte („Gesehenes bleibt
   liegen", Konzept 3.2), Ausgangskorb und
   Zwischenspeicher im Browser, Nachrichten zwischen Buddys (#34, Rest),
-  Meldung zu einem einzelnen Trail, `docs/play-console.md`.
+  Meldung zu einem einzelnen Trail.
+- **Play Store vorbereitet, nicht eingereicht** (#39 Teil, seit
+  2026-10-01): `docs/play-console.md` beantwortet Data Safety,
+  Berechtigungen, die beiden Vordergrunddienst-Deklarationen und das
+  Store-Listing aus dem Code — ändert sich, was die App erhebt, wohin sie
+  verbindet oder welche Berechtigung sie braucht, gehört die Datei in
+  denselben PR (PR-Vorlage). Die Berechtigungsliste ist aus den Manifesten
+  ABGELEITET, noch nicht am AAB gemessen. `docs/nutzungsbedingungen-entwurf.md`
+  ist ein ENTWURF für die rechtliche Prüfung (Konzept 10.7) mit den
+  offenen Fragen; er gilt nicht und ist nirgends verlinkt, bis er geprüft
+  als `web/nutzungsbedingungen.html` erscheint.
 
 ## Code-Konventionen
 
