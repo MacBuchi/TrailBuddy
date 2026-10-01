@@ -179,9 +179,12 @@ kann.
    Konzept geschrieben und wird mit geprüft. Konzept 7 verlangt, dass sie
    Aufzeichnungen als Bewegungsdaten benennt; der Abschnitt „Was eine
    Aufzeichnung ist — und was nicht" soll das tun. Reicht er?
-10. **Kontaktadresse.** Impressum und Datenschutzerklärung nennen heute
-    die Adresse von PilzBuddy. Ist eine gemeinsame Adresse für zwei Apps
-    zulässig, oder braucht TrailBuddy eine eigene?
+10. **Kontaktadresse.** Impressum und Datenschutzerklärung nennen
+    dieselbe Mailadresse wie PilzBuddy, und das soll so bleiben
+    (Betreiber, 2026-10-01). Spricht etwas gegen eine gemeinsame Adresse
+    für zwei Apps desselben Anbieters? Die Anschrift im Impressum bleibt
+    in jedem Fall: § 5 DDG verlangt Name und ladungsfähige Anschrift,
+    eine Mailadresse allein reicht nicht.
 
 ---
 
