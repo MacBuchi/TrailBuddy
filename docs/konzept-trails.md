@@ -925,9 +925,13 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   Rundenplaner, Kalibrierung aus eigenen Fahrten, zuletzt die Runde in
   0.74.0 (Planer als Modus mit eigener Leiste, Planen über die
   vorhandenen Kacheln, Trail-Richtung und Verbinder auf dem Graphen,
-  direkt oder spaßig). **Offen:** fehlende Kacheln mit Empfang vom Host
-  nachladen (#187), Startwerte und die lokalen Messungen M2/M4 an
-  eigenen Fahrten im Feld prüfen (#188).
+  direkt oder spaßig). Danach: fehlende Kacheln mit Empfang vom Host
+  (ERLEDIGT 0.78.0, #187), steile Anstiege (ERLEDIGT 0.80.0, #194),
+  Rechnen im eigenen Isolate (0.80.1–0.80.2), M2/M4 an den eigenen
+  Fahrten gemessen, Vorlieben meiden/egal mit abgestuften Strafkurven
+  (ERLEDIGT 0.81.0), alte Fahrten per GPX-Import für die Kalibrierung
+  (ERLEDIGT 0.82.0). **Offen:** die Startwerte im Feld (#188), Treppen
+  bergauf mit festem Zuschlag (#210).
 - **Feldberichte zu 0.73.0 (neu am 2026-10-02), vor der Freigabe:**
   Absturz in `AnimationController.stop` aus dem Digest (#62; 0.74.1
   macht den nächsten Bericht genauer), kleine Kartenpunkte (ERLEDIGT in
@@ -936,11 +940,23 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   Kartenebenen getrennt von den Offline-Werkzeugen (ERLEDIGT in 0.75.0:
   #180, #190),
   Zurück-Taste nach Hierarchie (ERLEDIGT in 0.76.0, #175), Legende auf der Karte (ERLEDIGT in 0.77.0, #182),
-  Offline-Start und sofortige Rückmeldung beim Setzen (#183). Danach
-  Höhen aus dem Geländemodell anzeigen (#186, nur Anzeige und Export,
-  nie gespeichert).
+  Offline-Start und sofortige Rückmeldung beim Setzen (ERLEDIGT in
+  0.77.1, #183), Höhen aus dem Geländemodell anzeigen (ERLEDIGT in
+  0.79.0, #186, nur Anzeige und Export, nie gespeichert). **Offen:**
+  #62, sobald ein Bericht die Stelle nennt.
+- **Wegqualität (neu am 2026-10-02, Feldvergleich mit Locus und
+  OpenAndroMaps):** Unsere Kacheln (Protomaps) tragen für Wege nur die
+  Art, keinen Zustand — keine Güteklasse, keinen Belag, keine
+  Schwierigkeit. Erst messen, wie oft OSM diese Angaben in DACH hat und
+  wie groß ein eigenes Wege-Archiv wird (#211), dann das Archiv auf dem
+  eigenen Host samt Darstellung auf der Karte (#212), dann die Kosten im
+  Routing: schlechte Forstwege und schwierige Pfade bergauf teurer
+  (#213, gemessen an den eigenen Fahrten wie die Strafkurven).
 - **Phase 5 — Community.** Airtime und Ranking unter Buddys (#36), Fotos
   am Trail (#37).
+- **Englisch** (#209, neu am 2026-10-02): die Oberfläche auf Englisch,
+  gewählt nach der Sprache des Geräts bzw. Browsers — vor Testern
+  außerhalb des deutschsprachigen Raums und vor dem Store-Eintrag.
 - **Play Store** (#39): rechtliche Prüfung, Store-Grafiken, Pro-Plan,
   AAB-Probe, 1.0.0 — nach Phase 3. Danach die Entscheidung zum
   dezentralen Weg (12, #38).
