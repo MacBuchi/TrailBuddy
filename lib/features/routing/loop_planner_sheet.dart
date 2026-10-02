@@ -155,7 +155,7 @@ class _ParamsSheet extends ConsumerWidget {
         const SizedBox(height: 4),
         Text('Unterwegs', style: theme.textTheme.titleSmall),
         _PrefSwitch(
-          key: const ValueKey('loop-pref-roads'),
+          tileKey: const ValueKey('loop-pref-roads'),
           title: 'Straßen meiden',
           on: 'Forstweg, Feldweg und Radweg vor Straße — je größer die Straße, desto stärker.',
           off: 'Straßen sind fast so gut wie Forstwege; nur große Straßen kosten noch etwas.',
@@ -163,7 +163,7 @@ class _ParamsSheet extends ConsumerWidget {
           onChanged: (v) => notifier.setPrefs(prefs.copyWith(route: prefs.route.copyWith(avoidRoads: v))),
         ),
         _PrefSwitch(
-          key: const ValueKey('loop-pref-hiking'),
+          tileKey: const ValueKey('loop-pref-hiking'),
           title: 'Wanderwege bergauf meiden',
           on: 'Bergauf lieber Forstweg als Pfad. Die Grenze oben gilt immer.',
           off: 'Ein Pfad bergauf ist kaum teurer als ein Forstweg. Die Grenze oben gilt immer.',
@@ -171,7 +171,7 @@ class _ParamsSheet extends ConsumerWidget {
           onChanged: (v) => notifier.setPrefs(prefs.copyWith(route: prefs.route.copyWith(avoidHiking: v))),
         ),
         _PrefSwitch(
-          key: const ValueKey('loop-pref-steep'),
+          tileKey: const ValueKey('loop-pref-steep'),
           title: 'Steile Rampen meiden',
           on: 'Ab 10 % Steigung wird jeder Höhenmeter teurer, sehr steil sehr viel teurer — '
               'auf Schotter stärker als auf Asphalt.',
@@ -212,7 +212,7 @@ class _ParamsSheet extends ConsumerWidget {
 /// einem Satz, was er gerade bewirkt.
 class _PrefSwitch extends StatelessWidget {
   const _PrefSwitch({
-    super.key,
+    required this.tileKey,
     required this.title,
     required this.on,
     required this.off,
@@ -220,6 +220,7 @@ class _PrefSwitch extends StatelessWidget {
     required this.onChanged,
   });
 
+  final Key tileKey;
   final String title;
   final String on;
   final String off;
@@ -228,6 +229,7 @@ class _PrefSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SwitchListTile(
+        key: tileKey,
         contentPadding: EdgeInsets.zero,
         title: Text(title),
         subtitle: Text(value ? on : off),
