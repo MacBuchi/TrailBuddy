@@ -582,15 +582,17 @@ Die alte Frage „welche Engine?" ist entschieden. Die Messung fragt
 jetzt, ob **unsere Daten** die eigene Engine tragen. Fünf Fragen, jede
 mit Schwelle — **Stand 2026-10-01: M1 bestanden (mit den drei
 Graph-Regeln aus 2.7), M3 entschieden (Weg B), M5 ohne Befund in
-Python; M2, M4 und die Kalibrierung warten auf den lokalen Lauf**
+Python; M2, M4 und die Kalibrierung an 47 eigenen Fahrten gemessen
+(2026-10-02): Forstweg trägt die Aufstiege, Vorgaben und Tabelle
+bleiben, M4 verfehlt die Schwelle und misst die falsche Frage**
 (`docs/routing-messung.md`):
 
 | | Frage | Daten | Schwelle |
 |---|---|---|---|
 | M1 | **Zusammenhang**: Teilen Wege an Kreuzungen bei z13 einen Knoten? Wie groß ist die größte Komponente, wie viele Trail-Enden hängen innerhalb von 30 m an ihr? | Tirol: 181 offizielle Trails (öffentlich, CI) + eigene Trails (lokal) | ≥ 90 % der Trail-Enden angeschlossen, größte Komponente ≥ 95 % der Kanten im Rahmen — **bestanden: 95 / 97 / 98 % und 98 / 93 / 100 % in drei Rahmen, nur mit Verbindung ≤ 2 m und Kreuzungsteilung** |
-| M2 | **Wegklassen**: Wie oft führen die eigenen Aufstiege über `track`, `path`, Straße? Trägt die Tabelle 2.4 die Praxis? | eigene Fahrten (lokal; Zerlege-Logik kennt die Aufstiegsstücke) | Bericht, keine Schwelle |
+| M2 | **Wegklassen**: Wie oft führen die eigenen Aufstiege über `track`, `path`, Straße? Trägt die Tabelle 2.4 die Praxis? | eigene Fahrten (lokal; Zerlege-Logik kennt die Aufstiegsstücke) | Bericht, keine Schwelle — **Forstweg 36–55 %, Straßen und Wanderwege je um 15 %** |
 | M3 | **Höhenfehler**: hm bergauf aus Gitter A gegen GPX-Höhen derselben Linie; je Kante und je Aufstieg | eigene Tracks (lokal), Tirol `up_m`/`down_m` (CI) | Aufstiegssumme ±10 %, sonst Höhenkacheln B — **Gitter A 42 % Medianfehler, DEM direkt 5 %: Weg B** |
-| M4 | **Aufstiegstreue**: Vom Fahrtstart zum ersten Trailkopf — findet A* den Weg, den der Betreiber gefahren ist? Länge, hm, Klassenmix gegen die Fahrt | eigene Fahrten (lokal) | ≥ 70 % der Aufstiege „gleich" nach den Abgleich-Schwellen (15 m, 0,8), Rest erklärbar |
+| M4 | **Aufstiegstreue**: Vom Fahrtstart zum ersten Trailkopf — findet A* den Weg, den der Betreiber gefahren ist? Länge, hm, Klassenmix gegen die Fahrt | eigene Fahrten (lokal) | ≥ 70 % der Aufstiege „gleich" nach den Abgleich-Schwellen (15 m, 0,8), Rest erklärbar — **1 von 15 gleich; der Plan ist nach dem Modell nie langsamer als die Fahrt (Median 1,27-mal schneller), und kein Kostenaufschlag rückt ihn näher: Die Fahrt ist nicht das Optimum. Bewertet wird im Feld (#188)** |
 | M5 | **Laufzeit**: Graph bauen + 2N+1 Dijkstra + Verkettung für einen 20-km-Rahmen | Tirol (CI), auf dem Telefon nach Schritt 3 | < 2 s auf dem Rechner, < 5 s auf dem Telefon — **Python 0,7–6 s je Rahmen (25 000 Wegstücke: Graph ~2 s, 22 Dijkstra 3,7 s); das Telefon misst Schritt 3** |
 
 Dazu die **Kalibrierung** (kein Durchfallen möglich): Steigrate und

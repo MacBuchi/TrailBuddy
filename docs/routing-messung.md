@@ -5,9 +5,8 @@
 (Run 4 vom 2026-10-01, Kacheln `dach-20261001.pmtiles` vom eigenen Host,
 offizielle Trails vom Daten-Branch, Höhen Copernicus GLO-90). Dieser
 Bericht nennt Kennzahlen, keine Orte, keine Namen von Fahrten. Stand:
-2026-10-01 — M1, M3 (Tirol-Hälfte) und M5 gemessen; M2, M4 und die
-Kalibrierung kommen aus dem lokalen Lauf des Betreibers an seinen Fahrten
-und werden hier nachgetragen.*
+2026-10-02 — M1, M3 (Tirol-Hälfte) und M5 gemessen; M2, M4 und die
+Kalibrierung aus dem lokalen Lauf an 47 Fahrten des Betreibers.*
 
 ## Ergebnis in fünf Sätzen
 
@@ -33,8 +32,14 @@ und werden hier nachgetragen.*
    Python, auf dem Runner. Teuer ist nur das Lesen der Kacheln vom Host
    (18–22 s je 49 Kacheln über Range-Anfragen); auf dem Gerät liegen sie
    im gespeicherten Bereich.
-5. Offen: Klassenmix und Aufstiegstreue an echten Fahrten (M2, M4), die
-   Steigraten je Profil — der lokale Lauf.
+5. **An den eigenen Fahrten** (M2, M4, Kalibrierung, 2026-10-02): Der
+   Forstweg trägt die Aufstiege (36–55 %); die Steigrate dieses
+   Fahrers liegt bei 320–400 hm/h, mit dem E-MTB nicht höher — die
+   Vorgaben (450 / 850) bleiben, lernen soll die Kalibrierung. M4
+   verfehlt die Schwelle (1 von 15 gleich), aber der Plan ist nach dem
+   Modell nie langsamer als die Fahrt, und kein Kostenaufschlag rückt
+   ihn näher an sie: Die Schwelle misst den gefahrenen Weg, nicht den
+   besten.
 
 ## M1 — Zusammenhang des z13-Graphen
 
@@ -266,15 +271,129 @@ angeheftet (`loadPlanningGraph`), sein Anheften teilt also keine Kante,
 und der Speicher bleibt gültig. Neu suchen müssen ein anderes Profil,
 ein anderes Zeitbudget (die Grenze der Suche) und ein neuer Start.
 
-## M2 / M4 / Kalibrierung — eigene Fahrten (lokaler Lauf, offen)
+## M2 / M4 / Kalibrierung — eigene Fahrten (2026-10-02)
 
-`python3 tool/route_measure.py rides --trails <Sammlung> --rides
-<Ordner mit GPX-Fahrten> --profile bio` beim Betreiber. Der Bericht
-(`build/route/rides.md`) nennt den Klassenmix der Aufstiegsabschnitte,
-die Steigrate je dominanter Klasse und für jede Fahrt, ob der A* vom
-Fahrtstart zum ersten bekannten Trailkopf den gefahrenen Weg findet
-(gleich nach den Abgleich-Schwellen 15 m / 0,8). Schwelle M4: ≥ 70 %
-gleich, Rest erklärbar.
+`tool/route_measure.py rides` an 47 Fahrten des Betreibers mit Zeit und
+Höhe (2019–2025), Kacheln `dach-20261001.pmtiles` vom Host, Höhen
+Copernicus GLO-90, Trails aus der Sammlung (584). Eingeteilt nach der
+Sportart, die Strava zu jeder Fahrt führt — die Geschwindigkeit allein
+hielt fünf E-MTB-Fahrten für Bio-Fahrten:
+
+| Gruppe | Fahrten | Profil |
+|---|---|---|
+| E-MTB (Strava `EMountainBikeRide`/`EBikeRide`) | 10 | `ebike` |
+| Bio, von Strava bestätigt (`MountainBikeRide`/`Ride`) | 7 | `bio` |
+| Bio, 2019–2021 (vor dem ersten E-Bike) | 30 | `bio` |
+
+Weggelassen: Wanderungen (18), kaputte Dateien (3), gezeichnete Spuren
+mit fester Geschwindigkeit (4) und fünf Fahrten, deren Rad sich nicht
+sicher zuordnen ließ. Die Fahrten lagen nur auf dem Rechner des Laufs;
+hier stehen Kennzahlen, keine Orte.
+
+### Kalibrierung — Steigrate je dominanter Klasse
+
+Steigrate = Höhenmeter eines Aufstiegs (≥ 100 hm am Stück) durch die
+Zeit vom Fuß bis zum Gipfel, **Pausen eingeschlossen** — so rechnet
+auch die Kalibrierung in der App (`ride_calibration.dart`), die Zahlen
+sind vergleichbar.
+
+| Gruppe | Forstweg (Median) | Straße | Wanderweg | Vorgabe Forstweg / Pfad |
+|---|---|---|---|---|
+| E-MTB | **333 hm/h** (12 Aufstiege) | 408 (3) | 356 (1) | 850 / 650 |
+| Bio, bestätigt | **319 hm/h** (12) | 198 (2) | 396 (1) | 450 / 350 |
+| Bio, 2019–2021 | **399 hm/h** (32) | 373 (10) | 355 (7) | 450 / 350 |
+
+Für DIESEN Fahrer schätzt das E-Bike-Profil die Aufstiege rund 2,5-mal
+zu schnell, das Bio-Profil um ein Achtel bis ein Drittel. Mit dem E-MTB
+steigt er kaum schneller als mit dem Bio-Rad. **Die Vorgaben bleiben**:
+850 hm/h sind für sportliche E-MTB-Fahrer realistisch, ein Fahrer ist
+kein Maßstab — dafür gibt es die Kalibrierung (Schritt 6). Die lernt
+aber nur aus Fahrten, die in der App aufgezeichnet wurden; diese 47
+Fahrten zählen dort nicht. Offen: importierte Fahrten mit gewähltem
+Profil zur Kalibrierung zulassen.
+
+### M2 — Klassenmix der eigenen Aufstiege
+
+| Klasse | E-MTB (17 Aufstiege) | Bio bestätigt (16) | Bio 2019–2021 (57) |
+|---|---|---|---|
+| forstweg | 55 % | 55 % | 36 % |
+| hauptstrasse | 14 % | 15 % | 17 % |
+| nebenstrasse | 13 % | 10 % | 14 % |
+| wanderweg | 9 % | 14 % | 15 % |
+| abseits (kein Weg in 15 m) | 2 % | 1 % | 7 % |
+| Rest (zufahrt, radweg, fussweg, stufen, bundesstrasse) | je ≤ 2 % | je ≤ 4 % | je ≤ 5 % |
+
+Der Forstweg trägt die Aufstiege, wie Tabelle 2.4 annimmt; Straßen und
+Wanderwege teilen sich den Rest zu etwa gleichen Teilen.
+
+### M4 — Aufstiegstreue: nach der Schwelle nicht bestanden
+
+Vom Fahrtstart zum ersten bekannten Trailkopf (mindestens 300 m
+entfernt): 15 Fälle (E-MTB 3, Bio bestätigt 1, Bio 2019–2021 11), der
+A* findet jedes Mal einen Weg, **gleich (15 m, 0,8 beidseitig) ist
+einer**. Die Schwelle (≥ 70 %) ist klar verfehlt. Die Deckung liegt im
+Median bei 0,15, und das liegt nicht an der Kostentabelle:
+
+| Variante (Aufschlag) | gleich | Deckung (Median der kleineren) | Planer: forst / haupt / wander / neben |
+|---|---|---|---|
+| heute (Hauptstraße 2,5; Wanderweg bergauf 1,4 Bio, 2,0 E) | 1 / 15 | 0,15 | 47 / 8 / 4 / 30 % |
+| Hauptstraße 1,6 / 1,2 / 1,0 | 1 / 15 | 0,15 | 39–33 / 20–42 / 1–2 / 29–15 % |
+| Wanderweg 1,2·1,6 / 1,0·1,2 / 1,0·1,0 | 1 / 15 | 0,15 | 46–47 / 5–6 / 7–9 / 28–31 % |
+| Hauptstraße 1,2 + Wanderweg 1,0·1,2 | 1 / 15 | 0,15 | 39 / 31 / 3 / 17 % |
+| alle Faktoren 1,0 (nur Zeit) | 1 / 15 | 0,16 | 32 / 38 / 2 / 21 % |
+| **gefahren** | | | **31 / 24 / 18 / 16 %** |
+
+Billigere Hauptstraßen verschieben den Mix des Planers zur Straße, die
+Deckung mit der Fahrt bleibt dieselbe; die Wanderwege, auf denen der
+Fahrer bergauf fährt, liegen gar nicht auf den schnellen Wegen. **Die
+Tabelle bleibt.**
+
+Die Gegenprobe: Die Fahrt selbst auf den Graphen gelegt (der günstigste
+Weg über die Kanten, die sie in 25 m Abstand abfährt) und nach DEMSELBEN
+Zeitmodell gerechnet:
+
+- Modellzeit gefahren / geplant: Median **1,27**, kleinster 1,00,
+  größter 1,91; ≤ 1,10 bei 4, ≤ 1,20 bei 6 von 15. Der Planer ist in
+  keinem Fall langsamer und nie mehr als 7 % länger.
+- Acht Fahrten verlassen den Graphen stückweise (Wege, die in den
+  Kacheln fehlen, oder ein GPS weiter als 25 m daneben); die Kosten
+  dort zählen tausendfach, die Zeit normal.
+- Die längste „Auffahrt" ist 32 km lang — eine Tour, die erst später
+  an einen bekannten Trail kommt, keine Anfahrt.
+
+### Welche Einstellung passt zu den Fahrten?
+
+Umgekehrt gefragt: Unter welchen Aufschlägen ist die gefahrene Strecke
+(auf dem Graphen, Stücke außerhalb zu ihren echten Kosten) am wenigsten
+teurer als der Plan? Kosten gefahren / geplant über die 15 Fälle:
+
+| Variante | Median | Mittel | ≤ 1,10 | ≤ 1,20 |
+|---|---|---|---|---|
+| heute | 1,55 | 1,59 | 3 | 4 |
+| ohne Steil-Aufschlag | 1,54 | 1,61 | 2 | 3 |
+| Steil ab 12 % / ab 20 % | 1,55 / 1,54 | 1,58 / 1,58 | 2 / 3 | 4 / 4 |
+| Steil-Faktor 1/1 (Belag egal) / 6/2 (doppelt) | 1,54 / 1,55 | 1,58 / 1,59 | 3 / 2 | 4 / 4 |
+| Hauptstraße 1,2 / 1,0 | 1,44 / 1,48 | 1,52 / 1,53 | 3 / 3 | 4 / 4 |
+| Nebenstraße und Zufahrt 1,0 | 1,63 | 1,59 | 3 | 4 |
+| Wanderweg bergauf 1,0 Bio / 1,2 E | 1,53 | 1,57 | 1 | 3 |
+| Hauptstraße 1,2 + Wanderweg 1,0/1,2 + Nebenstraße 1,0 | 1,36 | 1,46 | 1 | 4 |
+| dasselbe ohne Steil-Aufschlag | 1,35 | 1,44 | 2 | 5 |
+
+Der Steil-Aufschlag verschiebt nichts (± 0,01) — auf diesen Auffahrten
+entscheidet er nicht, er bleibt für die Rampen, gegen die er gebaut ist
+(#194). Billigere Straßen und Wanderwege passen etwas besser zu diesem
+Fahrer, um ein Zehntel; der größte Teil des Abstands bleibt — Umwege,
+die kein Aufschlag erklärt. Für eine neue Vorgabe für alle reichen
+15 Fälle eines Fahrers nicht; es ist Geschmack, und Geschmack gehört
+in einfache Einstellungen des Planers statt in die Tabelle.
+
+Der Betreiber dazu: „Meine gefahrene Route ist ja auch nicht unbedingt
+das Optimum." M4 fragt, ob der Planer DEN gefahrenen Weg findet; das
+misst die Gewohnheit des Fahrers (Umwege, eine schönere Auffahrt, ein
+Ziel vor dem Trail), nicht die Güte des Plans. Was die Messung zeigen
+kann, zeigt sie: Der Plan ist nach dem Modell schneller und nicht
+länger, und kein Aufschlag der Tabelle rückt ihn näher an die Fahrt.
+Ob er sich fahren lässt, sagt der Feldtest (#188), nicht diese Zahl.
 
 ## Was aus dem Werkzeug bleibt
 
