@@ -33,6 +33,7 @@ import 'package:trailbuddy/features/official/official_trails_source.dart';
 import 'package:trailbuddy/features/rides/ride_confirm_notify.dart';
 import 'package:trailbuddy/features/rides/ride_providers.dart';
 import 'package:trailbuddy/features/rides/ride_service.dart';
+import 'package:trailbuddy/features/routing/loop_plan_runner.dart';
 import 'package:trailbuddy/features/trails/outbox_providers.dart';
 import 'package:trailbuddy/features/trails/trail_providers.dart';
 
@@ -170,6 +171,8 @@ List<Override> overridesFor(FakeBackend backend,
       // an `path_provider` und den Plattform-Kanal.
       areaStoreProvider.overrideWithValue(areaStore ?? MemoryAreaStore()),
       keepAliveProvider.overrideWithValue(keepAlive ?? FakeKeepAlive()),
+      // Ein echter Rechen-Isolate antwortet in der Test-Zone nie (#188).
+      loopPlanRunnerFactoryProvider.overrideWithValue(InlineLoopPlanRunner.new),
       connectivityProvider.overrideWith(
           (ref) => connectivity ?? Stream.value(const [ConnectivityResult.wifi])),
       updateInfoProvider.overrideWith((ref) => Future.value(null)),

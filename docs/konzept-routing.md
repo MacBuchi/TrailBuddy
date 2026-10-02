@@ -387,11 +387,15 @@ dieselben Konstanten geprüft):
   weniger (3). Gesperrte Verbinder fallen weg, gesperrte Abfahrten
   behalten ihre Richtung.
 - **Gebaut wird je Planung** für den Rahmen Start ± Reichweite
-  (Reichweite = Zeitbudget × 15 km/h / 2, höchstens 25 km), im Isolate,
-  und für die Sitzung gemerkt (Schlüssel: Bereichs-Builds + Rahmen). Ein
+  (Reichweite = Zeitbudget × 15 km/h / 2, höchstens 25 km) und für die
+  Sitzung gemerkt (Schlüssel: Bereichs-Builds + Rahmen). Ein
   20-km-Rahmen sind rund 70 Kacheln und schätzungsweise 20 000
   Wegekanten — das baut ein Telefon in unter einer Sekunde (Messfrage
-  M5).
+  M5). Gebaut wird im UI-Isolate; GERECHNET wird die Runde seit 0.80.1
+  in einem dauerhaften Rechen-Isolate, der den Graphen einmal bekommt
+  (#188, gemessen in `docs/routing-messung.md`: an Ort und Stelle stand
+  die Oberfläche bei 60 Trails 2,4 s, im Isolate einmal ~0,3 s für das
+  Senden, danach 11–31 ms je Rechnung).
 - **Knoten — drei Regeln, gemessen (M1, `docs/routing-messung.md`)**:
   Jede Kachel wird auf ihren Rahmen zugeschnitten (der Puffer legte
   Wege doppelt). Zwei Linien teilen einen Knoten, wenn ihre Punkte auf

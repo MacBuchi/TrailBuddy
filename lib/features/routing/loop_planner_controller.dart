@@ -28,6 +28,7 @@ import '../map/position_provider.dart';
 import '../offline_areas/area_draw.dart' show AreaDrawTool;
 import '../profile/profile_providers.dart';
 import '../trails/trail_providers.dart';
+import 'loop_plan_runner.dart';
 import 'loop_planner.dart';
 import 'planning_graph.dart';
 import 'ride_calibrator.dart';
@@ -134,8 +135,17 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
   Set<String> _graphTrails = const {};
   bool _graphOnline = false;
 
+  /// Rechnet die Runde (#188: auf dem Telefon im Rechen-Isolate); lebt mit
+  /// dem Modus und wird beim Schließen freigegeben.
+  LoopPlanRunner? _runner;
+
+  /// Steigt beim Schließen des Planers oder des Ergebnisses: Was danach
+  /// ankommt, gehört zu einer Rechnung, die niemand mehr sehen will.
+  int _generation = 0;
+
   @override
   LoopSession build() {
+    ref.onDispose(() => _runner?.dispose());
     final profile = ref.read(riderProfileProvider);
     return LoopSession(prefs: LoopPrefs.parse(ref.read(settingsProvider).loopPlannerPrefs, profile), profile: profile);
   }
@@ -151,6 +161,9 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
   /// Den Modus schließen. Die Auswahl bleibt für die Sitzung — wer
   /// wiederkommt, findet seine Trails noch angewählt.
   void close() {
+    _generation++;
+    _runner?.dispose();
+    _runner = null;
     state = state.copyWith(
       open: false,
       pickingStart: false,
@@ -245,8 +258,11 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
   }
 
   /// Das Ergebnis weglegen (Blatt zu); Modus und Auswahl bleiben.
-  void clearResult() =>
-      state = state.copyWith(clearPlan: true, clearBlocker: true, phase: LoopPhase.idle);
+  void clearResult() {
+    // Eine Rechnung, die noch läuft, gehört zu diesem Ergebnis.
+    _generation++;
+    state = state.copyWith(clearPlan: true, clearBlocker: true, phase: LoopPhase.idle);
+  }
 
   /// Der Mittelpunkt der Liste: getippter Start, sonst der Standort (mit
   /// Fix, wenn noch keiner läuft). Null ohne beides.
@@ -271,11 +287,13 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
       return;
     }
     state = state.copyWith(clearPlan: true, clearBlocker: true, clearDrawTool: true, pickingStart: false);
+    final generation = _generation;
     try {
       var start = state.start;
       if (start == null) {
         state = state.copyWith(phase: LoopPhase.locating);
         final fix = await ref.read(positionFixProvider)();
+        if (generation != _generation) return;
         if (fix == null) {
           state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noPosition);
           return;
@@ -298,6 +316,7 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
           for (final t in chosen) ...t.directedPoints,
           for (final t in connectors) ...t.points,
         ]), fillOnline: fillOnline);
+        if (generation != _generation) return;
         if (loaded.graph == null) {
           state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noArea);
           return;
@@ -312,17 +331,22 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
       state = state.copyWith(phase: LoopPhase.computing);
       // Ein Bild für den Kreisel, bevor die Rechnung den Takt belegt.
       await WidgetsBinding.instance.endOfFrame;
-      final plan = planLoop(
+      final plan = await (_runner ??= ref.read(loopPlanRunnerFactoryProvider)()).plan(
         _graph!,
-        start: start,
-        // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
-        profile: ref.read(calibratedRiderProvider(state.profile)),
-        budget: state.prefs.budget,
-        pool: [for (final t in chosen) poolTrailOf(t, mandatory: state.mandatory.contains(t.id))],
-        returnToStart: state.prefs.returnToStart,
+        LoopRequest(
+          start: start,
+          // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
+          profile: ref.read(calibratedRiderProvider(state.profile)),
+          budget: state.prefs.budget,
+          pool: [for (final t in chosen) poolTrailOf(t, mandatory: state.mandatory.contains(t.id))],
+          returnToStart: state.prefs.returnToStart,
+        ),
       );
+      if (generation != _generation) return;
       state = state.copyWith(phase: LoopPhase.result, plan: plan, planStart: start);
     } catch (e, s) {
+      // Geschlossen, während er rechnete: kein Fehler, nur zu spät.
+      if (generation != _generation) return;
       logError('Runde planen', e, s);
       state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.failed);
     }
