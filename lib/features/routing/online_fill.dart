@@ -72,34 +72,107 @@ class OnlineTileCache {
 
 final onlineTileCacheProvider = Provider<OnlineTileCache>((ref) => OnlineTileCache());
 
+/// Höhenkacheln vom Host, über den Sitzungsspeicher — für die Planung
+/// (nur die Kacheln, die sie vom Host hat, [allow]) und für das Profil
+/// eines Trails ohne aufgezeichnete Höhen (#186, jede Kachel). Öffnet das
+/// Archiv erst, wenn eine Kachel nicht im Speicher liegt; ein Fehler
+/// beendet das Fragen für dieses Objekt.
+class OnlineHeights implements HeightTileSource {
+  OnlineHeights({
+    required this.open,
+    required this.cache,
+    this.allow,
+    this.timeout = kOnlineFillTimeout,
+  });
+
+  /// Öffnet das Höhenarchiv des Hosts; null ohne Manifest oder Bau.
+  final Future<PmTilesArchive?> Function() open;
+  final OnlineTileCache cache;
+
+  /// Nur Kacheln, für die das gilt; ohne: jede.
+  final bool Function(int x, int y)? allow;
+  final Duration timeout;
+
+  Future<PmTilesArchive?>? _archive;
+  bool _failed = false;
+
+  /// Wie viele Kacheln über das Netz kamen (nicht aus dem Speicher).
+  int requests = 0;
+
+  @override
+  Future<HeightTile?> tile(int x, int y) async {
+    if (allow != null && !allow!(x, y)) return null;
+    if (cache.hasHeights(x, y)) return cache.heights(x, y);
+    if (_failed) return null;
+    try {
+      final archive = await (_archive ??= open().timeout(timeout));
+      if (archive == null) {
+        _failed = true;
+        return null;
+      }
+      final id = ZXY(kHeightTileZoom, x, y).toTileId();
+      HeightTile? tile;
+      requests++;
+      if (await archive.lookup(id).timeout(timeout) != null) {
+        try {
+          tile = HeightTile.decode((await archive.tile(id).timeout(timeout)).bytes());
+        } on FormatException {
+          tile = null;
+        }
+      }
+      cache.putHeights(x, y, tile);
+      return tile;
+    } catch (e, s) {
+      // Ohne Höhen rechnet die Suche flach bzw. zeigt das Blatt kein
+      // Profil — kein Grund, mehr zu kippen. Gemeldet nur, was nicht nach
+      // Funkloch aussieht.
+      if (!looksOffline(e)) logError('Höhen online nachladen', e, s);
+      _failed = true;
+      return null;
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    try {
+      await (await _archive)?.close();
+    } catch (_) {
+      // Nie geöffnet oder schon weg — nichts zu schließen.
+    }
+  }
+}
+
 /// Eine Planung lang: öffnet die Archive des Hosts erst, wenn eine Kachel
 /// fehlt, und schließt sie danach ([close]).
 class OnlineFill {
   OnlineFill({
     required this.openRoads,
-    required this.openHeights,
+    required Future<PmTilesArchive?> Function() openHeights,
     required this.cache,
     this.timeout = kOnlineFillTimeout,
-  });
+  }) {
+    _heights = OnlineHeights(
+      open: openHeights,
+      cache: cache,
+      allow: (x, y) => _fetched.contains(OnlineTileCache._key(x, y)),
+      timeout: timeout,
+    );
+  }
 
   /// Öffnet das Kartenarchiv des Hosts; null ohne Manifest.
   final Future<PmTilesVectorTileProvider?> Function() openRoads;
-
-  /// Öffnet das Höhenarchiv des Hosts; null ohne Manifest oder Bau.
-  final Future<PmTilesArchive?> Function() openHeights;
   final OnlineTileCache cache;
   final Duration timeout;
 
   Future<PmTilesVectorTileProvider?>? _roads;
-  Future<PmTilesArchive?>? _heights;
-  bool _heightsFailed = false;
+  late final OnlineHeights _heights;
 
   /// Die Kacheln, die diese Planung vom Host hat — nur für sie fragt
   /// [heights] das Höhenarchiv.
   final _fetched = <int>{};
 
   /// Wie viele Höhenkacheln über das Netz kamen (nicht aus dem Speicher).
-  int heightRequests = 0;
+  int get heightRequests => _heights.requests;
 
   /// Die Wegekachel [t] — aus dem Speicher oder vom Host. Null: Der Host
   /// hat sie nicht. Wirft bei Netzfehler oder Frist; der Lader hört dann
@@ -127,38 +200,8 @@ class OnlineFill {
   }
 
   /// Höhen für die nachgeladenen Kacheln — die letzte Quelle des Lesers.
-  HeightTileSource get heights => _OnlineHeightSource(this);
-
-  Future<HeightTile?> _heightTile(int x, int y) async {
-    if (!_fetched.contains(OnlineTileCache._key(x, y))) return null;
-    if (cache.hasHeights(x, y)) return cache.heights(x, y);
-    if (_heightsFailed) return null;
-    try {
-      final archive = await (_heights ??= openHeights().timeout(timeout));
-      if (archive == null) {
-        _heightsFailed = true;
-        return null;
-      }
-      final id = ZXY(kHeightTileZoom, x, y).toTileId();
-      HeightTile? tile;
-      heightRequests++;
-      if (await archive.lookup(id).timeout(timeout) != null) {
-        try {
-          tile = HeightTile.decode((await archive.tile(id).timeout(timeout)).bytes());
-        } on FormatException {
-          tile = null;
-        }
-      }
-      cache.putHeights(x, y, tile);
-      return tile;
-    } catch (e, s) {
-      // Ohne Höhen rechnet die Suche flach und sagt es — kein Grund, den
-      // Plan zu kippen. Gemeldet nur, was nicht nach Funkloch aussieht.
-      if (!looksOffline(e)) logError('Höhen online nachladen', e, s);
-      _heightsFailed = true;
-      return null;
-    }
-  }
+  /// Geschlossen wird über [close], einmal für beide Archive.
+  HeightTileSource get heights => _NoClose(_heights);
 
   Future<void> close() async {
     try {
@@ -166,25 +209,27 @@ class OnlineFill {
     } catch (_) {
       // Nie geöffnet oder schon weg — nichts zu schließen.
     }
-    try {
-      await (await _heights)?.close();
-    } catch (_) {
-      // Dasselbe für das Höhenarchiv.
-    }
+    await _heights.close();
   }
 }
 
-class _OnlineHeightSource implements HeightTileSource {
-  _OnlineHeightSource(this._fill);
-  final OnlineFill _fill;
+class _NoClose implements HeightTileSource {
+  _NoClose(this._inner);
+  final HeightTileSource _inner;
 
   @override
-  Future<HeightTile?> tile(int x, int y) => _fill._heightTile(x, y);
+  Future<HeightTile?> tile(int x, int y) => _inner.tile(x, y);
 
-  // Geschlossen wird über [OnlineFill.close], einmal für beide Archive.
   @override
   Future<void> close() async {}
 }
+
+/// Öffnet das Höhenarchiv des Hosts über sein Manifest; null ohne.
+Future<PmTilesArchive?> Function() _openHostHeights(Ref ref) => () async {
+      final manifest = await ref.read(heightsManifestProvider.future);
+      if (manifest == null) return null;
+      return ref.read(areaSourceOpenerProvider)(manifest.archiveUri);
+    };
 
 /// Baut das Nachladen für eine Planung aus den Manifesten des Hosts —
 /// die Naht, die Tests ersetzen.
@@ -194,10 +239,11 @@ final onlineFillFactoryProvider = Provider<OnlineFill Function()>((ref) => () =>
         if (manifest == null) return null;
         return ref.read(onlineArchiveOpenerProvider)(manifest.archiveUri);
       },
-      openHeights: () async {
-        final manifest = await ref.read(heightsManifestProvider.future);
-        if (manifest == null) return null;
-        return ref.read(areaSourceOpenerProvider)(manifest.archiveUri);
-      },
+      openHeights: _openHostHeights(ref),
       cache: ref.read(onlineTileCacheProvider),
     ));
+
+/// Höhen vom Host für jede Kachel (#186) — dieselbe Naht für Tests. Der
+/// Aufrufer schließt die Quelle nach Gebrauch.
+final onlineHeightsFactoryProvider = Provider<OnlineHeights Function()>(
+    (ref) => () => OnlineHeights(open: _openHostHeights(ref), cache: ref.read(onlineTileCacheProvider)));

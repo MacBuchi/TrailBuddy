@@ -305,6 +305,12 @@ dieselben Konstanten geprüft):
 - **Sichtbar wird davon noch nichts**: Die Höhen braucht erst der Graph
   (Schritt 3). Deshalb gibt es dafür keinen Eintrag in „Entdecken";
   der kommt mit dem Planer.
+- **Zweite Verwendung seit 0.79.0 (#186)**: das Höhenprofil eines Trails
+  ohne aufgezeichnete Höhen, der GPX-Export dazu und die Prüfung der
+  Datei-Höhen beim Import (`terrain_heights.dart`, `konzept-trails.md`
+  Abschnitt 3). Vom Host über denselben Sitzungsspeicher wie die
+  Planung (`OnlineHeights` in `online_fill.dart`), aber für jede
+  Kachel — nicht nur für die, deren Wege nachgeladen wurden.
 
 ### 2.7 Daten und Offline
 

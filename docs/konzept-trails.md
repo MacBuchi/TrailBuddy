@@ -204,6 +204,19 @@ Karte steht, ist aus sichtbaren Beiträgen gerechnet:**
   Höhen an die BESTEHENDE Aufzeichnung (`attach_elevation`, nur wenn die
   Linie Punkt für Punkt dieselbe ist) — kein zweiter Beleg, kein neuer
   Abgleich, nicht im Tageslimit.
+  **Geländemodell (#186, seit 0.79.0; Betreiber 2026-10-02: „gezeigt,
+  nie gespeichert"):** Hat keine sichtbare Aufzeichnung Höhen, rechnet
+  das Blatt das Profil aus den Höhenkacheln (Copernicus GLO-90, Bereiche
+  zuerst, mit Empfang der Host), alle 50 m mit 10 m Hysterese wie in
+  der Messung M3 (~5 % Medianfehler im Abstieg), beschriftet „Höhen aus
+  dem Geländemodell (90 m)", ohne steilstes Stück. Der GPX-Export trägt
+  diese Höhen, markiert in `<extensions>`; der Import liest markierte
+  Höhen nie (kein Nachtragen, kein Beisteuern). Und der Import
+  vergleicht die Höhen einer Datei mit dem Modell: Versatz (Median)
+  über 50 m oder Streuung (95. Perzentil) über 80 m ⇒ er bietet das
+  Verwerfen an, vorgewählt; die Spur geht dann ohne Höhen hinauf.
+  Beide Schwellen sind gesetzt, nicht gemessen — der Feldtest (#188)
+  prüft sie mit.
 - **Name** = eigener Name, sonst der Name des ältesten sichtbaren
   Beitrags; die anderen als „auch: …" (Muster Buddy-Alias in PilzBuddy).
 - **Schwierigkeit** = Median der sichtbaren S-Grade (Singletrail-Skala,

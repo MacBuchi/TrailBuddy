@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../core/errors.dart';
 import '../../data/providers.dart';
@@ -12,6 +13,7 @@ import '../rides/ride_split_sheet.dart';
 import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'gpx_files.dart';
+import 'terrain_heights.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
 import 'trail_providers.dart';
@@ -51,16 +53,46 @@ class ImportCandidate {
         // Aus der VEREINFACHTEN Spur, also aus genau dem, was hochgeht:
         // Das Blatt rechnet danach mit denselben Punkten, und die Zahl
         // hier soll dieselbe sein wie dort.
-        elevation = elevationGainLoss(simplify(track.points)),
-        kind = classifyTrack(track.points),
+        _elevation = elevationGainLoss(simplify(track.points)),
+        _kind = classifyTrack(track.points),
+        heightless = GpxTrack(
+            name: track.name,
+            link: track.link,
+            points: [for (final p in track.points) TrackPoint(p.lat, p.lon, time: p.time)]),
         source = sourceOf(track.points);
 
   final String file;
   final GpxTrack track;
   final double lengthM;
-  final ({double gain, double loss})? elevation;
-  final TrackKind kind;
+  final ({double gain, double loss})? _elevation;
+  final TrackKind _kind;
   final RecordingSource source;
+
+  /// Dieselbe Spur ohne Höhen — was hochgeht, wenn sie verworfen sind.
+  final GpxTrack heightless;
+
+  /// Der Vergleich der Datei-Höhen mit dem Geländemodell (#186); null,
+  /// solange er läuft, die Datei keine Höhen hat oder das Modell dort
+  /// keine kennt.
+  TerrainComparison? terrain;
+
+  /// Die Höhen der Datei verwerfen (#186): angeboten, wenn [terrain]
+  /// auffällt, und dann vorgewählt — schlechte Höhen sollen das Netz nie
+  /// erreichen. Die Anzeige liest danach das Geländemodell.
+  bool discardHeights = false;
+
+  /// Was hochgeht: die Spur, ohne Höhen, wenn sie verworfen sind.
+  GpxTrack get uploadTrack => discardHeights ? heightless : track;
+
+  ({double gain, double loss})? get elevation => discardHeights ? null : _elevation;
+
+  /// Ohne Höhen entscheidet die Länge allein (`classifyTrack`) — mit
+  /// falschen Höhen würde ein Downhill sonst leicht zur Fahrt.
+  TrackKind get kind => discardHeights ? classifyTrack(heightless.points) : _kind;
+
+  /// Lohnt der Vergleich: Die Datei hat Höhen, und sie gingen hinauf.
+  bool get checksTerrain =>
+      _elevation != null && (existing == null || (existing?.canBackfill ?? false));
 
   /// EINE Kennung je Kandidat, beim Einlesen vergeben: Ein zweiter
   /// Versuch nach einem Abriss trägt dieselbe, und der Server antwortet
@@ -72,7 +104,7 @@ class ImportCandidate {
   /// die alte ihre Höhen.
   final ExistingRecording? existing;
 
-  bool get backfill => existing?.canBackfill ?? false;
+  bool get backfill => !discardHeights && (existing?.canBackfill ?? false);
 
   /// Die schon beigesteuerte Aufzeichnung hat keinen eigenen Namen — etwa
   /// weil der Name aus der Datei vor 0.9.1 zu lang war und das Speichern
@@ -114,6 +146,12 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   bool _busy = false;
   int _done = 0;
   ({int ok, int queued, int backfilled, int named, int failed})? _result;
+
+  /// Vergleiche mit dem Geländemodell, die laufen oder liefen (#186) —
+  /// das Beisteuern wartet auf sie, sonst gingen auffällige Höhen
+  /// hinauf, bevor der Vergleich sie fand.
+  final _terrainChecks = <Future<void>>[];
+  final _checked = <ImportCandidate>{};
 
   /// Trails, die ich vor dem Import schon über Buddys sah und jetzt selbst
   /// belegt habe (#102): Das Ergebnis bietet an, sie zu übernehmen. Erst
@@ -181,15 +219,59 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
         }
       }
     });
+    for (final c in _candidates) {
+      if (c.checksTerrain && !_checked.contains(c)) {
+        _checked.add(c);
+        _terrainChecks.add(_checkTerrain(c));
+      }
+    }
+  }
+
+  /// Die Höhen der Datei gegen das Geländemodell (#186). Fällt der
+  /// Vergleich auf, wird das Verwerfen vorgewählt. Ein Fehler ist nur
+  /// „kein Vergleich" — der Import läuft wie vorher.
+  Future<void> _checkTerrain(ImportCandidate c) async {
+    TerrainComparison? cmp;
+    try {
+      final file = trackElevations(c.track.points)!;
+      final model = await ref
+          .read(terrainHeightsProvider)
+          .at([for (final p in c.track.points) LatLng(p.lat, p.lon)]);
+      cmp = model == null ? null : compareToTerrain(file, model);
+    } catch (e, st) {
+      logError('Höhen mit dem Geländemodell vergleichen', e, st);
+    }
+    if (!mounted || cmp == null) return;
+    setState(() {
+      c.terrain = cmp;
+      if (cmp!.suspicious) _setDiscard(c, true);
+    });
+  }
+
+  void _setDiscard(ImportCandidate c, bool discard) {
+    c.discardHeights = discard;
+    // Mit oder ohne Höhen kann die Spur anders zählen (Fahrt ⇒ Trail,
+    // Nachtragen ⇒ nichts zu tun).
+    if (c.contributable) {
+      _selected.add(c);
+    } else {
+      _selected.remove(c);
+    }
   }
 
   Future<void> _contribute() async {
-    final chosen = _candidates.where(_selected.contains).toList();
-    if (chosen.isEmpty) return;
+    if (_selected.isEmpty) return;
     setState(() {
       _busy = true;
       _done = 0;
     });
+    await Future.wait(_terrainChecks);
+    if (!mounted) return;
+    final chosen = _candidates.where(_selected.contains).toList();
+    if (chosen.isEmpty) {
+      setState(() => _busy = false);
+      return;
+    }
     var ok = 0;
     var queued = 0;
     var backfilled = 0;
@@ -221,7 +303,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
         } else {
           // Ohne Netz landet der Auftrag im Ausgangskorb (#30) und der
           // Trail steht als wartender auf der Karte — kein Fehler.
-          final r = await notifier.contribute(c.track, clientId: c.clientId, rodeAt: c.rodeAt);
+          final r = await notifier.contribute(c.uploadTrack, clientId: c.clientId, rodeAt: c.rodeAt);
           if (r.queued) {
             queued++;
           } else {
@@ -369,11 +451,26 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
                             : () {
                                 StatefulNavigationShell.of(context).goBranch(kMapBranchIndex);
                                 ref.read(mapSplitRequestProvider.notifier).state =
-                                    SplitRequest.fromGpx(c.track, rodeAt: c.rodeAt);
+                                    SplitRequest.fromGpx(c.uploadTrack, rodeAt: c.rodeAt);
                               },
                       )
                     : null,
               ),
+              // Höhen weit neben dem Geländemodell (#186): verwerfen
+              // anbieten — vorgewählt, abwählbar.
+              if (c.terrain case final t? when t.suspicious)
+                Padding(
+                  padding: const EdgeInsets.only(left: 40),
+                  child: CheckboxListTile(
+                    key: ValueKey('import-discard-heights-${c.clientId}'),
+                    dense: true,
+                    value: c.discardHeights,
+                    onChanged: _busy ? null : (v) => setState(() => _setDiscard(c, v ?? false)),
+                    title: const Text('Höhen der Datei verwerfen, Geländemodell anzeigen'),
+                    subtitle: Text(t.reason),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
               // Eine Datei ohne Fahrzeiten (#120): Wer sie gefahren hat,
               // trägt den Tag ein — sonst gilt sie als nur geplant.
               if (c.asksRideDate)
@@ -431,7 +528,11 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     final parts = <String>[formatLength(c.lengthM)];
     final existing = c.existing;
     if (existing != null) {
-      parts.add(c.backfill && c.adoptsName
+      parts.add(c.discardHeights
+          ? (c.adoptsName
+              ? 'schon beigesteuert — Name wird übernommen, Höhen der Datei verworfen'
+              : 'schon beigesteuert — Höhen der Datei verworfen')
+          : c.backfill && c.adoptsName
           ? 'schon beigesteuert — Höhen und Name werden nachgetragen'
           : c.backfill
               ? 'schon beigesteuert — Höhen werden nachgetragen'
@@ -444,6 +545,7 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     }
     final el = c.elevation;
     if (el != null) parts.add(formatElevation(el));
+    if (c.discardHeights) parts.add('ohne Höhen der Datei');
     parts.add(switch (c.source) {
       RecordingSource.planned => c.rodeAt == null
           ? 'geplant (keine Fahrzeiten)'

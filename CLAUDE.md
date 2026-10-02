@@ -1651,6 +1651,34 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Spiegel von `climb_along` im Messwerkzeug, Testvektoren geteilt),
     nicht die 3 m der aufgezeichneten Höhen. Null, sobald eine Probe
     keine Höhe hat — ein halber Anstieg wäre eine erfundene Zahl.
+  **Seit 0.79.0 auch für Trails ohne Höhen** (#186,
+  `lib/features/trails/terrain_heights.dart`; Betreiber: „gezeigt, nie
+  gespeichert"). Vier Dinge, die man wissen muss:
+  - **Eine Naht, drei Abnehmer** (`TerrainHeights`): Bereiche zuerst,
+    mit Empfang der Host über `OnlineHeights` (dieselbe Klasse wie die
+    Planung, ohne deren „nur nachgeladene Kacheln"). Das Blatt
+    (`terrainProfileProvider`, nur beobachtet, wenn der Trail keine
+    Höhen hat), der Export und der Import lesen hier.
+  - **Das Profil rechnet wie gemessen**: Proben alle 50 m, 10 m
+    Hysterese (`ElevationProfile.terrain`, `hysteresisClimb`), kein
+    steilstes Stück. Die Kachel trägt „≈", das Profil
+    `kTerrainLabel`. Liste, Sortierung und Planer lesen weiter nur
+    aufgezeichnete Höhen — dort hieße es Netz je Zeile.
+  - **Markiert hinaus, nie zurück herein**: Der Export schreibt
+    `<extensions><tb:elevationSource>terrain` (Namensraum
+    `urn:trailbuddy:gpx:1`, keine Adresse), `parseGpx` liest die Höhen
+    einer so markierten Spur gar nicht erst. Sonst schriebe ein
+    Re-Import der eigenen Datei Modellhöhen als gemessene
+    (`attach_elevation`, Beisteuern). Rundlauf-Test in
+    `terrain_heights_test.dart` mit Gegenprobe.
+  - **Der Import vergleicht** (`compareToTerrain`): Versatz (Median)
+    über `kTerrainOffsetMaxM` (50 m) oder Streuung (95. Perzentil)
+    über `kTerrainSpreadMaxM` (80 m) ⇒ „Höhen der Datei verwerfen,
+    Geländemodell anzeigen", vorgewählt; dann geht `uploadTrack` ohne
+    Höhen hinauf, ein Nachtragen entfällt, und die Einordnung
+    Trail/Fahrt rechnet ohne Höhen. GESETZT, nicht gemessen — der
+    Feldtest (#188) prüft sie. Beisteuern wartet auf laufende
+    Vergleiche (Flow-Test mit Gegenprobe).
   Entfernen von Kacheln (Radierer) schreibt das Höhenarchiv genauso neu
   wie das Kartenarchiv (`AreaTrimmer._rewriteHeights`); bleibt keine,
   fällt nur das Höhenarchiv weg. Der Harness setzt beide Höhen-Loader

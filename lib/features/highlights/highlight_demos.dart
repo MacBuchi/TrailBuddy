@@ -199,6 +199,22 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'terrain-heights': HighlightDemo(
+    route: '/trails',
+    script: _demo('terrain-heights', const [
+      _openTrailFirst,
+      CoachStep(
+        title: 'Höhen ohne Aufzeichnung',
+        text: 'Hat kein Beitrag Höhen, kommen sie aus dem Geländemodell (90 m): '
+            'mit Empfang vom Kartenhost, sonst aus deinen Bereichen. Die Kachel '
+            'trägt dann ein „≈", das Profil sagt es — gespeichert wird nichts.',
+        scene: TrailsCoach.sheet,
+        lit: [SheetCoach.metrics],
+        requires: [TrailsCoach.row],
+      ),
+      _noTrailYet,
+    ]),
+  ),
   'gpx-export': HighlightDemo(
     route: '/trails',
     script: _demo('gpx-export', const [

@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Höhen aus dem Geländemodell
+
+*Version 0.79.0, 2026-10-02*
+
+- **Jeder Trail hat ein Höhenprofil**: Fehlen einem Trail aufgezeichnete
+  Höhen, zeigt das Blatt sein Profil aus dem Geländemodell (90 m) — aus
+  deinen gespeicherten Bereichen oder mit Empfang vom Kartenhost. Die
+  Kachel trägt dann ein „≈", das Profil sagt, woher es kommt, und
+  gespeichert wird davon nichts.
+- **Der GPX-Export trägt diese Höhen mit**, als Höhen aus dem
+  Geländemodell markiert. Importierst du die Datei wieder, nimmt die App
+  sie nicht als gemessen.
+- **Der Import prüft die Höhen einer Datei**: Liegen sie weit neben dem
+  Gelände (ein verstellter Höhenmesser, GPS-Sprünge), bietet er an, sie
+  zu verwerfen — dann geht die Spur ohne Höhen hinauf, und das Blatt
+  zeigt das Geländemodell.
+
 ## Runden auch ohne gespeicherten Bereich
 
 *Version 0.78.0, 2026-10-02*

@@ -15,15 +15,26 @@ import 'gpx.dart';
 /// Der Namensraum von GPX 1.1 — Text in der Datei, kein Netzziel.
 const kGpxNamespace = 'http://www.topografix.com/GPX/1/1';
 
+/// Der eigene Namensraum für `<extensions>` (#186) — eine URN, keine
+/// Adresse: niemand ruft sie ab.
+const kTrailBuddyGpxNamespace = 'urn:trailbuddy:gpx:1';
+
 /// Schreibt eine Spur als GPX-1.1-Dokument. [points] werden mit sechs
 /// Nachkommastellen geschrieben (~11 cm), Höhen mit einer, Zeiten in
 /// UTC ohne Bruchteile — was `parseGpx` liest, kommt Feld für Feld
 /// zurück (Rundlauf-Test).
+///
+/// [terrainHeights]: Die Höhen kommen aus dem Geländemodell, nicht aus
+/// einer Aufzeichnung (#186). Die Spur trägt dann
+/// `<extensions><tb:elevationSource>terrain</…>`, und `parseGpx` liest
+/// diese Höhen nie wieder ein — andere Apps zeigen sie, unser Import
+/// nimmt sie nicht als gemessen.
 String writeGpx({
   required String name,
   required List<TrackPoint> points,
   String? link,
   String creator = 'TrailBuddy',
+  bool terrainHeights = false,
 }) {
   final b = XmlBuilder();
   b.processing('xml', 'version="1.0" encoding="UTF-8"');
@@ -31,6 +42,7 @@ String writeGpx({
     b.attribute('version', '1.1');
     b.attribute('creator', creator);
     b.attribute('xmlns', kGpxNamespace);
+    if (terrainHeights) b.attribute('xmlns:tb', kTrailBuddyGpxNamespace);
     b.element('metadata', nest: () {
       b.element('name', nest: name);
       if (link != null) b.element('link', nest: () => b.attribute('href', link));
@@ -38,6 +50,9 @@ String writeGpx({
     b.element('trk', nest: () {
       b.element('name', nest: name);
       if (link != null) b.element('link', nest: () => b.attribute('href', link));
+      if (terrainHeights) {
+        b.element('extensions', nest: () => b.element('tb:$kElevationSourceTag', nest: kTerrainElevationSource));
+      }
       b.element('trkseg', nest: () {
         for (final p in points) {
           b.element('trkpt', nest: () {

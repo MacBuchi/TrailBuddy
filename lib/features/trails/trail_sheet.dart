@@ -22,6 +22,7 @@ import 'outbox_providers.dart';
 import 'pending_value.dart';
 import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
+import 'terrain_heights.dart';
 import 'trail_export.dart';
 import 'trail_geometry.dart';
 import 'trail_details_dialog.dart';
@@ -117,7 +118,10 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
     final shownStatus = trail.shownStatus;
     final mine = trail.myDetails;
     final buddies = trail.buddyIds.length;
-    final elevation = trail.elevation;
+    // Ohne aufgezeichnete Höhen das Profil aus dem Geländemodell (#186) —
+    // beobachtet nur dann, denn beobachten heißt laden.
+    final terrain = trail.elevation == null ? ref.watch(terrainProfileProvider(trail.id)) : null;
+    final elevation = trail.elevation ?? terrain?.valueOrNull;
     final contributors = trail.contributionsOrdered
         .where((d) => d.userId != trail.myId)
         .map((d) => d.username ?? 'Buddy')
@@ -236,7 +240,7 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             // Die Anker der Touren (#132): Kacheln, Einschätzung, Beitrag,
             // Hinweis und Karte — die Karten-Tour und die Trails-Tour
             // zeigen auf dieselben.
-            CoachAnchor(id: SheetCoach.metrics, child: _MetricTiles(trail: trail)),
+            CoachAnchor(id: SheetCoach.metrics, child: _MetricTiles(trail: trail, elevation: elevation)),
             const SizedBox(height: 8),
             _OpinionTiles(trail: trail),
             const SizedBox(height: 8),
@@ -249,10 +253,20 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                     ElevationProfileChart(elevation),
                     const SizedBox(height: 4),
                     Text(_profileCaption(elevation),
+                        key: const ValueKey('profile-caption'),
                         style: theme.textTheme.bodySmall?.copyWith(color: palette.muted)),
+                    // Geländehöhen sind eine Anzeige, kein Beitrag: Wer die
+                    // Datei mit Höhen hat, trägt die echten nach.
+                    if (elevation.fromTerrain && trail.isOwn)
+                      Text('Hat deine GPX-Datei Höhen, importiere sie noch einmal — sie werden nachgetragen.',
+                          style: theme.textTheme.bodySmall?.copyWith(color: palette.muted)),
                   ],
                 ),
               )
+            else if (terrain?.isLoading ?? false)
+              Text('Höhen werden aus dem Geländemodell gelesen …',
+                  key: const ValueKey('terrain-loading'),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant))
             else
               Text(
                   trail.isOwn
@@ -291,11 +305,16 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
                   child: TextButton.icon(
                     key: const ValueKey('trail-export'),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    onPressed: () {
-                      final track = trailToGpx(trail);
-                      shareGpx(context, ref,
+                    onPressed: () async {
+                      final track = await trailExportTrack(ref.read(terrainHeightsProvider), trail);
+                      if (!context.mounted) return;
+                      await shareGpx(context, ref,
                           fileName: gpxFileName(track.name),
-                          xml: writeGpx(name: track.name, points: track.points, link: track.link));
+                          xml: writeGpx(
+                              name: track.name,
+                              points: track.points,
+                              link: track.link,
+                              terrainHeights: track.terrainHeights));
                     },
                     icon: const Icon(Icons.share_outlined, size: 18),
                     label: const Text('Als GPX exportieren'),
@@ -574,7 +593,11 @@ class _PendingNotice extends ConsumerWidget {
 
 String _profileCaption(ElevationProfile p) {
   final steepest = p.steepestDescentPct;
-  final parts = <String>['In Trail-Richtung', formatMeanGrade(p.meanDescentPct)];
+  final parts = <String>[
+    if (p.fromTerrain) kTerrainLabel,
+    'In Trail-Richtung',
+    formatMeanGrade(p.meanDescentPct),
+  ];
   if (steepest != null && steepest > 0) {
     parts.add('steilstes Stück ${steepest.round()} % auf ${kSteepestWindowM.round()} m');
   }
@@ -764,8 +787,11 @@ class _Panel extends StatelessWidget {
 /// „S2 · S1–S3 · 4 Einschätzungen"); die S-Grad-Kachel öffnet, wer was
 /// gesagt hat.
 class _MetricTiles extends StatelessWidget {
-  const _MetricTiles({required this.trail});
+  const _MetricTiles({required this.trail, required this.elevation});
   final Trail trail;
+
+  /// Aufgezeichnet oder aus dem Geländemodell (#186, dann mit „≈").
+  final ElevationProfile? elevation;
 
   @override
   Widget build(BuildContext context) {
@@ -773,7 +799,7 @@ class _MetricTiles extends StatelessWidget {
     final palette = AppPalette.of(context);
     final big = AppFonts.numbers(theme.textTheme.titleLarge).copyWith(fontSize: 20);
     final small = AppFonts.numbers(theme.textTheme.bodySmall).copyWith(color: palette.muted);
-    final elevation = trail.elevation;
+    final elevation = this.elevation;
     final grade = trail.grade;
     final range = trail.gradeRange;
 
@@ -803,11 +829,12 @@ class _MetricTiles extends StatelessWidget {
             'HÖHE',
             elevation == null
                 ? 'Keine Höhenangaben'
-                : formatElevation((gain: elevation.gainM, loss: elevation.lossM)),
+                : '${formatElevation((gain: elevation.gainM, loss: elevation.lossM))}'
+                    '${elevation.fromTerrain ? ' aus dem Geländemodell' : ''}',
             elevation == null
                 ? [TextSpan(text: '—', style: TextStyle(color: palette.muted))]
                 : [
-                    TextSpan(text: '↓${elevation.lossM.round()}'),
+                    TextSpan(text: '${elevation.fromTerrain ? '≈' : ''}↓${elevation.lossM.round()}'),
                     TextSpan(text: ' Hm', style: small),
                   ],
             key: const ValueKey('metric-elevation'),
