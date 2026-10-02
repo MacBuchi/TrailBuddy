@@ -70,6 +70,9 @@ class LatBox {
     return LatBox(s, w, n, e);
   }
 
+  /// Liegt [o] ganz in diesem Rahmen?
+  bool contains(LatBox o) => o.s >= s && o.n <= n && o.w >= w && o.e <= e;
+
   /// Kommen sich die Rahmen auf [marginM] nahe?
   bool near(LatBox o, double marginM) {
     final dLat = marginM / 111320.0;

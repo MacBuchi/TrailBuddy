@@ -326,6 +326,47 @@ void main() {
     expect(find.byKey(const ValueKey('loop-summary')), findsNothing);
   });
 
+  testWidgets('Ein Trail im geladenen Rahmen braucht keinen neuen Graphen, einer außerhalb schon (#188)',
+      (tester) async {
+    // Neben dem Hexentanz, im Rahmen aus Standort und Hexentanz; seine
+    // Enden liegen 55 m von jedem Knoten — ohne vorheriges Anheften
+    // teilte die zweite Rechnung eine Kante.
+    final innen = trails.seedTrail(backend.currentUserId!, name: 'Innen', grade: 1, lat: 47.9995);
+    final runner = _HeldRunner();
+    await start(tester, areaStore: await _areaWithTrack(), runner: () => runner);
+    await openPlanner(tester);
+    final planner = ProviderScope.containerOf(tester.element(find.byType(MaterialApp))).read(loopPlannerProvider.notifier);
+    planner.setSelected([hex], true);
+    await settle(tester);
+    await tapRail(tester, 'loop-rail-compute');
+    final first = runner.held.single;
+    first.done.complete(first.request.planOn(first.graph));
+    await settle(tester, frames: 30);
+    final revision = first.graph.revision;
+
+    await tester.tap(find.byKey(const ValueKey('loop-close')));
+    await settle(tester);
+    planner.setSelected([innen], true);
+    await settle(tester);
+    await tapRail(tester, 'loop-rail-compute');
+    final second = runner.held[1];
+    expect(identical(second.graph, first.graph), isTrue, reason: 'der Trail liegt schon auf dem Graphen');
+    expect(second.request.pool.map((t) => t.name), unorderedEquals(['Hexentanz', 'Innen']));
+    second.done.complete(second.request.planOn(second.graph));
+    await settle(tester, frames: 30);
+    expect(second.graph.revision, revision, reason: 'seine Enden sind schon angeheftet — keine Teilung');
+
+    // Das Sperrgebiet liegt 300 m östlich, außerhalb des Rahmens.
+    await tester.tap(find.byKey(const ValueKey('loop-close')));
+    await settle(tester);
+    planner.setSelected([sperr], true);
+    await settle(tester);
+    await tapRail(tester, 'loop-rail-compute');
+    expect(identical(runner.held[2].graph, first.graph), isFalse, reason: 'neu geladen');
+    runner.held[2].done.complete(runner.held[2].request.planOn(runner.held[2].graph));
+    await settle(tester, frames: 30);
+  });
+
   testWidgets('Uphill-Trails und Verbinder sind nicht wählbar — die Karte sagt es', (tester) async {
     trails.seedTrail(backend.currentUserId!, name: 'Auffahrt', lat: 48.0, lon: 9.008, traits: {TrailTrait.uphill});
     await start(tester, areaStore: await _areaWithTrack());

@@ -197,4 +197,79 @@ void main() {
   test('das Budget: 10 % Reserve auf die Zeit', () {
     expect(const LoopBudget(timeS: 3600, climbM: 1, hikingM: 1).plannedTimeS, closeTo(3240, 1e-9));
   });
+
+  group('Suchen über die Rechnung hinaus (#188)', () {
+    // Alles, woran man ein anderes Ergebnis erkennen würde.
+    String sig(LoopPlan p) => [
+          p.outcome,
+          p.stops.map((s) => '${s.trail.id}${s.secondPass ? '²' : ''}').join(','),
+          p.summary?.trailM,
+          p.summary?.timeS,
+          p.summary?.gainM,
+          p.summary?.hikingM,
+          p.points.length,
+          p.excluded,
+        ].join(' | ');
+
+    LoopPlan plan(RoadGraph g, List<PoolTrail> pool,
+            {LoopSearchCache? cache, LatLng? from, RiderParams profile = _bio, LoopBudget budget = _big}) =>
+        planLoop(g,
+            start: from ?? start,
+            profile: profile,
+            budget: budget,
+            pool: pool,
+            cache: cache,
+            searchBudget: const Duration(milliseconds: 50));
+
+    test('dieselbe Rechnung noch einmal: keine neue Suche, dasselbe Ergebnis', () {
+      final g = _square(), cache = LoopSearchCache();
+      final first = plan(g, [a, b], cache: cache);
+      final ran = cache.searchesRun;
+      expect(ran, greaterThan(0));
+      final again = plan(g, [a, b], cache: cache);
+      expect(cache.searchesRun, ran);
+      expect(sig(again), sig(first));
+    });
+
+    test('abwählen, Höhenbudget, Pflicht: alles aus dem Speicher — und wie ohne gerechnet', () {
+      // Zum Vergleich ein zweiter Graph, der dieselbe Folge OHNE Speicher
+      // rechnet: Er ist dann im selben Stand (dieselben Teilungen).
+      final g = _square(), fresh = _square(), cache = LoopSearchCache();
+      expect(sig(plan(g, [a, b], cache: cache)), sig(plan(fresh, [a, b])));
+      final ran = cache.searchesRun;
+      final steps = <(List<PoolTrail>, LoopBudget)>[
+        ([a], _big),
+        ([a, b], const LoopBudget(timeS: 3 * 3600, climbM: 150, hikingM: 2000)),
+        ([a, _trail('B', (1010, 990), (1010, 10), mandatory: true)], _big),
+      ];
+      for (final (pool, budget) in steps) {
+        expect(sig(plan(g, pool, cache: cache, budget: budget)), sig(plan(fresh, pool, budget: budget)));
+      }
+      expect(cache.searchesRun, ran);
+    });
+
+    test('anderes Profil oder anderes Zeitbudget: neu gesucht', () {
+      final g = _square(), cache = LoopSearchCache();
+      plan(g, [a, b], cache: cache);
+      var ran = cache.searchesRun;
+      plan(g, [a, b], cache: cache, profile: RiderProfile.ebike);
+      expect(cache.searchesRun, greaterThan(ran), reason: 'die Kosten hängen am Profil');
+      ran = cache.searchesRun;
+      plan(g, [a, b], cache: cache, profile: RiderProfile.ebike, budget: const LoopBudget(timeS: 2 * 3600, climbM: 800, hikingM: 2000));
+      expect(cache.searchesRun, greaterThan(ran), reason: 'das Zeitbudget ist die Grenze der Suche');
+    });
+
+    test('teilt das Anheften eine Kante, gilt nichts Gemerktes mehr', () {
+      final g = _square(), fresh = _square(), cache = LoopSearchCache();
+      plan(g, [a, b], cache: cache);
+      plan(fresh, [a, b]);
+      final revision = g.revision;
+      // Ein Start mitten auf dem unteren Weg: neuer Knoten, geteilte Kante.
+      final mid = _m([(500, 0)]).single;
+      final moved = plan(g, [a, b], cache: cache, from: mid);
+      expect(g.revision, greaterThan(revision));
+      expect(moved.outcome, LoopOutcome.ok);
+      expect(sig(moved), sig(plan(fresh, [a, b], from: mid)));
+    });
+  });
 }

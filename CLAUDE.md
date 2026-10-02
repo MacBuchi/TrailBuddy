@@ -1826,7 +1826,19 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `InlineLoopPlanRunner` an Ort und Stelle — ein echter Isolate
     antwortet in der Test-Zone nie (`loopPlanRunnerFactoryProvider`).
     Gemessen in `docs/routing-messung.md` („#188"); Graph bauen und
-    Trails auflegen laufen weiter im UI-Isolate.
+    Trails auflegen laufen weiter im UI-Isolate. **Seit 0.80.2 behält
+    der Planer seine Suchen** (`LoopSearchCache`, je Runner einer): Die
+    begrenzten Dijkstras je Trail-Ende waren auch im Isolate der teure
+    Teil (40 Trails: 1,6 s je weiterer Rechnung, jetzt ≤ 35 ms). Gültig
+    nur für DENSELBEN Graphen in DEMSELBEN Stand (`RoadGraph.revision`
+    — eine Teilung beim Anheften ließe gemerkte Vorgänger ins Leere
+    zeigen), dieselben Profilwerte und dasselbe Zeitbudget; alles andere
+    leert ihn, und er hält nur einen Stand. Damit eine neue Auswahl
+    keine Kante teilt, heftet `loadPlanningGraph` die Enden JEDER
+    Abfahrt im Rahmen schon beim Laden an, und der Controller lädt nur
+    neu, wenn ein gewählter Trail aus dem geladenen Rahmen ragt
+    (`_graphBox`, `LatBox.contains`) — bis 0.80.1 bei jeder Kennung, die
+    nicht schon beim Laden gewählt war.
   Die Kurzanleitung hat sechs Abschnitte als Obergrenze; der Planer
   steht als Satz in „Fahrt aufzeichnen und zerlegen". Vorführung
   `loop-planner` über Szene `MapCoach.loopSheet` und Anker

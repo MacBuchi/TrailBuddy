@@ -262,6 +262,12 @@ class RoadGraph {
   final _nodeCells = <(int, int), List<int>>{};
   final _segCells = <(int, int), List<(int, int)>>{};
 
+  /// Steigt mit jeder Änderung an Knoten oder Kanten (neuer Knoten, neue
+  /// Kante, Teilung). Wer Suchergebnisse über eine Rechnung hinaus behält
+  /// (`LoopSearchCache`, #188), prüft sie daran: Nach einer Teilung zeigen
+  /// gemerkte Vorgänger auf eine Kante, die jetzt woanders endet.
+  int revision = 0;
+
   static (int, int) _cell(math.Point<double> p) => ((p.x / kGraphCellM).floor(), (p.y / kGraphCellM).floor());
 
   static (int, int) _keyOf(LatLng p) => ((p.longitude * 1e6).round(), (p.latitude * 1e6).round());
@@ -273,6 +279,7 @@ class RoadGraph {
     final existing = _key[key];
     if (existing != null) return existing;
     final i = nodes.length;
+    revision++;
     _key[key] = i;
     final xy = proj.xy(p);
     nodes.add(xy);
@@ -306,6 +313,7 @@ class RoadGraph {
   int addEdge(int a, int b, WayClass cls, bool oneway, List<LatLng> points, {int level = 0}) {
     final e = GraphEdge(a: a, b: b, cls: cls, oneway: oneway, points: points, length: _lengthOf(points), level: level);
     edges.add(e);
+    revision++;
     final ei = edges.length - 1;
     adj[a].add(ei);
     adj[b].add(ei);

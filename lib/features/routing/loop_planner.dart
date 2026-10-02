@@ -9,7 +9,8 @@
 // 1. Aufstiege zwischen allen Trail-Enden: ein begrenzter Dijkstra vom
 //    Start und von jedem Trail-Ende (`dijkstra` mit `limit`), die
 //    Verbindung je Paar wird erst beim ersten Bedarf zusammengefasst und
-//    dann gemerkt.
+//    dann gemerkt — mit einem [LoopSearchCache] auch über die Rechnung
+//    hinaus, solange Graph, Profil und Zeitbudget dieselben sind (#188).
 // 2. Verkettung: Pflicht-Trails zuerst (an die beste Stelle, nie wieder
 //    entfernt), dann greedy einfügen nach „Trail-Meter je Zeitzuwachs",
 //    dann lokale Suche (Entfernen und Einfügen, Vertauschen) mit festem
@@ -259,6 +260,55 @@ class _Conn {
   final PathSummary summary;
 }
 
+/// Was der Planer von einer Rechnung zur nächsten behält (#188): die
+/// begrenzten Suchen je Startknoten und die Verbindungen daraus. Sie sind
+/// der teure Teil — eine Suche je Trail-Ende, und mit 40 Trails rechnete
+/// der Planer auch die zweite Runde noch 1,6 s. Wer einen Trail ab- und
+/// wieder anwählt, das Höhenbudget oder die Pflicht ändert, fragt dieselben
+/// Suchen noch einmal.
+///
+/// Gültig nur für DENSELBEN Graphen im selben Stand
+/// ([RoadGraph.revision]: Eine Teilung beim Anheften ließe gemerkte
+/// Vorgänger auf eine Kante zeigen, die jetzt woanders endet), dasselbe
+/// Profil (Werte, nicht Name — die gelernten zählen mit) und dasselbe
+/// Zeitbudget (die Grenze der Suche). Alles andere leert ihn. Er hält nur
+/// EINEN Stand — mehr Speicher, als eine Rechnung ohnehin braucht, kostet
+/// er nicht.
+class LoopSearchCache {
+  RoadGraph? _graph;
+  var _revision = -1;
+  Object? _scope;
+  final _searches = <(int, bool), SearchResult>{};
+  final _conns = <(int, int, bool), _Conn?>{};
+
+  /// Wie viele Suchen wirklich gelaufen sind (nicht aus dem Speicher) —
+  /// für Test und Messung.
+  int searchesRun = 0;
+
+  void _bind(RoadGraph g, Object scope) {
+    if (identical(g, _graph) && g.revision == _revision && scope == _scope) return;
+    _graph = g;
+    _revision = g.revision;
+    _scope = scope;
+    _searches.clear();
+    _conns.clear();
+  }
+}
+
+/// Alles am Profil, wovon Kosten und Zeit einer Kante abhängen.
+Object _riderKey(RiderParams p) => (
+      p.profile,
+      p.climbTrackMPerH,
+      p.climbPathMPerH,
+      p.pushRateMPerH,
+      p.vFlatKmh,
+      p.vPathUpKmh,
+      p.vPushKmh,
+      p.vDownKmh,
+      p.pathUpFactor,
+      p.pathDownFactor,
+    );
+
 /// Der Zustand einer Runde als Folge von Pool-Indizes, mit den Summen
 /// und der gewählten Verbindung je Abschnitt ([legs]: eine je Halt, dazu
 /// die letzte zurück zum Ziel, wenn es eines gibt).
@@ -289,6 +339,9 @@ class _Route {
 ///
 /// Die Trails des Netzes liegen vorher schon auf [g] (`applyTrails`):
 /// Richtung und Verbinder kennt die Suche dann von selbst.
+///
+/// Mit [cache] behält der Planer seine Suchen für die nächste Rechnung auf
+/// demselben Graphen (der Rechen-Isolate, #188); ohne rechnet er alles neu.
 LoopPlan planLoop(
   RoadGraph g, {
   required LatLng start,
@@ -299,6 +352,7 @@ LoopPlan planLoop(
   LatLng? end,
   Map<String, LoopExclusion> excluded = const {},
   Duration searchBudget = kLoopSearchBudget,
+  LoopSearchCache? cache,
 }) {
   final out = Map<String, LoopExclusion>.of(excluded);
   final src = g.attach(start);
@@ -332,13 +386,17 @@ LoopPlan planLoop(
     heads.add(h);
     tails.add(e);
   }
-  final planner = _Planner(g, start, src, dst, end ?? start, profile, budget, pool, heads, tails, out);
+  // Erst NACH dem Anheften: Hat es eine Kante geteilt, gilt nichts
+  // Gemerktes mehr.
+  final searches = (cache ?? LoopSearchCache()).._bind(g, (_riderKey(profile), budget.timeS));
+  final planner =
+      _Planner(g, start, src, dst, end ?? start, profile, budget, pool, heads, tails, out, searches);
   return planner.run(searchBudget);
 }
 
 class _Planner {
   _Planner(this.g, this.start, this.src, this.dst, this.finish, this.p, this.budget, this.pool, this.heads,
-      this.tails, this.excluded);
+      this.tails, this.excluded, this.cache);
 
   final RoadGraph g;
   final LatLng start;
@@ -357,18 +415,19 @@ class _Planner {
 
   /// Je Startknoten zwei Suchen: die günstigste, und die ohne Wanderweg,
   /// Fußweg und Stufen — die zweite nur, wenn die erste das Budget
-  /// „höchstens Wanderweg" sprengt.
-  final _searches = <(int, bool), SearchResult>{};
-  final _conns = <(int, int, bool), _Conn?>{};
+  /// „höchstens Wanderweg" sprengt. Gemerkt im [LoopSearchCache], mit den
+  /// Verbindungen daraus.
+  final LoopSearchCache cache;
 
   bool usable(int i) => heads[i] != null && tails[i] != null && !excluded.containsKey(pool[i].id);
 
-  SearchResult _search(int from, {required bool noHiking}) => _searches.putIfAbsent(
-      (from, noHiking),
-      () => dijkstra(g, from, p, limit: budget.timeS, allow: noHiking ? (e) => !e.hiking : null));
+  SearchResult _search(int from, {required bool noHiking}) => cache._searches.putIfAbsent((from, noHiking), () {
+        cache.searchesRun++;
+        return dijkstra(g, from, p, limit: budget.timeS, allow: noHiking ? (e) => !e.hiking : null);
+      });
 
   /// Die Verbindung [from] → [to], oder null, wenn keine im Budget liegt.
-  _Conn? conn(int from, int to, {bool noHiking = false}) => _conns.putIfAbsent((from, to, noHiking), () {
+  _Conn? conn(int from, int to, {bool noHiking = false}) => cache._conns.putIfAbsent((from, to, noHiking), () {
         if (from == to) return _Conn(from, const [], summarizePath(g, const [], from, p));
         final path = _search(from, noHiking: noHiking).pathTo(to);
         if (path == null) return null;

@@ -395,7 +395,13 @@ dieselben Konstanten geprüft):
   in einem dauerhaften Rechen-Isolate, der den Graphen einmal bekommt
   (#188, gemessen in `docs/routing-messung.md`: an Ort und Stelle stand
   die Oberfläche bei 60 Trails 2,4 s, im Isolate einmal ~0,3 s für das
-  Senden, danach 11–31 ms je Rechnung).
+  Senden, danach 11–31 ms Pause je Rechnung). Seit 0.80.2 behält der
+  Isolate die Suchen je Trail-Ende für die nächste Rechnung auf
+  demselben Graphen (`LoopSearchCache`): Abwählen, Pflicht, Höhen- und
+  Wanderweg-Budget rechnen in Millisekunden; ein anderes Profil, ein
+  anderes Zeitbudget oder ein neuer Start suchen neu. Die Trail-Enden
+  im Rahmen werden beim Laden angeheftet, ein dazugewählter Trail aus
+  dem Rahmen braucht deshalb weder neues Laden noch neue Suchen.
 - **Knoten — drei Regeln, gemessen (M1, `docs/routing-messung.md`)**:
   Jede Kachel wird auf ihren Rahmen zugeschnitten (der Puffer legte
   Wege doppelt). Zwei Linien teilen einen Knoten, wenn ihre Punkte auf

@@ -112,7 +112,17 @@ Future<PlanningGraph> loadPlanningGraph(Ref ref, LatBox box, {bool fillOnline = 
       for (final t in trails)
         if (t.points.length >= 2 && LatBox.of(t.points).near(box, kTrailHeadMarginM)) t,
     ];
-    applyTrails(graph, graphTrailsOf(near));
+    final onGraph = graphTrailsOf(near);
+    applyTrails(graph, onGraph);
+    // Die Enden jeder Abfahrt gleich mit (#188): Wählt der Planer später
+    // einen weiteren Trail aus diesem Rahmen, teilt sein Anheften keine
+    // Kante mehr, und der Rechen-Isolate behält seine Suchen
+    // (`LoopSearchCache`). Dieselben Punkte, die `planLoop` anheftet.
+    for (final t in onGraph) {
+      if (t.role != TrailRole.downhill) continue;
+      graph.attach(t.points.first);
+      graph.attach(t.points.last);
+    }
   }
   return PlanningGraph(
     graph: graph,

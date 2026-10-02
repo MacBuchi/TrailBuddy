@@ -7,9 +7,10 @@
 //   flutter test test/routing/perf_loop_planner_measure.dart
 // Die Zahlen gehören nach docs/routing-messung.md. Je Zeile: Dauer an Ort
 // und Stelle (= so lange steht die Oberfläche), dann im Rechen-Isolate
-// (`loop_plan_runner.dart`) die erste Rechnung (Graph geht hinüber) und
-// eine zweite auf demselben Graphen — je Dauer / längste Pause des
-// UI-Takts, alles in ms. Die Rechenzeit auf dem Rechner (JIT) ist eine
+// (`loop_plan_runner.dart`) die erste Rechnung (Graph geht hinüber), eine
+// zweite auf demselben Graphen und eine dritte mit einem Trail weniger —
+// beide seit 0.80.2 aus den gemerkten Suchen (`LoopSearchCache`) —, je
+// Dauer / längste Pause des UI-Takts, alles in ms. Die Rechenzeit auf dem Rechner (JIT) ist eine
 // untere Grenze; das Telefon ist langsamer.
 //
 // Das Netz ist erfunden, aber so groß wie der dichteste Tirol-Rahmen
@@ -166,7 +167,11 @@ void main() {
       final runner = IsolateLoopPlanRunner();
       final first = await _watch(() => runner.plan(fresh, request));
       final second = await _watch(() => runner.plan(fresh, request));
+      final fewer = LoopRequest(
+          start: request.start, profile: profile, budget: budget, pool: pool.sublist(1));
+      final third = await _watch(() => runner.plan(fresh, fewer));
       runner.dispose();
+      expect(second.result.stops.map((s) => s.trail.id), first.result.stops.map((s) => s.trail.id));
       expect(first.result.stops.map((s) => s.trail.id), inline.result.stops.map((s) => s.trail.id));
 
       final plan = inline.result;
@@ -176,6 +181,7 @@ void main() {
           '| ${g.edges.length} | ${ms(built.build)} | ${ms(overlayTime)} (${applied.blocked} gesperrt) '
           '| ${ms(inline.total)} | ${ms(first.total)} / ${ms(first.stall)} '
           '| ${ms(second.total)} / ${ms(second.stall)} '
+          '| ${ms(third.total)} / ${ms(third.stall)} '
           '| ${plan.stops.length} | ${plan.summary == null ? '–' : '${(plan.summary!.timeS / 60).round()} min'} |');
     }, timeout: const Timeout(Duration(minutes: 5)));
   }
