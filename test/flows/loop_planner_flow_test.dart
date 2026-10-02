@@ -4,10 +4,12 @@
 // Parameter im Blatt, Rechnen — Summen, Reihenfolge, Vorschau, „Als Fahrt
 // speichern", „Als GPX"; der getippte Start, und die Fälle, in denen
 // nichts gerechnet werden kann (kein Bereich, kein Standort).
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:pmtiles/pmtiles.dart';
@@ -17,7 +19,11 @@ import 'package:trailbuddy/features/routing/trail_head_providers.dart' show Rout
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
 import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
 import 'package:trailbuddy/features/map/pmtiles_tile_provider.dart';
+import 'package:trailbuddy/features/routing/loop_plan_runner.dart';
+import 'package:trailbuddy/features/routing/loop_planner_controller.dart';
+import 'package:trailbuddy/features/routing/loop_planner.dart' show LoopPlan;
 import 'package:trailbuddy/features/routing/online_fill.dart';
+import 'package:trailbuddy/features/routing/road_graph.dart' show RoadGraph;
 import 'package:trailbuddy/features/trails/gpx.dart';
 import 'package:trailbuddy/models/trail.dart';
 
@@ -98,6 +104,23 @@ Future<MemoryAreaStore> _areaWithTrack({bool onlyCenter = false}) async {
   return (tiles: tiles, bytes: bytes);
 }
 
+/// Ein Runner, der erst antwortet, wenn der Test es sagt — wie der
+/// Rechen-Isolate auf dem Telefon, der eine Weile braucht (#188).
+class _HeldRunner implements LoopPlanRunner {
+  final held = <({RoadGraph graph, LoopRequest request, Completer<LoopPlan> done})>[];
+  var disposed = 0;
+
+  @override
+  Future<LoopPlan> plan(RoadGraph graph, LoopRequest request) {
+    final done = Completer<LoopPlan>();
+    held.add((graph: graph, request: request, done: done));
+    return done.future;
+  }
+
+  @override
+  void dispose() => disposed++;
+}
+
 void main() {
   late FakeBackend backend;
   late FakeTrailRepository trails;
@@ -127,7 +150,8 @@ void main() {
       {MemoryAreaStore? areaStore,
       FakePositionFix? positionFix,
       FakeSettings? settings,
-      OnlineFill Function()? onlineFill}) async {
+      OnlineFill Function()? onlineFill,
+      LoopPlanRunner Function()? runner}) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -140,6 +164,7 @@ void main() {
         extraOverrides: [
           gpxShareProvider.overrideWithValue(recorder),
           if (onlineFill != null) onlineFillFactoryProvider.overrideWithValue(onlineFill),
+          if (runner != null) loopPlanRunnerFactoryProvider.overrideWithValue(runner),
         ]);
     await settle(tester, frames: 20);
   }
@@ -244,6 +269,61 @@ void main() {
     await tapRail(tester, 'loop-rail-close');
     expect(find.byKey(const ValueKey('loop-tool-rail')), findsNothing);
     expect(picked(tester), isEmpty);
+  });
+
+  testWidgets('Rechnen wartet auf den Runner; Schließen gibt ihn frei, und ein spätes Ergebnis zählt nicht',
+      (tester) async {
+    final runner = _HeldRunner();
+    await start(tester, areaStore: await _areaWithTrack(), runner: () => runner);
+    await openPlanner(tester);
+    await zoomToTrails(tester);
+    await tapMapAt(tester, const LatLng(48.004, _lon));
+    await settle(tester);
+
+    // Erste Rechnung: Das Ergebnis kommt erst, wenn der Runner antwortet.
+    await tapRail(tester, 'loop-rail-compute');
+    expect(runner.held, hasLength(1));
+    expect(find.byKey(const ValueKey('loop-summary')), findsNothing);
+    final first = runner.held.single;
+    expect(first.request.pool.map((t) => t.name), ['Hexentanz']);
+    first.done.complete(first.request.planOn(first.graph));
+    await settle(tester, frames: 30);
+    expect(find.byKey(const ValueKey('loop-summary')), findsOneWidget);
+
+    // Zweite Rechnung auf demselben Graphen, mit demselben Runner. Das X
+    // schließt das Ergebnis-Blatt, während gerechnet wird — die Runde,
+    // die danach kommt, öffnet nichts mehr.
+    await tester.tap(find.byKey(const ValueKey('loop-close')));
+    await settle(tester);
+    await tapRail(tester, 'loop-rail-compute');
+    expect(runner.held, hasLength(2));
+    expect(identical(runner.held[1].graph, first.graph), isTrue, reason: 'der Graph wird nicht neu geladen');
+    await tester.tap(find.byKey(const ValueKey('loop-close')));
+    await settle(tester);
+    final second = runner.held[1];
+    second.done.complete(second.request.planOn(second.graph));
+    await settle(tester, frames: 30);
+    expect(find.byKey(const ValueKey('loop-summary')), findsNothing);
+    expect(trailLines(tester), isEmpty, reason: 'keine Runde auf der Karte ohne Blatt');
+    expect(find.byKey(const ValueKey('loop-tool-rail')), findsOneWidget, reason: 'der Planer bleibt offen');
+    expect(runner.disposed, 0);
+
+    // Dritte Rechnung, und Zurück schließt den Planer: Der Runner wird
+    // freigegeben. Scheitert die Rechnung daran, ist das weder ein Grund
+    // im Planer noch ein Fehlerbericht.
+    await tapRail(tester, 'loop-rail-compute');
+    expect(runner.held, hasLength(3));
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(find.byKey(const ValueKey('loop-tool-rail')), findsNothing);
+    expect(runner.disposed, 1);
+    runner.held[2].done.completeError(StateError('Planer geschlossen'));
+    await settle(tester, frames: 30);
+    final session = ProviderScope.containerOf(tester.element(find.byType(MaterialApp))).read(loopPlannerProvider);
+    expect((session.phase, session.blocker), (LoopPhase.idle, null));
+    await openPlanner(tester);
+    expect(find.byKey(const ValueKey('loop-blocker')), findsNothing);
+    expect(find.byKey(const ValueKey('loop-summary')), findsNothing);
   });
 
   testWidgets('Uphill-Trails und Verbinder sind nicht wählbar — die Karte sagt es', (tester) async {

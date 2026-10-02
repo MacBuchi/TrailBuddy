@@ -1814,10 +1814,19 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Die Regler merkt sich das Gerät** (`Settings.loopPlannerPrefs`,
     `LoopPrefs.encode/parse`, je Wert auf seine Spanne geklemmt); das
     Höhenbudget folgt dem Profilwechsel nur, solange es auf der Vorgabe
-    des alten Profils steht. Die Rechnung läuft im UI-Isolate — bei
-    einem Pool von 150 Trails sind es bis zu 151 begrenzte Dijkstras
-    je Rechnung; ein Isolate bräuchte einen übertragbaren Graphen und
-    ist ein eigener Schritt, wenn jemand die Dauer misst.
+    des alten Profils steht. **Gerechnet wird seit 0.80.1 in einem
+    dauerhaften Rechen-Isolate** (#188, `loop_plan_runner.dart`):
+    `Isolate.run` je Rechnung half kaum — das Senden kopiert den Graphen
+    im UI-Isolate (0,3–0,6 s Pause). Der Graph geht deshalb EINMAL
+    hinüber, jede weitere Rechnung schickt nur eine `LoopRequest`;
+    drüben wird angeheftet, der Graph des Controllers bleibt
+    unverändert. Schließen des Planers gibt den Isolate frei
+    (`dispose`), Schließen des Ergebnisses verwirft eine laufende
+    Rechnung (`_generation`). Im Web und im Harness rechnet
+    `InlineLoopPlanRunner` an Ort und Stelle — ein echter Isolate
+    antwortet in der Test-Zone nie (`loopPlanRunnerFactoryProvider`).
+    Gemessen in `docs/routing-messung.md` („#188"); Graph bauen und
+    Trails auflegen laufen weiter im UI-Isolate.
   Die Kurzanleitung hat sechs Abschnitte als Obergrenze; der Planer
   steht als Satz in „Fahrt aufzeichnen und zerlegen". Vorführung
   `loop-planner` über Szene `MapCoach.loopSheet` und Anker

@@ -203,6 +203,46 @@ Uphill-Trails und Verbinder tragen keinen Aufschlag — sie sind der
 Anstieg, den jemand gewählt hat (#185). Der Feldtest (#188) prüft Grenze
 und Faktoren mit.
 
+## #188 — Rechenzeit des Planers (Dart, 2026-10-02)
+
+Der Rundenplaner rechnete bis 0.80.0 im UI-Isolate. Gemessen mit
+`test/routing/perf_loop_planner_measure.dart` (von Hand, nicht in CI) auf
+einem erfundenen Netz in der Größe des dichtesten Tirol-Rahmens: Gitter
+25 × 25 km, 200 m Maschenweite, 31 500 Kanten, Forstweg/Wanderweg/
+Nebenstraße im Wechsel, Höhen aus einer glatten Hügelfläche; die Trails
+steigen das Gitter hinab, gestreut über 12 km um den Start. Rechner, JIT —
+eine untere Grenze für das Telefon. Alle Zeiten in ms; „Pause" ist die
+längste Lücke eines 4-ms-Takts im UI-Isolate, also das, was man als
+stehende Karte sieht.
+
+| Trails | Budget | Graph bauen | Trails auflegen | an Ort und Stelle (= Pause) | Isolate, 1. Rechnung: Dauer / Pause | Isolate, weitere: Dauer / Pause | Halte |
+|---|---|---|---|---|---|---|---|
+| 12 | Bio 3 h / 1 000 hm | 248 | 48 | 290 | 562 / 276 | 207 / 11 | 1 |
+| 30 | Bio 3 h / 1 000 hm | 209 | 41 | 466 | 906 / 352 | 521 / 23 | 1 |
+| 40 | Bio 5 h / 1 600 hm | 304 | 53 | 1 171 | 1 822 / 301 | 1 586 / 31 | 4 |
+| 60 | E-Bike 5 h / 2 500 hm | 112 | 52 | 2 351 | 2 351 / 289 | 2 005 / 23 | 8 |
+
+Drei Befunde:
+
+1. **Die Rechnung wächst mit der Auswahl**, nicht mit dem Netz: je
+   Trail-Ende ein begrenzter Dijkstra über das ganze Budget, dazu 300 ms
+   lokale Suche (fester Deckel). Ab 30–40 Trails steht die Oberfläche auf
+   dem Rechner über eine Sekunde, auf dem Telefon länger — die Schwelle
+   aus #188 („spürbar") ist damit ohne Gerät überschritten.
+2. **`Isolate.run` je Rechnung hilft kaum**: Das Senden kopiert den
+   Graphen IM UI-Isolate, und das allein sind 0,3–0,6 s Pause. Deshalb
+   ein dauerhafter Rechen-Isolate (`loop_plan_runner.dart`, seit 0.80.1):
+   Der Graph geht einmal hinüber (~0,3 s Pause, einmal je geladenem
+   Graphen), jede weitere Rechnung schickt nur Start, Budget, Profil und
+   Trails — 11–31 ms Pause, unabhängig von der Auswahl.
+3. **Was bleibt, ist das Laden**: Graph bauen (0,1–0,3 s) und Trails
+   auflegen (≤ 0,1 s) laufen weiter im UI-Isolate, dazu das einmalige
+   Senden. Sie hinüberzunehmen hieße, die Kacheln roh zu schicken und
+   drüben zu dekodieren — erst, wenn das Telefon dort eine Pause zeigt.
+
+Die Halte sind wenige, weil die Hügelfläche steil und das Budget knapp
+ist; gemessen wird die Zeit, nicht die Güte der Runde.
+
 ## M2 / M4 / Kalibrierung — eigene Fahrten (lokaler Lauf, offen)
 
 `python3 tool/route_measure.py rides --trails <Sammlung> --rides
