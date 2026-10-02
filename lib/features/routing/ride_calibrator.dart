@@ -9,7 +9,9 @@
 // Fahrt: Das Einordnen liest Kacheln aus den Bereichen, und ein Blatt,
 // das nach drei Stunden Fahren erst einmal rechnet, wäre der falsche
 // Moment. Fahrten ohne Profil (vor 0.70.0), geplante Fahrten und Fahrten
-// ohne Höhen lernen nichts.
+// ohne Höhen lernen nichts. Fahrten aus GPX-Dateien (#188) lernen mit,
+// sobald sie mit Profil in „Meine Fahrten" liegen — ihre Höhen sind die
+// der Datei.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -108,6 +110,31 @@ class RiderCalibrationsNotifier extends Notifier<RiderCalibrations> {
     await _save(next);
     return (rides: total, usable: usable, withoutArea: withoutArea, ridesByProfile: rides, sectionsByProfile: sections);
   }
+}
+
+/// Der Satz nach einem Lernlauf — EINER für das Fahrerprofil und den
+/// GPX-Import, der danach gleich lernen lässt.
+String learnResultText(LearnResult r) {
+  final learned = [
+    for (final p in RiderProfile.values)
+      if ((r.ridesByProfile[p] ?? 0) > 0)
+        '${p.label} aus ${r.ridesByProfile[p]} ${r.ridesByProfile[p] == 1 ? 'Fahrt' : 'Fahrten'} '
+            '(${r.sectionsByProfile[p] ?? 0} Aufstiege)',
+  ];
+  if (r.rides == 0) {
+    return 'Keine Fahrt auf diesem Gerät — gelernt wird aus deinen Aufzeichnungen '
+        'und aus Fahrten, die du per GPX-Import übernommen hast.';
+  }
+  if (r.usable == 0) {
+    return 'Keine Fahrt mit Profil und Höhen — Aufzeichnungen seit 0.70.0 tragen '
+        'beides, ältere Fahrten übernimmst du per GPX-Import mit Profil.';
+  }
+  if (learned.isEmpty) {
+    return r.withoutArea == r.usable
+        ? 'Kein gespeicherter Bereich deckt deine Fahrten — ohne Wege lässt sich kein Aufstieg einordnen.'
+        : 'Kein Aufstieg über 100 Höhenmeter am Stück gefunden — nichts zu lernen.';
+  }
+  return 'Gelernt: ${learned.join(' · ')}.';
 }
 
 final riderCalibrationsProvider =

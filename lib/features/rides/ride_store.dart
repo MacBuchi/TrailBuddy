@@ -78,11 +78,25 @@ abstract interface class RideStore {
     String? profile,
   });
 
+  /// Legt eine Fahrt aus einer GPX-Datei ab (#188): [points] mit Zeit und
+  /// Datei-Höhe, die Kennung aus dem ersten Punkt. Liegt dort schon eine
+  /// Datei, wird nichts geschrieben ([ImportSave.exists]) — dieselbe Datei
+  /// zweimal gewählt legt keine zweite Fahrt an. Wirft nie.
+  Future<ImportSave> saveImported({
+    required String uid,
+    required String name,
+    required List<RidePoint> points,
+    String? profile,
+  });
+
   /// Alle gespeicherten Fahrten dieses Kontos, neueste zuerst. Wirft nie.
   Future<List<Ride>> list({required String uid});
 
   Future<void> delete(String id);
 }
+
+/// Was aus einer übernommenen Fahrt wurde.
+enum ImportSave { saved, exists, failed }
 
 class FileRideStore implements RideStore {
   FileRideStore({Directory? baseDir}) : _baseDirOverride = baseDir;
@@ -337,6 +351,41 @@ class FileRideStore implements RideStore {
       });
 
   @override
+  Future<ImportSave> saveImported({
+    required String uid,
+    required String name,
+    required List<RidePoint> points,
+    String? profile,
+  }) =>
+      _serialized(() async {
+        if (points.isEmpty) return ImportSave.failed;
+        try {
+          final startedAt = points.first.at.toUtc();
+          final file = File('${(await _dir()).path}/${_idFor(startedAt)}.jsonl');
+          if (await file.exists()) return ImportSave.exists;
+          final lines = [
+            jsonEncode({
+              'uid': uid,
+              'startedAt': startedAt.toIso8601String(),
+              'imported': true,
+              'name': name,
+              'profile': ?profile,
+            }),
+            for (final p in points) jsonEncode(p.toJson()),
+            jsonEncode({'endedAt': points.last.at.toUtc().toIso8601String()}),
+          ];
+          // Am Stück über `.part` + `rename`, wie die geplante Fahrt.
+          final part = File('${file.path}.part');
+          await part.writeAsString('${lines.join('\n')}\n', flush: true);
+          await part.rename(file.path);
+          return ImportSave.saved;
+        } catch (e, stackTrace) {
+          logError('Fahrt aus GPX speichern', e, stackTrace);
+          return ImportSave.failed;
+        }
+      });
+
+  @override
   Future<List<Ride>> list({required String uid}) => _serialized(() async {
         try {
           final dir = await _dir();
@@ -359,6 +408,7 @@ class FileRideStore implements RideStore {
               marks: parsed.marks,
               profile: parsed.profile,
               planned: parsed.planned,
+              imported: parsed.imported,
               name: parsed.name,
             ));
           }
@@ -396,6 +446,7 @@ class FileRideStore implements RideStore {
             List<RideMark> marks,
             String? profile,
             bool planned,
+            bool imported,
             String? name,
           })?>
       _parse(File file, {required String uid}) async {
@@ -451,6 +502,7 @@ class FileRideStore implements RideStore {
         marks: marks,
         profile: head['profile'] as String?,
         planned: head['planned'] == true,
+        imported: head['imported'] == true,
         name: head['name'] as String?,
       );
     } catch (_) {

@@ -199,6 +199,18 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'ride-import': HighlightDemo(
+    route: '/trails',
+    script: _demo('ride-import', const [
+      CoachStep(
+        title: 'Fahrten aus anderen Apps',
+        text: 'Hier liest TrailBuddy GPX- oder Zip-Dateien. In der Android-App '
+            'steht unter den Spuren dann „Fahrten für dein Fahrerprofil": Rad '
+            'wählen, speichern, lernen lassen. Die Fahrten bleiben auf dem Gerät.',
+        lit: [TrailsCoach.import],
+      ),
+    ]),
+  ),
   'route-prefs': HighlightDemo(
     route: '/',
     script: _demo('route-prefs', const [

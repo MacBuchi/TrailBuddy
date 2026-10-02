@@ -2,6 +2,21 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Alte Fahrten zählen mit
+
+*Version 0.82.0, 2026-10-02*
+
+- **Fahrten aus anderen Apps in „Meine Fahrten"**: Der GPX-Import bietet
+  für aufgezeichnete Fahrten (mit Fahrzeiten) an, sie auf dem Gerät zu
+  speichern — mit dem Rad, mit dem du sie gefahren bist, Bio-Bike oder
+  E-Bike. Dieselbe Datei zweimal gewählt legt keine zweite Fahrt an.
+- **Das Fahrerprofil lernt aus ihnen**: Gleich nach dem Speichern oder
+  später unter „Fahrerprofil" — Steigrate und Flachgeschwindigkeit
+  kommen dann auch aus deinen älteren Fahrten, mit den Höhen der Datei.
+- Gespeicherte Fahrten lassen sich zerlegen und wieder als GPX
+  exportieren wie jede eigene Aufzeichnung. Sie verlassen das Gerät nie
+  von selbst.
+
 ## Wege nach deinem Geschmack
 
 *Version 0.81.0, 2026-10-02*

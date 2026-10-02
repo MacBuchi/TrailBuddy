@@ -1906,6 +1906,18 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Gerätelokal** (`Settings.riderCalibration`, JSON je Profil,
     `RiderCalibrations.encode/parse`, Unlesbares ⇒ Vorgaben); nie aus
     Fahrten anderer (Konzept 12). Zurücksetzen je Profil.
+  - **Fahrten aus GPX lernen mit** (#188, seit 0.82.0,
+    `ride_import.dart` pur): Der Import bietet aufgezeichnete Fahrten
+    (`TrackKind.ride` mit Zeiten) für „Meine Fahrten" an, mit EINEM
+    gewählten Profil für den Stapel (`RidesNotifier.saveImported`,
+    `RideStore.saveImported`, Kopf `imported: true` und Name, Kennung aus
+    dem ersten Punkt). Doppelt heißt: dieselbe Startsekunde wie eine
+    gemessene Fahrt (`rideOnDevice`) — auch die eigene, als GPX
+    exportierte Aufzeichnung. Eine übernommene Fahrt zerlegt sich wie die
+    Datei (`SplitRequest.fromRide`: Quelle `import`, Datei-Höhen gehen
+    mit, keine Streuung — gespeichert ist sie als 0). Danach „lernen" im
+    Import selbst, derselbe Satz wie im Profil (`learnResultText`). Nur
+    Android, wie „Meine Fahrten".
 - **Navigation rund** (seit 0.74.0, Feldbericht zu 0.73.0, #174 #176
   #177 #178 #185; `docs/konzept-routing.md` 2.7, 4). Sieben Dinge, die
   man wissen muss:

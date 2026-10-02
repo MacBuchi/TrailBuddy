@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'ride-import',
+    since: '0.82.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.trails,
+    icon: Icons.file_upload_outlined,
+    title: 'Alte Fahrten zählen mit',
+    text: 'Fahrten aus anderen Apps holst du per GPX-Import in „Meine Fahrten" — '
+        'mit dem Rad, mit dem du sie gefahren bist. Das Fahrerprofil lernt dann '
+        'auch aus ihnen, wie schnell du bergauf kommst.',
+    target: '/trails',
+  ),
+  FeatureHighlight(
     id: 'route-prefs',
     since: '0.81.0',
     kind: HighlightKind.highlight,

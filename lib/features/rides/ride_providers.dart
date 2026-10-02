@@ -19,6 +19,7 @@ import '../../data/providers.dart';
 import '../routing/route_profile.dart';
 import '../trails/trail_providers.dart';
 import 'ride_confirm.dart';
+import 'ride_import.dart';
 import 'ride_service.dart';
 import 'ride_store.dart';
 import 'ride_task_handler.dart';
@@ -337,7 +338,48 @@ class RidesNotifier extends AsyncNotifier<List<Ride>> {
     }
     return ride;
   }
+
+  /// Fahrten aus GPX-Dateien ablegen (#188), alle mit [profile]. Was
+  /// schon auf dem Gerät liegt (`rideOnDevice`, auch eine Datei derselben
+  /// Startsekunde), wird übersprungen und gezählt.
+  Future<ImportRidesResult> saveImported(
+      List<({String name, List<RidePoint> points})> tracks, {required String profile}) async {
+    final uid = ref.read(currentUserIdProvider);
+    if (uid == null) return (saved: 0, existed: 0, failed: tracks.length);
+    final store = ref.read(rideStoreProvider);
+    final known = [...await store.list(uid: uid)];
+    var saved = 0, existed = 0, failed = 0;
+    for (final t in tracks) {
+      if (t.points.length < 2) {
+        failed++;
+        continue;
+      }
+      if (rideOnDevice(t.points, known)) {
+        existed++;
+        continue;
+      }
+      switch (await store.saveImported(uid: uid, name: t.name, points: t.points, profile: profile)) {
+        case ImportSave.saved:
+          saved++;
+          // Zwei Spuren derselben Datei mit gleichem Start zählen einmal.
+          known.add(Ride(
+              id: '', startedAt: t.points.first.at, endedAt: t.points.last.at, points: t.points));
+        case ImportSave.exists:
+          existed++;
+        case ImportSave.failed:
+          failed++;
+      }
+    }
+    if (saved > 0) {
+      ref.invalidateSelf();
+      await future;
+    }
+    return (saved: saved, existed: existed, failed: failed);
+  }
 }
+
+/// Was aus einem Stapel übernommener Fahrten wurde.
+typedef ImportRidesResult = ({int saved, int existed, int failed});
 
 final ridesProvider = AsyncNotifierProvider<RidesNotifier, List<Ride>>(RidesNotifier.new);
 

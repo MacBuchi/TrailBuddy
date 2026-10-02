@@ -121,7 +121,8 @@ class _RideTile extends ConsumerWidget {
       subtitle: Text(planned
           ? 'Geplant am ${_day.format(ride.startedAt.toLocal())} · ${formatMeters(ride.lengthM)} · '
               'etwa ${rideDurationLabel(ride.duration)}'
-          : '${formatMeters(ride.lengthM)} · '
+          : '${ride.imported ? 'Aus GPX: ${ride.name ?? 'Datei'} · ' : ''}'
+              '${formatMeters(ride.lengthM)} · '
               '${rideDurationLabel(ride.duration)} · ${ride.points.length} Punkte'),
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (!planned)

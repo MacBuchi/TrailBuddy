@@ -94,7 +94,10 @@ Profil und im Planer-Blatt) und je Profil ein Parametersatz. Die Werte
 beginnen mit den Vorgaben unten und **lernen aus den eigenen Fahrten**
 (Abschnitt 5, Schritt 6): Jede Aufzeichnung merkt sich beim Start das
 aktive Profil (`Ride.profile`), die Kalibrierung rechnet je Profil;
-Fahrten ohne Profil (vor diesem Schritt) lernen nichts. Wer die
+Fahrten ohne Profil (vor diesem Schritt) lernen nichts. Fahrten aus
+anderen Apps übernimmt der GPX-Import mit einem gewählten Profil in
+„Meine Fahrten" (seit 0.82.0, #188) — dann lernen sie mit, mit den
+Höhen der Datei. Wer die
 gelernten Werte nicht will, setzt sie im Profil auf die Vorgaben
 zurück. Das Profil ändert drei Dinge und sonst nichts:
 
@@ -593,7 +596,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 3 | `road_graph.dart`, `route_profile.dart`, `route_search.dart`, Tests mit erzeugten Kacheln; Profil-Einstellung Bio/E — **gebaut, 0.70.0** (`lib/features/routing/`; `Ride.profile` seither im Dateikopf) | #158/3 | feat |
 | 4 | „Zum Trailkopf" im Trail-Blatt, Vorschau, GPX — **gebaut, 0.71.0** (`trail_head_route.dart` pur, `trail_head_sheet.dart`; Start ist der eigene Standort — der getippte Punkt und „Als Fahrt speichern" kommen mit Schritt 5, weil beides die geplante Fahrt in „Meine Fahrten" braucht) | #158/4 | feat |
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails — **gebaut, 0.72.0** (`loop_planner.dart` pur, `loop_planner_sheet.dart`, `loop_planner_providers.dart`; geplante Fahrt in „Meine Fahrten", „Als Fahrt speichern" auch bei „Zum Trailkopf") | #158/5 | feat |
-| 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 — **gebaut, 0.73.0** (`ride_calibration.dart` pur als Spiegel von `ride_sections`/`class_mix_along` im Werkzeug, `ride_calibrator.dart`; auf Knopfdruck unter „Fahrerprofil", Median je Klassengruppe ab drei Aufstiegen, plausible Spanne; die Planer lesen `calibratedRiderProvider`) | #158 | feat |
+| 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 — **gebaut, 0.73.0** (`ride_calibration.dart` pur als Spiegel von `ride_sections`/`class_mix_along` im Werkzeug, `ride_calibrator.dart`; auf Knopfdruck unter „Fahrerprofil", Median je Klassengruppe ab drei Aufstiegen, plausible Spanne; die Planer lesen `calibratedRiderProvider`); seit 0.82.0 auch aus Fahrten, die der GPX-Import mit Profil in „Meine Fahrten" übernimmt (#188) | #158 | feat |
 | 7 | Rund machen nach dem ersten Feldeinsatz: Blätter ohne Modal und über der Karte eingepasst, Planung über den vorhandenen Teil der Kacheln, Trail-Richtung und Verbinder auf dem Graphen (Patch 016 „in beide Richtungen"), Direkt/Spaßig, Navi-Symbol, langer Druck, Auswählen statt öffnen — **gebaut, 0.74.0** | #174 #176 #177 #178 #185 | feat |
 | 8 | Fehlende Wege- und Höhenkacheln mit Empfang vom eigenen Host, gedeckelt, nur für die Sitzung, abschaltbar (2.7) — **gebaut, 0.78.0** | #187 | feat |
 
