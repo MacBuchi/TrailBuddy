@@ -320,7 +320,7 @@ zweimal dieselbe Angabe. Der Bildschirmleser hört „Schwierigkeit S3:
 verblockt, hohe Stufen, enge Kehren".
 
 **Auf der Karte seit 0.43.0** (`trail_badges.dart`, Schritt 6b): ab der
-gerechneten Zoomstufe 14 (`kTrailBadgeMinZoom`; bis 0.74.0 13, eine
+gerechneten Zoomstufe 14 (`kTrailBadgeMinZoom`; bis 0.74.1 13, eine
 Stufe zu früh — #184, Feldbericht; jetzt zusammen mit den Namen an der
 Linie) ein Schild je Trail am
 Anfang in Trail-Richtung (`trailStart`: bei einer gegen die Richtung

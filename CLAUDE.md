@@ -1096,7 +1096,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Lauf neu geschrieben statt kommentiert; keine Fehler ⇒ kein Issue.
   Jede Gruppe zeigt den obersten Frame im EIGENEN Code (`top_frame`,
   `package:trailbuddy/`), sonst den obersten überhaupt (ANR-Dump), und
-  bei Framework-Fehlern die PHASE (seit 0.74.2: `flutterErrorStack`
+  bei Framework-Fehlern die PHASE (seit 0.74.1: `flutterErrorStack`
   schreibt `Phase: <Bibliothek> · <Zusammenhang>` über den Stack,
   `stack_phase` liest sie) — ein Ticker-Rückruf trägt keinen eigenen
   Frame, und in 2026-W40 stand fünfmal ein Null-Check in
