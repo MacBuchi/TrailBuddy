@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Steile Rampen meiden
+
+*Version 0.80.0, 2026-10-02*
+
+- **Runden und Wege zum Trail weichen sehr steilen Anstiegen aus**:
+  Jeder Höhenmeter über 15 % Steigung zählt extra — auf Schotter,
+  Forstweg und Pfad dreifach, auf Asphalt einfach. Wo ein flacherer Weg
+  hinaufführt, nimmt der Planer ihn, auch wenn er etwas länger ist.
+- **Uphill-Trails bleiben gewollt**: Wer einen steilen Anstieg als
+  Uphill-Trail eingetragen hat, fährt ihn — ohne Aufschlag.
+- **Das Ergebnis sagt es**, wenn die Route trotzdem steile Stücke hat.
+  Die geschätzte Zeit bleibt dabei, wie sie war.
+
 ## Höhen aus dem Geländemodell
 
 *Version 0.79.0, 2026-10-02*

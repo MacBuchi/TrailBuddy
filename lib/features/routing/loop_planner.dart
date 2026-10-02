@@ -181,6 +181,7 @@ class LoopSummary {
     required this.heightsComplete,
     this.trailUpM = 0,
     this.trailUpNames = const [],
+    this.steepM = 0,
   });
 
   final double lengthM;
@@ -188,6 +189,9 @@ class LoopSummary {
   /// Meter über Uphill-Trails und Verbinder (#185), und deren Namen.
   final double trailUpM;
   final List<String> trailUpNames;
+
+  /// Höhenmeter über der Steilgrenze auf den Verbindungen (#194).
+  final double steepM;
 
   /// Höhenmeter bergauf — Verbindungen und Gegenanstiege auf Trails.
   final double gainM;
@@ -551,7 +555,7 @@ class _Planner {
     final points = <LatLng>[start, g.nodeLatLng[src]];
     final mix = <WayClass, double>{};
     final upNames = <String>[];
-    var length = 0.0, gain = 0.0, loss = 0.0, trailLoss = 0.0, trailUp = 0.0;
+    var length = 0.0, gain = 0.0, loss = 0.0, trailLoss = 0.0, trailUp = 0.0, steep = 0.0;
     var complete = true;
     final seen = <int>{};
     final stops = <LoopStop>[];
@@ -574,6 +578,7 @@ class _Planner {
       length += c.summary.lengthM;
       gain += c.summary.gainM;
       loss += c.summary.lossM;
+      steep += c.summary.steepM;
       if (!c.summary.heightsComplete) complete = false;
     }
 
@@ -613,6 +618,7 @@ class _Planner {
         heightsComplete: complete,
         trailUpM: trailUp,
         trailUpNames: upNames,
+        steepM: steep,
       ),
       stops: stops,
       excluded: excluded,

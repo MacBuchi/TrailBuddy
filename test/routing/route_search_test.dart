@@ -58,6 +58,58 @@ void main() {
     expect(s.timeS, closeTo(s.lengthM / (15 / 3.6), 1e-6));
   });
 
+  test('Steilaufschlag (#194): die steile Abkürzung verliert, bergab und auf dem Uphill-Trail nicht', () {
+    // (0,0) → (0,600): direkt 600 m Forstweg mit 140 hm, davon 60 über 15 %;
+    // der Umweg über (400, 300) hat 1 000 m und 140 hm, nirgends steil.
+    final g = buildRoadGraph([
+      _way([(0, 0), (0, 600)]),
+      _way([(0, 0), (400, 300), (0, 600)]),
+    ], lat0: 47.5).graph;
+    final a = g.attach(_m([(0, 0)]).single)!, b = g.attach(_m([(0, 600)]).single)!;
+    final direct = g.edges.indexWhere((e) => e.points.length == 2);
+    for (final (i, e) in g.edges.indexed) {
+      final up = e.a == a; // a → b ist bergauf
+      e
+        ..gain = up ? (i == direct ? 140 : 140 * e.length / 1000) : 0
+        ..loss = up ? 0 : (i == direct ? 140 : 140 * e.length / 1000)
+        ..hasHeights = true;
+      if (i == direct) {
+        if (up) {
+          e.steepUp = 60;
+        } else {
+          e.steepDown = 60;
+        }
+      }
+    }
+    final up = shortestPath(g, a, b, bio)!;
+    expect(up.edges, isNot([direct]), reason: '60 steile hm kosten 24 min — mehr als 400 m Umweg');
+    expect(summarizePath(g, up.edges, a, bio).steepM, 0);
+    expect(shortestPath(g, b, a, bio)!.edges, [direct], reason: 'bergab ist die Steilheit kein Aufschlag');
+
+    // Ohne die steilen Meter wäre die Abkürzung die Wahl.
+    final e = g.edges[direct];
+    final steep = (e.steepUp, e.steepDown);
+    e
+      ..steepUp = 0
+      ..steepDown = 0;
+    expect(shortestPath(g, a, b, bio)!.edges, [direct]);
+    e
+      ..steepUp = steep.$1
+      ..steepDown = steep.$2;
+
+    // Als Uphill-Trail gewollt: kein Aufschlag, die Abkürzung ist der Weg.
+    e.trail = const EdgeTrail(id: 'up', name: 'Uphill', connector: true);
+    final viaTrail = shortestPath(g, a, b, bio)!;
+    expect(viaTrail.edges, [direct]);
+    expect(summarizePath(g, viaTrail.edges, a, bio).steepM, 0, reason: 'der Uphill-Trail zählt nicht als steil');
+  });
+
+  test('der Satz zu steilen Stücken erst ab ein paar Höhenmetern (#194)', () {
+    expect(steepNote(0), isNull);
+    expect(steepNote(kSteepNoteMinM - 0.1), isNull);
+    expect(steepNote(kSteepNoteMinM), contains('über 15 %'));
+  });
+
   test('Einbahn: hin über die Straße, zurück nur über den Umweg', () {
     final g = buildRoadGraph([
       _way([(0, 0), (1000, 0)], cls: WayClass.nebenstrasse, oneway: true),

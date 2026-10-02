@@ -209,6 +209,20 @@ wieder erstiegen werden, bevor der nächste Trail kommt — er geht als
 „verschenkte Höhenmeter" in den Vergleich zweier Pläne und ins Blatt
 („120 hm auf Forstweg verschenkt").
 
+**Steile Anstiege kosten extra** (#194, seit 0.80.0, gemessen in
+`docs/routing-messung.md`): Je Kante zählen die Höhenmeter, die ein
+50-m-Schritt über **15 %** seiner Länge steigt (Höhen und Positionen über
+drei Proben geglättet, sonst ist es Rauschen des 90-m-Modells), in jeder
+Richtung für sich. Sie kosten ihre Steigzeit noch einmal, mal **3**
+unbefestigt (Forstweg, Wanderweg, Fußweg), mal **1** auf Asphalt
+(Radweg, Straßen), auf Stufen nichts. Die Kacheln kennen keinen Belag;
+die Klasse ist die Näherung. Uphill-Trails und Verbinder (#185) tragen
+keinen Aufschlag. Er ist Kosten, nicht Zeit — die geschätzte Zeit und die
+Kalibrierung bleiben unberührt. Das Ergebnis sagt es, wenn die Route
+trotzdem steile Stücke hat (ab 5 hm über der Grenze), ohne Zahl: Gezählt
+ist nur, was über der Grenze steigt, und „12 hm steil" läse sich wie die
+Länge der Rampe.
+
 Trailkanten: nur in Trail-Richtung (`reversed` beachtet), nur bergab
 gedacht, Kosten = Zeit nach S-Grad, Gewinn = Trail-Meter. Ein Trail mit
 bestätigter warnender Meldung (`Trail.status.warns`) ist aus dem Pool,

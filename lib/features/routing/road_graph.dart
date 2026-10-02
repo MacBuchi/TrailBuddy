@@ -218,6 +218,11 @@ class GraphEdge {
   double gain = 0;
   double loss = 0;
 
+  /// Höhenmeter über [kSteepGrade] in Kantenrichtung (a → b) bzw.
+  /// dagegen (#194, [steepExcess]) — sie kosten den Steilaufschlag.
+  double steepUp = 0;
+  double steepDown = 0;
+
   /// Falsch, solange keine Höhen gelesen wurden oder eine Probe der Kante
   /// keine Höhe hatte — dann rechnet die Kante flach, und der Graph sagt
   /// es ([RoadGraph.edgesWithoutHeights]).
@@ -334,17 +339,21 @@ class RoadGraph {
       ..blockForward = e.blockForward
       ..blockBackward = e.blockBackward
       ..hasHeights = e.hasHeights;
-    if (e.gain > 0 || e.loss > 0) {
+    if (e.gain > 0 || e.loss > 0 || e.steepUp > 0 || e.steepDown > 0) {
       // Höhen anteilig nach Länge — genauer weiß es niemand, und flach
       // wäre falscher.
       final total = e.length + edges[ni].length;
       final share = total == 0 ? 0.0 : edges[ni].length / total;
       edges[ni]
         ..gain = e.gain * share
-        ..loss = e.loss * share;
+        ..loss = e.loss * share
+        ..steepUp = e.steepUp * share
+        ..steepDown = e.steepDown * share;
       e
         ..gain = e.gain * (1 - share)
-        ..loss = e.loss * (1 - share);
+        ..loss = e.loss * (1 - share)
+        ..steepUp = e.steepUp * (1 - share)
+        ..steepDown = e.steepDown * (1 - share);
     }
     return mid;
   }
@@ -568,13 +577,18 @@ List<({LatLng at, int edgeA, int edgeB})> findCrossings(RoadGraph g) {
 /// einer Probe bleibt flach und ist als solche markiert.
 Future<void> addClimbs(RoadGraph g, HeightReader heights) async {
   for (final e in g.edges) {
-    final climb = await heights.climbAlong(e.points);
-    if (climb == null) {
+    final profile = await heights.profileAlong(e.points);
+    if (profile == null) {
       e.hasHeights = false;
       continue;
     }
-    e.gain = climb.gain;
-    e.loss = climb.loss;
-    e.hasHeights = true;
+    final (gain, loss) = hysteresisClimb(profile.heights, kClimbHysteresisM);
+    final steep = steepExcess(profile.heights, profile.stepsM);
+    e
+      ..gain = gain
+      ..loss = loss
+      ..steepUp = steep.up
+      ..steepDown = steep.down
+      ..hasHeights = true;
   }
 }

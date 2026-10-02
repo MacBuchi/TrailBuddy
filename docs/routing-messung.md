@@ -158,6 +158,51 @@ Die Wege sehen aus wie Wege, die man fährt: Forststraße und Almzufahrt
 zuerst, Wanderweg dort, wo es kürzer ist als der Umweg, Bundesstraße nur
 als Brücke über wenige hundert Meter. Ob das stimmt, sagt M4.
 
+## #194 — Steile Anstiege (Run 7 vom 2026-10-02)
+
+Feldbericht aus 0.74.0: „Super steile Anstiege (falls nicht zum
+deklarierten Uphill-Trail gehörend) sollten bestraft werden, insbesondere
+wenn kein Asphalt sondern nur Weg." Gemessen wird, wie steil die Klassen
+auf dem DEM sind und was ein Aufschlag ab einer Grenze an den
+Beispiel-Aufstiegen ändert. Höhen alle 50 m je Kante, in ihrer
+Aufwärtsrichtung; „geglättet" heißt Höhen UND Positionen über drei Proben
+gemittelt (`steep_excess`). Rahmen 2 und 3:
+
+| Klasse | Steigung Median / 90. / 99. Perzentil | hm über 15 %, roh / geglättet | über 20 %, geglättet |
+|---|---|---|---|
+| Forstweg | 9 / 18 / 29–30 % | 22–23 % / 10 % | 3–4 % |
+| Zufahrt | 7–8 / 15–16 / 26–28 % | 16–21 % / 6–7 % | 2–3 % |
+| Nebenstraße | 7 / 14–15 / 25 % | 12–15 % / 4–6 % | 1 % |
+| Wanderweg | 13–14 / 30–36 / 51–66 % | 39–47 % / 29–36 % | 18–25 % |
+
+Vier Dinge daraus:
+
+1. **Roh doppelt so viel wie geglättet** — auf allen Klassen. Ein Weg
+   liegt ein paar Meter neben seiner Linie im 90-m-Modell, und quer zu
+   einer steilen Flanke ist das allein schon einige Prozent je
+   50-m-Schritt. Gerechnet wird geglättet.
+2. **15 % trifft das steilste Zehntel der Forstweg-Höhenmeter**, auf
+   Straßen ein Zwanzigstel; das 90. Perzentil der Forstwege liegt bei
+   18 %. Das ist „sehr steil" für eine Forststraße, und das DEM glättet
+   eine echte Rampe eher flacher, als sie ist. **Grenze 15 %**
+   (`STEEP_GRADE`, `kSteepGrade`).
+3. **Der Aufschlag**: Jeder Höhenmeter über der Grenze kostet seine
+   Steigzeit noch einmal, mal drei auf Schotter und Pfad, mal eins auf
+   Asphalt, auf Stufen nichts (dort wird ohnehin geschoben). Bio auf
+   Forstweg: 24 s je steilem Höhenmeter. Kosten, keine Minuten — das
+   Zeitmodell bleibt, was die Fahrten kalibrieren.
+4. **Die Wirkung**: 3 bzw. 4 von 15 Beispiel-Aufstiegen nehmen einen
+   anderen Weg, die steilen Höhenmeter sinken um ein Drittel (291 → 202,
+   228 → 161). Wo sich der Weg ändert, wird er im Median 20–31 % länger,
+   höchstens 41–52 % — das Beispiel „1,9 km, 210 hm" wird „2,7 km,
+   226 hm" mit der Hälfte der steilen Meter. Wanderwege sind von sich aus
+   steil (ein Drittel ihrer Höhenmeter über 15 %); der Aufschlag macht
+   sie bergauf noch einmal teurer, zusätzlich zu ×1,4.
+
+Uphill-Trails und Verbinder tragen keinen Aufschlag — sie sind der
+Anstieg, den jemand gewählt hat (#185). Der Feldtest (#188) prüft Grenze
+und Faktoren mit.
+
 ## M2 / M4 / Kalibrierung — eigene Fahrten (lokaler Lauf, offen)
 
 `python3 tool/route_measure.py rides --trails <Sammlung> --rides

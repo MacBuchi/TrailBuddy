@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'steep-climbs',
+    since: '0.80.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.trending_up,
+    title: 'Steile Rampen meiden',
+    text: 'Runden und Wege zum Trail weichen sehr steilen Anstiegen aus, wo es '
+        'flacher geht — auf Schotter und Pfad deutlich mehr als auf Asphalt. '
+        'Uphill-Trails bleiben gewollt.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'terrain-heights',
     since: '0.79.0',
     kind: HighlightKind.highlight,
