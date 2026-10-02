@@ -1,8 +1,8 @@
-// Das Schild am Trailanfang (Design 4c, Schritt 6b): ab Zoom 13, am
-// Anfang in Trail-Richtung, mit Grad und Merkmalen in der Farbe der Linie;
-// ein Tipp öffnet den Trail. Dazu seit 0.66.0 die Start- und Endmarken
-// (#96, Schritt 6c): dieselbe Zoomstufe, in Trail-Richtung, nicht
-// antippbar, auch für Trails ohne Schild.
+// Das Schild am Trailanfang (Design 4c, Schritt 6b): ab Zoom 14 (#184),
+// am Anfang in Trail-Richtung, mit Grad und Merkmalen in der Farbe der
+// Linie; ein Tipp öffnet den Trail. Dazu seit 0.66.0 die Startmarke (#96,
+// Schritt 6c): dieselbe Zoomstufe, in Trail-Richtung, nicht antippbar,
+// auch für Trails ohne Schild. Keine Endmarke mehr (#179).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -48,13 +48,15 @@ void main() {
     return null;
   }
 
-  testWidgets('erst ab Zoom 13, am Anfang in Trail-Richtung, nur mit etwas zu sagen', (tester) async {
+  testWidgets('erst ab Zoom 14, am Anfang in Trail-Richtung, nur mit etwas zu sagen', (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await settle(tester, frames: 20);
 
     fakeMap(tester).move(const LatLng(48.03, 9.0), kTrailBadgeMinZoom - 1);
     await settle(tester);
     expect(badgeOf(tester, 'Hexentanz'), isNull, reason: 'darunter stünden die Schilder übereinander');
+    expect(kTrailBadgeMinZoom, 14, reason: 'eine Stufe näher als der Entwurf (#184)');
+    expect(kTrailBadgeMinZoom, kLineLabelMinZoom, reason: 'Schild und Name kommen zusammen');
 
     fakeMap(tester).move(const LatLng(48.03, 9.0), kTrailBadgeMinZoom);
     await settle(tester);
@@ -70,23 +72,21 @@ void main() {
     expect(findLabel('Uphill'), findsOneWidget);
   });
 
-  testWidgets('Start- und Endmarke: ab Zoom 13, in Trail-Richtung, nicht antippbar', (tester) async {
+  testWidgets('Startmarke: ab Zoom 14, in Trail-Richtung, nicht antippbar — kein Ende mehr (#179)',
+      (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await settle(tester, frames: 20);
 
     fakeMap(tester).move(const LatLng(48.03, 9.0), kTrailBadgeMinZoom - 1);
     await settle(tester);
     expect(markerByKey(tester, 'trail-start-$hexentanz'), isNull, reason: 'weit draußen bleibt die Karte ruhig');
-    expect(markerByKey(tester, 'trail-end-$hexentanz'), isNull);
 
     fakeMap(tester).move(const LatLng(48.03, 9.0), kTrailBadgeMinZoom);
     await settle(tester);
     final start = markerByKey(tester, 'trail-start-$hexentanz')!;
-    final end = markerByKey(tester, 'trail-end-$hexentanz')!;
     expect(start.point, const LatLng(48.0, 9.0));
-    expect(end.point, const LatLng(48.009, 9.0));
     expect(start.hitValue, isNull, reason: 'ein Tipp dort trifft die Linie');
-    expect(end.hitValue, isNull);
+    expect(markerByKey(tester, 'trail-end-$hexentanz'), isNull, reason: 'das Quadrat am Ende ist weg (#179)');
     expect(start.alignment, Alignment.center);
     // Hexentanz führt nach Norden: der Pfeil zeigt nach oben.
     expect((start.child as TrailStartDot).bearingDeg, closeTo(0, 1));
@@ -95,13 +95,11 @@ void main() {
     // der Pfeil zeigt nach Süden.
     final rStart = markerByKey(tester, 'trail-start-$rueckwaerts')!;
     expect(rStart.point, const LatLng(48.029, 9.0));
-    expect(markerByKey(tester, 'trail-end-$rueckwaerts')!.point, const LatLng(48.02, 9.0));
     expect((rStart.child as TrailStartDot).bearingDeg.abs(), closeTo(180, 1));
 
     // Auch ohne Schild gibt es Anfang und Ende.
     expect(markerByKey(tester, 'trail-start-$nackt'), isNotNull);
-    expect(markerByKey(tester, 'trail-end-$nackt'), isNotNull);
-    expect(find.byType(TrailEndSquare), findsNWidgets(4));
+    expect(find.byType(TrailStartDot), findsNWidgets(4));
     expect(findLabel('Trailanfang'), findsNWidgets(4));
   });
 

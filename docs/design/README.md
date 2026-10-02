@@ -320,7 +320,9 @@ zweimal dieselbe Angabe. Der Bildschirmleser hört „Schwierigkeit S3:
 verblockt, hohe Stufen, enge Kehren".
 
 **Auf der Karte seit 0.43.0** (`trail_badges.dart`, Schritt 6b): ab der
-gerechneten Zoomstufe 13 (`kTrailBadgeMinZoom`) ein Schild je Trail am
+gerechneten Zoomstufe 14 (`kTrailBadgeMinZoom`; bis 0.74.1 13, eine
+Stufe zu früh — #184, Feldbericht; jetzt zusammen mit den Namen an der
+Linie) ein Schild je Trail am
 Anfang in Trail-Richtung (`trailStart`: bei einer gegen die Richtung
 aufgenommenen besten Linie deren Ende), mit Grad und den angezeigten
 Merkmalen wie im Entwurf 4c, in der Farbe der Linie (`AppColors.mapGrades`,
@@ -348,16 +350,18 @@ rechts trägt dann den Rand in der Marke. Gewählte Trails leuchten in der
 Marke (55 %, Pflicht 80 %, 8 px), der getippte Start ist eine Fahne in
 der Marke.
 
-**Anfang, Richtung, Ende seit 0.66.0** (#96, `trail_end_marks.dart`,
+**Anfang und Richtung seit 0.66.0** (#96, `trail_end_marks.dart`,
 Schritt 6c): je Trail eine Scheibe (14 px) in der Trail-Farbe mit weißem
 Pfeil, gedreht auf die Peilung der ersten ~30 m (`trailStartBearing`),
-und am Ende ein Quadrat in derselben Farbe — die Zielmarke; beide mit
-weißem Saum wie die Linie. Dieselbe Zoomstufe wie die Schilder (unter 13
+mit weißem Saum wie die Linie. Das Quadrat am Ende (die Zielmarke) ist
+seit 0.74.2 weg (#179, Feldbericht: „überflüssig und eher störend") —
+wo der Trail endet, zeigt die Linie selbst. Dieselbe Zoomstufe wie die
+Schilder (unter 14
 lägen sie übereinander, und MapLibre setzt jeden Widget-Marker in jedem
 Bild neu), keine für wartende Trails, auch für Trails ohne Schild. Nicht
 antippbar: Ein Tipp dort trifft die Linie. Kein Pin und keine Fahne — die
-Fahne gehört dem Marken-Knopf (Abschnitt 6), die Nadel den Orten. Anfang
-und Ende kommen aus `Trail.start`/`Trail.end` in Trail-Richtung; das
+Fahne gehört dem Marken-Knopf (Abschnitt 6), die Nadel den Orten. Der
+Anfang kommt aus `Trail.start` in Trail-Richtung; das
 Schild liegt über der Startmarke und bleibt das Antippbare.
 
 **Charakter** — Mehrfachwahl je Beitrag, wie der Grad von Buddys
@@ -531,7 +535,7 @@ Routing kommt die Übergabe an eine Navi-App (#151, Konzept 9).
 | 6 | S-Grad als Form, Charakter, Pisten-Brille (Turn 4, Schema) | Charakter 0.34.0 (#72) |
 | 6a | S-Grad-Schild, Farbe = Schwierigkeit (Karte, Liste, Schild) | 0.42.0 |
 | 6b | Schild mit Charakter am Trailanfang auf der Karte | 0.43.0 |
-| 6c | Start- und Endmarke mit Richtung auf der Karte (#96) | 0.66.0 |
+| 6c | Start- und Endmarke mit Richtung auf der Karte (#96; Endmarke seit 0.74.2 weg, #179) | 0.66.0 |
 | 6c | Glatte Linien, Name entlang der Linie (Betreiber-Wunsch) | 0.44.0 |
 | 7 | Animationen (Turn 1p–1t) | 0.45.0 |
 | E1 | Einführung: Kurzanleitung, Sicherheitshinweis (#131) | 0.59.0 |

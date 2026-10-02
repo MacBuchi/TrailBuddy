@@ -214,10 +214,9 @@ final kHighlightDemos = <String, HighlightDemo>{
       CoachStep(
         title: 'Wo es losgeht',
         text: 'Der Punkt am Anfang zeigt mit seinem Pfeil die Fahrtrichtung, '
-            'das Quadrat ist das Ende — beide in der Farbe des Trails, ab der '
-            'Zoomstufe der Schilder.',
-        lit: [MapCoach.trailEnd],
-        requires: [MapCoach.trailEnd],
+            'in der Farbe des Trails, ab der Zoomstufe der Schilder.',
+        lit: [MapCoach.trailStart],
+        requires: [MapCoach.trailStart],
       ),
       CoachStep(
         title: 'Erst einen Trail holen',
@@ -225,7 +224,7 @@ final kHighlightDemos = <String, HighlightDemo>{
             'einer anderen App, zeichne eine Fahrt auf oder verbinde dich mit '
             'Buddys.',
         lit: [MapCoach.empty],
-        unless: [MapCoach.trailEnd],
+        unless: [MapCoach.trailStart],
       ),
     ]),
   ),

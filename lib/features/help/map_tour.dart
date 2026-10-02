@@ -55,8 +55,8 @@ abstract final class MapCoach {
   /// Das Schild am Anfang des Trails, dessen Blatt die Tour öffnet.
   static const trailBadge = 'map.trailBadge';
 
-  /// Die Endmarke desselben Trails (#96) — für den Schritt zur Richtung.
-  static const trailEnd = 'map.trailEnd';
+  /// Die Startmarke desselben Trails (#96) — für den Schritt zur Richtung.
+  static const trailStart = 'map.trailStart';
 
   /// Der leere Kartenzustand — da heißt: kein Trail, kein Blatt.
   static const empty = 'map.empty';
@@ -138,8 +138,8 @@ const kMapTourScript = CoachScript(
     CoachStep(
       title: 'Das Schild am Anfang',
       text: 'Am Anfang jedes Trails steht sein Schild mit Grad und Charakter; '
-          'der Punkt darunter zeigt mit seinem Pfeil die Fahrtrichtung, ein '
-          'Quadrat das Ende. Ein Tipp aufs Schild — oder auf die Linie — '
+          'der Punkt darunter zeigt mit seinem Pfeil die Fahrtrichtung. '
+          'Ein Tipp aufs Schild — oder auf die Linie — '
           'wählt den Trail aus, ein zweiter öffnet das Blatt.',
       lit: [MapCoach.trailBadge],
       gesture: CoachGesture.tap,

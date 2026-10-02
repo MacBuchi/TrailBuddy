@@ -339,18 +339,33 @@ try {
   // Nur fürs Protokoll: Ohne die Anfragen fehlt beim Zeitlimit genau
   // die Zeile, auf die es ankommt — WELCHE Datei nicht kam.
   await send('Network.enable');
+  // Ein langsamer Runner zum Nachstellen: `CPU_SLOW=6 node …` drosselt
+  // die Seite um diesen Faktor. Damit ließen sich beide Fehlschläge vom
+  // 2026-10-01 lokal in jedem Lauf zeigen; ohne kam keiner.
+  if (process.env.CPU_SLOW) {
+    await send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.CPU_SLOW)});
+  }
 
   const APP = "!!document.querySelector('flutter-view, flt-glass-pane')";
 
   // 1 — der ERSTE Besuch. Frisch, damit gemessen wird, was ein neuer
   // Nutzer bekommt: Beim ersten Laden kontrolliert der Worker die Seite
   // noch nicht, der Cache entsteht erst durch das Vorwärmen.
-  await send('Page.navigate', {url});
-  await sleep(2000);
-  await evaluate(send, `(async () => {
-    for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
-    for (const k of await caches.keys()) await caches.delete(k);
-  })()`);
+  //
+  // Frisch heißt: über das Protokoll geräumt, BEVOR die Seite je geladen
+  // war. Bis 2026-10-01 lud hier ein Vorlauf die Seite, wartete 2 s und
+  // räumte dann aus der Seite heraus ab. Auf einem langsamen Runner
+  // installierte der Worker da noch: Sein Cache wurde gelöscht, die
+  // Registrierung kam beim zweiten Laden mit derselben Skript-Adresse
+  // zurück, und der Worker hielt sich danach für abgelöst
+  // (`ownCacheExists`) — „0 im Cache", gefolgt von „startet ohne Server
+  // nicht". Mit sechsfach gedrosselter CPU in jedem Lauf nachgestellt,
+  // ohne den Vorlauf in keinem. Das Profil ist ohnehin neu
+  // (`mkdtemp`); geräumt wird nur zur Sicherheit.
+  await send('Storage.clearDataForOrigin', {
+    origin: new URL(url).origin,
+    storageTypes: 'service_workers,cache_storage',
+  });
   await send('Page.navigate', {url: `${url}?frisch=1`});
   await waitFor(send, APP, 'die App rendert online');
   await waitFor(send, 'navigator.serviceWorker.controller !== null',
@@ -502,12 +517,24 @@ try {
   deploy = 1;
   blockTopUp = true;
   await send('Page.navigate', {url});
+  // 120 s, nicht 30: Die ERSTE Update-Prüfung nach dem Installieren
+  // schickt Chrome erst rund eine Minute später ab. Gemessen am
+  // 2026-10-01 am Server: Die Seite ruft `register('sw.js?v=neu')` nach
+  // 2 s, die Anfrage nach `sw.js` kommt nach 61 s — gedrosselt wie
+  // ungedrosselt, gebündelt mit allen Update-Prüfungen der Navigationen
+  // davor; jede spätere kommt sofort. Bis dahin fiel diese Minute in den
+  // Vorlauf von Schritt 1 (der zweimal 60 s auf App und Worker wartete)
+  // — je nach Tempo des Runners aber nicht ganz, und dann hierher. Die
+  // 30 s waren also keine Aussage über unseren Worker, sondern darüber,
+  // wo im Lauf die Minute gerade lag.
   try {
     await waitFor(send,
         `navigator.serviceWorker.controller?.scriptURL !== ${JSON.stringify(oldScript)}`,
-        'der Worker des neuen Deploys übernimmt', 30000);
+        'der Worker des neuen Deploys übernimmt', 120000);
   } catch (error) {
-    fail.push(`neuer Deploy: ${error.message.split('\n')[0]}`);
+    // Ganz ausgeben, nicht nur die erste Zeile: Die Anfragen darunter
+    // sind die halbe Antwort, und abgeschnitten fehlten sie genau dann.
+    fail.push(`neuer Deploy: ${error.message}`);
   }
   await sleep(3000);
   await stopServer();

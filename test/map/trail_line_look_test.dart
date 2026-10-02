@@ -104,6 +104,13 @@ void main() {
     expect(label.list.single.properties['label'], 'Hexentanz');
     expect(label.getLayout(), containsPair('symbol-placement', 'line'));
     expect(label.getLayout()['text-field'], '{label}');
+    // Auf der Mittellinie, nicht daneben (#181): kein Versatz.
+    expect(label.getLayout().containsKey('text-offset'), isFalse);
+    // Auf der Linie trägt der Saum die Lesbarkeit: breiter als die
+    // 1,5 px von vorher, nie über dem, was MapLibre zeichnet (¼ der Schrift).
+    expect(label.getPaint()['text-halo-width'], kLineLabelHaloWidth);
+    expect(kLineLabelHaloWidth, greaterThan(1.5));
+    expect(kLineLabelHaloWidth, lessThanOrEqualTo((label.getLayout()['text-size']! as num) / 4));
     // Der Stack muss als Glyphen-Ordner im Paket liegen — sonst lässt
     // MapLibre den Namen still weg.
     for (final stack in label.getLayout()['text-font']! as List) {

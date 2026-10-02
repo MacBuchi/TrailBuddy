@@ -916,8 +916,10 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   nachladen (#187), Startwerte und die lokalen Messungen M2/M4 an
   eigenen Fahrten im Feld prüfen (#188).
 - **Feldberichte zu 0.73.0 (neu am 2026-10-02), vor der Freigabe:**
-  Absturz in `AnimationController.stop` aus dem Digest (#62), kleine
-  Kartenpunkte (#179, #181, #184), Glühbirne oben rechts und
+  Absturz in `AnimationController.stop` aus dem Digest (#62; 0.74.1
+  macht den nächsten Bericht genauer), kleine Kartenpunkte (ERLEDIGT in
+  0.74.2: kein Quadrat am Ende #179, Namen auf der Mittellinie #181,
+  Schilder ab Zoom 14 #184), Glühbirne oben rechts und
   Kartenebenen getrennt von den Offline-Werkzeugen (#180, #190),
   Zurück-Taste nach Hierarchie (#175), Legende auf der Karte (#182),
   Offline-Start und sofortige Rückmeldung beim Setzen (#183). Danach

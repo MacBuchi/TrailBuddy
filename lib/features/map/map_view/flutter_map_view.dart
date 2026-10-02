@@ -320,11 +320,8 @@ class _LineLabels extends StatelessWidget {
               height: 36,
               child: Transform.rotate(
                 angle: a.angle,
-                // Leicht neben der Linie wie bei MapLibre (text-offset).
-                child: Transform.translate(
-                  offset: const Offset(0, -11),
-                  child: Center(child: _HaloText(l.label!)),
-                ),
+                // AUF der Mittellinie wie bei MapLibre (#181).
+                child: Center(child: _HaloText(l.label!)),
               ),
             ),
     ]);
@@ -346,7 +343,8 @@ class _HaloText extends StatelessWidget {
           style: base.copyWith(
               foreground: Paint()
                 ..style = PaintingStyle.stroke
-                ..strokeWidth = 3
+                // Der Strich liegt zur Hälfte unter der Schrift.
+                ..strokeWidth = 2 * kLineLabelHaloWidth
                 ..color = Colors.white)),
       Text(text, maxLines: 1, style: base.copyWith(color: const Color(0xFF131A16))),
     ]);

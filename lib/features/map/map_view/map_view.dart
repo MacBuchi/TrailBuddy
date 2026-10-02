@@ -212,6 +212,12 @@ class MapViewMarker {
 /// darunter sind die Trails zu kurz für ihren Namen.
 const kLineLabelMinZoom = 14.0;
 
+/// Der weiße Saum um Liniennamen, je Seite in Bildpunkten. Seit 0.74.2
+/// steht der Name AUF der Linie (#181), und 1,5 px reichten auf einer
+/// schwarzen S3-Linie nicht; MapLibre zeichnet höchstens ein Viertel der
+/// Schriftgröße (12 px ⇒ 3 px). Beide Engines lesen diese Zahl.
+const kLineLabelHaloWidth = 2.5;
+
 class MapViewPolyline {
   const MapViewPolyline({
     required this.points,
