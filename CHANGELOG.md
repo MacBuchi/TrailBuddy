@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Die Legende auf der Karte
+
+*Version 0.77.0, 2026-10-02*
+
+- **Links am Rand steht eine schmale Lasche** mit den Pistenfarben. Ein
+  Tipp klappt die Legende auf: welche Farbe welche Schwierigkeit ist,
+  was die Art der Linie über den Zustand sagt und was die Ränder heißen.
+  Ein Tipp auf „Legende" klappt sie wieder zu.
+- **Die App merkt sich, wie du sie magst** — offen oder zu.
+- Die Tour zeigt die Farben jetzt an der echten Legende statt in ihrer
+  Sprechblase.
+
 ## Zurück, wie man es erwartet
 
 *Version 0.76.0, 2026-10-02*

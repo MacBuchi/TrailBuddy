@@ -93,6 +93,11 @@ abstract interface class Settings {
 
   Future<void> setOfficialTrailsEnabled(bool value);
 
+  /// Ist die Legende auf der Karte aufgeklappt (#182)? Vorgabe: zu.
+  bool get mapLegendOpen;
+
+  Future<void> setMapLegendOpen(bool value);
+
   /// Das FCM-Token, mit dem dieses Gerät in `push_devices` steht — oder
   /// null, solange niemand Push eingeschaltet hat (#34).
   ///
@@ -201,6 +206,14 @@ class PrefsSettings implements Settings {
   @override
   bool get officialTrailsEnabled =>
       _prefs.getBool(_officialTrailsEnabledKey) ?? true;
+
+  static const _mapLegendOpenKey = 'map_legend_open';
+
+  @override
+  bool get mapLegendOpen => _prefs.getBool(_mapLegendOpenKey) ?? false;
+
+  @override
+  Future<void> setMapLegendOpen(bool value) => _prefs.setBool(_mapLegendOpenKey, value);
 
   static const _pushTokenKey = 'push_token';
 

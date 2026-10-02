@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'map-legend',
+    since: '0.77.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.legend_toggle,
+    title: 'Die Legende auf der Karte',
+    text: 'Links am Rand steht eine schmale Lasche mit den Pistenfarben. Ein '
+        'Tipp klappt die Legende auf — Farben, Linienarten, Ränder —, ein '
+        'zweiter wieder zu. Die App merkt sich, wie du sie magst.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'map-layers',
     since: '0.75.0',
     kind: HighlightKind.highlight,

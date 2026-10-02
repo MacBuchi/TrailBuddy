@@ -23,7 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/features/coach/coach.dart';
 import 'package:trailbuddy/features/help/map_tour.dart';
-import 'package:trailbuddy/features/help/tour_legend.dart';
+import 'package:trailbuddy/features/map/map_legend.dart';
 import 'package:trailbuddy/models/trail.dart';
 
 import '../fakes/fake_backend.dart';
@@ -142,12 +142,15 @@ void main() {
       expect(covers(painter(tester).lit.single, tester.getRect(find.byKey(const ValueKey('metric-length')))),
           isTrue, reason: 'Kacheln$at');
 
-      await next(tester); // 3 — die Legende, nichts ausgespart
+      await next(tester); // 3 — die Legende auf der Karte (#182), aufgeklappt
       expect(find.byType(BottomSheet), findsNothing, reason: 'das Blatt ist wieder zu$at');
-      expect(painter(tester).lit, isEmpty);
-      expect(find.descendant(of: bubble, matching: find.byType(TourLegend)), findsOneWidget);
+      final legend = find.byKey(const ValueKey('map-legend-panel'));
+      expect(legend, findsOneWidget, reason: 'die Szene klappt sie auf$at');
+      expect(covers(painter(tester).lit.single, tester.getRect(legend)), isTrue, reason: 'Legende$at');
 
       await next(tester); // 4 — Kartenebenen
+      expect(find.byKey(const ValueKey('map-legend-panel')), findsNothing, reason: 'wieder zu$at');
+      expect(find.byKey(const ValueKey('map-legend-tab')), findsOneWidget, reason: 'die Lasche$at');
       final layers = tester.getRect(find.byKey(const ValueKey('layers-button')));
       expect(covers(painter(tester).lit.single, layers), isTrue, reason: 'Knopfspalte$at');
       expect(painter(tester).ring.single, rectMoreOrLessEquals(layers), reason: 'Ring auf Kartenebenen$at');
@@ -322,7 +325,7 @@ void main() {
   test('die Legende nennt, was die Kurzanleitung nennt', () {
     for (final label in ['S0', 'S3', 'S4/S5', 'Uphill', 'bröckelig', 'gestrichelt', 'verblasst', 'gemeldet',
       'neuer Hinweis', 'offiziell']) {
-      expect(TourLegend.labels, contains(label));
+      expect([for (final s in legendSamples()) s.label], contains(label));
     }
   });
 }

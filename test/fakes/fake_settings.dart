@@ -11,6 +11,7 @@ class FakeSettings implements Settings {
       this.seenNoteIds,
       this.stillValidSnoozes,
       this.officialTrailsEnabled = true,
+      this.mapLegendOpen = false,
       this.pushToken,
       this.appearance,
       this.riderProfile,
@@ -50,6 +51,14 @@ class FakeSettings implements Settings {
 
   @override
   bool officialTrailsEnabled;
+
+  @override
+  bool mapLegendOpen;
+
+  @override
+  Future<void> setMapLegendOpen(bool value) async {
+    mapLegendOpen = value;
+  }
 
   @override
   String? pushToken;
