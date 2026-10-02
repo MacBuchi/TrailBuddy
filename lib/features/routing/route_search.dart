@@ -6,8 +6,8 @@
 // Linie. Port von `dijkstra`, `astar` und `path_summary` in
 // `tool/route_measure.py`.
 //
-// Kosten einer Kante = Zeit × Aufschlag (`edgeCostS`), in Kantenrichtung
-// mit Anstieg/Abstieg vertauscht; eine Einbahn (nur Straßenklassen) nur
+// Kosten einer Kante = Zeit × Aufschlag plus Steilaufschlag (`edgeCostS`,
+// #194), in Kantenrichtung mit Anstieg/Abstieg vertauscht; eine Einbahn (nur Straßenklassen) nur
 // vorwärts. Rein, ohne Widgets.
 import 'package:latlong2/latlong.dart';
 
@@ -41,16 +41,21 @@ class SearchResult {
 
 /// Kosten, Anstieg (in Kantenrichtung von [from]) einer Kante. Auf einem
 /// Uphill-Trail oder Verbinder (#185) gilt statt des Aufschlags der Klasse
-/// [kTrailConnectorFactor] — die Zeit bleibt die der Klasse.
-({double cost, double gain, double loss}) edgeCostFrom(RoadGraph g, int ei, int from, RiderParams p) {
+/// [kTrailConnectorFactor] — die Zeit bleibt die der Klasse — und kein
+/// Steilaufschlag (#194): Wer ihn eingetragen hat, will genau da hinauf.
+/// [steep] sind die Höhenmeter über [kSteepGrade], die dabei zählen.
+({double cost, double gain, double loss, double steep}) edgeCostFrom(RoadGraph g, int ei, int from, RiderParams p) {
   final e = g.edges[ei];
   final forward = e.a == from;
   final gain = forward ? e.gain : e.loss;
   final loss = forward ? e.loss : e.gain;
-  final cost = e.connector
-      ? edgeTimeS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss) * kTrailConnectorFactor
-      : edgeCostS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss);
-  return (cost: cost, gain: gain, loss: loss);
+  if (e.connector) {
+    final cost = edgeTimeS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss) * kTrailConnectorFactor;
+    return (cost: cost, gain: gain, loss: loss, steep: 0.0);
+  }
+  final steep = forward ? e.steepUp : e.steepDown;
+  final cost = edgeCostS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss, steepM: steep);
+  return (cost: cost, gain: gain, loss: loss, steep: steep);
 }
 
 /// Darf die Kante [e] von Knoten [from] aus befahren werden? Einbahn
@@ -123,6 +128,7 @@ class PathSummary {
     required this.points,
     required this.heightsComplete,
     this.trailUpM = 0,
+    this.steepM = 0,
   });
 
   final double lengthM;
@@ -145,12 +151,26 @@ class PathSummary {
   /// Meter auf Uphill-Trails und Verbindern (#185) — im Klassenmix stehen
   /// sie unter ihrer Kartenklasse, das Blatt nennt sie extra.
   final double trailUpM;
+
+  /// Höhenmeter über [kSteepGrade] abseits der Uphill-Trails (#194) —
+  /// was der Steilaufschlag nicht vermeiden konnte.
+  final double steepM;
 }
+
+/// Ab so vielen Höhenmetern über [kSteepGrade] sagt das Blatt, dass die
+/// Route steile Stücke hat (#194) — darunter ist es Rauschen im Modell.
+const kSteepNoteMinM = 5.0;
+
+/// Der Satz dazu, oder null. Keine Zahl: Gezählt ist nur, was ÜBER der
+/// Grenze steigt, und „12 hm steil" läse sich wie die Länge der Rampe.
+String? steepNote(double steepM) => steepM < kSteepNoteMinM
+    ? null
+    : 'Mit steilen Stücken über ${(kSteepGrade * 100).round()} % — wo es flacher ging, ist der flachere Weg gewählt.';
 
 /// Fasst die Kanten [path] ab Knoten [src] zusammen.
 PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
   var n = src;
-  var length = 0.0, gain = 0.0, loss = 0.0, time = 0.0, hiking = 0.0, trailUp = 0.0;
+  var length = 0.0, gain = 0.0, loss = 0.0, time = 0.0, hiking = 0.0, trailUp = 0.0, steep = 0.0;
   var complete = true;
   final mix = <WayClass, double>{};
   final points = <LatLng>[];
@@ -163,6 +183,7 @@ PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
     length += e.length;
     gain += c.gain;
     loss += c.loss;
+    steep += c.steep;
     time += edgeTimeS(p, e.cls, lengthM: e.length, gainM: c.gain, lossM: c.loss);
     mix[e.cls] = (mix[e.cls] ?? 0) + e.length;
     if (e.hiking) hiking += e.length;
@@ -180,6 +201,7 @@ PathSummary summarizePath(RoadGraph g, List<int> path, int src, RiderParams p) {
     points: points,
     heightsComplete: complete,
     trailUpM: trailUp,
+    steepM: steep,
   );
 }
 

@@ -36,6 +36,7 @@ import 'map_panel.dart';
 import 'road_graph.dart';
 import 'road_graph_loader.dart' show kOnlineFillMaxTiles;
 import 'route_profile.dart';
+import 'route_search.dart' show steepNote;
 import 'trail_head_route.dart' show routeTimeLabel;
 
 /// Breite der leuchtenden Auswahl auf der Karte (#178) — breiter als eine
@@ -511,6 +512,14 @@ class _ResultPanelState extends ConsumerState<_ResultPanel> {
           key: const ValueKey('loop-partial'),
           note,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      ],
+      if (steepNote(s.steepM) case final note?) ...[
+        const SizedBox(height: 8),
+        Text(
+          key: const ValueKey('loop-steep'),
+          note,
+          style: theme.textTheme.bodySmall?.copyWith(color: palette.warningText),
         ),
       ],
       if (!s.heightsComplete) ...[

@@ -178,6 +178,39 @@ void main() {
     final e = g.edges.firstWhere((e) => e.hasHeights);
     expect(e.gain, closeTo(480, 3));
     expect(e.loss, closeTo(0, 1));
+    expect(e.steepUp, 0, reason: '14,5 % liegt unter der Steilgrenze');
     expect(g.edgesWithoutHeights, 1);
+  });
+
+  test('addClimbs zählt die Höhenmeter über der Steilgrenze je Richtung (#194)', () async {
+    // 25 m je Probe nach Osten: gut 36 % über die ganze Kachel.
+    final origin = tileAt(47.5, 11.5, kHeightTileZoom);
+    final values = [
+      for (var j = 0; j < kHeightGrid; j++)
+        for (var i = 0; i < kHeightGrid; i++) 1000 + i * 25,
+    ];
+    final reader = HeightReader([
+      MemoryHeightSource({(x: origin.x, y: origin.y): HeightTile(Int16List.fromList(values))}),
+    ]);
+    final b = tileBounds(kHeightTileZoom, origin.x, origin.y);
+    final midLat = (b.north + b.south) / 2;
+    final g = buildRoadGraph([
+      WayLine(cls: WayClass.forstweg, oneway: false, points: [LatLng(midLat, b.west), LatLng(midLat, b.east)]),
+    ], lat0: midLat).graph;
+    await addClimbs(g, reader);
+    final e = g.edges.single;
+    final grade = e.gain / e.length;
+    expect(grade, closeTo(0.363, 0.01));
+    // Alles über 15 % — bis auf die halben Endschritte der Glättung.
+    expect(e.steepUp, closeTo((grade - kSteepGrade) * e.length, (grade - kSteepGrade) * kClimbSampleM * 1.01));
+    expect(e.steepUp, lessThan((grade - kSteepGrade) * e.length));
+    expect(e.steepDown, 0);
+
+    // Geteilt: beide Hälften tragen ihren Anteil.
+    final whole = e.steepUp;
+    g.attach(LatLng(midLat, (b.west + b.east) / 2));
+    expect(g.edges, hasLength(2));
+    expect(g.edges.fold<double>(0, (s, e) => s + e.steepUp), closeTo(whole, 1e-6));
+    expect(g.edges.first.steepUp, closeTo(g.edges.last.steepUp, whole * 0.02));
   });
 }

@@ -69,6 +69,41 @@ void main() {
     expect(k(e, WayClass.wanderweg, 1000, 100, 0) / t(e, WayClass.wanderweg, 1000, 100, 0), closeTo(2.0, 1e-9));
   });
 
+  test('Steilaufschlag: dieselben Vektoren wie das Werkzeug (#194)', () {
+    // 30 % alle 50 m.
+    final ramp = [for (var i = 0; i < 9; i++) 100.0 + 15.0 * i];
+    final steps = List.filled(8, 50.0);
+    expect(steepExcess(ramp, steps, window: 1), (up: 60.0, down: 0.0), reason: 'roh: 7,5 m über 15 % je Schritt');
+    final smooth = steepExcess(ramp, steps);
+    expect(smooth.up, closeTo(52.5, 1e-9), reason: 'geglättet: an den Enden fehlt je ein halber Schritt');
+    expect(smooth.down, 0);
+    expect(steepExcess([for (var i = 0; i < 9; i++) 100.0 + 5.0 * i], steps), (up: 0.0, down: 0.0),
+        reason: '10 % ist nicht steil');
+    expect(steepExcess(ramp.reversed.toList(), steps).down, smooth.up, reason: 'rückwärts die andere Richtung');
+    expect(steepExcess([100, 130], [50]), (up: 0.0, down: 0.0), reason: 'zwei Proben glätten zu einem Wert');
+    expect(steepExcess([100, 110, 100], [50, 50], window: 1), (up: 2.5, down: 2.5));
+    expect(smoothHeights([0, 30, 0, 30]), [15.0, 10.0, 20.0, 15.0]);
+    // Ein kurzer letzter Schritt (der Rest der Kante) bleibt bei seiner Steigung.
+    final shortEnd = [for (var i = 0; i < 67; i++) 100.0 + 7.27 * i, 100.0 + 7.27 * 66 + 0.163];
+    expect(steepExcess(shortEnd, [...List.filled(66, 50.0), 1.12]), (up: 0.0, down: 0.0));
+    expect(steepExcess([100, 110], [50, 50]), (up: 0.0, down: 0.0), reason: 'Schritte passen nicht ⇒ nichts');
+
+    const bio = RiderProfile.bio, e = RiderProfile.ebike;
+    expect(steepCostS(bio, WayClass.forstweg, 10), closeTo(240.0, 1e-9), reason: 'unbefestigt: 3× die Steigzeit');
+    expect(steepCostS(e, WayClass.nebenstrasse, 10), closeTo(10 * 3600 / 850, 1e-9), reason: 'Asphalt: 1×');
+    expect(steepCostS(bio, WayClass.wanderweg, 10), closeTo(10 * 3600 / 350 * 3, 1e-9), reason: 'Pfad-Steigrate');
+    expect(steepCostS(bio, WayClass.stufen, 10), 0, reason: 'Stufen werden ohnehin geschoben');
+    expect(
+        edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0, steepM: 10) -
+            edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0),
+        closeTo(240.0, 1e-9),
+        reason: 'der Aufschlag kommt zu den Kosten, nicht zur Zeit');
+    for (final c in WayClass.values) {
+      expect(c.steep, c == WayClass.stufen ? 0 : c.isRoad || c == WayClass.radweg ? kSteepFactorPaved : kSteepFactorUnpaved,
+          reason: c.label);
+    }
+  });
+
   test('Profile: Vorgaben und Lesen aus der Einstellung', () {
     expect(RiderProfile.bio.budgetClimbM, 800);
     expect(RiderProfile.ebike.budgetClimbM, 1400);

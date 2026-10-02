@@ -199,6 +199,21 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'steep-climbs': HighlightDemo(
+    route: '/',
+    script: _demo('steep-climbs', const [
+      CoachStep(
+        title: 'Flacher, wo es geht',
+        text: 'Planer und „Zum Trailkopf" zählen jeden Höhenmeter über 15 % '
+            'Steigung extra — auf Schotter und Pfad dreifach, auf Asphalt '
+            'einfach. Ein Umweg, der flacher hinaufführt, gewinnt dann. '
+            'Uphill-Trails zählen nie als zu steil.',
+        lit: [MapCoach.loop],
+        gesture: CoachGesture.tap,
+        requires: [MapCoach.loop],
+      ),
+    ]),
+  ),
   'terrain-heights': HighlightDemo(
     route: '/trails',
     script: _demo('terrain-heights', const [

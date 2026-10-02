@@ -268,14 +268,28 @@ class HeightReader {
   Future<({double gain, double loss})?> climbAlong(List<LatLng> line,
       {double sampleM = kClimbSampleM, double hysteresisM = kClimbHysteresisM}) async {
     if (line.length < 2) return (gain: 0.0, loss: 0.0);
+    final profile = await profileAlong(line, sampleM: sampleM);
+    if (profile == null) return null;
+    final (gain, loss) = hysteresisClimb(profile.heights, hysteresisM);
+    return (gain: gain, loss: loss);
+  }
+
+  /// Die Höhen alle [sampleM] Meter entlang [line] und die Abstände
+  /// zwischen aufeinanderfolgenden Proben (Sehnen in der Ebene um den
+  /// ersten Punkt) — `profile_along` im Werkzeug. Null, sobald eine Probe
+  /// keine Höhe hat.
+  Future<({List<double> heights, List<double> stepsM})?> profileAlong(List<LatLng> line,
+      {double sampleM = kClimbSampleM}) async {
+    if (line.length < 2) return (heights: <double>[], stepsM: <double>[]);
+    final proj = FlatProjection(line.first.latitude);
+    final xy = resampleXy(proj.line(line), sampleM);
     final heights = <double>[];
-    for (final p in samplesAlong(line, sampleM)) {
-      final h = await heightAt(p);
+    for (final p in xy) {
+      final h = await heightAt(proj.latLng(p));
       if (h == null) return null;
       heights.add(h);
     }
-    final (gain, loss) = hysteresisClimb(heights, hysteresisM);
-    return (gain: gain, loss: loss);
+    return (heights: heights, stepsM: [for (var i = 1; i < xy.length; i++) xy[i - 1].distanceTo(xy[i])]);
   }
 
   Future<void> close() async {

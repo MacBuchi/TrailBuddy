@@ -6,7 +6,8 @@
 // plus Höhe) und ihre Kosten (Zeit × Aufschlag).
 //
 // Zahl für Zahl der Spiegel von `PROFILES`, `CLASSES`, `classify`,
-// `edge_time_s`, `edge_factor` und `edge_cost_s` in
+// `edge_time_s`, `edge_factor`, `edge_cost_s` und — seit #194 —
+// `STEEP_*`, `steep_excess` und `steep_cost_s` in
 // `tool/route_measure.py` — das Werkzeug ist die Referenz, mit der die
 // Engine gemessen wurde (docs/routing-messung.md), und
 // `test/routing/route_profile_test.dart` hält die Zahlen beider Seiten
@@ -139,20 +140,22 @@ double trailDownKmh(int? grade) => switch (grade) {
 /// welche Geschwindigkeit und Steigrate des Profils sie nimmt. Ein
 /// Aufschlag `null` heißt: der des Profils (`pathUpFactor`/`pathDownFactor`).
 enum WayClass {
-  forstweg('Forstweg', up: 1.0, down: 1.0),
-  radweg('Radweg', up: 1.0, down: 1.0),
-  nebenstrasse('Nebenstraße', up: 1.2, down: 1.2),
-  zufahrt('Zufahrt', up: 1.2, down: 1.2),
-  wanderweg('Wanderweg', up: null, down: null, hiking: true, pathSpeed: true, pathRate: true),
-  fussweg('Fußweg', up: 2.0, down: 2.5, hiking: true, pathSpeed: true, pathRate: true),
-  stufen('Stufen', up: 3.0, down: 3.0, hiking: true, pushing: true),
-  landstrasse('Landstraße', up: 1.6, down: 1.6),
-  hauptstrasse('Hauptstraße', up: 2.5, down: 2.5),
-  bundesstrasse('Bundesstraße', up: 4.0, down: 4.0);
+  forstweg('Forstweg', up: 1.0, down: 1.0, steep: kSteepFactorUnpaved),
+  radweg('Radweg', up: 1.0, down: 1.0, steep: kSteepFactorPaved),
+  nebenstrasse('Nebenstraße', up: 1.2, down: 1.2, steep: kSteepFactorPaved),
+  zufahrt('Zufahrt', up: 1.2, down: 1.2, steep: kSteepFactorPaved),
+  wanderweg('Wanderweg',
+      up: null, down: null, hiking: true, pathSpeed: true, pathRate: true, steep: kSteepFactorUnpaved),
+  fussweg('Fußweg', up: 2.0, down: 2.5, hiking: true, pathSpeed: true, pathRate: true, steep: kSteepFactorUnpaved),
+  stufen('Stufen', up: 3.0, down: 3.0, hiking: true, pushing: true, steep: 0),
+  landstrasse('Landstraße', up: 1.6, down: 1.6, steep: kSteepFactorPaved),
+  hauptstrasse('Hauptstraße', up: 2.5, down: 2.5, steep: kSteepFactorPaved),
+  bundesstrasse('Bundesstraße', up: 4.0, down: 4.0, steep: kSteepFactorPaved);
 
   const WayClass(this.label,
       {required this.up,
       required this.down,
+      required this.steep,
       this.hiking = false,
       this.pathSpeed = false,
       this.pathRate = false,
@@ -161,6 +164,12 @@ enum WayClass {
   final String label;
   final double? up;
   final double? down;
+
+  /// Der Steilaufschlag (#194): Wie oft die Höhenmeter über
+  /// [kSteepGrade] ihre Steigzeit NOCH EINMAL kosten — unbefestigt
+  /// [kSteepFactorUnpaved], Asphalt [kSteepFactorPaved], Stufen nichts
+  /// (dort wird ohnehin geschoben).
+  final double steep;
 
   /// Zählt gegen „höchstens Wanderweg", in beide Richtungen.
   final bool hiking;
@@ -181,6 +190,69 @@ enum WayClass {
 
   double upFactor(RiderParams p) => up ?? p.pathUpFactor;
   double downFactor(RiderParams p) => down ?? p.pathDownFactor;
+}
+
+/// Ab dieser Steigung ist ein Anstieg „sehr steil" (#194, Feldbericht
+/// 0.74.0: „Super steile Anstiege sollten bestraft werden, insbesondere
+/// wenn kein Asphalt"). Gemessen an den Höhen alle 50 m, geglättet über
+/// [kSteepSmooth] Proben — siehe [steepExcess]. Gesetzt mit dem
+/// Tirol-Lauf des Werkzeugs (docs/routing-messung.md).
+const kSteepGrade = 0.15;
+
+/// Über wie viele Höhenproben vor der Steigung gemittelt wird: Ein Weg
+/// liegt ein paar Meter neben seiner Linie im 90-m-Modell, und quer zu
+/// einer 40-%-Flanke sind das allein schon einige Prozent je Schritt.
+const kSteepSmooth = 3;
+
+/// Steilaufschlag unbefestigt (Forstweg, Wanderweg, Fußweg) und auf
+/// Asphalt (Radweg, Straßen) — die Protomaps-Kacheln kennen keinen
+/// Belag, die Klasse ist die beste Näherung.
+const kSteepFactorUnpaved = 3.0;
+const kSteepFactorPaved = 1.0;
+
+/// Gleitender Mittelwert über [window] Werte, an den Enden über die, die
+/// da sind — `smooth_heights` im Werkzeug.
+List<double> smoothHeights(List<double> heights, {int window = kSteepSmooth}) {
+  final half = window ~/ 2;
+  return [
+    for (var i = 0; i < heights.length; i++)
+      () {
+        final lo = i - half < 0 ? 0 : i - half;
+        final hi = i + half + 1 > heights.length ? heights.length : i + half + 1;
+        var sum = 0.0;
+        for (var j = lo; j < hi; j++) {
+          sum += heights[j];
+        }
+        return sum / (hi - lo);
+      }(),
+  ];
+}
+
+/// Die Höhenmeter über [grade] entlang der Proben (#194), in Proben-
+/// richtung und dagegen: je Schritt, was die geglättete Höhe mehr steigt
+/// als [grade] × Schrittlänge. [stepsM] sind die Abstände zwischen
+/// aufeinanderfolgenden Proben. Geglättet werden Höhen UND Positionen —
+/// der letzte Schritt einer Kante ist kurz (der Rest nach den vollen
+/// 50 m), und nur die Höhen zu glätten legte dort einen 50-m-Anstieg auf
+/// einen Meter. Eine gleichmäßige Steigung kommt so immer genau heraus.
+/// Spiegel von `steep_excess` im Werkzeug, mit dessen Testvektoren.
+({double up, double down}) steepExcess(List<double> heights, List<double> stepsM,
+    {double grade = kSteepGrade, int window = kSteepSmooth}) {
+  if (heights.length < 2 || stepsM.length != heights.length - 1) return (up: 0.0, down: 0.0);
+  final dist = <double>[0];
+  for (final d in stepsM) {
+    dist.add(dist.last + d);
+  }
+  final sm = window > 1 ? smoothHeights(heights, window: window) : heights;
+  final sd = window > 1 ? smoothHeights(dist, window: window) : dist;
+  var up = 0.0, down = 0.0;
+  for (var i = 0; i < sm.length - 1; i++) {
+    final rise = sm[i + 1] - sm[i];
+    final allowed = grade * (sd[i + 1] - sd[i]);
+    if (rise > allowed) up += rise - allowed;
+    if (-rise > allowed) down += -rise - allowed;
+  }
+  return (up: up, down: down);
 }
 
 /// Die Klasse eines `roads`-Features der Kacheln, oder null, wenn die
@@ -238,13 +310,21 @@ double edgeTimeS(RiderParams p, WayClass cls,
   } else {
     vKmh = cls.pathSpeed ? p.vPathUpKmh : p.vFlatKmh;
   }
-  final rate = cls.pushing
-      ? p.pushRateMPerH
-      : cls.pathRate
-          ? p.climbPathMPerH
-          : p.climbTrackMPerH;
-  return lengthM / (vKmh / 3.6) + gainM / (rate / 3600.0);
+  return lengthM / (vKmh / 3.6) + gainM / (_climbRate(p, cls) / 3600.0);
 }
+
+/// Die Steigrate der Klasse: schiebend, Pfad oder Forstweg/Straße.
+double _climbRate(RiderParams p, WayClass cls) => cls.pushing
+    ? p.pushRateMPerH
+    : cls.pathRate
+        ? p.climbPathMPerH
+        : p.climbTrackMPerH;
+
+/// Der Steilaufschlag (#194) für [steepM] Höhenmeter über [kSteepGrade]:
+/// ihre Steigzeit noch einmal, mal [WayClass.steep]. Kosten, keine
+/// Minuten — die Zeit bleibt, was die Fahrten kalibrieren.
+double steepCostS(RiderParams p, WayClass cls, double steepM) =>
+    steepM / (_climbRate(p, cls) / 3600.0) * cls.steep;
 
 /// Die Zeit auf einem Trail bergab, nach S-Grad.
 double trailTimeS({required double lengthM, required int? grade}) =>
@@ -257,8 +337,9 @@ double edgeFactor(RiderParams p, WayClass cls, {required double gainM, required 
 
 /// Kosten = Zeit × Aufschlag (Konzept-Routing 2.4): Der Aufschlag sagt,
 /// was die Zeit nicht sagt — eine Bundesstraße ist nicht langsam, sie
-/// ist falsch.
+/// ist falsch. Dazu der Steilaufschlag für [steepM] (#194).
 double edgeCostS(RiderParams p, WayClass cls,
-        {required double lengthM, required double gainM, required double lossM}) =>
+        {required double lengthM, required double gainM, required double lossM, double steepM = 0}) =>
     edgeTimeS(p, cls, lengthM: lengthM, gainM: gainM, lossM: lossM) *
-    edgeFactor(p, cls, gainM: gainM, lossM: lossM);
+        edgeFactor(p, cls, gainM: gainM, lossM: lossM) +
+    steepCostS(p, cls, steepM);

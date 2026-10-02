@@ -112,6 +112,27 @@ CLASSES = {
 }
 ROAD_CLASSES = {"nebenstrasse", "zufahrt", "landstrasse", "hauptstrasse", "bundesstrasse"}
 
+# Steep climbs (#194, field report 0.74.0: "super steep climbs should be
+# penalised, especially when not paved but only a track"). The height
+# samples of an edge (every SAMPLE_M) are smoothed over STEEP_SMOOTH
+# samples — a road on a steep slope sits a few metres off its DEM line,
+# and across a 40 % flank that alone is several per cent per step — and
+# every metre a step rises above STEEP_GRADE of its length is a steep
+# metre. Steep metres cost their climb time again, times the class
+# factor: a cost, not minutes — the time model stays what the rides
+# calibrate. Uphill trails and connectors carry none: they are the
+# climb someone chose (#185). Set by the Tirol run (docs/routing-messung.md).
+STEEP_GRADE = 0.15
+STEEP_GRADES = (0.10, 0.12, 0.15, 0.18, 0.20, 0.25)   # what the Tirol report compares
+STEEP_SMOOTH = 3
+# Unpaved hurts most; on asphalt a steep ramp is hard, not loose. Steps
+# are pushed anyway (push_rate), there is nothing to add.
+STEEP_FACTOR = {
+    "forstweg": 3.0, "wanderweg": 3.0, "fussweg": 3.0, "stufen": 0.0,
+    "radweg": 1.0, "nebenstrasse": 1.0, "zufahrt": 1.0,
+    "landstrasse": 1.0, "hauptstrasse": 1.0, "bundesstrasse": 1.0,
+}
+
 
 def classify(kind, detail, access=None, service=None):
     """Way class for a roads feature, or None when the engine must not use it."""
@@ -160,8 +181,52 @@ def edge_factor(profile, cls, gain_m, loss_m):
     return p[f] if isinstance(f, str) else f
 
 
-def edge_cost_s(profile, cls, length_m, gain_m, loss_m):
-    return edge_time_s(profile, cls, length_m, gain_m, loss_m) * edge_factor(profile, cls, gain_m, loss_m)
+def steep_cost_s(profile, cls, steep_m):
+    """The surcharge for `steep_m` metres climbed above STEEP_GRADE (#194)."""
+    rate = PROFILES[profile][CLASSES[cls][3]]
+    return steep_m / (rate / 3600.0) * STEEP_FACTOR[cls]
+
+
+def edge_cost_s(profile, cls, length_m, gain_m, loss_m, steep_m=0.0):
+    return (edge_time_s(profile, cls, length_m, gain_m, loss_m) * edge_factor(profile, cls, gain_m, loss_m)
+            + steep_cost_s(profile, cls, steep_m))
+
+
+def smooth_heights(heights, window=STEEP_SMOOTH):
+    """Centred moving average; at the ends over what is there."""
+    half = window // 2
+    out = []
+    for i in range(len(heights)):
+        lo, hi = max(0, i - half), min(len(heights), i + half + 1)
+        out.append(sum(heights[lo:hi]) / (hi - lo))
+    return out
+
+
+def steep_excess(heights, steps_m, grade=STEEP_GRADE, window=STEEP_SMOOTH):
+    """(forward, backward): metres climbed above `grade` along the samples,
+    in sample order and against it. `steps_m[i]` is the distance between
+    sample i and i + 1.
+
+    Heights AND positions are averaged over the window: a smoothed point
+    sits at the mean distance of its samples. The last step of an edge is
+    short (whatever is left after the full 50 m), and smoothing heights
+    alone would put a 50 m rise onto a 1 m step there — a linear slope
+    must come out exact, whatever the steps."""
+    if len(heights) < 2 or len(steps_m) != len(heights) - 1:
+        return 0.0, 0.0
+    dist = [0.0]
+    for d in steps_m:
+        dist.append(dist[-1] + d)
+    if window > 1:
+        sm, sd = smooth_heights(heights, window), smooth_heights(dist, window)
+    else:
+        sm, sd = list(heights), dist
+    up = down = 0.0
+    for i in range(len(sm) - 1):
+        rise, d = sm[i + 1] - sm[i], sd[i + 1] - sd[i]
+        up += max(0.0, rise - grade * d)
+        down += max(0.0, -rise - grade * d)
+    return up, down
 
 
 # ------------------------------------------------------------- protobuf / MVT
@@ -669,20 +734,35 @@ class GridSim:
         return self.cache[key]
 
 
-def climb_along(dem, latlon, step_m=SAMPLE_M, hysteresis_m=HYSTERESIS_M):
-    """(gain, loss) along a lat/lon polyline, sampled and hysteresis-filtered."""
+def profile_along(dem, latlon, step_m=SAMPLE_M):
+    """Heights every `step_m` along a lat/lon polyline and the distances
+    between consecutive samples (chords, in the projection of the first
+    point). Samples without a height are dropped; `steps` is then None —
+    a grade across a gap would be invented."""
     if len(latlon) < 2:
-        return 0.0, 0.0
+        return [], []
     lat0 = latlon[0][0]
     k = math.cos(math.radians(lat0))
     xy = [(math.radians(lo) * R_EARTH * k, math.radians(la) * R_EARTH) for la, lo in latlon]
     samples = trail_match.resample(xy, step_m)
     heights = []
+    complete = True
     for x, y in samples:
         la, lo = math.degrees(y / R_EARTH), math.degrees(x / (R_EARTH * k))
         h = dem.at(la, lo)
         if h is not None:
             heights.append(h)
+        else:
+            complete = False
+    steps = [math.dist(a, b) for a, b in zip(samples, samples[1:])] if complete else None
+    return heights, steps
+
+
+def climb_along(dem, latlon, step_m=SAMPLE_M, hysteresis_m=HYSTERESIS_M):
+    """(gain, loss) along a lat/lon polyline, sampled and hysteresis-filtered."""
+    if len(latlon) < 2:
+        return 0.0, 0.0
+    heights, _ = profile_along(dem, latlon, step_m)
     return hysteresis_climb(heights, hysteresis_m)
 
 
@@ -732,6 +812,10 @@ class Edge:
     loss: float = 0.0
     latlon: list = field(default_factory=list)   # a -> b
     level: int = 0                               # 1 bridge, -1 tunnel
+    steep_up: float = 0.0                        # metres above STEEP_GRADE, a -> b (#194)
+    steep_down: float = 0.0                      # the same, b -> a
+    heights: list = field(default_factory=list)  # samples a -> b, for the Tirol report
+    steps: list = None
 
 
 GRID_CELL_M = 50.0   # spatial index cell; every query radius here is <= 30 m
@@ -814,7 +898,16 @@ class Graph:
         e.b = mid
         e.length = trail_match.polyline_length([self.xy(*p) for p in first])
         self.adj[mid].append(ei)
-        return self.add_edge(mid, old_b, e.cls, e.oneway, second, e.level) and mid
+        ni = self.add_edge(mid, old_b, e.cls, e.oneway, second, e.level)
+        # Heights by length share, as the app does (splitEdge).
+        n = self.edges[ni]
+        share = n.length / (e.length + n.length) if e.length + n.length > 0 else 0.0
+        for attr in ("gain", "loss", "steep_up", "steep_down"):
+            v = getattr(e, attr)
+            setattr(n, attr, v * share)
+            setattr(e, attr, v * (1 - share))
+        e.heights, e.steps = [], None
+        return mid
 
     def components(self):
         parent = list(range(len(self.nodes)))
@@ -1004,15 +1097,19 @@ def find_crossings(g):
 
 def add_climbs(g, dem):
     for e in g.edges:
-        e.gain, e.loss = climb_along(dem, e.latlon)
+        heights, steps = profile_along(dem, e.latlon)
+        e.gain, e.loss = hysteresis_climb(heights, HYSTERESIS_M)
+        e.heights, e.steps = heights, steps
+        e.steep_up, e.steep_down = steep_excess(heights, steps) if steps is not None else (0.0, 0.0)
 
 
-def edge_cost(profile, e, forward):
+def edge_cost(profile, e, forward, steep=True):
     gain, loss = (e.gain, e.loss) if forward else (e.loss, e.gain)
-    return edge_cost_s(profile, e.cls, e.length, gain, loss), gain, loss
+    steep_m = (e.steep_up if forward else e.steep_down) if steep else 0.0
+    return edge_cost_s(profile, e.cls, e.length, gain, loss, steep_m), gain, loss
 
 
-def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None):
+def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None, steep=True):
     """Bounded Dijkstra (A* with `heuristic`): cost, climb, prev per node."""
     dist = {src: 0.0}
     climb = {src: 0.0}
@@ -1032,7 +1129,7 @@ def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None):
             if e.oneway and not forward:
                 continue
             m = e.b if forward else e.a
-            c, gain, _ = edge_cost(profile, e, forward)
+            c, gain, _ = edge_cost(profile, e, forward, steep)
             nd = dist[n] + c
             if nd > limit:
                 continue
@@ -1045,14 +1142,14 @@ def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None):
     return dist, climb, prev
 
 
-def astar(g, src, dst, profile):
+def astar(g, src, dst, profile, steep=True):
     tx, ty = g.nodes[dst]
     vmax = PROFILES[profile]["v_down"] / 3.6
 
     def h(n):
         x, y = g.nodes[n]
         return math.hypot(x - tx, y - ty) / vmax
-    dist, climb, prev = dijkstra(g, src, profile, target=dst, heuristic=h)
+    dist, climb, prev = dijkstra(g, src, profile, target=dst, heuristic=h, steep=steep)
     if dst not in dist:
         return None
     path = []
@@ -1068,7 +1165,7 @@ def astar(g, src, dst, profile):
 def path_summary(g, path, src):
     """Length, gain, loss, class mix, hiking km, wasted descent along a path."""
     n = src
-    length = gain = loss = hiking = 0.0
+    length = gain = loss = hiking = steep = 0.0
     mix = {}
     latlon = []
     for ei in path:
@@ -1080,12 +1177,13 @@ def path_summary(g, path, src):
         length += e.length
         gain += gn
         loss += ls
+        steep += e.steep_up if forward else e.steep_down
         mix[e.cls] = mix.get(e.cls, 0.0) + e.length
         if CLASSES[e.cls][4]:
             hiking += e.length
         n = e.b if forward else e.a
     return {"length_m": length, "gain_m": gain, "loss_m": loss, "mix": mix,
-            "hiking_m": hiking, "latlon": latlon}
+            "hiking_m": hiking, "steep_m": steep, "latlon": latlon}
 
 
 # ------------------------------------------------------------- fetching
@@ -1319,8 +1417,13 @@ def measure_frame(bbox, trails, archive, dem, profile="bio", budget_h=BUDGET_HOU
         reach.append(reached)
     t_dijkstra = time.perf_counter() - t0
 
+    steep = steep_stats(joined)
+
     # Examples: three climbs bottom -> nearest other top, with class mix.
+    # Each one is also searched WITHOUT the steep surcharge (#194): how
+    # often does it change the way, and what does that cost in length?
     examples = []
+    steep_pairs = []
     for t, n in bottoms[:40]:
         best = None
         for o, m in tops:
@@ -1343,15 +1446,68 @@ def measure_frame(bbox, trails, archive, dem, profile="bio", budget_h=BUDGET_HOU
                                            if joined.edges[ei].a == a else (joined.edges[ei].loss, joined.edges[ei].gain)))
                             for ei, a in zip(path, _path_nodes(joined, path, n))) / 60
         s["air_m"] = best[0]
-        examples.append(s)
-        if len(examples) >= 5:
-            break
+        plain = astar(joined, n, best[2], profile, steep=False)
+        if plain is not None:
+            ps = path_summary(joined, plain[2], n)
+            s["plain"] = {"length_m": ps["length_m"], "gain_m": ps["gain_m"], "steep_m": ps["steep_m"],
+                          "mix": ps["mix"]}
+            steep_pairs.append({"changed": plain[2] != path, "length_m": s["length_m"], "plain_length_m": ps["length_m"],
+                                "steep_m": s["steep_m"], "plain_steep_m": ps["steep_m"]})
+        if len(examples) < 5:
+            examples.append(s)
 
     return {"bbox": bbox, "tiles": tiles, "lines": len(lines), "trails": len(trails),
             "m1": m1, "m3": m3, "reach": reach, "examples": examples,
+            "steep": steep, "steep_pairs": steep_pairs,
             "timing": {"tiles_s": t_tiles, "graph_s": t_graph, "dem_s": t_dem,
                        "dijkstra_s": t_dijkstra, "dijkstra_runs": len(bottoms)},
             "dem_fetched": getattr(dem, "fetched", 0)}
+
+
+STEEP_REPORT_CLASSES = ("forstweg", "radweg", "zufahrt", "nebenstrasse", "landstrasse", "wanderweg", "fussweg")
+
+
+def steep_stats(g):
+    """#194: per class, the edges in their uphill direction — length, gain,
+    the share of the gain above each of STEEP_GRADES (raw samples and
+    smoothed over STEEP_SMOOTH) and the length-weighted grades of the
+    smoothed steps. Edges without complete heights are left out."""
+    acc = {}
+    for e in g.edges:
+        if e.cls not in STEEP_REPORT_CLASSES or e.steps is None or len(e.heights) < 2:
+            continue
+        hs, st = e.heights, e.steps
+        if hs[-1] < hs[0]:
+            hs, st = hs[::-1], st[::-1]
+        gain, _ = hysteresis_climb(hs, HYSTERESIS_M)
+        if gain <= 0:
+            continue
+        a = acc.setdefault(e.cls, {"length_m": 0.0, "gain_m": 0.0, "edges": 0,
+                                   "raw": [0.0] * len(STEEP_GRADES), "smooth": [0.0] * len(STEEP_GRADES),
+                                   "grades": []})
+        a["length_m"] += e.length
+        a["gain_m"] += gain
+        a["edges"] += 1
+        for i, gr in enumerate(STEEP_GRADES):
+            a["raw"][i] += steep_excess(hs, st, gr, window=1)[0]
+            a["smooth"][i] += steep_excess(hs, st, gr)[0]
+        sm = smooth_heights(hs)
+        a["grades"] += [((sm[i + 1] - sm[i]) / d, d) for i, d in enumerate(st) if d > 0]
+    out = {}
+    for cls, a in acc.items():
+        gs = sorted(a.pop("grades"))
+        total = sum(d for _, d in gs)
+
+        def q(p):
+            run = 0.0
+            for gr, d in gs:
+                run += d
+                if run >= p * total:
+                    return gr
+            return gs[-1][0] if gs else 0.0
+        a["p50"], a["p90"], a["p99"] = q(0.5), q(0.9), q(0.99)
+        out[cls] = a
+    return out
 
 
 def _path_nodes(g, path, src):
@@ -1440,7 +1596,47 @@ def render_report(frames, profile, source_name, note=""):
                 out.append(f"| {km(s['air_m'])} | {km(s['length_m'])} | {s['gain_m']:.0f} hm | {s['loss_m']:.0f} hm "
                            f"| {km(s['hiking_m'])} | {s['time_min']:.0f} min | {mix} |")
             out.append("\nZum Ansehen, nicht zum Messen: Sieht der Weg aus wie einer, den man fahren würde?")
+        out += render_steep(fr)
     return "\n".join(out) + "\n"
+
+
+def render_steep(fr):
+    """#194: how steep the classes are on the DEM, and what the surcharge does."""
+    out = ["", "### #194 — Steile Anstiege", "",
+           f"Kanten in ihrer Aufwärtsrichtung, Höhen alle {SAMPLE_M:.0f} m. Spalten: Anteil der Höhenmeter über der "
+           f"Steilgrenze, roh und über {STEEP_SMOOTH} Proben geglättet (g = geglättet); Steigung der geglätteten "
+           "Schritte nach Länge gewichtet.", "",
+           "| Klasse | Kanten | km | hm | " + " | ".join(f"> {gr * 100:.0f} % roh / g" for gr in STEEP_GRADES)
+           + " | Median | 90. | 99. |",
+           "|---|---|---|---|" + "---|" * len(STEEP_GRADES) + "---|---|---|"]
+    for cls in STEEP_REPORT_CLASSES:
+        a = fr["steep"].get(cls)
+        if not a:
+            continue
+        cells = " | ".join(f"{pct(r / a['gain_m'])} / {pct(m / a['gain_m'])}" for r, m in zip(a["raw"], a["smooth"]))
+        out.append(f"| {cls} | {a['edges']} | {a['length_m'] / 1000:.0f} | {a['gain_m']:.0f} | {cells} "
+                   f"| {pct(a['p50'])} | {pct(a['p90'])} | {pct(a['p99'])} |")
+    pairs = fr["steep_pairs"]
+    if pairs:
+        changed = [x for x in pairs if x["changed"]]
+        out.append("")
+        out.append(f"Aufschlag ab {STEEP_GRADE * 100:.0f} % (Faktor unbefestigt "
+                   f"{STEEP_FACTOR['forstweg']:g}, Straße {STEEP_FACTOR['nebenstrasse']:g}): "
+                   f"{len(changed)} von {len(pairs)} Aufstiegen nehmen einen anderen Weg; steile hm "
+                   f"{sum(x['plain_steep_m'] for x in pairs):.0f} → {sum(x['steep_m'] for x in pairs):.0f}.")
+        if changed:
+            longer = sorted(x["length_m"] / x["plain_length_m"] - 1 for x in changed if x["plain_length_m"] > 0)
+            out.append(f"Wo sich der Weg ändert, wird er im Median {pct(statistics.median(longer))} länger, "
+                       f"höchstens {pct(longer[-1])}.")
+    if fr["examples"]:
+        out += ["", "| Beispiel | ohne Aufschlag | mit Aufschlag |", "|---|---|---|"]
+        for i, s in enumerate(fr["examples"], 1):
+            p = s.get("plain")
+            if not p:
+                continue
+            out.append(f"| {i} | {km(p['length_m'])}, {p['gain_m']:.0f} hm, {p['steep_m']:.0f} steil "
+                       f"| {km(s['length_m'])}, {s['gain_m']:.0f} hm, {s['steep_m']:.0f} steil |")
+    return out
 
 
 # ------------------------------------------------------------- rides mode
@@ -1715,6 +1911,41 @@ def self_test():
     expect(edge_cost_s("bio", "bundesstrasse", 1000, 0, 0) == 4.0 * edge_time_s("bio", "bundesstrasse", 1000, 0, 0), "primary ×4")
     expect(edge_factor("bio", "wanderweg", 0, 50) == 2.0 and edge_factor("ebike", "wanderweg", 0, 50) == 2.5, "hiking downhill factors")
     expect(abs(edge_time_s("bio", "trail", 1800, 0, 300, trail_grade=2) - 1800 / (9 / 3.6)) < 1e-6, "trail time by grade")
+
+    # steep climbs (#194) — the vectors are mirrored in route_profile_test.dart
+    ramp = [100.0 + 15.0 * i for i in range(9)]          # 30 % every 50 m
+    expect(steep_excess(ramp, [50.0] * 8, window=1) == (60.0, 0.0), "raw: 7.5 m above 15 % per step")
+    up, down = steep_excess(ramp, [50.0] * 8)
+    expect(abs(up - 52.5) < 1e-9 and down == 0.0, f"smoothed: the ends lose half a step: {up}")
+    short_end = [100.0 + 7.27 * i for i in range(67)] + [100.0 + 7.27 * 66 + 0.163]
+    expect(steep_excess(short_end, [50.0] * 66 + [1.12]) == (0.0, 0.0), "a short last step stays at its grade")
+    expect(steep_excess([100.0 + 5.0 * i for i in range(9)], [50.0] * 8) == (0.0, 0.0), "10 % is not steep")
+    expect(steep_excess(ramp[::-1], [50.0] * 8)[1] == up, "backwards it is the other direction")
+    expect(steep_excess([100.0, 130.0], [50.0]) == (0.0, 0.0), "two samples smooth to one value")
+    expect(steep_excess([100.0, 110.0, 100.0], [50.0, 50.0], window=1) == (2.5, 2.5), "both directions")
+    expect(smooth_heights([0.0, 30.0, 0.0, 30.0]) == [15.0, 10.0, 20.0, 15.0], "moving average")
+    expect(abs(steep_cost_s("bio", "forstweg", 10.0) - 10 * 8 * 3.0) < 1e-9, "unpaved: 3× the climb time")
+    expect(abs(steep_cost_s("ebike", "nebenstrasse", 10.0) - 10 * 3600 / 850) < 1e-9, "paved: 1× (e-bike rate)")
+    expect(steep_cost_s("bio", "stufen", 10.0) == 0.0, "steps are pushed anyway")
+    expect(abs(edge_cost_s("bio", "forstweg", 1000, 100, 0, 10) - (bio_track_plain := edge_cost_s("bio", "forstweg", 1000, 100, 0)) - 240) < 1e-9,
+           "the surcharge adds to the cost")
+    expect(edge_time_s("bio", "forstweg", 1000, 100, 0) == bio_track_plain, "and not to the time")
+
+    # a steep shortcut loses against a gentler detour, without the surcharge it wins
+    g3 = Graph(47.0)
+    s0, s1, s2 = g3.node(47.0, 11.0), g3.node(47.005, 11.0), g3.node(47.0025, 11.004)
+    short = g3.add_edge(s0, s1, "forstweg", False, [(47.0, 11.0), (47.005, 11.0)])
+    g3.edges[short].gain, g3.edges[short].steep_up = 140.0, 60.0
+    for a_, b_ in ((s0, s2), (s2, s1)):
+        ei = g3.add_edge(a_, b_, "forstweg", False, [g3.latlon[a_], g3.latlon[b_]])
+        g3.edges[ei].gain = 70.0
+    expect(astar(g3, s0, s1, "bio")[2] != [short], "the steep shortcut is avoided")
+    expect(astar(g3, s0, s1, "bio", steep=False)[2] == [short], "without the surcharge it is taken")
+    expect(astar(g3, s1, s0, "bio")[2] == [short], "downhill the steep edge costs nothing extra")
+    mid3 = g3.split_edge(short, (0, 0.5), 47.0025, 11.0)
+    halves = [e for e in g3.edges if e.cls == "forstweg" and mid3 in (e.a, e.b) and e.a != s2 and e.b != s2]
+    expect(len(halves) == 2 and abs(sum(e.steep_up for e in halves) - 60.0) < 1e-9
+           and abs(halves[0].steep_up - halves[1].steep_up) < 0.5, "a split shares the steep metres by length")
 
     # hysteresis
     expect(hysteresis_climb([100, 105, 100, 105, 100, 150, 140, 200], 10) == (110.0, 10.0), "wiggles under 10 m vanish")

@@ -1717,6 +1717,25 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Das Fahrerprofil (`RiderProfile`, `Settings.riderProfile`, Vorgabe
   Bio) steht im Profil als Seite „Fahrerprofil"; jede Fahrt merkt es
   sich beim Start im Kopf der Datei (`Ride.profile`).
+- **Steile Anstiege** (#194, seit 0.80.0; Konzept-Routing 2.4,
+  `docs/routing-messung.md`): Je Kante die Höhenmeter über
+  `kSteepGrade` (15 %), in beide Richtungen (`GraphEdge.steepUp/
+  steepDown`, `steepExcess` über `HeightReader.profileAlong`); sie kosten
+  ihre Steigzeit noch einmal mal `WayClass.steep` (3 unbefestigt, 1
+  Asphalt, 0 Stufen), als KOSTEN, nicht als Zeit. Drei Dinge, die man
+  wissen muss:
+  - **Höhen UND Positionen werden geglättet** (drei Proben): Der letzte
+    Schritt einer Kante ist der Rest nach den vollen 50 m; nur die Höhen
+    zu glätten legte dort einen ganzen Anstieg auf einen Meter (im Test
+    gefunden). Ohne Glättung zählte das Rauschen des 90-m-Modells doppelt
+    so viele Höhenmeter (Tirol-Lauf).
+  - **Uphill-Trails und Verbinder tragen keinen Aufschlag**
+    (`edgeCostFrom`); `PathSummary.steepM`/`LoopSummary.steepM` zählen
+    nur, was der Aufschlag nicht vermeiden konnte, `steepNote` sagt es
+    ab `kSteepNoteMinM` (5 hm) — ohne Zahl.
+  - **Spiegel des Werkzeugs** (`STEEP_*`, `steep_excess`, `steep_cost_s`
+    in `tool/route_measure.py`, Testvektoren in `route_profile_test`);
+    `splitEdge` teilt die steilen Meter nach Länge wie die Höhen.
 - **„Zum Trailkopf"** (Schritt 4, seit 0.71.0, `trail_head_route.dart`
   pur, `trail_head_sheet.dart`, `trail_head_providers.dart`): im
   Trail-Blatt neben „Anfahrt", vom eigenen Standort zum Anfang des

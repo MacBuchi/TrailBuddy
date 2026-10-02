@@ -57,6 +57,7 @@ import 'planning_graph.dart';
 import 'ride_calibrator.dart';
 import 'road_graph.dart';
 import 'route_profile.dart';
+import 'route_search.dart' show steepNote;
 import 'trail_head_providers.dart';
 import 'trail_head_route.dart';
 
@@ -391,6 +392,7 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
     final time = fun?.summary?.timeS ?? route.summary.timeS;
     final hiking = fun?.summary?.hikingM ?? route.summary.hikingM;
     final complete = fun?.summary?.heightsComplete ?? route.summary.heightsComplete;
+    final steep = fun?.summary?.steepM ?? route.summary.steepM;
     final upM = fun?.summary?.trailUpM ?? route.summary.trailUpM;
     final upNames = fun?.summary?.trailUpNames ?? {for (final s in route.sections) if (s.trail?.connector ?? false) s.trail!.name}.toList();
     return [
@@ -450,6 +452,14 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
           key: const ValueKey('trail-head-partial'),
           note,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+      ],
+      if (steepNote(steep) case final note?) ...[
+        const SizedBox(height: 8),
+        Text(
+          key: const ValueKey('trail-head-steep'),
+          note,
+          style: theme.textTheme.bodySmall?.copyWith(color: palette.warningText),
         ),
       ],
       if (!complete) ...[
