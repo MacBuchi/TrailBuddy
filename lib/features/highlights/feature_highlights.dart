@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'online-fill',
+    since: '0.78.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.cloud_download_outlined,
+    title: 'Runden auch ohne Bereich',
+    text: 'Mit Empfang holt der Planer die Wege, die deinen Bereichen fehlen, '
+        'vom Kartenhost — eine Runde geht dann auch ohne gespeicherten Bereich. '
+        'Abschalten kannst du es unter Parameter.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'map-legend',
     since: '0.77.0',
     kind: HighlightKind.highlight,

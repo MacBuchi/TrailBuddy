@@ -747,6 +747,7 @@ class LoopPrefs {
     required this.hikingKm,
     required this.returnToStart,
     this.radiusKm = kLoopReachM / 1000,
+    this.fillOnline = true,
   });
 
   final double hours;
@@ -756,6 +757,12 @@ class LoopPrefs {
 
   /// Der Radius der Trail-Liste um den Start (seit 0.74.0).
   final double radiusKm;
+
+  /// Fehlende Wege mit Empfang vom Host ergänzen (#187, seit 0.78.0) —
+  /// gilt für die Runde UND den Weg zum Trail. Aus heißt: gerechnet wird,
+  /// was die Bereiche tragen, wie ohne Empfang — so lässt sich die
+  /// Offline-Lage zu Hause prüfen.
+  final bool fillOnline;
 
   static const minHours = 1.0, maxHours = 6.0, hoursStep = 0.5;
   static const minClimb = 200.0, maxClimb = 2500.0, climbStep = 100.0;
@@ -784,20 +791,24 @@ class LoopPrefs {
       hikingKm: clamp('w', d.hikingKm, minHikingKm, maxHikingKm),
       returnToStart: fields['r'] != '0',
       radiusKm: clamp('k', d.radiusKm, minRadiusKm, maxRadiusKm),
+      fillOnline: fields['o'] != '0',
     );
   }
 
-  String encode() => 'h=$hours;c=$climbM;w=$hikingKm;r=${returnToStart ? 1 : 0};k=$radiusKm';
+  String encode() =>
+      'h=$hours;c=$climbM;w=$hikingKm;r=${returnToStart ? 1 : 0};k=$radiusKm;o=${fillOnline ? 1 : 0}';
 
   LoopBudget get budget => LoopBudget(timeS: hours * 3600, climbM: climbM, hikingM: hikingKm * 1000);
 
-  LoopPrefs copyWith({double? hours, double? climbM, double? hikingKm, bool? returnToStart, double? radiusKm}) =>
+  LoopPrefs copyWith(
+          {double? hours, double? climbM, double? hikingKm, bool? returnToStart, double? radiusKm, bool? fillOnline}) =>
       LoopPrefs(
         hours: hours ?? this.hours,
         climbM: climbM ?? this.climbM,
         hikingKm: hikingKm ?? this.hikingKm,
         returnToStart: returnToStart ?? this.returnToStart,
         radiusKm: radiusKm ?? this.radiusKm,
+        fillOnline: fillOnline ?? this.fillOnline,
       );
 }
 

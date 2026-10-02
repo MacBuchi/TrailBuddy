@@ -53,9 +53,7 @@ class LoopSession {
     this.blocker,
     this.plan,
     this.planStart,
-    this.partial = false,
-    this.tilesFound = 0,
-    this.tilesNeeded = 0,
+    this.coverageNote,
   });
 
   /// Der Planer-Modus ist an: Leiste links, Tipps wählen Trails.
@@ -82,9 +80,10 @@ class LoopSession {
 
   /// Wo die gerechnete Runde wirklich beginnt (Standort oder Tipp).
   final LatLng? planStart;
-  final bool partial;
-  final int tilesFound;
-  final int tilesNeeded;
+
+  /// Was das Blatt über die Kacheln sagt — Teil, online nachgeladen
+  /// (`planningCoverageNote`); null, wenn alles aus den Bereichen kam.
+  final String? coverageNote;
 
   bool get busy => phase == LoopPhase.locating || phase == LoopPhase.loading || phase == LoopPhase.computing;
 
@@ -105,9 +104,8 @@ class LoopSession {
     LoopPlan? plan,
     bool clearPlan = false,
     LatLng? planStart,
-    bool? partial,
-    int? tilesFound,
-    int? tilesNeeded,
+    String? coverageNote,
+    bool clearCoverageNote = false,
   }) =>
       LoopSession(
         open: open ?? this.open,
@@ -122,9 +120,7 @@ class LoopSession {
         blocker: clearBlocker ? null : (blocker ?? this.blocker),
         plan: clearPlan ? null : (plan ?? this.plan),
         planStart: clearPlan ? null : (planStart ?? this.planStart),
-        partial: partial ?? this.partial,
-        tilesFound: tilesFound ?? this.tilesFound,
-        tilesNeeded: tilesNeeded ?? this.tilesNeeded,
+        coverageNote: clearCoverageNote ? null : (coverageNote ?? this.coverageNote),
       );
 }
 
@@ -136,6 +132,7 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
   RoadGraph? _graph;
   LatLng? _graphStart;
   Set<String> _graphTrails = const {};
+  bool _graphOnline = false;
 
   @override
   LoopSession build() {
@@ -286,7 +283,11 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
         start = LatLng(fix.latitude, fix.longitude);
       }
       final ids = {for (final t in chosen) t.id};
-      if (_graph == null || _graphStart != start || !_graphTrails.containsAll(ids)) {
+      final fillOnline = state.prefs.fillOnline;
+      if (_graph == null ||
+          _graphStart != start ||
+          !_graphTrails.containsAll(ids) ||
+          _graphOnline != fillOnline) {
         state = state.copyWith(phase: LoopPhase.loading);
         final s0 = start;
         // Die Uphill-Trails und Verbinder im Umkreis gehören in den Rahmen —
@@ -296,7 +297,7 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
           s0,
           for (final t in chosen) ...t.directedPoints,
           for (final t in connectors) ...t.points,
-        ]));
+        ]), fillOnline: fillOnline);
         if (loaded.graph == null) {
           state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noArea);
           return;
@@ -304,8 +305,9 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
         _graph = loaded.graph;
         _graphStart = start;
         _graphTrails = ids;
-        state = state.copyWith(
-            partial: loaded.partial, tilesFound: loaded.tilesFound, tilesNeeded: loaded.tilesNeeded);
+        _graphOnline = fillOnline;
+        final note = planningCoverageNote(loaded, what: 'die Runde');
+        state = state.copyWith(coverageNote: note, clearCoverageNote: note == null);
       }
       state = state.copyWith(phase: LoopPhase.computing);
       // Ein Bild für den Kreisel, bevor die Rechnung den Takt belegt.

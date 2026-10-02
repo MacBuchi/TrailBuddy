@@ -2,6 +2,7 @@
 // (der Forstweg gewinnt gegen die kürzere Bundesstraße), Budgetgrenze,
 // und die Pfad-Zusammenfassung in beide Richtungen — dazu der Graph aus
 // Bereichen über `loadRoadGraph` (vollständig, teilweise, gar nicht).
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -189,6 +190,101 @@ void main() {
       expect(partial.graph, isNull);
       expect(partial.tilesNeeded, 2);
       expect(partial.tilesFound, 1);
+    });
+
+    group('online ergänzt (#187)', () {
+      // Ein Rahmen über drei Kacheln nebeneinander, die mittlere ist [t].
+      final west = tileBounds(13, t.x - 1, t.y), east = tileBounds(13, t.x + 1, t.y);
+      final three = LatBox(bounds.south + 1e-4, west.west + 1e-4, bounds.north - 1e-4, east.east - 1e-4);
+
+      test('ohne Bereich: alles vom Host, und der Graph steht', () async {
+        final asked = <({int x, int y})>[];
+        final r = await loadRoadGraph(
+          areas: const [],
+          box: box,
+          open: (_) async => null,
+          fetchOnline: (k) async {
+            asked.add((x: k.x, y: k.y));
+            return tile;
+          },
+        );
+        expect(asked, [(x: t.x, y: t.y)]);
+        expect(r.coverage, RoadCoverage.complete);
+        expect(r.tilesOnline, 1);
+        expect(r.graph!.edges, hasLength(4));
+      });
+
+      test('gefragt wird nur, was kein Bereich hat — die nächsten zur Mitte zuerst', () async {
+        final store = await seed(withTile: true);
+        final asked = <int>[];
+        final r = await loadRoadGraph(
+          areas: await store.list(),
+          box: three,
+          open: openFrom(store),
+          maxOnline: 1,
+          fetchOnline: (k) async {
+            asked.add(k.x);
+            return tile;
+          },
+        );
+        // Die mittlere liegt im Bereich; von den beiden äußeren holt die
+        // Grenze genau eine.
+        expect(asked, hasLength(1));
+        expect(asked.single, isNot(t.x));
+        expect(r.tilesNeeded, 3);
+        expect(r.tilesFound, 2);
+        expect(r.tilesOnline, 1);
+        expect(r.onlineCapped, isTrue);
+        expect(r.coverage, RoadCoverage.partial);
+      });
+
+      test('ohne Bereich und mit Grenze: die Kachel in der Mitte zuerst', () async {
+        final asked = <int>[];
+        await loadRoadGraph(
+          areas: const [],
+          box: three,
+          open: (_) async => null,
+          maxOnline: 1,
+          fetchOnline: (k) async {
+            asked.add(k.x);
+            return tile;
+          },
+        );
+        expect(asked, [t.x]);
+      });
+
+      test('ein Netzfehler beendet das Nachladen, der Plan bleibt', () async {
+        final store = await seed(withTile: true);
+        var calls = 0;
+        final r = await loadRoadGraph(
+          areas: await store.list(),
+          box: three,
+          open: openFrom(store),
+          requireComplete: false,
+          fetchOnline: (k) async {
+            calls++;
+            throw TimeoutException('kein Netz');
+          },
+        );
+        expect(calls, 1, reason: 'nach dem ersten Fehler fragt der Lader nicht weiter');
+        expect(r.onlineBroken, isTrue);
+        expect(r.tilesOnline, 0);
+        expect(r.tilesFound, 1);
+        expect(r.graph, isNotNull);
+      });
+
+      test('was der Host nicht hat (null), zählt nicht als gefunden', () async {
+        final r = await loadRoadGraph(
+          areas: const [],
+          box: box,
+          open: (_) async => null,
+          fetchOnline: (_) async => null,
+        );
+        expect(r.coverage, RoadCoverage.none);
+        expect(r.graph, isNull);
+        expect(r.tilesOnline, 0);
+        expect(r.onlineBroken, isFalse);
+      });
     });
   });
 }

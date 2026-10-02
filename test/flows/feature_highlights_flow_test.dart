@@ -93,7 +93,7 @@ void main() {
     await pumpApp(tester, signedIn());
     await openProfilePage(tester, 'discover');
     final seen = <String>{};
-    for (var i = 0; i < 40; i++) {
+    for (var i = 0; i < 60; i++) {
       for (final h in kFeatureHighlights) {
         if (find.byKey(ValueKey('discover-${h.id}')).evaluate().isNotEmpty) seen.add(h.id);
       }

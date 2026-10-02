@@ -65,7 +65,11 @@ Nicht-Ziele, damit sie nicht hineinwachsen:
   gespeicherter Bereich liegt; ohne Bereich sagt das Blatt das und
   bietet die Übergabe an. Seit 0.74.0 über die Kacheln, die DA sind,
   auch wenn sie den Rahmen nicht ganz füllen (2.7) — die Wege außerhalb
-  kennt die Engine weiter nicht.
+  kennt die Engine offline weiter nicht. **Die eine Ausnahme seit
+  0.78.0 (#187):** Mit Empfang ergänzt der Kartenhost die fehlenden
+  Kacheln des Rahmens (2.7, letzter Punkt); dann geht eine Runde auch
+  ganz ohne Bereich, und das Blatt sagt, wie viele Kacheln online kamen.
+  „Fremd" heißt damit: ohne Bereich UND ohne Empfang — oder abgeschaltet.
 - **Kein Urteil über Erlaubnis** (Konzept 7). Die Engine plant über
   Wanderwege, wenn der Aufschlag trotzdem gewinnt, und SAGT es. Sie
   sagt nie, dass ein Weg befahren werden darf.
@@ -317,6 +321,32 @@ dieselben Konstanten geprüft):
   kann kürzer sein". Ein halber Plan ist das nicht: Jede Linie liegt
   auf bekannten Wegen; nur ihre Optimalität ist auf den Bestand
   beschränkt. Ohne eine einzige Kachel bleibt es bei „kein Plan".
+- **Mit Empfang kommen die fehlenden Kacheln vom Host** (seit 0.78.0,
+  #187, `online_fill.dart`; Betreiber, 2026-10-01: „wenn ich online bin,
+  kann er doch mit mehr Kacheln rechnen?"). Aus DEMSELBEN Archiv, aus
+  dem die Bereiche geschnitten sind (`dach-<build>.pmtiles`, Ebene
+  `roads`), dazu je Kachel die Höhenkachel aus `heights-<build>.pmtiles`
+  — per Range-Anfrage wie beim Speichern eines Bereichs, also kein neues
+  Netzziel. Fünf Regeln:
+  - **Die letzte Quelle**: gefragt wird nur, was kein Bereich hat, die
+    Kacheln nächst der Mitte des Rahmens zuerst, höchstens
+    `kOnlineFillMaxTiles` (75) je Planung — jede Kachel ist eine
+    R2-Class-B-Operation (#55), mit Höhen höchstens 150 Anfragen. Höhen
+    nur für die nachgeladenen Kacheln; einem Bereich ohne Höhen (vor
+    0.69.0) reicht das hier nichts nach.
+  - **Nur für die Sitzung**: im Speicher (`OnlineTileCache`, 300 je
+    Sorte, die ältesten fallen zuerst), damit ein zweiter Plan dieselbe
+    Gegend nicht noch einmal holt. Behalten ist #155.
+  - **Ein Netzfehler beendet das Nachladen, nicht die Planung**: Jeder
+    Schritt hat 10 s Frist; was bis dahin da ist, wird gerechnet, und
+    das Blatt nennt den Grund für den Rest (Grenze, Abbruch, außerhalb
+    der Karte — `planningCoverageNote`, EINE Fassung für Runde und Weg).
+  - **Ohne Empfang ändert sich nichts** (`noConnectivityProvider`), und
+    ohne Manifest auch nicht.
+  - **Abschaltbar**: „Fehlende Wege online ergänzen" in den Parametern
+    des Planers (`LoopPrefs.fillOnline`, Vorgabe an, gerätelokal), gilt
+    auch für den Weg zum Trail — so lässt sich die Offline-Lage zu Hause
+    prüfen.
 - **Die Trails des Netzes liegen auf dem Graphen** (seit 0.74.0,
   `trail_overlay.dart`, #174/#185). Eine Kante, deren Proben zu ≥ 0,8 im
   15-m-Korridor eines sichtbaren Trails liegen (die Schwellen des
@@ -509,6 +539,7 @@ Messung und spiegelt Kostentabelle und Zeitmodell; wie bei
 | 5 | `loop_planner.dart`, Planer-Blatt, Pool, Pflicht-Trails — **gebaut, 0.72.0** (`loop_planner.dart` pur, `loop_planner_sheet.dart`, `loop_planner_providers.dart`; geplante Fahrt in „Meine Fahrten", „Als Fahrt speichern" auch bei „Zum Trailkopf") | #158/5 | feat |
 | 6 | Kalibrierung aus eigenen Fahrten, je Profil (Steigrate je Klasse, Flachgeschwindigkeit), im Profil sichtbar („Bio-Bike: 520 hm/h aus 14 Fahrten") und zurücksetzbar; `Ride.profile` kommt mit Schritt 3 — **gebaut, 0.73.0** (`ride_calibration.dart` pur als Spiegel von `ride_sections`/`class_mix_along` im Werkzeug, `ride_calibrator.dart`; auf Knopfdruck unter „Fahrerprofil", Median je Klassengruppe ab drei Aufstiegen, plausible Spanne; die Planer lesen `calibratedRiderProvider`) | #158 | feat |
 | 7 | Rund machen nach dem ersten Feldeinsatz: Blätter ohne Modal und über der Karte eingepasst, Planung über den vorhandenen Teil der Kacheln, Trail-Richtung und Verbinder auf dem Graphen (Patch 016 „in beide Richtungen"), Direkt/Spaßig, Navi-Symbol, langer Druck, Auswählen statt öffnen — **gebaut, 0.74.0** | #174 #176 #177 #178 #185 | feat |
+| 8 | Fehlende Wege- und Höhenkacheln mit Empfang vom eigenen Host, gedeckelt, nur für die Sitzung, abschaltbar (2.7) — **gebaut, 0.78.0** | #187 | feat |
 
 Schritt 1 entscheidet, ob 2–5 so gebaut werden oder ob vorher die
 Pipeline (2.5, letzter Punkt) dran ist. Schritte 3–5 brauchen keine

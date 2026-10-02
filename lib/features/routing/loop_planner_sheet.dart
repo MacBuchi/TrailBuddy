@@ -34,6 +34,7 @@ import 'loop_planner_controller.dart';
 import 'loop_planner_providers.dart';
 import 'map_panel.dart';
 import 'road_graph.dart';
+import 'road_graph_loader.dart' show kOnlineFillMaxTiles;
 import 'route_profile.dart';
 import 'trail_head_route.dart' show routeTimeLabel;
 
@@ -150,10 +151,22 @@ class _ParamsSheet extends ConsumerWidget {
           value: prefs.returnToStart,
           onChanged: (v) => notifier.setPrefs(prefs.copyWith(returnToStart: v)),
         ),
+        SwitchListTile(
+          key: const ValueKey('loop-fill-online'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Fehlende Wege online ergänzen'),
+          subtitle: Text(prefs.fillOnline
+              ? 'Mit Empfang kommen Wege, die deine Bereiche nicht haben, vom Kartenhost — '
+                  'höchstens $kOnlineFillMaxTiles Kacheln je Planung, nur für diese Sitzung.'
+              : 'Gerechnet wird nur über deine Bereiche — wie ohne Empfang.'),
+          value: prefs.fillOnline,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(fillOnline: v)),
+        ),
         const SizedBox(height: 8),
         Text(
           'Die Runde nimmt die gewählten Trails bergab mit und verbindet sie über die Wege deiner '
-          'gespeicherten Bereiche — offline, nach deinem Profil. Gewählt wird auf der Karte (antippen), '
+          'gespeicherten Bereiche — offline, nach deinem Profil; mit Empfang ergänzt der Kartenhost, '
+          'was fehlt. Gewählt wird auf der Karte (antippen), '
           'über die Liste oder ein umfahrenes Gebiet.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
@@ -492,12 +505,11 @@ class _ResultPanelState extends ConsumerState<_ResultPanel> {
           style: theme.textTheme.bodyMedium?.copyWith(color: palette.warningText),
         ),
       ],
-      if (session.partial) ...[
+      if (session.coverageNote case final note?) ...[
         const SizedBox(height: 8),
         Text(
           key: const ValueKey('loop-partial'),
-          'Gerechnet über ${session.tilesFound} von ${session.tilesNeeded} Kacheln um die Runde — nur dort '
-          'kennt die App die Wege. Ein Weg außerhalb deiner Bereiche kann kürzer sein.',
+          note,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
       ],
@@ -581,8 +593,9 @@ class _ResultPanelState extends ConsumerState<_ResultPanel> {
             'oder umfahre ein Gebiet.',
         LoopBlocker.noPosition => 'Kein Standort — ohne ihn gibt es keinen Startpunkt. Erlaube '
             'TrailBuddy den Standort, oder setz den Start über den obersten Knopf der Leiste.',
-        LoopBlocker.noArea => 'Kein gespeicherter Bereich deckt die Runde. Gerechnet wird nur offline, '
-            'aus deinen Bereichen — speichere einen über den Knopf „Offline-Karten" auf der Karte.',
+        LoopBlocker.noArea => 'Kein gespeicherter Bereich deckt die Runde, und online kam kein Weg dazu '
+            '(kein Empfang, oder „Fehlende Wege online ergänzen" ist aus). Speichere einen Bereich über '
+            'den Knopf „Offline-Karten" auf der Karte — dann geht es auch ohne Empfang.',
         LoopBlocker.failed => 'Die Runde ließ sich nicht rechnen — ein Fehler, der gemeldet ist. '
             'Versuch es mit weniger Trails noch einmal.',
       };
