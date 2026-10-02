@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Fehlerberichte, die sagen, wo es passiert ist
+
+*Version 0.74.1, 2026-10-02*
+
+- **Wenn die App unterwegs einen Fehler abfängt, sagt der Bericht jetzt
+  auch, in welchem Schritt es passiert ist** — beim Zeichnen, beim
+  Abbauen eines Fensters oder in einer Animation. Ein Fehler aus 0.73.0
+  kam fünfmal an, ohne dass sich die Stelle finden ließ; mit dieser
+  Version lässt sie sich beim nächsten Mal benennen. Für dich ändert sich
+  nichts, es wird nichts Neues über dich gemeldet.
+
 ## Navigation rund: sichtbar, ehrlich, nie gegen den Trail
 
 *Version 0.74.0, 2026-10-01*

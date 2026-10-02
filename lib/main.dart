@@ -57,7 +57,7 @@ Future<void> main() async {
   FlutterError.onError = (details) {
     previousOnError?.call(details);
     if (worthReporting(details.exception)) {
-      logError('Flutter-Fehler', details.exception, details.stack);
+      logError('Flutter-Fehler', details.exception, flutterErrorStack(details));
     }
   };
   WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {

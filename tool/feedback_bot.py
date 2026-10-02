@@ -152,6 +152,23 @@ def top_frame(stack: str | None) -> str | None:
     return None
 
 
+def stack_phase(stack: str | None) -> str | None:
+    """The framework phase the app wrote above a Flutter error's stack.
+
+    Since 0.74.1 `flutterErrorStack` puts `Phase: <library> · <context>`
+    on the first line ("scheduler library · during a scheduler callback").
+    A ticker callback carries no frame of our own code, so this line is
+    the only hint at where it happened (2026-W40: five rows of a null
+    check in `AnimationController.stop` and nothing else to go on).
+    """
+    if not stack:
+        return None
+    first = stack.lstrip().splitlines()[0] if stack.strip() else ""
+    if not first.startswith("Phase: "):
+        return None
+    return first[len("Phase: "):].strip()[:200] or None
+
+
 def digest_body(rows: list[dict], week: str) -> str:
     """Group error reports by (context, error_type) into an issue body.
 
@@ -163,7 +180,7 @@ def digest_body(rows: list[dict], week: str) -> str:
         key = (row.get("context") or "?", row.get("error_type") or "?")
         group = groups.setdefault(key, {
             "count": 0, "versions": set(), "platforms": set(), "example": "",
-            "frame": "",
+            "frame": "", "phase": "",
         })
         group["count"] += 1
         if row.get("app_version"):
@@ -172,6 +189,9 @@ def digest_body(rows: list[dict], week: str) -> str:
             group["platforms"].add(row["platform"])
         if not group["example"] and row.get("message"):
             group["example"] = defuse(row["message"].strip().replace("\n", " ")[:200])
+        phase = stack_phase(row.get("stack"))
+        if phase and not group["phase"]:
+            group["phase"] = defuse(phase)
         frame = top_frame(row.get("stack"))
         # A frame from our code beats one from the framework, even if it
         # comes later: of ten rows in a group often only one carries a
@@ -210,6 +230,9 @@ def digest_body(rows: list[dict], week: str) -> str:
         lines.append(f"**{context} · {error_type}**")
         if group["example"]:
             lines.append(f"> {group['example']}")
+        if group["phase"]:
+            lines.append("")
+            lines.append(f"Phase: {group['phase']}")
         if group["frame"]:
             lines.append("")
             lines.append(f"`{group['frame']}`")
@@ -395,6 +418,21 @@ def self_test_digest() -> None:
 
     assert top_frame("Error\n    at Object.wl (main.dart.js:1:2)") is None
     assert top_frame(None) is None and top_frame("") is None
+
+    # The phase line of a Flutter error (since 0.74.1) shows in the
+    # digest and never counts as a frame.
+    ticker_stack = (
+        "Phase: scheduler library · during a scheduler callback\n"
+        "#0      AnimationController.stop "
+        "(package:flutter/src/animation/animation_controller.dart:894:13)")
+    assert stack_phase(ticker_stack) == "scheduler library · during a scheduler callback"
+    assert stack_phase(framework_stack) is None and stack_phase(None) is None
+    assert top_frame(ticker_stack).startswith("#0      AnimationController.stop")
+    ticker_body = digest_body([{"context": "Flutter-Fehler", "error_type": "_TypeError",
+                                "message": "Null check operator used on a null value",
+                                "stack": ticker_stack, "app_version": "0.74.1",
+                                "platform": "android"}], "2026-W41")
+    assert "Phase: scheduler library · during a scheduler callback" in ticker_body, ticker_body
 
     # Week bounds: 2026-W40 starts Monday, 28 September.
     start, end = week_bounds("2026-W40")
