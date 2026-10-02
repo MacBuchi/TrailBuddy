@@ -132,8 +132,12 @@ void main() {
     expect(find.textContaining('Sehen deine Buddys'), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('note-text')), '  Neuer Drop am Ende ');
     await settle(tester);
+    // Feldbericht 2026-10-02 (Hänger beim Hinweis schreiben): nachgelesen
+    // werden die Hinweise, nicht jede Linie des Netzes.
+    final fetches = trails.recordingFetches;
     await tester.tap(find.text('Speichern'));
     await settle(tester, frames: 20);
+    expect(trails.recordingFetches, fetches, reason: 'ein Hinweis ändert keine Linie');
 
     final note = trails.notes.single;
     expect(note.userId, annaId);
@@ -188,8 +192,12 @@ void main() {
     await settle(tester);
     await tester.enterText(
         find.byKey(const ValueKey('report-note')), 'Forst sperrt bis Oktober');
+    final fetches = trails.recordingFetches;
     await tester.tap(find.byKey(const ValueKey('report-submit')));
     await settle(tester, frames: 20);
+    // Feldbericht 2026-10-02 (Hänger beim Melden): nachgelesen werden
+    // Meldungen und Hinweise, nicht jede Linie des Netzes.
+    expect(trails.recordingFetches, fetches, reason: 'eine Meldung ändert keine Linie');
 
     final r = trails.reports.singleWhere((r) => r.userId == annaId && r.trailId == roots);
     expect(r.status, TrailStatus.closed);
