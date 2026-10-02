@@ -1104,6 +1104,23 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Manifest-Test liest die Kotlin-Zeilen,
   `test/flows/back_navigation_flow_test.dart` den Weg in Dart (Gegenprobe
   ohne die Regel: drei Tests rot).
+- **Die Legende auf der Karte** (#182, seit 0.77.0,
+  `lib/features/map/map_legend.dart`; Feldwunsch „ausklappbar, aber kaum
+  sichtbar"): zu eine 16 dp schmale Lasche links mittig (Trefferfläche
+  44 dp), auf die Proben untereinander. Vier Dinge, die man wissen muss:
+  - **Eine Liste** (`legendSamples`) mit denselben Farben und Mustern
+    wie die Karte (`mapGrades`, `mapLines`, `kLineDash*`,
+    `kHaloDashExpert`) — ändert sich dort ein Muster, zieht sie mit. Auf
+    dem Landton der Karte, auch in der dunklen App.
+  - **Auf oder zu merkt das Gerät** (`Settings.mapLegendOpen`,
+    `map_legend_open`, Vorgabe zu; `FakeSettings` ebenso).
+  - **Eine offene Leiste hat den Platz** (Offline-Karten, Planer) und
+    ein scharfes Zeichenwerkzeug auch; danach steht die Legende wieder,
+    wie sie war.
+  - **124 dp breit, weil die Blase der Tour daneben passen muss**
+    (Schritt 3 leuchtet sie aus; die Blase braucht 200 dp, auf einem
+    360-dp-Telefon). `test/flows/map_legend_flow_test.dart` misst sie
+    hochkant und quer.
 - **Android**: Flavors `github` (mit `REQUEST_INSTALL_PACKAGES` für den
   In-App-Update-Weg) und `play` (ohne), gleiche `applicationId`
   `de.mcbuchi.trailbuddy`. Jeder Build braucht `--flavor`. Backup-Ausschlüsse
@@ -1376,11 +1393,11 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `requires: [map.trailBadge]`, Schritt 2 über `unless: [map.empty]`
     (der leere Kartenzustand ist ein Anker). Der Anker IM Blatt darf
     nicht in `requires` stehen — er entsteht erst mit der Szene.
-  - **Die Linien sind keine Widgets.** Schritt 3 spart nichts aus und
-    zeigt stattdessen `TourLegend` (`tour_legend.dart`) in der Blase: auf
-    dem Landton der Karte, mit denselben Farben und Strichmustern wie die
-    Karte (`kLineDash*`, `kHaloDashExpert`) — ändert sich dort ein
-    Muster, zieht die Legende von selbst mit.
+  - **Die Linien sind keine Widgets — die Legende schon.** Schritt 3
+    klappt die Legende auf der Karte auf (Szene `MapCoach.legend`, seit
+    0.77.0, #182) und leuchtet sie aus; bis 0.76.x stand eine gezeichnete
+    Mini-Legende in der Blase (`CoachStep.illustration` bleibt als
+    Möglichkeit der Maschine).
   - **Schritttitel nie wie ein Text auf dem Schirm** („Ebenen und Orte",
     „Meine Position", „Mein Beitrag" sind verboten) — der Test fände das
     Element statt der Blase; Tests suchen deshalb in `coach-bubble`.

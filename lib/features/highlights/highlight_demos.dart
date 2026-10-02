@@ -98,6 +98,12 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'map-legend': HighlightDemo(
+    route: '/',
+    script: _demo('map-legend', [
+      _from(kMapTourScript, 'Farbe heißt Schwierigkeit'),
+    ]),
+  ),
   'map-layers': HighlightDemo(
     route: '/',
     script: _demo('map-layers', [

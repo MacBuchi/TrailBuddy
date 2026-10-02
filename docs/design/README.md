@@ -292,6 +292,17 @@ der Strich beim Zeichnen folgt der Regel.
   (Handschuh, Mindest-Trefferfläche), Gruppen durch 8 px Luft statt
   Trennlinien. Aktives Werkzeug = helle Fläche. Hauptaktion (Speichern) =
   Lime, der +/−-Zähler in Mono direkt darunter.
+- **Links mittig — ohne Menü: die Legende** (seit 0.77.0, #182;
+  Feldwunsch „ausklappbar, aber kaum sichtbar"). Zu eine Lasche am Rand,
+  16 × 56 px sichtbar (Fläche, feiner Rand, die vier Pistenfarben als
+  kleine Balken), Trefferfläche 44 × 64. Auf: 124 px breit, auf dem
+  Landton der Karte (`mapBackground`, auch dunkel — der weiße Saum der
+  Proben stünde sonst auf Schwarz), Kopfzeile „Legende" mit Pfeil nach
+  links zum Zuklappen, darunter die Proben in vier Gruppen mit 8 px
+  Luft: Schwierigkeit, Zustand, Rand, offiziell — dieselben Farben und
+  Muster wie die Karte (`map_legend.dart`). 124 px, weil die Blase der
+  Tour daneben passen muss (200 px auf einem 360-px-Telefon). Mit
+  offener Leiste ist sie weg; auf oder zu merkt sich das Gerät.
 - **Oben:** ein Satz, was der nächste Strich tut; verschwindet, sobald kein
   Werkzeug scharf ist.
 - **Unten links:** Maßstab + Quelle, rückt neben die linke Leiste.
@@ -575,10 +586,9 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
   „Weiter"/„Los geht's" gefüllt in Lime. Erst messen, dann setzen: neben
   ein hohes schmales Ziel, ins Bild geschoben ohne Pfeil.
 - **Illustration** (TrailBuddys Erweiterung): ein Bild unter dem Text,
-  wo nichts auszusparen ist. Die Mini-Legende (`tour_legend.dart`)
-  steht auf dem Landton der Karte (`mapBackground`) und zeichnet mit
-  denselben Farben (`mapGrades`, `mapLines`) und Mustern
-  (`kLineDashWorn`, `kLineDashRough`, `kHaloDashExpert`) wie die Karte.
+  wo nichts auszusparen ist. Bis 0.76.x stand dort die Mini-Legende;
+  seit 0.77.0 (#182) zeigt die Tour die Legende auf der Karte selbst
+  (Abschnitt 6, „Links mittig — ohne Menü").
 - **Reduzierte Bewegung**: Ring steht, Hand steht in der Druckstellung.
   Während einer Tour blendet die Maschine alles darunter für TalkBack
   aus; die Blase ist eine Live-Region.

@@ -18,7 +18,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/settings.dart';
 import '../coach/coach.dart';
 import 'tour_intro_art.dart';
-import 'tour_legend.dart';
 
 /// Die Leiste unten — die Karten-Tour nennt ihre Bereiche zum Schluss.
 abstract final class NavCoach {
@@ -83,6 +82,10 @@ abstract final class MapCoach {
   static const filterTrails = 'map.filter.trails';
   static const filterOfficial = 'map.filter.official';
   static const filterPois = 'map.filter.pois';
+
+  /// Die Legende am linken Rand (#182) — Anker UND Szene (sie klappt sie
+  /// auf und danach wieder zu, wenn sie zu war).
+  static const legend = 'map.legend';
 
   /// Szene: das Blatt des Trails, dessen Schild [trailBadge] trägt.
   static const trailSheet = 'map.trailSheet';
@@ -170,10 +173,13 @@ const kMapTourScript = CoachScript(
       text: 'Jede Linie trägt die Schwierigkeit ihres Trails wie eine Piste. '
           'Die Art der Linie sagt den Zustand: durchgezogen, bröckelig, '
           'gestrichelt, verblasst. Ein orangener Rand heißt gemeldet, ein '
-          'gelber ein neuer Hinweis.',
-      // Nichts ausgespart: Die Linien zeichnet die Engine, sie sind keine
-      // Widgets. Die Legende steht deshalb in der Blase.
-      illustration: TourLegend(),
+          'gelber ein neuer Hinweis. Die Legende links am Rand klappt '
+          'jederzeit auf und wieder zu.',
+      // Die Linien zeichnet die Engine, sie sind keine Widgets — aber die
+      // Legende auf der Karte ist eins (#182, seit 0.77.0). Bis dahin stand
+      // eine gezeichnete Mini-Legende in der Blase.
+      scene: MapCoach.legend,
+      lit: [MapCoach.legend],
     ),
     CoachStep(
       title: 'Was die Karte zeigt',

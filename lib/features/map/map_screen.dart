@@ -46,6 +46,7 @@ import '../trails/trail_providers.dart';
 import '../trails/trail_sheet.dart';
 import '../update/update_banner.dart';
 import 'map_buttons.dart';
+import 'map_legend.dart';
 import 'map_view/map_view.dart';
 import 'poi.dart';
 import 'line_smoothing.dart';
@@ -202,6 +203,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         };
       }))
       ..add(coach.registerScene(MapCoach.layersSheet, () => sheet(() => showMapLayersSheet(context))))
+      // Die Legende (#182): aufklappen, und zu, wenn sie zu war.
+      ..add(coach.registerScene(MapCoach.legend, () async {
+        final legend = ref.read(mapLegendOpenProvider.notifier);
+        final wasOpen = ref.read(mapLegendOpenProvider);
+        if (!wasOpen) legend.set(true);
+        return () {
+          if (!wasOpen && mounted) legend.set(false);
+        };
+      }))
       // Der Planer ist seit 0.74.0 ein Modus mit Leiste: Die Szene öffnet
       // ihn und schließt ihn wieder, wenn sie ihn geöffnet hat.
       ..add(coach.registerScene(MapCoach.loopRail, () async {
@@ -1110,6 +1120,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                     ),
                   ),
+                ),
+              ),
+            ),
+          // Die Legende (#182): links am Rand, zu eine schmale Lasche. Eine
+          // offene Leiste hat den Platz; solange ein Werkzeug zeichnet,
+          // gehört die Karte dem Strich.
+          if (!toolsOpen && !loop.open && drawTool == null)
+            const SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(0, 56, 0, 64),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: CoachAnchor(id: MapCoach.legend, child: MapLegend()),
                 ),
               ),
             ),
