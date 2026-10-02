@@ -355,7 +355,7 @@ Zeitmodell gerechnet:
 - Modellzeit gefahren / geplant: Median **1,27**, kleinster 1,00,
   größter 1,91; ≤ 1,10 bei 4, ≤ 1,20 bei 6 von 15. Der Planer ist in
   keinem Fall langsamer und nie mehr als 7 % länger.
-- Sieben Fahrten verlassen den Graphen stückweise (Wege, die in den
+- Acht Fahrten verlassen den Graphen stückweise (Wege, die in den
   Kacheln fehlen, oder ein GPS weiter als 25 m daneben); die Kosten
   dort zählen tausendfach, die Zeit normal.
 - Die längste „Auffahrt" ist 32 km lang — eine Tour, die erst später
