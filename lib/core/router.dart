@@ -22,6 +22,7 @@ import '../features/trails/still_valid_screen.dart';
 import '../features/trails/trail_import_screen.dart';
 import '../features/trails/trail_providers.dart' show mapFocusTrailProvider;
 import '../features/trails/trails_screen.dart';
+import 'router_branches.dart';
 import 'widgets/keyboard_inset_below_bar.dart';
 
 /// Stößt den Router-Redirect an, sobald sich der Auth-Zustand ändert.
@@ -163,7 +164,20 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Zurück nach Hierarchie (#175): Blätter, Dialoge und Unterseiten
+    // schließt der Navigator ihres Reiters zuerst; an der Wurzel eines
+    // anderen Reiters führt Zurück auf die Karte, erst dort verlässt es
+    // die App — und das legt sie in den Hintergrund (`popSystemNavigator`
+    // in `MainActivity.kt`), statt sie zu beenden. go_router fragt den
+    // Navigator des Reiters VOR diesem hier; was dort noch zu schließen
+    // ist, kommt also nie bis hierher.
+    final onMap = navigationShell.currentIndex == kMapBranchIndex;
+    return PopScope(
+      canPop: onMap,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) navigationShell.goBranch(kMapBranchIndex);
+      },
+      child: Scaffold(
       // Die Tastatur ÜBERLAGERT, sie schiebt nicht (PilzBuddy #397).
       //
       // Ab Werk schrumpft ein Scaffold seinen Body um `viewInsets.bottom`.
@@ -223,6 +237,7 @@ class AppShell extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

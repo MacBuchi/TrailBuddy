@@ -2,6 +2,17 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Zurück, wie man es erwartet
+
+*Version 0.76.0, 2026-10-02*
+
+- **Die Zurück-Taste schließt Schritt für Schritt**: erst, was gerade
+  offen ist — Blatt, Dialog, Unterseite —, in einem anderen Reiter
+  danach die Karte statt die App.
+- **Auf der Karte legt sie die App in den Hintergrund**, statt sie zu
+  beenden. Beim nächsten Öffnen steht die Karte, wo du sie verlassen
+  hast.
+
 ## Ebenen mit einem Tipp
 
 *Version 0.75.0, 2026-10-02*

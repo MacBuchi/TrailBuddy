@@ -83,6 +83,20 @@ class MainActivity : FlutterActivity() {
             .createNotificationChannel(channel)
     }
 
+    /**
+     * Zurück auf der Karte, wenn nichts mehr offen ist (#175): die App in
+     * den Hintergrund legen, NICHT beenden. Ohne diese Zeilen ruft Flutter
+     * `finish()` — die Karte startet beim nächsten Öffnen von vorn, und
+     * eine laufende Fahrt verliert ihre Anzeige bis zum `restore()`. So
+     * verhält sich die App wie der Startbildschirm-Weg von Android selbst.
+     * Dart ruft das nur, wenn kein Navigator mehr etwas zu schließen hat
+     * (`AppShell` in `router.dart`).
+     */
+    override fun popSystemNavigator(): Boolean {
+        moveTaskToBack(true)
+        return true
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, INSTALL_CHANNEL)

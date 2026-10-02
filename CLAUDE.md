@@ -1092,6 +1092,18 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Gemessen: Prüfer vorher in einem von drei Läufen rot, danach 4/4 grün. `--no-web-resources-cdn` in jedem
   Web-Build, `--base-href /trailbuddy/`. Geprüft im echten Chrome
   (`tool/check_service_worker.mjs`, Job „Build Web").
+- **Zurück nach Hierarchie** (#175, seit 0.76.0): Erst schließt, was
+  oben liegt (Dialog, Blatt, Unterseite — der Navigator des Reiters bzw.
+  der Wurzel-Navigator, go_router fragt sie in dieser Reihenfolge), auf
+  der Karte danach Leiste, Planer und Auswahl (`PopScope` in
+  `MapScreen`); an der Wurzel eines anderen Reiters führt Zurück auf die
+  Karte (`PopScope` in `AppShell`, `router.dart`). Erst auf der Karte
+  geht es an Android, und `MainActivity.popSystemNavigator` legt die App
+  dann mit `moveTaskToBack` in den Hintergrund — ohne die Überschreibung
+  ruft Flutter `finish()`, und die Karte startete von vorn. Der
+  Manifest-Test liest die Kotlin-Zeilen,
+  `test/flows/back_navigation_flow_test.dart` den Weg in Dart (Gegenprobe
+  ohne die Regel: drei Tests rot).
 - **Android**: Flavors `github` (mit `REQUEST_INSTALL_PACKAGES` für den
   In-App-Update-Weg) und `play` (ohne), gleiche `applicationId`
   `de.mcbuchi.trailbuddy`. Jeder Build braucht `--flavor`. Backup-Ausschlüsse

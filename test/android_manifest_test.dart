@@ -34,6 +34,18 @@ void main() {
     expect(kotlin, contains('FileProvider.getUriForFile'));
   });
 
+  test('Zurück auf der Karte legt die App in den Hintergrund, statt sie zu beenden', () {
+    // #175: Flutter ruft ohne Überschreibung `finish()` — die Karte
+    // startete danach von vorn. Der Weg dorthin ist Dart (AppShell); hier
+    // steht nur, dass am Ende `moveTaskToBack` steht und nicht `finish`.
+    final kotlin = File('android/app/src/main/kotlin/${appId.replaceAll('.', '/')}/MainActivity.kt').readAsStringSync();
+    final body = RegExp(r'override fun popSystemNavigator\(\): Boolean \{([^}]*)\}').firstMatch(kotlin);
+    expect(body, isNotNull, reason: 'popSystemNavigator ist nicht überschrieben');
+    expect(body!.group(1), contains('moveTaskToBack(true)'));
+    expect(body.group(1), contains('return true'));
+    expect(body.group(1), isNot(contains('finish')));
+  });
+
   test('der Beendigungs-Kanal heißt in Kotlin und Dart gleich, das Tombstone liest Dart', () {
     // #40: Ein Tippfehler auf einer Seite hieße „keine Historie" — ohne
     // Fehlermeldung, für immer. Und das Tombstone (Protobuf) gehört auf
