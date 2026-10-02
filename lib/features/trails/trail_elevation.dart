@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
+import '../offline_areas/height_tiles.dart' show hysteresisClimb, kClimbHysteresisM, kClimbSampleM;
 import 'trail_geometry.dart' as geo;
 
 /// Das Höhenprofil eines Trails, in TRAIL-Richtung (Konzept 4.3): Eine
@@ -11,7 +12,7 @@ import 'trail_geometry.dart' as geo;
 /// Jeder, der dieselbe Aufzeichnung sieht, bekommt dieselben Zahlen
 /// (Konzept 3, „Länge, Höhenmeter, mittleres Gefälle").
 class ElevationProfile {
-  ElevationProfile._(this.distM, this.eleM)
+  ElevationProfile._(this.distM, this.eleM, {this.fromTerrain = false})
       : assert(distM.length == eleM.length && distM.length >= 2);
 
   /// Null, wenn Höhen fehlen, nicht zur Linie passen oder die Linie
@@ -33,11 +34,27 @@ class ElevationProfile {
     return ElevationProfile._(dist, e);
   }
 
+  /// Aus dem Geländemodell (#186): Höhen der Höhenkacheln an Proben alle
+  /// [kClimbSampleM] Meter entlang der Linie in Trail-Richtung. Anstieg
+  /// und Abstieg mit derselben Abtastung und Hysterese wie gemessen (M3,
+  /// `climb_along` im Werkzeug) — nicht mit den 3 m aufgezeichneter
+  /// Höhen. Ein steilstes Stück gibt es nicht: Ein 90-m-Raster kennt
+  /// keine 50 m.
+  static ElevationProfile? terrain(List<LatLng> samples, List<double> ele) {
+    final p = of(samples, ele);
+    if (p == null) return null;
+    return ElevationProfile._(p.distM, p.eleM, fromTerrain: true);
+  }
+
   /// Distanz ab Start in Metern, je Punkt.
   final List<double> distM;
 
   /// Höhe in Metern, je Punkt.
   final List<double> eleM;
+
+  /// Gelesen aus den Höhenkacheln, nicht aufgezeichnet (#186): nur für die
+  /// Anzeige, nie gespeichert — und das Blatt sagt es.
+  final bool fromTerrain;
 
   double get lengthM => distM.last;
   double get startM => eleM.first;
@@ -45,8 +62,12 @@ class ElevationProfile {
   double get minM => eleM.reduce((a, b) => a < b ? a : b);
   double get maxM => eleM.reduce((a, b) => a > b ? a : b);
 
-  late final ({double gain, double loss}) _gl =
-      geo.gainLoss(eleM, geo.kElevationThresholdM);
+  late final ({double gain, double loss}) _gl = fromTerrain
+      ? (() {
+          final (gain, loss) = hysteresisClimb(eleM, kClimbHysteresisM);
+          return (gain: gain, loss: loss);
+        })()
+      : geo.gainLoss(eleM, geo.kElevationThresholdM);
 
   /// Höhenmeter bergauf (mit Hysterese, [geo.kElevationThresholdM]).
   double get gainM => _gl.gain;
@@ -60,5 +81,6 @@ class ElevationProfile {
 
   /// Steilstes Stück über [geo.kSteepestWindowM]; null bei kürzeren
   /// Trails.
-  late final double? steepestDescentPct = geo.steepestDescentPct(distM, eleM);
+  late final double? steepestDescentPct =
+      fromTerrain ? null : geo.steepestDescentPct(distM, eleM);
 }

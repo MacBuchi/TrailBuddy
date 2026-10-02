@@ -17,16 +17,32 @@ class TrackPoint {
 /// hintereinander (ein Segmentbruch ist eine Lücke, kein neuer Trail) —
 /// oder ein `<rte>`, wenn die Datei nur eine Route trägt.
 class GpxTrack {
-  const GpxTrack({required this.name, required this.points, this.link});
+  const GpxTrack({required this.name, required this.points, this.link, this.terrainHeights = false});
 
   final String name;
   final List<TrackPoint> points;
+
+  /// Die Höhen der Punkte kommen aus dem Geländemodell (#186) — nur beim
+  /// Export gesetzt; der Parser liest solche Höhen gar nicht erst ein.
+  final bool terrainHeights;
 
   /// Der Link zur Quelle (#103): `<link href>` der Spur, sonst der aus
   /// `<metadata>` — schon durch [linkFromFile] gefiltert, also https, ohne
   /// Query, und nie der Hersteller des Geräts. Null, wenn keiner taugt.
   final String? link;
 }
+
+/// Das Element in `<extensions>` einer Spur, das sagt, woher ihre Höhen
+/// kommen (#186), und der Wert für „aus dem Geländemodell".
+const kElevationSourceTag = 'elevationSource';
+const kTerrainElevationSource = 'terrain';
+
+/// Trägt [parent] (`<trk>`/`<rte>`) die Marke „Höhen aus dem
+/// Geländemodell"? Namensräume zählen nicht, wie überall hier.
+bool _terrainMarked(XmlElement parent) => parent
+    .findElements('extensions')
+    .expand((e) => e.findElements(kElevationSourceTag, namespace: '*'))
+    .any((e) => e.innerText.trim() == kTerrainElevationSource);
 
 class GpxFormatException implements Exception {
   const GpxFormatException(this.message);
@@ -43,6 +59,11 @@ class GpxFormatException implements Exception {
 ///
 /// Doppelte aufeinanderfolgende Punkte (Locus schreibt sie an Pausen)
 /// fallen weg. Spuren mit weniger als zwei Punkten fallen weg.
+///
+/// Höhen einer Spur, die als „aus dem Geländemodell" markiert ist (unser
+/// eigener Export, #186), werden NICHT gelesen: Sie sind nicht gemessen,
+/// und ein Re-Import schriebe sie sonst als Aufzeichnung auf den Server
+/// (Nachtragen, Beisteuern).
 List<GpxTrack> parseGpx(String xml, {String fallbackName = 'Ohne Namen'}) {
   final XmlDocument doc;
   try {
@@ -58,8 +79,9 @@ List<GpxTrack> parseGpx(String xml, {String fallbackName = 'Ohne Namen'}) {
   final tracks = <GpxTrack>[];
   for (final trk in root.findElements('trk')) {
     final points = <TrackPoint>[];
+    final terrain = _terrainMarked(trk);
     for (final seg in trk.findElements('trkseg')) {
-      _collect(seg.findElements('trkpt'), points);
+      _collect(seg.findElements('trkpt'), points, withEle: !terrain);
     }
     if (points.length >= 2) {
       tracks.add(GpxTrack(
@@ -68,7 +90,7 @@ List<GpxTrack> parseGpx(String xml, {String fallbackName = 'Ohne Namen'}) {
   }
   for (final rte in root.findElements('rte')) {
     final points = <TrackPoint>[];
-    _collect(rte.findElements('rtept'), points);
+    _collect(rte.findElements('rtept'), points, withEle: !_terrainMarked(rte));
     if (points.length >= 2) {
       tracks.add(GpxTrack(
           name: _name(rte) ?? fallbackName, points: points, link: _link(rte) ?? fileLink));
@@ -111,7 +133,7 @@ String decodeTrackName(String name) {
   }
 }
 
-void _collect(Iterable<XmlElement> elements, List<TrackPoint> into) {
+void _collect(Iterable<XmlElement> elements, List<TrackPoint> into, {bool withEle = true}) {
   for (final p in elements) {
     final lat = double.tryParse(p.getAttribute('lat') ?? '');
     final lon = double.tryParse(p.getAttribute('lon') ?? '');
@@ -122,7 +144,7 @@ void _collect(Iterable<XmlElement> elements, List<TrackPoint> into) {
         (into.last.lon - lon).abs() < 1e-9) {
       continue;
     }
-    final ele = double.tryParse(p.getElement('ele')?.innerText.trim() ?? '');
+    final ele = withEle ? double.tryParse(p.getElement('ele')?.innerText.trim() ?? '') : null;
     final timeText = p.getElement('time')?.innerText.trim();
     final time = timeText == null ? null : DateTime.tryParse(timeText);
     into.add(TrackPoint(lat, lon, ele: ele, time: time?.toUtc()));

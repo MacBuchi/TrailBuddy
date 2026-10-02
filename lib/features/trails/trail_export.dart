@@ -10,13 +10,23 @@
 // Hinein geht der Name und der EIGENE Link (`myDetails.link`, nie der
 // eines Buddys); nicht hinein gehen Buddy-Namen, Hinweise, Meldungen
 // und Zeiten — die Datei ist eine Linie, kein Auszug aus dem Netz.
+//
+// Hat die beste Aufzeichnung keine Höhen, trägt die Datei die des
+// Geländemodells (#186), je Punkt und als solche markiert
+// (`GpxTrack.terrainHeights` → `<extensions>`); fehlt dem Modell ein
+// Punkt, bleibt sie ohne Höhen.
 import '../../models/trail.dart';
 import 'gpx.dart';
+import 'terrain_heights.dart';
 
-GpxTrack trailToGpx(Trail trail) {
+/// [terrain]: Höhen des Geländemodells für [Trail.directedPoints] — nur
+/// genommen, wenn die beste Aufzeichnung selbst keine hat.
+GpxTrack trailToGpx(Trail trail, {List<double>? terrain}) {
   final best = trail.best;
   final points = best.reversed ? best.points.reversed.toList() : best.points;
-  final ele = best.ele == null ? null : (best.reversed ? best.ele!.reversed.toList() : best.ele!);
+  final recorded = best.ele == null ? null : (best.reversed ? best.ele!.reversed.toList() : best.ele!);
+  final fromTerrain = recorded == null && terrain != null && terrain.length == points.length;
+  final ele = recorded ?? (fromTerrain ? terrain : null);
   return GpxTrack(
     name: trail.hasName ? trail.displayName : 'Trail',
     points: [
@@ -24,5 +34,12 @@ GpxTrack trailToGpx(Trail trail) {
         TrackPoint(points[i].latitude, points[i].longitude, ele: ele?[i]),
     ],
     link: trail.myDetails?.link,
+    terrainHeights: fromTerrain,
   );
+}
+
+/// Die Spur für den Export, mit Geländehöhen, wo aufgezeichnete fehlen.
+Future<GpxTrack> trailExportTrack(TerrainHeights terrain, Trail trail) async {
+  if (trail.best.ele != null) return trailToGpx(trail);
+  return trailToGpx(trail, terrain: await terrain.at(trail.directedPoints));
 }

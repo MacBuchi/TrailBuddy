@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'terrain-heights',
+    since: '0.79.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.trails,
+    icon: Icons.terrain,
+    title: 'Höhen aus dem Geländemodell',
+    text: 'Fehlen einem Trail die Höhen, zeigt das Blatt sein Profil aus dem '
+        'Geländemodell — beschriftet und nie gespeichert. Der Import prüft die '
+        'Höhen einer Datei und bietet an, schlechte zu verwerfen.',
+    target: '/trails',
+  ),
+  FeatureHighlight(
     id: 'online-fill',
     since: '0.78.0',
     kind: HighlightKind.highlight,
