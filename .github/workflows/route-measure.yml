@@ -49,6 +49,11 @@ jobs:
             --frames "${{ inputs.frames || '3' }}" \
             --profile "${{ inputs.profile || 'bio' }}" \
             --out build/route --summary "$GITHUB_STEP_SUMMARY"
+      # Auch ins Log: Das Artefakt liegt auf einem Speicher-Host, den nicht
+      # jede Umgebung erreicht; das Log liest jeder, der die API liest.
+      - name: Bericht ins Log
+        if: always()
+        run: cat build/route/tirol.md || true
       - name: Bericht ablegen
         if: always()
         uses: actions/upload-artifact@v7
