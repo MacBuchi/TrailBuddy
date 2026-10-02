@@ -361,6 +361,32 @@ Zeitmodell gerechnet:
 - Die längste „Auffahrt" ist 32 km lang — eine Tour, die erst später
   an einen bekannten Trail kommt, keine Anfahrt.
 
+### Welche Einstellung passt zu den Fahrten?
+
+Umgekehrt gefragt: Unter welchen Aufschlägen ist die gefahrene Strecke
+(auf dem Graphen, Stücke außerhalb zu ihren echten Kosten) am wenigsten
+teurer als der Plan? Kosten gefahren / geplant über die 15 Fälle:
+
+| Variante | Median | Mittel | ≤ 1,10 | ≤ 1,20 |
+|---|---|---|---|---|
+| heute | 1,55 | 1,59 | 3 | 4 |
+| ohne Steil-Aufschlag | 1,54 | 1,61 | 2 | 3 |
+| Steil ab 12 % / ab 20 % | 1,55 / 1,54 | 1,58 / 1,58 | 2 / 3 | 4 / 4 |
+| Steil-Faktor 1/1 (Belag egal) / 6/2 (doppelt) | 1,54 / 1,55 | 1,58 / 1,59 | 3 / 2 | 4 / 4 |
+| Hauptstraße 1,2 / 1,0 | 1,44 / 1,48 | 1,52 / 1,53 | 3 / 3 | 4 / 4 |
+| Nebenstraße und Zufahrt 1,0 | 1,63 | 1,59 | 3 | 4 |
+| Wanderweg bergauf 1,0 Bio / 1,2 E | 1,53 | 1,57 | 1 | 3 |
+| Hauptstraße 1,2 + Wanderweg 1,0/1,2 + Nebenstraße 1,0 | 1,36 | 1,46 | 1 | 4 |
+| dasselbe ohne Steil-Aufschlag | 1,35 | 1,44 | 2 | 5 |
+
+Der Steil-Aufschlag verschiebt nichts (± 0,01) — auf diesen Auffahrten
+entscheidet er nicht, er bleibt für die Rampen, gegen die er gebaut ist
+(#194). Billigere Straßen und Wanderwege passen etwas besser zu diesem
+Fahrer, um ein Zehntel; der größte Teil des Abstands bleibt — Umwege,
+die kein Aufschlag erklärt. Für eine neue Vorgabe für alle reichen
+15 Fälle eines Fahrers nicht; es ist Geschmack, und Geschmack gehört
+in einfache Einstellungen des Planers statt in die Tabelle.
+
 Der Betreiber dazu: „Meine gefahrene Route ist ja auch nicht unbedingt
 das Optimum." M4 fragt, ob der Planer DEN gefahrenen Weg findet; das
 misst die Gewohnheit des Fahrers (Umwege, eine schönere Auffahrt, ein
