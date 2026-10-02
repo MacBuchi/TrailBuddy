@@ -132,7 +132,12 @@ enum LoopToggle { selected, deselected, connector, pending }
 class LoopPlannerNotifier extends Notifier<LoopSession> {
   RoadGraph? _graph;
   LatLng? _graphStart;
-  Set<String> _graphTrails = const {};
+
+  /// Der Rahmen, für den [_graph] geladen ist. Ein Trail darin liegt schon
+  /// auf dem Graphen, seine Enden sind angeheftet — ihn dazuzuwählen
+  /// braucht kein neues Laden, und der Rechen-Isolate behält den Graphen
+  /// samt seinen Suchen (#188).
+  LatBox? _graphBox;
   bool _graphOnline = false;
 
   /// Rechnet die Runde (#188: auf dem Telefon im Rechen-Isolate); lebt mit
@@ -300,22 +305,22 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
         }
         start = LatLng(fix.latitude, fix.longitude);
       }
-      final ids = {for (final t in chosen) t.id};
       final fillOnline = state.prefs.fillOnline;
       if (_graph == null ||
           _graphStart != start ||
-          !_graphTrails.containsAll(ids) ||
+          !chosen.every((t) => _graphBox!.contains(LatBox.of(t.directedPoints))) ||
           _graphOnline != fillOnline) {
         state = state.copyWith(phase: LoopPhase.loading);
         final s0 = start;
         // Die Uphill-Trails und Verbinder im Umkreis gehören in den Rahmen —
         // sie sind der Weg bergauf (#185).
         final connectors = loopPoolOf(_trails, s0, reachM: state.prefs.radiusKm * 1000).connectors;
-        final loaded = await ref.read(planningGraphLoaderProvider)(LatBox.of([
+        final box = LatBox.of([
           s0,
           for (final t in chosen) ...t.directedPoints,
           for (final t in connectors) ...t.points,
-        ]), fillOnline: fillOnline);
+        ]);
+        final loaded = await ref.read(planningGraphLoaderProvider)(box, fillOnline: fillOnline);
         if (generation != _generation) return;
         if (loaded.graph == null) {
           state = state.copyWith(phase: LoopPhase.result, blocker: LoopBlocker.noArea);
@@ -323,7 +328,7 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
         }
         _graph = loaded.graph;
         _graphStart = start;
-        _graphTrails = ids;
+        _graphBox = box;
         _graphOnline = fillOnline;
         final note = planningCoverageNote(loaded, what: 'die Runde');
         state = state.copyWith(coverageNote: note, clearCoverageNote: note == null);

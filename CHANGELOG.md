@@ -4,7 +4,7 @@
 
 ## Runden rechnen, ohne dass die Karte steht
 
-*Version 0.80.1, 2026-10-02*
+*Version 0.80.1–0.80.2, 2026-10-02*
 
 - **Der Rundenplaner rechnet im Hintergrund**: Mit vielen gewählten
   Trails stand die Karte bisher während der Rechnung still, bei 60 Trails
@@ -12,6 +12,12 @@
   weiter — nur beim ersten Rechnen nach dem Laden hakt es kurz.
 - **Planer oder Ergebnis schließen bricht die Rechnung ab** — eine Runde,
   die danach fertig wird, taucht nicht mehr auf.
+- **Nachrechnen geht fast sofort**: Wer nach der ersten Runde einen Trail
+  abwählt, einen aus der Gegend dazuwählt, einen zur Pflicht macht oder
+  Höhen- und Wanderweg-Budget ändert, bekommt die neue Runde in einem
+  Augenblick statt nach Sekunden. Von vorn gerechnet wird bei anderem
+  Startpunkt, anderem Fahrerprofil, anderer Zeit oder einem Trail
+  weiter weg.
 
 ## Steile Rampen meiden
 

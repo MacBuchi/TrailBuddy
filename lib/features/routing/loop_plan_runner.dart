@@ -44,13 +44,14 @@ class LoopRequest {
   final bool returnToStart;
   final Duration searchBudget;
 
-  LoopPlan planOn(RoadGraph g) => planLoop(g,
+  LoopPlan planOn(RoadGraph g, {LoopSearchCache? cache}) => planLoop(g,
       start: start,
       profile: profile,
       budget: budget,
       pool: pool,
       returnToStart: returnToStart,
-      searchBudget: searchBudget);
+      searchBudget: searchBudget,
+      cache: cache);
 }
 
 abstract interface class LoopPlanRunner {
@@ -64,8 +65,10 @@ abstract interface class LoopPlanRunner {
 
 /// Rechnet an Ort und Stelle — im Browser und im Test.
 class InlineLoopPlanRunner implements LoopPlanRunner {
+  final _cache = LoopSearchCache();
+
   @override
-  Future<LoopPlan> plan(RoadGraph graph, LoopRequest request) async => request.planOn(graph);
+  Future<LoopPlan> plan(RoadGraph graph, LoopRequest request) async => request.planOn(graph, cache: _cache);
 
   @override
   void dispose() {}

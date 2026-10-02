@@ -112,14 +112,18 @@ void _workerMain(SendPort reply) {
   final inbox = ReceivePort();
   reply.send(inbox.sendPort);
   RoadGraph? graph;
+  // Die Suchen der letzten Rechnung (#188): Auf demselben Graphen fragt
+  // die nächste meist dieselben.
+  var cache = LoopSearchCache();
   inbox.listen((msg) {
     if (msg is RoadGraph) {
       graph = msg;
+      cache = LoopSearchCache();
       return;
     }
     final (id, request) = msg as (int, LoopRequest);
     try {
-      reply.send((id, request.planOn(graph!), null, null));
+      reply.send((id, request.planOn(graph!, cache: cache), null, null));
     } catch (e, s) {
       reply.send((id, null, '$e', '$s'));
     }

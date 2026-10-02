@@ -243,6 +243,29 @@ Drei Befunde:
 Die Halte sind wenige, weil die Hügelfläche steil und das Budget knapp
 ist; gemessen wird die Zeit, nicht die Güte der Runde.
 
+### Gemerkte Suchen (0.80.2)
+
+Befund 1 galt auch im Isolate: Die weitere Rechnung kostete fast so viel
+wie die erste, weil jede Rechnung ihre Dijkstras neu lief. Seit 0.80.2
+behält der Isolate sie (`LoopSearchCache` in `loop_planner.dart`), solange
+Graph, Graph-Stand, Profilwerte und Zeitbudget dieselben sind. Dieselbe
+Messung, dazu eine dritte Rechnung mit einem Trail weniger (Abwählen):
+
+| Trails | an Ort und Stelle | Isolate, 1. Rechnung: Dauer / Pause | dieselbe noch einmal: Dauer / Pause | ein Trail weniger: Dauer / Pause |
+|---|---|---|---|---|
+| 12 | 275 | 626 / 334 | 1 / 1 | 1 / 1 |
+| 30 | 377 | 758 / 212 | 2 / 2 | 2 / 2 |
+| 40 | 1 181 | 1 544 / 303 | 5 / 5 | 5 / 5 |
+| 60 | 1 910 | 2 206 / 251 | 35 / 4 | 30 / 4 |
+
+Die erste Rechnung bleibt, wie sie war — sie IST die Suche. Danach
+bleiben nur das Bewerten der Folgen und die lokale Suche, und die
+konvergiert hier lange vor ihrem Deckel von 300 ms. Ein Trail DAZU aus
+dem geladenen Rahmen kostet ebenso wenig: Seine Enden sind beim Laden
+angeheftet (`loadPlanningGraph`), sein Anheften teilt also keine Kante,
+und der Speicher bleibt gültig. Neu suchen müssen ein anderes Profil,
+ein anderes Zeitbudget (die Grenze der Suche) und ein neuer Start.
+
 ## M2 / M4 / Kalibrierung — eigene Fahrten (lokaler Lauf, offen)
 
 `python3 tool/route_measure.py rides --trails <Sammlung> --rides
