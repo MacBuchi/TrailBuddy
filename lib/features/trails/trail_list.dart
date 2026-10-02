@@ -350,7 +350,11 @@ List<({String text, TrailRowTagKind kind})> trailRowTags(
   final unconfirmed = t.shownStatus.unconfirmed?.status;
   final condition = t.shownCondition.confirmed?.condition;
   final tags = <({String text, TrailRowTagKind kind})>[
-    if (t.pendingDetails) (text: 'BEITRAG WARTET AUF ÜBERTRAGUNG', kind: TrailRowTagKind.pending),
+    if (t.pendingDetails)
+      (
+        text: t.sendingDetails ? 'BEITRAG WIRD ÜBERTRAGEN' : 'BEITRAG WARTET AUF ÜBERTRAGUNG',
+        kind: TrailRowTagKind.pending
+      ),
     if (t.status.warns) (text: t.status.label.toUpperCase(), kind: TrailRowTagKind.warning),
     // Eine jüngere unbestätigte Meldung, die etwas anderes sagt als die
     // bestätigte: gedämpft, mit Fragezeichen („GESPERRT?").

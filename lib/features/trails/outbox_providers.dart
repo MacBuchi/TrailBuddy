@@ -100,7 +100,13 @@ final failedJobCountProvider = Provider<int>((ref) =>
 /// Trails: Man sieht, was man eingetragen hat, mit dem Vermerk, dass es
 /// noch nicht übertragen ist. Rein und ohne Riverpod, damit die Zuordnung
 /// ohne Backend prüfbar ist.
-List<Trail> withPendingJobs(List<Trail> server, List<OutboxJob> jobs, {required String myId}) {
+///
+/// [sending] nennt die Kennungen der Aufträge, die gerade UNTERWEGS sind
+/// (#183): Sie stehen genauso da wie wartende, nur mit dem Vermerk
+/// „wird übertragen". Liegt für denselben Trail ein wartender UND ein
+/// laufender Beitrag vor, gilt der spätere in [jobs].
+List<Trail> withPendingJobs(List<Trail> server, List<OutboxJob> jobs,
+    {required String myId, Set<String> sending = const {}}) {
   if (jobs.isEmpty) return server;
   final detailsByTrail = <String, DetailsJob>{
     for (final j in jobs)
@@ -145,9 +151,11 @@ List<Trail> withPendingJobs(List<Trail> server, List<OutboxJob> jobs, {required 
               confirmed: j.onSite || t.hasRidden(myId),
               reportedAt: j.createdAt.toLocal(),
               pending: true,
+              sending: sending.contains(j.id),
             ),
       ],
       pendingDetails: details != null || t.pendingDetails,
+      sendingDetails: details != null && sending.contains(details.id),
     );
   }
 

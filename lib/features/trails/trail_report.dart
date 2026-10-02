@@ -21,6 +21,7 @@ import '../../core/read_after_write.dart';
 import '../../models/trail.dart';
 import '../friends/buddy_alias.dart';
 import '../map/position_provider.dart';
+import 'pending_value.dart';
 import 'rating_stars.dart';
 import 'trail_condition.dart';
 import 'trail_notes.dart';
@@ -288,7 +289,12 @@ class TrailReportsSection extends ConsumerWidget {
               subtitle: Text([
                 reporterName(r, trail, names),
                 reportAgeLabel(r.reportedAt),
-                if (r.pending) 'wartet auf Übertragung' else if (!r.confirmed) 'zu bestätigen',
+                if (r.sending)
+                  'wird übertragen'
+                else if (r.pending)
+                  'wartet auf Übertragung'
+                else if (!r.confirmed)
+                  'zu bestätigen',
               ].join(' · ')),
             ),
           ),
@@ -354,11 +360,18 @@ class _OwnRatingPickerState extends ConsumerState<OwnRatingPicker> {
                 onPressed: _saving ? null : () => _set(mine == i ? null : i),
                 icon: Icon(
                   mine != null && i <= mine ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: mine == null ? palette.muted.withValues(alpha: 0.5) : palette.accentText,
+                  // Sofort gesetzt, verblasst bis auf dem Server (#183).
+                  color: mine == null
+                      ? palette.muted.withValues(alpha: 0.5)
+                      : widget.trail.pendingDetails
+                          ? palette.accentText.withValues(alpha: kPendingValueOpacity)
+                          : palette.accentText,
                 ),
               ),
           ],
         ),
+        PendingValueCaption(
+            key: const ValueKey('own-rating-pending'), trail: widget.trail, hasValue: mine != null),
       ],
     );
   }

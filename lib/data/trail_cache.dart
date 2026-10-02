@@ -17,6 +17,7 @@
 // gelesen von denselben `fromJson`. Die Encoder hier sind die zweite
 // Hälfte dazu; `test/trails/trail_cache_test.dart` prüft den Rundlauf
 // Feld für Feld, damit die beiden Abbildungen nicht auseinanderlaufen.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -208,4 +209,88 @@ Future<TrailSnapshotResult> fetchWithCache({
   }
   await cache.write(uid: uid, snapshot: snapshot, savedAt: now);
   return (snapshot: snapshot, cachedAt: null);
+}
+
+/// Wie lange der Kaltstart auf das Netz wartet, bevor er die Kopie zeigt
+/// (#183). Kurz, weil das Netz im Wald nicht schnell ABLEHNT, sondern
+/// langsam: postgrest wiederholt ein GET bei jedem Netzfehler dreimal,
+/// mit 1, 2 und 4 s Pause — ohne Empfang kam die Kopie so erst nach
+/// rund 7 s, bei einem Balken ohne Daten noch später. Lang genug, dass
+/// ein gewöhnliches Netz gewinnt und die Kopie gar nicht erst aufblitzt.
+const kTrailsNetworkPatience = Duration(milliseconds: 1500);
+
+/// Der Kaltstart (#183): Netz und Uhr laufen gleichzeitig los. Antwortet
+/// das Netz innerhalb von [patience], gilt dieselbe Regel wie bei
+/// [fetchWithCache]. Sonst kommt SOFORT die Kopie, und das Netz läuft
+/// weiter — nur dann ruft die Funktion [onStillWaiting], bevor sie die
+/// Kopie zurückgibt: [onLate] bekommt den frischen Stand (die Kopie ist dann schon
+/// neu geschrieben), [onLateOffline] sagt, dass es ohne Antwort aufgab,
+/// [onLateError] meldet einen Serverfehler — der bleibt sichtbar, auch
+/// wenn die Kopie schon steht (PilzBuddy #80).
+///
+/// Ohne Kopie wird gewartet wie bisher: Eine leere Karte vorab wäre keine
+/// Antwort, sondern eine falsche. Die Uhr ist ein [Timer], der beim Sieg
+/// des Netzes abgebrochen wird — ein `Future.delayed` liefe im
+/// Widget-Test über das Testende hinaus.
+Future<TrailSnapshotResult> fetchWithCacheQuick({
+  required Future<TrailSnapshot> Function() fetch,
+  required TrailCache cache,
+  required String uid,
+  required DateTime now,
+  required Duration patience,
+  required void Function(TrailSnapshot fresh) onLate,
+  required void Function() onLateOffline,
+  required void Function(Object error, StackTrace stackTrace) onLateError,
+  void Function()? onStillWaiting,
+}) async {
+  final settled = fetch().then<_Fetched>((s) => _Fetched(s),
+      onError: (Object e, StackTrace st) => _Fetched.failed(e, st));
+  final first = Completer<_Fetched?>();
+  final clock = Timer(patience, () {
+    if (!first.isCompleted) first.complete(null);
+  });
+  unawaited(settled.then((r) {
+    clock.cancel();
+    if (!first.isCompleted) first.complete(r);
+  }));
+
+  Future<TrailSnapshotResult> settle(_Fetched r) =>
+      fetchWithCache(fetch: r.get, cache: cache, uid: uid, now: now);
+
+  final quick = await first.future;
+  if (quick != null) return settle(quick);
+  final cached = await cache.read(uid: uid);
+  if (cached == null) return settle(await settled);
+  unawaited(settled.then((r) async {
+    final error = r.error;
+    if (error == null) {
+      await cache.write(uid: uid, snapshot: r.snapshot!, savedAt: DateTime.now());
+      onLate(r.snapshot!);
+    } else if (looksOffline(error)) {
+      onLateOffline();
+    } else {
+      onLateError(error, r.stackTrace!);
+    }
+  }));
+  onStillWaiting?.call();
+  return (snapshot: cached.snapshot, cachedAt: cached.savedAt);
+}
+
+/// Ausgang eines Abrufs, ohne zu werfen — damit er auf zwei Wegen
+/// abgewartet werden kann, ohne einen unbehandelten Fehler zu erzeugen.
+class _Fetched {
+  _Fetched(TrailSnapshot this.snapshot)
+      : error = null,
+        stackTrace = null;
+  _Fetched.failed(Object this.error, StackTrace this.stackTrace) : snapshot = null;
+
+  final TrailSnapshot? snapshot;
+  final Object? error;
+  final StackTrace? stackTrace;
+
+  Future<TrailSnapshot> get() async {
+    final e = error;
+    if (e != null) Error.throwWithStackTrace(e, stackTrace!);
+    return snapshot!;
+  }
 }

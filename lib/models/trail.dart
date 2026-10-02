@@ -326,6 +326,7 @@ class TrailReport {
     this.condition,
     this.username,
     this.pending = false,
+    this.sending = false,
   });
 
   final String id;
@@ -350,6 +351,10 @@ class TrailReport {
   /// Wartet im Ausgangskorb; [confirmed] ist dann die Vorhersage des
   /// Geräts (vor Ort oder selbst gefahren), der Server rechnet nach.
   final bool pending;
+
+  /// Noch nicht im Korb, sondern gerade unterwegs (#183): Die Meldung
+  /// steht schon da, während der Sendeversuch läuft. Immer mit [pending].
+  final bool sending;
 
   /// null, wenn die Zeile nicht zu diesem Stand passt (unbekannte Art,
   /// fehlender Wert) — eine neuere App darf eine ältere nicht umwerfen.
@@ -495,6 +500,7 @@ class Trail {
     this.pending = false,
     this.pendingFailure,
     this.pendingDetails = false,
+    this.sendingDetails = false,
   }) : assert(recordings.isNotEmpty, 'ein Trail ohne sichtbaren Beleg');
 
   final String id;
@@ -514,6 +520,13 @@ class Trail {
   /// Der eigene Beitrag zu diesem (übertragenen) Trail wartet noch im
   /// Korb — die eigene Zeile in [details] ist die wartende Fassung.
   final bool pendingDetails;
+
+  /// Der eigene Beitrag ist gerade UNTERWEGS (#183), noch nicht im Korb:
+  /// Die eigene Zeile zeigt schon, was gesetzt wurde, während der
+  /// Sendeversuch läuft — ein S-Grad, der erst nach dem Neuladen
+  /// erscheint, sah aus wie ein Tipp, der nicht ankam. Immer mit
+  /// [pendingDetails].
+  final bool sendingDetails;
 
   /// Die sichtbaren Hinweise, in beliebiger Reihenfolge — angezeigt über
   /// [notesShown].

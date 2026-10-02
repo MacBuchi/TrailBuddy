@@ -221,8 +221,18 @@ class FakeTrailRepository implements TrailRepository {
 
   Object? failNextSaveDetails;
 
+  /// Hält das nächste Speichern an, bis das Future erfüllt ist — für „der
+  /// Wert steht schon da, während das Netz noch arbeitet" (#183). Ein
+  /// Fehler des Futures ist der Fehler des Speicherns.
+  Future<void>? saveDetailsGate;
+
   @override
   Future<void> saveDetails(TrailDetails d) async {
+    final gate = saveDetailsGate;
+    if (gate != null) {
+      saveDetailsGate = null;
+      await gate;
+    }
     if (failNextSaveDetails != null) {
       final e = failNextSaveDetails!;
       failNextSaveDetails = null;
@@ -292,6 +302,9 @@ class FakeTrailRepository implements TrailRepository {
   /// Die `client_id` je Art, wie der eindeutige Index in `trail_reports`.
   final _reportClientIds = <String>{};
 
+  /// Wie [saveDetailsGate], für das Melden.
+  Future<void>? reportGate;
+
   /// Spiegelt `report_trail` (Patch 013): nur, wer den Trail sieht; der
   /// Server legt `confirmed` fest (gefahren oder vor Ort) und kappt die
   /// Zeit auf jetzt; dieselbe `client_id` legt nichts an.
@@ -305,6 +318,11 @@ class FakeTrailRepository implements TrailRepository {
     required String clientId,
   }) async {
     reportCalls++;
+    final gate = reportGate;
+    if (gate != null) {
+      reportGate = null;
+      await gate;
+    }
     if (failNextReport != null) {
       final e = failNextReport!;
       failNextReport = null;
