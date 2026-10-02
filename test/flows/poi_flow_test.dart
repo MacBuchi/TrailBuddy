@@ -76,11 +76,8 @@ void main() {
 
   testWidgets('Filter: Einkehr an, Wasser aus — und gemerkt', (tester) async {
     await start(tester);
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    // Seit 0.27.0 öffnet der Ebenen-Knopf die Werkzeugleiste; der Filter
-    // ist ihr erster Knopf.
-    await tester.tap(find.byKey(const ValueKey('rail-filter')));
+    // Seit 0.75.0 (#190) öffnet der Knopf das Blatt direkt.
+    await tester.tap(find.byTooltip('Kartenebenen'));
     await settle(tester);
     await tapInSheet(tester, find.byKey(const ValueKey('poi-group-food')));
     await tapInSheet(tester, find.byKey(const ValueKey('poi-group-water')));
@@ -107,11 +104,8 @@ void main() {
     expect(cafePin, findsOneWidget);
     final asked = pois.calls.length;
 
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    // Seit 0.27.0 öffnet der Ebenen-Knopf die Werkzeugleiste; der Filter
-    // ist ihr erster Knopf.
-    await tester.tap(find.byKey(const ValueKey('rail-filter')));
+    // Seit 0.75.0 (#190) öffnet der Knopf das Blatt direkt.
+    await tester.tap(find.byTooltip('Kartenebenen'));
     await settle(tester);
     // Die Arten stehen unter ihrer Gruppe; Sonstiges ist aus, also ohne.
     expect(find.byKey(const ValueKey('poi-kind-biergarten')), findsOneWidget);

@@ -81,11 +81,8 @@ void main() {
   testWidgets('ausschalten: Linien weg, gemerkt — und beim Start keine Anfrage',
       (tester) async {
     await start(tester);
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    // Seit 0.27.0 öffnet der Ebenen-Knopf die Werkzeugleiste; der Filter
-    // ist ihr erster Knopf.
-    await tester.tap(find.byKey(const ValueKey('rail-filter')));
+    // Seit 0.75.0 (#190) öffnet der Knopf das Blatt direkt.
+    await tester.tap(find.byTooltip('Kartenebenen'));
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('official-trails-switch')));
     await settle(tester);

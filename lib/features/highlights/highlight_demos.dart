@@ -98,6 +98,15 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'map-layers': HighlightDemo(
+    route: '/',
+    script: _demo('map-layers', [
+      _from(kMapTourScript, 'Was die Karte zeigt'),
+      _from(kMapTourScript, 'Orte und offizielle Trails wählen'),
+      _from(kMapTourScript, 'Karten ohne Empfang'),
+      _from(kMapTourScript, 'Die Werkzeugleiste'),
+    ]),
+  ),
   'map-select': HighlightDemo(
     route: '/',
     script: _demo('map-select', const [
@@ -333,7 +342,7 @@ final kHighlightDemos = <String, HighlightDemo>{
   'offline-areas': HighlightDemo(
     route: '/',
     script: _demo('offline-areas', [
-      _from(kMapTourScript, 'Hinter dem Ebenen-Knopf'),
+      _from(kMapTourScript, 'Karten ohne Empfang'),
       _from(kMapTourScript, 'Die Werkzeugleiste'),
     ]),
   ),
@@ -344,7 +353,7 @@ final kHighlightDemos = <String, HighlightDemo>{
   'official-trails': HighlightDemo(
     route: '/',
     script: _demo('official-trails', [
-      _from(kMapTourScript, 'Die Werkzeugleiste'),
+      _from(kMapTourScript, 'Was die Karte zeigt'),
       _from(kMapTourScript, 'Orte und offizielle Trails wählen'),
     ]),
   ),
@@ -421,7 +430,7 @@ final kHighlightDemos = <String, HighlightDemo>{
   'pois': HighlightDemo(
     route: '/',
     script: _demo('pois', [
-      _from(kMapTourScript, 'Die Werkzeugleiste'),
+      _from(kMapTourScript, 'Was die Karte zeigt'),
       _from(kMapTourScript, 'Orte und offizielle Trails wählen'),
     ]),
   ),

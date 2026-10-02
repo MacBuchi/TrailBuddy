@@ -58,7 +58,7 @@ OSM-Rasterkacheln entfallen damit auch online. Ein Netzhost weniger
   Kacheln von Zoom 8 bis zum Zoom des Hosts auf, die die Form berühren;
   ein Archiv braucht kein Rechteck, sein Rahmen im Header ist die Hülle.
 - **Sehen, was liegt** (seit 0.25.0, Stufe B; seit 0.27.0 als Leiste):
-  Der Ebenen-Knopf öffnet links eine schmale Werkzeugleiste und dunkelt
+  Der Knopf „Offline-Karten" (bis 0.74.x der Ebenen-Knopf, #190) öffnet links eine schmale Werkzeugleiste und dunkelt
   die Karte ab, solange sie offen ist — hell bleibt, was gespeichert
   ist, IMMER in den Kacheln des Bereichs (Zoom 13), unabhängig vom
   Kamera-Zoom; zusammenhängende Kacheln als Rechtecke. Die Karte bleibt

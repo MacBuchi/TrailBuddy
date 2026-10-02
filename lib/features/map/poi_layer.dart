@@ -241,10 +241,11 @@ Future<void> showPoiSheet(BuildContext context, Poi poi) =>
 /// Gruppen von Orten zum An- und Ausschalten, je Gruppe ihre Arten als
 /// Chips (Detailfilter). Er sagt dazu, ab wann Orte erscheinen und wohin
 /// der Ausschnitt dafür geht.
-/// Seit 0.27.0 aus der Werkzeugleiste „Ebenen" geöffnet (Knopf
-/// „Orte und offizielle Trails"); die Offline-Karten wohnen in der
-/// Leiste selbst.
-Future<void> showPoiFilterSheet(BuildContext context) =>
+/// Seit 0.75.0 (#190) das Blatt „Kartenebenen", direkt vom Knopf rechts
+/// geöffnet — bis 0.74.x lag es hinter dem ersten Knopf der Leiste mit
+/// den Offline-Werkzeugen, drei Ebenen tief. Es liegt über jeder Leiste
+/// und ändert an ihr nichts.
+Future<void> showMapLayersSheet(BuildContext context) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,

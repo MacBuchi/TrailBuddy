@@ -1,6 +1,7 @@
-// Die Werkzeugleiste „Ebenen" (seit 0.27.0; Betreiber, 2026-09-29): eine
-// schmale Leiste am linken Rand statt des Blatts „Offline-Karten", das
-// den halben Schirm deckte. Der Ebenen-Knopf öffnet sie, derselbe Knopf,
+// Die Werkzeugleiste „Offline-Karten" (seit 0.27.0; Betreiber, 2026-09-29):
+// eine schmale Leiste am linken Rand statt des Blatts, das den halben
+// Schirm deckte. Der Knopf „Offline-Karten" öffnet sie (bis 0.74.x der
+// Ebenen-Knopf, der seit #190 nur noch die Kartenebenen trägt), derselbe Knopf,
 // das X und die Zurück-Taste schließen sie — mit Rückfrage, wenn im
 // Entwurf noch etwas steht (map_screen.dart). Solange sie offen ist, ist
 // abgedunkelt, was nicht auf dem Gerät liegt, und der Entwurf liegt
@@ -37,7 +38,6 @@ String compactCount(int n) {
 class OfflineToolRail extends ConsumerWidget {
   const OfflineToolRail({
     super.key,
-    required this.onFilter,
     required this.onSnapshot,
     required this.onTrails,
     required this.onManage,
@@ -45,7 +45,6 @@ class OfflineToolRail extends ConsumerWidget {
     required this.onClose,
   });
 
-  final VoidCallback onFilter;
   final VoidCallback onSnapshot;
   final VoidCallback? onTrails;
   final VoidCallback onManage;
@@ -120,8 +119,6 @@ class OfflineToolRail extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          button('rail-filter', 'Orte und offizielle Trails', const Icon(Icons.tune), onFilter),
-          gap,
           button('rail-snapshot', 'Ausschnitt dazunehmen', const Icon(Icons.crop_free), onSnapshot),
           tool(AreaDrawTool.add, 'area-draw-add', 'Fläche dazunehmen', Icons.add_circle_outline),
           tool(AreaDrawTool.remove, 'area-draw-remove', 'Fläche wegnehmen', Icons.remove_circle_outline),

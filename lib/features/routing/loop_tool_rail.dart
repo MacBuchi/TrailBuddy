@@ -1,6 +1,6 @@
 // Die Werkzeugleiste des Planers (seit 0.74.0; Betreiber: „zum Planen
 // links ein Menü in der Art wie rechts, mit Planer-Optionen") — derselbe
-// Look wie die Leiste „Ebenen" (Design 3e: 52 dp, Knöpfe 44 dp, aktives
+// Look wie die Leiste „Offline-Karten" (Design 3e: 52 dp, Knöpfe 44 dp, aktives
 // Werkzeug in Gegenhelligkeit, Hauptaktion Lime, Zähler in Mono). Der
 // Runden-Knopf rechts öffnet sie, derselbe Knopf, das X und Zurück
 // schließen sie.

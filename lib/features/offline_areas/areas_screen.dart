@@ -35,7 +35,7 @@ class AreasScreen extends ConsumerWidget {
             return const Padding(
               padding: EdgeInsets.all(24),
               child: Text(
-                'Noch kein Bereich. Speichere einen auf der Karte: Ebenen-Knopf, '
+                'Noch kein Bereich. Speichere einen auf der Karte: Knopf „Offline-Karten", '
                 'dann Ausschnitt oder Fläche wählen und speichern — die Karte bis '
                 'Zoomstufe 13 samt Orten und Höhen bleibt dann auf dem Gerät, für '
                 'den Wald ohne Empfang.',

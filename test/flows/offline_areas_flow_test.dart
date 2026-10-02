@@ -1,8 +1,9 @@
 // Bereiche speichern (Konzept-Schritt 3), seit 0.27.0 über die
-// Werkzeugleiste „Ebenen": Der Ebenen-Knopf öffnet sie (links), die Karte
+// Werkzeugleiste „Offline-Karten" (bis 0.74.x hinter dem Ebenen-Knopf,
+// seit #190 ein eigener Knopf): Der Knopf öffnet sie (links), die Karte
 // dunkelt ab, was nicht liegt; Ausschnitt, Fläche dazu/weg und die Trails
 // füllen einen Entwurf; „Speichern" misst Größe und Orte, fragt und lädt;
-// X, Ebenen-Knopf und Zurück schließen — mit Rückfrage bei Änderungen.
+// X, Knopf und Zurück schließen — mit Rückfrage bei Änderungen.
 // Dazu „Meine Bereiche" (Liste, Löschen, Aktualisieren).
 import 'dart:convert';
 import 'dart:typed_data';
@@ -93,7 +94,7 @@ void main() {
   }
 
   Future<void> openTools(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    await tester.tap(find.byTooltip('Offline-Karten'));
     await settle(tester);
   }
 
@@ -166,11 +167,14 @@ void main() {
     addTearDown(tester.view.reset);
     await start(tester);
     final size = tester.view.physicalSize / tester.view.devicePixelRatio;
-    expect(tester.getCenter(find.byKey(const ValueKey('layers-button'))).dx, greaterThan(size.width / 2));
+    expect(tester.getCenter(find.byKey(const ValueKey('offline-button'))).dx, greaterThan(size.width / 2));
     expect(find.byKey(const ValueKey('offline-tool-rail')), findsNothing);
     await openTools(tester);
     final rail = tester.getRect(find.byKey(const ValueKey('offline-tool-rail')));
     expect(rail.center.dx, lessThan(size.width / 2));
+    // Orte und offizielle Trails stehen seit #190 nicht mehr in der
+    // Leiste — sie haben ihren eigenen Knopf, „Kartenebenen".
+    expect(find.byKey(const ValueKey('rail-filter')), findsNothing);
     expect(rail.left, lessThan(24));
     // Unten links stehen Maßstab und Quellenhinweis: die Leiste endet
     // darüber (die Reiterleiste liegt noch unter der Karte).
@@ -399,7 +403,7 @@ void main() {
     expect(keepAlive.starts, 0, reason: 'nichts geladen');
   });
 
-  testWidgets('Schließen mit Änderungen fragt nach: X, Ebenen-Knopf und Zurück-Taste', (tester) async {
+  testWidgets('Schließen mit Änderungen fragt nach: X, Knopf und Zurück-Taste', (tester) async {
     await start(tester);
     await openTools(tester);
     await tapRail(tester, 'area-draw-trails');
@@ -426,8 +430,8 @@ void main() {
     await tapRail(tester, 'area-draw-add');
     expect(find.byKey(const ValueKey('area-draw-surface')), findsOneWidget);
 
-    // Ebenen-Knopf: verwerfen.
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
+    // Der Knopf „Offline-Karten": verwerfen.
+    await tester.tap(find.byTooltip('Offline-Karten'));
     await settle(tester);
     expect(find.text('Entwurf verwerfen?'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('draft-discard')));

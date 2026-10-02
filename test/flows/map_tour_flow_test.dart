@@ -7,7 +7,7 @@
 //      sich danach, dass sie gesehen wurde.
 //   2. Aussparung und Ring sitzen auf den ECHTEN Widgets, auf einem
 //      normalen und einem kleinen Schirm.
-//   3. Sie FÜHRT VOR: Werkzeugleiste, Filter-Blatt und Trail-Blatt gehen
+//   3. Sie FÜHRT VOR: Ebenen-Blatt, Offline-Leiste und Trail-Blatt gehen
 //      auf — und wieder zu.
 //   4. Tippen während der Vorführung löst nichts aus.
 //   5. Zurück beendet die Tour, nicht die App — und danach gehört die
@@ -147,27 +147,34 @@ void main() {
       expect(painter(tester).lit, isEmpty);
       expect(find.descendant(of: bubble, matching: find.byType(TourLegend)), findsOneWidget);
 
-      await next(tester); // 4 — Ebenen-Knopf
+      await next(tester); // 4 — Kartenebenen
       final layers = tester.getRect(find.byKey(const ValueKey('layers-button')));
       expect(covers(painter(tester).lit.single, layers), isTrue, reason: 'Knopfspalte$at');
-      expect(painter(tester).ring.single, rectMoreOrLessEquals(layers), reason: 'Ring auf Ebenen$at');
+      expect(painter(tester).ring.single, rectMoreOrLessEquals(layers), reason: 'Ring auf Kartenebenen$at');
 
-      await next(tester); // 5 — die Leiste
-      expect(find.byKey(const ValueKey('offline-tool-rail')), findsOneWidget, reason: 'Leiste offen$at');
-      expect(covers(painter(tester).lit.single, tester.getRect(find.byKey(const ValueKey('offline-tool-rail')))),
-          isTrue, reason: 'Leiste ausgespart$at');
-      expect(painter(tester).ring.single, rectMoreOrLessEquals(tester.getRect(find.byKey(const ValueKey('rail-filter')))),
-          reason: 'Ring auf dem Filter-Knopf$at');
-
-      await next(tester); // 6 — das Filter-Blatt, auf der Leiste
-      expect(find.byKey(const ValueKey('official-trails-switch')), findsOneWidget, reason: 'Filter-Blatt$at');
-      expect(find.byKey(const ValueKey('offline-tool-rail')), findsOneWidget, reason: 'Leiste bleibt offen$at');
+      await next(tester); // 5 — das Blatt „Kartenebenen", direkt (#190)
+      expect(find.byKey(const ValueKey('official-trails-switch')), findsOneWidget, reason: 'Ebenen-Blatt$at');
+      expect(find.byKey(const ValueKey('offline-tool-rail')), findsNothing, reason: 'ohne Leiste$at');
       expect(
           painter(tester).lit.any((r) => r.contains(tester.getCenter(find.byKey(const ValueKey('official-trails-switch'))))),
           isTrue,
           reason: 'Schalter ausgespart$at');
 
-      await next(tester); // 7 — Position und Glühbirne
+      await next(tester); // 6 — der Knopf „Offline-Karten"
+      expect(find.byType(BottomSheet), findsNothing, reason: 'das Blatt ist wieder zu$at');
+      expect(painter(tester).ring.single,
+          rectMoreOrLessEquals(tester.getRect(find.byKey(const ValueKey('offline-button')))),
+          reason: 'Ring auf Offline-Karten$at');
+
+      await next(tester); // 7 — die Leiste
+      expect(find.byKey(const ValueKey('offline-tool-rail')), findsOneWidget, reason: 'Leiste offen$at');
+      expect(covers(painter(tester).lit.single, tester.getRect(find.byKey(const ValueKey('offline-tool-rail')))),
+          isTrue, reason: 'Leiste ausgespart$at');
+      expect(painter(tester).ring.single,
+          rectMoreOrLessEquals(tester.getRect(find.byKey(const ValueKey('area-draw-add')))),
+          reason: 'Ring auf dem Stift$at');
+
+      await next(tester); // 8 — Position und Glühbirne
       nothingOpen();
       expect(
           union(painter(tester).ring),
@@ -177,11 +184,11 @@ void main() {
           ])),
           reason: 'Ring auf Glühbirne und Position$at');
 
-      await next(tester); // 8 — Aufnahme
+      await next(tester); // 9 — Aufnahme
       expect(painter(tester).ring.single, rectMoreOrLessEquals(tester.getRect(find.byKey(const ValueKey('ride-button')))),
           reason: 'Ring auf der Aufnahme$at');
 
-      await next(tester); // 9 — die Bereiche unten
+      await next(tester); // 10 — die Bereiche unten
       final bar = find.byType(NavigationBar);
       final rings = painter(tester).ring;
       expect(rings, hasLength(3));
@@ -198,22 +205,22 @@ void main() {
 
   testWidgets('Tippen während der Vorführung löst nichts aus', (tester) async {
     // Die Überlagerung schluckt jeden Tipp: Ein Tipp auf den Schalter im
-    // Filter-Blatt schaltet nichts um, es geht nur weiter.
+    // Ebenen-Blatt schaltet nichts um, es geht nur weiter.
     final settings = await pumpAndStart(tester);
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 4; i++) {
       await next(tester);
     }
     expect(find.byKey(const ValueKey('official-trails-switch')), findsOneWidget);
     await tester.tapAt(tester.getCenter(find.byKey(const ValueKey('official-trails-switch'))));
     await settle(tester);
     expect(settings.officialTrailsEnabled, isTrue, reason: 'der Schalter ist nicht umgelegt');
-    expect(find.descendant(of: bubble, matching: find.text(kTourTitles[6])), findsOneWidget,
+    expect(find.descendant(of: bubble, matching: find.text(kTourTitles[5])), findsOneWidget,
         reason: 'nur einen Schritt weiter');
   });
 
-  testWidgets('Überspringen im Filter-Blatt lässt nichts offen', (tester) async {
+  testWidgets('Überspringen im Ebenen-Blatt lässt nichts offen', (tester) async {
     final settings = await pumpAndStart(tester);
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 4; i++) {
       await next(tester);
     }
     expect(find.byType(BottomSheet), findsOneWidget);
@@ -309,7 +316,7 @@ void main() {
   });
 
   test('die Leiste benennt ihre Knöpfe so, wie das Skript sie sucht', () {
-    expect(MapCoach.railButton('rail-filter'), MapCoach.railFilter);
+    expect(MapCoach.railButton('area-draw-add'), MapCoach.railDraw);
   });
 
   test('die Legende nennt, was die Kurzanleitung nennt', () {

@@ -582,7 +582,7 @@ class _ResultPanelState extends ConsumerState<_ResultPanel> {
         LoopBlocker.noPosition => 'Kein Standort — ohne ihn gibt es keinen Startpunkt. Erlaube '
             'TrailBuddy den Standort, oder setz den Start über den obersten Knopf der Leiste.',
         LoopBlocker.noArea => 'Kein gespeicherter Bereich deckt die Runde. Gerechnet wird nur offline, '
-            'aus deinen Bereichen — speichere einen über den Ebenen-Knopf auf der Karte.',
+            'aus deinen Bereichen — speichere einen über den Knopf „Offline-Karten" auf der Karte.',
         LoopBlocker.failed => 'Die Runde ließ sich nicht rechnen — ein Fehler, der gemeldet ist. '
             'Versuch es mit weniger Trails noch einmal.',
       };

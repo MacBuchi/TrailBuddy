@@ -495,7 +495,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   `officialViolet`, gesperrte Teile grau (Orange ist die Meldung eines
   Buddys), zwischen Orten und Netz; ein Tipp auf das Netz gewinnt. Das
   Blatt nennt Status und Schwierigkeit IMMER mit der Quelle, kein
-  S-Grad. Schalter im Blatt „Ebenen und Orte"
+  S-Grad. Schalter im Blatt „Kartenebenen"
   (`Settings.officialTrailsEnabled`, Vorgabe an); aus heißt: keine
   Anfrage. Der Test-Harness hängt `FakeOfficialTrailsSource` und
   einen Speicher-Cache ein. „Auch ausgeschildert als …" im Trail-Blatt
@@ -896,12 +896,12 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       Hülle — innerhalb kann eine Kachel FEHLEN, der Wege-Index fragt
       deshalb das Archiv (`ProviderException` ⇒ nicht gedeckt). Die
       Orte-Zellen kommen aus der Form, nicht aus der Hülle.
-    - **Die Werkzeugleiste „Ebenen" zeigt, was liegt** (Stufe B seit
-      0.25.0, seit 0.27.0 als Leiste; `offline_tool_rail.dart`,
-      `area_overlay.dart` pur). Der Ebenen-Knopf (rechts, wie alle
-      Kartenknöpfe) öffnet links eine schmale Leiste — das halbhohe Blatt
-      davor deckte die Karte zu (Betreiber, 2026-09-29). Fünf Dinge, die
-      man wissen muss:
+    - **Die Werkzeugleiste „Offline-Karten" zeigt, was liegt** (Stufe B
+      seit 0.25.0, seit 0.27.0 als Leiste; `offline_tool_rail.dart`,
+      `area_overlay.dart` pur). Der Knopf „Offline-Karten" (rechts, wie
+      alle Kartenknöpfe; bis 0.74.x der Ebenen-Knopf, #190) öffnet links
+      eine schmale Leiste — das halbhohe Blatt davor deckte die Karte zu
+      (Betreiber, 2026-09-29). Fünf Dinge, die man wissen muss:
       - **Solange sie offen ist** (`offlineOverlayProvider`), liegt EIN
         Polygon unter allem (`MapViewPolygon`, Löcher auf beiden
         Engines): Ausschnitt plus eine Fensterbreite Rand abgedunkelt,
@@ -919,7 +919,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
         fasst `mergeTileRects` Kacheln zu Rechtecken zusammen (Läufe je
         Zeile, gleiche Läufe übereinander); über `kOfflineOverlayMaxHoles`
         fällt nur der Rand weg, nie die Stufe.
-      - **Schließen ist EIN Weg** (`_closeTools`): X, Ebenen-Knopf und
+      - **Schließen ist EIN Weg** (`_closeTools`): X, Knopf und
         Zurück-Taste (`PopScope`, `canPop` nur bei geschlossener Leiste);
         mit Änderungen im Entwurf fragt `confirmDiscardDraft`.
       - **Die Leiste steht mittig links** zwischen den Bannern (oben
@@ -934,16 +934,24 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
         ist, rücken Maßstab und Quellenhinweis neben sie
         (`MapViewConfig.bottomLeftInset`); flutter_map zeigt seinen
         Hinweis deshalb links wie MapLibre. Rechts stehen die runden
-        Kartenknöpfe (`map_buttons.dart`): Idee, Ebenen, Position (44 dp),
-        unten die Aufnahme (60 dp, Lime; läuft die Fahrt Orange mit
-        Stop). Ein offenes Menü markiert seinen Knopf mit Rand in der
-        Marke. `test/map/map_shell_test.dart` hält es hell und dunkel fest.
+        Kartenknöpfe (`map_buttons.dart`): Kartenebenen, Offline-Karten,
+        Runde, Position (44 dp), unten die Aufnahme (60 dp, Lime; läuft
+        die Fahrt Orange mit Stop). Ein offenes Menü markiert seinen Knopf
+        mit Rand in der Marke. Die Glühbirne steht seit 0.75.0 abseits,
+        oben rechts neben den Bannern (#180); die Banner halten rechts
+        IMMER `kBannerRightInset` (52 dp) frei, auch ohne Banner, damit
+        nichts unter ihr liegt. `test/map/map_shell_test.dart` hält es hell
+        und dunkel fest, samt 8 dp Luft zwischen dem X des Filter-Banners
+        und der Glühbirne.
       - **Speichern ist ein Dialog** (`showSaveDraftDialog`): misst
         Kacheln, Bytes UND Orte (`AreaPlan.poiFiles`, die Zellendateien
         kommen schon beim Messen — das Manifest nennt keine Anzahl — und
         der Download holt sie nicht noch einmal), fragt nach dem Namen,
         lädt mit Fortschritt und Abbruch. Orte und offizielle Trails
-        filtert der erste Knopf der Leiste (das bekannte Blatt).
+        stehen NICHT in der Leiste (seit 0.75.0, #190; Betreiber: „genested
+        ist UX-Gift"): Der Knopf „Kartenebenen" öffnet ihr Blatt
+        (`showMapLayersSheet`) direkt, über jeder Leiste, ohne sie zu
+        ändern.
     - **Bereiche zeichnen und bearbeiten** (Stufe C, #67, seit 0.26.0;
       seit 0.27.0 gegen den ganzen Bestand; `area_draw.dart` pur +
       Notifier, `area_draw_overlay.dart`, `area_trim.dart`): Die Leiste
@@ -1036,8 +1044,10 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
       an „freies Netz" gebunden — wer tippt, entscheidet.
     - **„Gesehenes bleibt liegen" (Konzept 3.2) gibt es noch nicht**:
       kein Kachel-Zwischenspeicher der Online-Karte. Ein eigener Schritt.
-    Der Einstieg ist der Ebenen-Knopf (kein eigener Knopf: die
-    Knopfspalte lief auf einem kleinen Telefon quer über). Der Harness
+    Der Einstieg ist seit 0.75.0 der eigene Knopf „Offline-Karten"
+    (#190; bis dahin der Ebenen-Knopf, weil die Spalte auf einem kleinen
+    Telefon quer überlief — der Platz kam mit der Glühbirne frei, die
+    nach oben rechts zog, und die Spalte skaliert seit 0.72.0 ohnehin). Der Harness
     hängt `MemoryAreaStore` und `FakeKeepAlive` ein; die Test-Karte
     fordert nach `move`/`fit` einen Frame an (sonst kam der Stillstand
     erst beim nächsten zufälligen Neuzeichnen, und ein Test prüfte den
@@ -1088,7 +1098,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   in `res/xml/`: Session-Token, `offline_maps/`, `outbox/`, `trail_cache/`,
   `rides/`, `updates/`, `official_trails/`.
 - **Feedback (die Glühbirne)**: `lib/features/feedback/feedback_dialog.dart`
-  (Karte unten links und Profil) schreibt in `public.feedback`;
+  (Karte oben rechts seit 0.75.0, #180, und Profil) schreibt in `public.feedback`;
   `tool/feedback_bot.py` (`feedback.yml`, alle 2 h) macht daraus
   ÖFFENTLICHE Issues mit Label `enhancement`/`bug` und löscht
   `error_reports` nach 90 Tagen (Datenschutzerklärung). Auf demselben
@@ -1323,7 +1333,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Anpassungen im Kopfkommentar zeigt (Marke statt Waldgrün, Blase auf
   `surface`/`line`, Zähler in Mono, `reduceMotion`, Hand-Kontur `onBrand`)
   plus EINE Erweiterung: `CoachStep.illustration`. Die Tour steht in
-  `lib/features/help/map_tour.dart` (`kMapTourScript`, neun Schritte;
+  `lib/features/help/map_tour.dart` (`kMapTourScript`, zehn Schritte;
   beim ersten Start siehe nächster Abschnitt). Sieben
   Dinge, die man wissen muss:
   - **Die Maschine liegt über allem, aber UNTER dem Splash**
@@ -1340,8 +1350,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Szenen meldet `MapScreen` an** (`_registerCoachScenes`, abgemeldet
     in `dispose`): `map.rail` öffnet die Leiste und verwirft den leeren
     Entwurf danach selbst (NICHT über `_closeTools`, das bei einem
-    Entwurf nachfragte), `map.rail/filter` das Filter-Blatt AUF der
-    Leiste, `map.trailSheet` das Blatt von `_coachTrail`.
+    Entwurf nachfragte), `map.layersSheet` das Blatt „Kartenebenen"
+    (seit 0.75.0 eigenständig, #190; vorher `map.rail/filter` auf der
+    Leiste), `map.trailSheet` das Blatt von `_coachTrail`.
   - **Schild und Blatt zeigen denselben Trail**: `_coachTrail` ist der
     erste gezeichnete mit Schild (`hasTrailBadge`, dieselbe Regel wie die
     Marker), sonst der erste gezeichnete; nur SEIN Schild trägt den

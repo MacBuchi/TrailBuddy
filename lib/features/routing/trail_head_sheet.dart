@@ -22,7 +22,7 @@
 //   Tipp; `positionFixProvider` darf nach der Berechtigung fragen.
 // - **Gerechnet wird über die Kacheln, die da sind** (`planning_graph.dart`);
 //   ohne eine einzige gibt es keinen Weg, und das Blatt nennt den
-//   Ebenen-Knopf.
+//   Knopf „Offline-Karten".
 // - **Profil und Weg lassen sich im Blatt umschalten**: Der Graph bleibt,
 //   nur die Suche läuft neu.
 import 'dart:async';
@@ -498,7 +498,7 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
             'TrailBuddy den Standort, oder nimm „Anfahrt": Die Navi-App kennt den Weg auch.',
         _Blocker.noArea => 'Kein gespeicherter Bereich deckt den Weg von deinem Standort $_goal. '
             'Gerechnet wird nur offline, aus deinen Bereichen — speichere einen '
-            'über den Ebenen-Knopf auf der Karte.',
+            'über den Knopf „Offline-Karten" auf der Karte.',
         _Blocker.failed => 'Der Weg ließ sich nicht rechnen — ein Fehler, der gemeldet ist. '
             'Nimm „Anfahrt", die Navi-App kennt den Weg auch.',
       };

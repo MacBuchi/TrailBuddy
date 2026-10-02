@@ -201,7 +201,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           ref.read(offlineOverlayProvider.notifier).state = false;
         };
       }))
-      ..add(coach.registerScene(MapCoach.filterSheet, () => sheet(() => showPoiFilterSheet(context))))
+      ..add(coach.registerScene(MapCoach.layersSheet, () => sheet(() => showMapLayersSheet(context))))
       // Der Planer ist seit 0.74.0 ein Modus mit Leiste: Die Szene öffnet
       // ihn und schließt ihn wieder, wenn sie ihn geöffnet hat.
       ..add(coach.registerScene(MapCoach.loopRail, () async {
@@ -227,14 +227,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     if (!_focusOn(id)) _pendingFocus = id;
   }
 
-  /// Die Werkzeugleiste „Ebenen" öffnen (seit 0.27.0): abdunkeln, was
+  /// Die Werkzeugleiste „Offline-Karten" öffnen (seit 0.27.0): abdunkeln, was
   /// nicht gespeichert ist, und einen leeren Entwurf beginnen.
   void _openTools() {
     ref.read(areaDraftProvider.notifier).start();
     ref.read(offlineOverlayProvider.notifier).state = true;
   }
 
-  /// Schließen — über X, Ebenen-Knopf oder Zurück. Steht etwas im
+  /// Schließen — über X, Knopf „Offline-Karten" oder Zurück. Steht etwas im
   /// Entwurf, wird gefragt; „Weiter bearbeiten" lässt alles offen.
   Future<void> _closeTools() async {
     final draft = ref.read(areaDraftProvider.notifier);
@@ -408,7 +408,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   /// Der Planer als Modus (seit 0.74.0): Leiste links, Tipps wählen
-  /// Trails. Die Leiste „Ebenen" geht dafür zu — zwei Leisten links passen
+  /// Trails. Die Leiste „Offline-Karten" geht dafür zu — zwei Leisten links passen
   /// nicht nebeneinander.
   Future<void> _openLoopPlanner({LatLng? start}) async {
     if (ref.read(offlineOverlayProvider)) {
@@ -982,10 +982,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             const _EmptyHint(),
           // Die Banner oben untereinander, nicht übereinander: Update,
           // Ausgangskorb und — solange einer gilt — der Trail-Filter.
+          // Rechts halten sie IMMER Platz für die Glühbirne frei (#180),
+          // auch ohne Banner — sonst spränge nichts, aber ein Banner
+          // läge unter ihr.
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Column(
+              child: Padding(
+                padding: const EdgeInsets.only(right: kBannerRightInset),
+                child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const UpdateBanner(),
@@ -1023,6 +1028,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         filter: trailFilter, shown: shownTrails.length, total: trails.length),
                 ],
               ),
+              ),
+            ),
+          ),
+          // Die Glühbirne (#180, Betreiber 2026-10-02): oben rechts, abgesetzt
+          // von den Knöpfen unten — melden kann man immer, also steht sie
+          // immer da, neben den Bannern.
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 8, 12, 0),
+                child: CoachAnchor(
+                  id: MapCoach.feedback,
+                  child: MapRoundButton(
+                    key: const ValueKey('feedback-button'),
+                    tooltip: 'Idee oder Fehler melden',
+                    icon: Icons.lightbulb_outline,
+                    onPressed: () => showFeedbackFlow(context, ref),
+                  ),
+                ),
+              ),
             ),
           ),
           if (ride != null || focusRide != null)
@@ -1041,7 +1067,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
               ),
             ),
-          // Die Werkzeugleiste „Ebenen" (seit 0.27.0) links, mittig:
+          // Die Werkzeugleiste „Offline-Karten" (seit 0.27.0) links, mittig:
           // unten liegen Maßstab und Quellenhinweis, oben die Banner —
           // beide bleiben frei. Scrollt, wenn der Schirm zu kurz ist.
           if (toolsOpen)
@@ -1054,7 +1080,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     child: CoachAnchor(
                       id: MapCoach.rail,
                       child: OfflineToolRail(
-                      onFilter: () => showPoiFilterSheet(context),
                       onSnapshot: _addViewport,
                       onTrails: trails.isEmpty ? null : _addTrails,
                       onManage: () => context.go('/profile/areas'),
@@ -1067,7 +1092,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ),
           // Die Leiste des Planers (seit 0.74.0) — derselbe Platz wie die
-          // Leiste „Ebenen"; beide sind nie zugleich offen.
+          // Leiste „Offline-Karten"; beide sind nie zugleich offen.
           if (loop.open)
             SafeArea(
               child: Padding(
@@ -1106,8 +1131,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           // Die Knöpfe rechts (seit 0.27.0; vorher links, wo jetzt die
           // Werkzeugleiste und — auf beiden Engines — Maßstab und
-          // Quellenhinweis stehen). Die Glühbirne (PilzBuddy-Muster):
-          // melden kann man immer, also steht sie immer da.
+          // Quellenhinweis stehen). Die Glühbirne steht seit 0.75.0 oben
+          // rechts (#180).
           SafeArea(
             child: Align(
               alignment: Alignment.bottomRight,
@@ -1143,8 +1168,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           child: Text('Orte gerade nicht erreichbar'),
                         ),
                       ),
-                    // Von oben nach unten wie im Entwurf (3a): Idee, Ebenen,
-                    // Runde, Position — und unten, am Daumen, die Aufnahme.
+                    // Von oben nach unten (seit 0.75.0, #190): Kartenebenen,
+                    // Offline-Karten, Runde, Position — und unten, am Daumen,
+                    // die Aufnahme.
                     const SizedBox(height: 4),
                     // Die Knopfspalte als EIN Anker (#132): Die Tour spart
                     // sie ganz aus und legt den Ring auf den gemeinten Knopf.
@@ -1164,26 +1190,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          CoachAnchor(
-                            id: MapCoach.feedback,
-                            child: MapRoundButton(
-                              key: const ValueKey('feedback-button'),
-                              tooltip: 'Idee oder Fehler melden',
-                              icon: Icons.lightbulb_outline,
-                              onPressed: () => showFeedbackFlow(context, ref),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
+                          // Kartenebenen (#190): EIN Blatt, direkt — welche
+                          // Trails, offizielle Trails, Orte. Es liegt über
+                          // jeder Leiste und ändert an ihr nichts.
                           CoachAnchor(
                             id: MapCoach.layers,
                             child: MapRoundButton(
                               key: const ValueKey('layers-button'),
-                              tooltip: 'Ebenen und Orte',
+                              tooltip: 'Kartenebenen',
                               icon: Icons.layers_outlined,
-                              // Öffnet und schließt die Werkzeugleiste —
-                              // dasselbe wie ihr X und die Zurück-Taste.
-                              // Offen: Rand in der Marke, die Leiste links
-                              // gehört zu diesem Knopf.
+                              onPressed: () => showMapLayersSheet(context),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Offline-Karten: die Leiste links mit den
+                          // Werkzeugen für Bereiche. Öffnet und schließt sie —
+                          // dasselbe wie ihr X und die Zurück-Taste. Offen:
+                          // Rand in der Marke, die Leiste gehört zu diesem Knopf.
+                          CoachAnchor(
+                            id: MapCoach.offline,
+                            child: MapRoundButton(
+                              key: const ValueKey('offline-button'),
+                              tooltip: 'Offline-Karten',
+                              icon: Icons.download_for_offline_outlined,
                               active: toolsOpen,
                               onPressed: toolsOpen
                                   ? _closeTools
@@ -1203,7 +1232,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               tooltip: 'Runde planen',
                               icon: Icons.alt_route,
                               // Öffnet und schließt den Planer — wie der
-                              // Ebenen-Knopf seine Leiste.
+                              // Knopf „Offline-Karten" seine Leiste.
                               active: loop.open,
                               onPressed: () => loop.open ? _closeLoopPlanner() : unawaited(_openLoopPlanner()),
                             ),
