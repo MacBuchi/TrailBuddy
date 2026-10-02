@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Ruhigere Karte
+
+*Version 0.74.2, 2026-10-02*
+
+- **Kein Quadrat mehr am Ende eines Trails.** Wo er endet, zeigt die
+  Linie, und der Pfeil am Anfang trägt die Richtung.
+- **Die Schilder mit Grad und Charakter erscheinen eine Zoomstufe
+  näher**, zusammen mit den Namen — weiter draußen bleibt die Karte
+  frei.
+- **Die Namen stehen auf dem Trail**, nicht mehr daneben, wo sie sich
+  wie der Name des Nachbarwegs lasen.
+
 ## Fehlerberichte, die sagen, wo es passiert ist
 
 *Version 0.74.1, 2026-10-02*

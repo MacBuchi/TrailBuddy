@@ -316,7 +316,10 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   mit der geglätteten Linie. MapLibre zeichnet Linien mit runden Ecken
   (`RoundPolylineLayer` — das Paket setzt kein `line-join`, spitz auf
   Gehrung sah jede Kehre wie ein Knick aus). Der Name steht ab Zoom 14
-  (`kLineLabelMinZoom`, 256er) an der Linie: MapLibre als Symbol-Ebene
+  (`kLineLabelMinZoom`, 256er; seit 0.74.2 dieselbe Stufe wie die
+  Schilder, #184) AUF der Mittellinie (seit 0.74.2, #181 — daneben las
+  er sich wie der Name des Nachbarwegs; kein `text-offset`, der Saum hält
+  ihn auf jeder Linienfarbe lesbar): MapLibre als Symbol-Ebene
   `symbol-placement: line` über allen Linien (`LineLabelLayer`, Kollision
   und Wiederholung macht MapLibre), **Schrift `noto-sans-medium`** — der
   Glyphen-Ordner, nicht „Noto Sans Medium" (der Stil wird umgeschrieben,
@@ -1093,7 +1096,7 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Lauf neu geschrieben statt kommentiert; keine Fehler ⇒ kein Issue.
   Jede Gruppe zeigt den obersten Frame im EIGENEN Code (`top_frame`,
   `package:trailbuddy/`), sonst den obersten überhaupt (ANR-Dump), und
-  bei Framework-Fehlern die PHASE (seit 0.74.1: `flutterErrorStack`
+  bei Framework-Fehlern die PHASE (seit 0.74.2: `flutterErrorStack`
   schreibt `Phase: <Bibliothek> · <Zusammenhang>` über den Stack,
   `stack_phase` liest sie) — ein Ticker-Rückruf trägt keinen eigenen
   Frame, und in 2026-W40 stand fünfmal ein Null-Check in

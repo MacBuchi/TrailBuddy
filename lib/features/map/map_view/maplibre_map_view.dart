@@ -503,8 +503,9 @@ class RoundPolylineLayer extends ml.PolylineLayer {
 /// Namen ENTLANG der Linie (`symbol-placement: line`) wie Straßennamen:
 /// MapLibre dreht jeden Buchstaben mit der Kurve, wiederholt den Namen auf
 /// langen Trails und lässt ihn weg, wo er mit anderem kollidiert. Dunkle
-/// Schrift mit weißem Saum, leicht neben der Linie — die Karte ist immer
-/// hell. Die Schrift ist die des Kartenstils (Noto Sans aus
+/// Schrift mit weißem Saum, AUF der Mittellinie (#181, seit 0.74.2;
+/// vorher daneben, und das las sich wie ein Name des Nachbarwegs) — der
+/// Saum hält sie auf jeder Linienfarbe lesbar, die Karte ist immer hell. Die Schrift ist die des Kartenstils (Noto Sans aus
 /// `assets/map_glyphs/`), kein Zeichen braucht Nachladen.
 class LineLabelLayer extends ml.Layer<ml.Feature<ml.LineString>> {
   const LineLabelLayer({required List<ml.Feature<ml.LineString>> features})
@@ -529,7 +530,6 @@ class LineLabelLayer extends ml.Layer<ml.Feature<ml.LineString>> {
         // Namen still weg.
         'text-font': const ['noto-sans-medium'],
         'text-size': 12,
-        'text-offset': const [0, -0.9],
         'text-max-angle': 35,
         'symbol-spacing': 300,
         'text-keep-upright': true,

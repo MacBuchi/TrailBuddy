@@ -2,7 +2,8 @@
 // Grad und die angezeigten Merkmale, in der Farbe der Linie — erst ab
 // Zoom 13 (Entwurf), darunter stünden die Schilder übereinander. Pur bis
 // auf das Widget; ein Tipp auf das Schild öffnet den Trail wie ein Tipp
-// auf die Linie. Seit 0.66.0 daneben die Start- und Endmarken (#96).
+// auf die Linie. Seit 0.66.0 daneben die Startmarke (#96; die Endmarke
+// ist seit 0.74.2 weg, #179).
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -14,8 +15,11 @@ import '../trails/grade_shield.dart';
 import 'map_view/map_view.dart';
 import 'trail_end_marks.dart';
 
-/// Ab dieser (gerechneten) Zoomstufe stehen die Schilder auf der Karte.
-const kTrailBadgeMinZoom = 13.0;
+/// Ab dieser (gerechneten) Zoomstufe stehen die Schilder auf der Karte —
+/// seit 0.74.2 eine Stufe näher als im Entwurf (#184, Feldbericht: bei 13
+/// standen sie zu früh und deckten die Karte zu). Dieselbe Stufe wie die
+/// Namen an der Linie (`kLineLabelMinZoom`).
+const kTrailBadgeMinZoom = 14.0;
 
 /// Die Peilung am Anfang in Grad (0 = Nord, im Uhrzeigersinn), gemessen
 /// zu einem Punkt ~30 m weiter, damit ein Zacken am Anfang die Richtung
@@ -42,35 +46,29 @@ bool trailHeadsNorth(Trail t) {
   return bearing != null && bearing.abs() < 90;
 }
 
-/// Anfang, Richtung und Ende (#96): je Trail eine Startmarke mit Pfeil
-/// und eine Endmarke, in der Farbe der Linie, ab derselben Zoomstufe wie
-/// die Schilder — darunter lägen sie übereinander (und MapLibre setzt
-/// jeden Widget-Marker in jedem Bild neu). Nicht antippbar; wartende
-/// Trails haben keine (ihre Linie ist gestrichelt und trägt die Uhr).
+/// Anfang und Richtung (#96): je Trail eine Startmarke mit Pfeil in der
+/// Farbe der Linie, ab derselben Zoomstufe wie die Schilder — darunter
+/// lägen sie übereinander (und MapLibre setzt jeden Widget-Marker in
+/// jedem Bild neu). Nicht antippbar; wartende Trails haben keine (ihre
+/// Linie ist gestrichelt und trägt die Uhr). Kein Quadrat am Ende mehr
+/// (#179).
 ///
-/// Die Endmarke von [coachTrailId] trägt den Anker `MapCoach.trailEnd`
-/// für Tour und Vorführung.
+/// Die Startmarke von [coachTrailId] trägt den Anker `MapCoach.trailStart`
+/// für die Vorführung.
 List<MapViewMarker> trailEndMarkers(Iterable<Trail> trails, MapViewCamera? camera,
     {String? coachTrailId}) {
   if (camera == null || camera.zoom < kTrailBadgeMinZoom) return const [];
   final out = <MapViewMarker>[];
   for (final t in trails) {
     if (t.pending || t.points.length < 2) continue;
-    final color = trailColorOf(t, AppColors.mapGrades);
+    final dot = TrailStartDot(
+        color: trailColorOf(t, AppColors.mapGrades), bearingDeg: trailStartBearing(t) ?? 0);
     out.add(MapViewMarker(
       key: ValueKey('trail-start-${t.id}'),
       point: t.start,
       width: kTrailMarkSize,
       height: kTrailMarkSize,
-      child: TrailStartDot(color: color, bearingDeg: trailStartBearing(t) ?? 0),
-    ));
-    final end = TrailEndSquare(color: color);
-    out.add(MapViewMarker(
-      key: ValueKey('trail-end-${t.id}'),
-      point: t.end,
-      width: kTrailMarkSize,
-      height: kTrailMarkSize,
-      child: t.id == coachTrailId ? CoachAnchor(id: MapCoach.trailEnd, child: end) : end,
+      child: t.id == coachTrailId ? CoachAnchor(id: MapCoach.trailStart, child: dot) : dot,
     ));
   }
   return out;

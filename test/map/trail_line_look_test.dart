@@ -104,6 +104,8 @@ void main() {
     expect(label.list.single.properties['label'], 'Hexentanz');
     expect(label.getLayout(), containsPair('symbol-placement', 'line'));
     expect(label.getLayout()['text-field'], '{label}');
+    // Auf der Mittellinie, nicht daneben (#181): kein Versatz.
+    expect(label.getLayout().containsKey('text-offset'), isFalse);
     // Der Stack muss als Glyphen-Ordner im Paket liegen — sonst lässt
     // MapLibre den Namen still weg.
     for (final stack in label.getLayout()['text-font']! as List) {

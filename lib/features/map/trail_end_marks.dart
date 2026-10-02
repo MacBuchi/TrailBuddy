@@ -1,9 +1,12 @@
-// Anfang, Richtung und Ende eines Trails auf der Karte (#96): am Anfang
-// eine Scheibe in der Trail-Farbe mit weißem Pfeil in Fahrtrichtung, am
-// Ende ein Quadrat in derselben Farbe — die Zielmarke. Beide mit weißem
-// Saum wie die Linie, beide klein (14 px), beide NICHT antippbar: Ein
-// Tipp dort trifft die Linie ohnehin (12 px Toleranz), und ein zweiter
-// Treffer je Trail machte die Marker-Liste zweideutig.
+// Anfang und Richtung eines Trails auf der Karte (#96): am Anfang eine
+// Scheibe in der Trail-Farbe mit weißem Pfeil in Fahrtrichtung, mit
+// weißem Saum wie die Linie, klein (14 px), NICHT antippbar: Ein Tipp
+// dort trifft die Linie ohnehin (12 px Toleranz), und ein zweiter Treffer
+// je Trail machte die Marker-Liste zweideutig.
+//
+// Das Quadrat am Ende ist seit 0.74.2 weg (#179, Feldbericht: „überflüssig
+// und eher störend"): Wo der Trail endet, sagt die Linie selbst, und der
+// Pfeil am Anfang trägt die Richtung.
 //
 // Bewusst kein Pin und keine Fahne: Die Fahne gehört dem Marken-Knopf
 // der Aufnahme (Design 6), eine Nadel den Orten. Gezeichnet, nicht als
@@ -13,7 +16,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Kantenlänge beider Marken auf der Karte (Bildpunkte).
+/// Kantenlänge der Marke auf der Karte (Bildpunkte).
 const kTrailMarkSize = 14.0;
 
 /// Die Startmarke: Scheibe mit Pfeil, gedreht auf [bearingDeg] (0 = Nord,
@@ -30,22 +33,6 @@ class TrailStartDot extends StatelessWidget {
         child: CustomPaint(
           size: const Size.square(kTrailMarkSize),
           painter: _StartPainter(color, bearingDeg),
-        ),
-      );
-}
-
-/// Die Endmarke: Quadrat in der Trail-Farbe mit weißem Saum.
-class TrailEndSquare extends StatelessWidget {
-  const TrailEndSquare({super.key, required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        label: 'Trailende',
-        child: CustomPaint(
-          size: const Size.square(kTrailMarkSize),
-          painter: _EndPainter(color),
         ),
       );
 }
@@ -78,20 +65,4 @@ class _StartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StartPainter old) => old.color != color || old.bearingDeg != bearingDeg;
-}
-
-class _EndPainter extends CustomPainter {
-  const _EndPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outer = Offset.zero & size;
-    canvas.drawRect(outer, Paint()..color = Colors.white);
-    canvas.drawRect(outer.deflate(1.5), Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(_EndPainter old) => old.color != color;
 }

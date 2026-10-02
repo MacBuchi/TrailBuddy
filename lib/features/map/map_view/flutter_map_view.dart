@@ -320,11 +320,8 @@ class _LineLabels extends StatelessWidget {
               height: 36,
               child: Transform.rotate(
                 angle: a.angle,
-                // Leicht neben der Linie wie bei MapLibre (text-offset).
-                child: Transform.translate(
-                  offset: const Offset(0, -11),
-                  child: Center(child: _HaloText(l.label!)),
-                ),
+                // AUF der Mittellinie wie bei MapLibre (#181).
+                child: Center(child: _HaloText(l.label!)),
               ),
             ),
     ]);
