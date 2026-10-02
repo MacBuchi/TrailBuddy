@@ -55,6 +55,35 @@ void logError(String context, Object error, [StackTrace? stackTrace]) {
   }
 }
 
+/// Der Stack eines Framework-Fehlers, mit der PHASE davor.
+///
+/// `FlutterError.onError` bekommt mehr als Fehler und Stack: Bibliothek und
+/// Zusammenhang („scheduler library", „during a scheduler callback").
+/// Ohne sie stand im Digest von 2026-W40 fünfmal `Null check operator`
+/// in `AnimationController.stop` — ohne einen Frame aus unserem Code,
+/// weil ein Ticker-Rückruf nur Framework-Frames trägt, und ohne Hinweis,
+/// ob es beim Zeichnen, beim Abbauen oder in einer Animation geschah. Die
+/// Phase steht als erste Zeile VOR dem Stack: Der Digest sucht seinen
+/// Frame unter den Zeilen, die mit `#` beginnen, und überliest sie.
+StackTrace? flutterErrorStack(FlutterErrorDetails details) {
+  final phase = flutterErrorPhase(details);
+  if (phase == null) return details.stack;
+  return StackTrace.fromString('Phase: $phase\n${details.stack ?? ''}');
+}
+
+/// „Bibliothek · Zusammenhang", oder null, wenn beides fehlt.
+String? flutterErrorPhase(FlutterErrorDetails details) {
+  final parts = [
+    if (details.library?.trim().isNotEmpty ?? false) details.library!.trim(),
+    if (details.context != null) details.context!.toDescription().trim(),
+  ].where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return null;
+  // Gekürzt: Der Zusammenhang nennt beim Bauen das Element samt seiner
+  // Beschreibung, und die gehört nicht ganz in eine Zeile des Berichts.
+  final phase = parts.join(' · ');
+  return phase.length <= 200 ? phase : phase.substring(0, 200);
+}
+
 /// Gehört dieser Fehler in `error_reports`?
 ///
 /// Für die globalen Handler in `main()`, die alles melden, was ihnen vor die

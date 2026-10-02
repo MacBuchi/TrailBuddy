@@ -26,6 +26,47 @@ class ErrorReportRepository {
     return trimmed.length <= max ? trimmed : trimmed.substring(0, max);
   }
 
+  /// Ein Stack, gekürzt auf [max] Zeichen — ohne die eigenen Frames zu
+  /// verlieren.
+  ///
+  /// Abgeschnitten wurde bis 0.74.0 von hinten: Ein tiefer Widget-Baum
+  /// füllt die 4 000 Zeichen mit Framework-Frames, und der eine Frame aus
+  /// `package:trailbuddy/`, nach dem der Digest sucht, lag dahinter. Jetzt
+  /// bleibt der Anfang (wo es geschah), dann eine Zeile, wie viel fehlt,
+  /// dann die eigenen Frames aus dem Rest (wie es dazu kam).
+  @visibleForTesting
+  static String? clipStack(String? stack, int max) {
+    final trimmed = _clip(stack, 1 << 30);
+    if (trimmed == null || trimmed.length <= max) return trimmed;
+    final lines = trimmed.split('\n');
+    final head = <String>[];
+    var used = 0;
+    var i = 0;
+    // Gut die Hälfte für den Anfang; der Rest gehört den eigenen Frames.
+    while (i < lines.length && used + lines[i].length + 1 <= max * 0.55) {
+      head.add(lines[i]);
+      used += lines[i].length + 1;
+      i++;
+    }
+    final own = [
+      for (final line in lines.skip(i))
+        if (line.contains(_appFrame)) line,
+    ];
+    final marker = '… ${lines.length - i} Zeilen gekürzt'
+        '${own.isEmpty ? '' : ', eigene davon:'}';
+    final out = [...head, marker];
+    used += marker.length + 1;
+    for (final line in own) {
+      if (used + line.length + 1 > max) break;
+      out.add(line);
+      used += line.length + 1;
+    }
+    final joined = out.join('\n');
+    return joined.length <= max ? joined : joined.substring(0, max);
+  }
+
+  static const _appFrame = 'package:trailbuddy/';
+
   static String get _platform =>
       kIsWeb ? 'web' : defaultTargetPlatform.name;
 
@@ -46,7 +87,7 @@ class ErrorReportRepository {
       'context': _clip(context, 100),
       'error_type': error.runtimeType.toString(),
       'message': _clip(error.toString(), 1000),
-      'stack': _clip(stackTrace?.toString(), 4000),
+      'stack': clipStack(stackTrace?.toString(), 4000),
       'app_version': version,
       'platform': _platform,
     });
