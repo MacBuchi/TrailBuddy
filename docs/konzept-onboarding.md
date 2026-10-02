@@ -125,7 +125,7 @@ Startseite und Kette kommen in PR 3.
      wird ein Trail, eine Runde eine Fahrt, die über die Schere ins
      Zerlege-Blatt geht. Nur Trails gehen zu Buddys.
   2. **Die Karte lesen** (Symbol: das echte `GradeShield`) — Farbe =
-     Schwierigkeit wie im Skigebiet, grau ohne Einschätzung, Petrol
+     Schwierigkeit wie im Skigebiet, grau ohne Einschätzung, Magenta
      Uphill. Die Art der Linie ist der Zustand: durchgezogen gepflegt,
      bröckelig ausgefahren, gestrichelt abgerockt, verblasst kaum
      fahrbar (Design-README Abschnitt 2, seit 0.51.0). Der Saum: weiß
@@ -455,7 +455,7 @@ hinweg gerechnet; Fahrt und Position verlassen das Gerät nie.
 | 0 | **Willkommen bei TrailBuddy** (Startseite, ab PR 3) | Hier liegen die Trails, die du gefahren bist, und die deiner Buddys — sonst niemandes. Drei Wege bringen Trails hierher: GPX importieren, eine Fahrt aufzeichnen, Buddys verbinden. | — | `welcomeArt` |
 | 1 | **Das Schild am Anfang** | Am Anfang jedes Trails steht sein Schild mit Grad und Charakter. Ein Tipp darauf — oder auf die Linie — öffnet das Blatt. | Schild | Tippen; nur mit Trail |
 | 2 | **Das Blatt zum Trail** | Länge, Höhenmeter und die Schwierigkeit, wie dein Netz sie sieht — ein Tipp auf den Grad zeigt, wer wie eingeschätzt hat. | Kachelzeile | Szene Trail-Blatt; nur mit Trail |
-| 3 | **Farbe heißt Schwierigkeit** | Jede Linie trägt die Schwierigkeit ihres Trails wie eine Piste: grün S0, blau S1, rot S2, schwarz ab S3. Wie die Linie gezeichnet ist, sagt den Zustand — durchgezogen gepflegt, gestrichelt abgerockt. Ein orangener Saum: ein Buddy hat etwas gemeldet; ein gelber: ein neuer Hinweis. Petrol ist Uphill, Violett gestrichelt ein offizieller Trail. | die Legende auf der Karte (seit 0.77.0, #182; vorher nichts) | die aufgeklappte Legende (vorher Mini-Legende in der Blase) |
+| 3 | **Farbe heißt Schwierigkeit** | Jede Linie trägt die Schwierigkeit ihres Trails wie eine Piste: grün S0, blau S1, rot S2, schwarz ab S3. Wie die Linie gezeichnet ist, sagt den Zustand — durchgezogen gepflegt, gestrichelt abgerockt. Ein orangener Saum: ein Buddy hat etwas gemeldet; ein gelber: ein neuer Hinweis. Magenta ist Uphill, Violett gestrichelt ein offizieller Trail. | die Legende auf der Karte (seit 0.77.0, #182; vorher nichts) | die aufgeklappte Legende (vorher Mini-Legende in der Blase) |
 | 4 | **Was die Karte zeigt** (seit 0.75.0, #190; vorher „Hinter dem Ebenen-Knopf") | Der oberste Knopf: welche Trails die Karte zeigt, die offiziellen Trails der Region und Orte wie Einkehr, Wasser und Rad-Service. | Knopfspalte / Kartenebenen | — |
 | 5 | **Orte und offizielle Trails wählen** | Offizielle Trails an oder aus, Orte nach Gruppe. Was hier aus ist, bleibt aus, bis du es wieder einschaltest. | Schalter und Gruppen | Szene Blatt „Kartenebenen" |
 | 6 | **Karten ohne Empfang** | Der Knopf darunter holt die Karte aufs Gerät — für unterwegs, wo kein Netz ist. | Knopfspalte / Offline-Karten | — |
@@ -538,7 +538,7 @@ Bau, am Blatt, wie es dann aussieht.
   3 → 7 px in 1,8 s. Der Ring heißt „hier, für dich“ und ist nie eine
   Bedeutungsfarbe der Karte. Lime kollidiert nicht: S0 ist ein anderes
   Grün, und „mein“ ist seit 0.42.0 ein Wort, keine Farbe. Orange
-  (Meldung), Gelb (Hinweis), Petrol (Uphill), Violett (offiziell), Blau
+  (Meldung), Gelb (Hinweis), Magenta (Uphill), Violett (offiziell), Blau
   (S1) bleiben den Linien.
 - **Hand** gezeichnet, Ärmel und Punkt in der Marke, Kontur schwarz;
   heran, drücken, abheben (Wischen: rechts nach links), Keyframes pur.

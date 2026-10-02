@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:trailbuddy/core/app_colors.dart';
 import 'package:trailbuddy/features/map/map_view/map_view.dart';
 import 'package:trailbuddy/features/map/trail_badges.dart';
 import 'package:trailbuddy/features/map/trail_end_marks.dart';
@@ -117,6 +118,17 @@ void main() {
     expect(find.byKey(const ValueKey('trail-quick-card')), findsOneWidget);
     expect(find.text('HEXENTANZ'), findsNothing);
     expect(fakeMapLayers(tester).polylines.length, lines + 1, reason: 'der Leuchtrand');
+    // #195: deckendes Lime mit dunkler Kontur, breiter als Linie samt
+    // weißem Saum, und darunter — sonst ginge es im Saum unter.
+    final polys = fakeMapLayers(tester).polylines;
+    final glow = polys.indexWhere((p) => p.color == AppColors.brand && p.hitValue == null);
+    final line = polys.indexWhere((p) => p.hitValue is Trail && (p.hitValue as Trail).displayName == 'Hexentanz');
+    expect(glow, isNonNegative);
+    expect(glow, lessThan(line), reason: 'das Leuchten liegt unter der Linie');
+    double outer(MapViewPolyline p) => p.width + 2 * p.borderWidth;
+    expect(polys[glow].width, greaterThanOrEqualTo(outer(polys[line]) + 8), reason: '4 px Lime je Seite');
+    expect(polys[glow].borderWidth, greaterThan(0));
+    expect(polys[glow].borderColor!.computeLuminance(), lessThan(0.05), reason: 'dunkle Kontur');
     expect(find.descendant(of: find.byKey(const ValueKey('trail-quick-card')), matching: find.text('Hexentanz')),
         findsOneWidget);
 

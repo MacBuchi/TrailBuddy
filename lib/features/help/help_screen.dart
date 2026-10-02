@@ -73,7 +73,7 @@ const kHelpSteps = <HelpStep>[
     // sich dort eine Regel, gehört dieser Satz in denselben PR.
     text: 'Die Farbe einer Linie ist ihre Schwierigkeit, wie auf der Piste: '
         'grün S0, blau S1, rot S2, schwarz ab S3; ein weiß gestrichelter Saum '
-        'heißt S4 oder S5, grau noch ohne Einschätzung, Petrol Uphill. Die '
+        'heißt S4 oder S5, grau noch ohne Einschätzung, Magenta Uphill. Die '
         'Art der Linie ist der Zustand: durchgezogen, bröckelig, gestrichelt, '
         'verblasst — je lückenhafter, desto schlechter. Ein orangener Rand '
         'heißt gemeldet, ein gelber ein neuer Hinweis; Violett gestrichelt '

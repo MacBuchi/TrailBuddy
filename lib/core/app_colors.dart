@@ -277,9 +277,11 @@ class GradePalette {
   /// Uphill (Betreiber, 2026-09-29: „hier macht Symbol und Farbe Sinn"):
   /// Die Pistenfarben beschreiben eine Abfahrt — bergauf gefahren sagt
   /// „rot" wenig. Ein Trail, dessen angezeigter Charakter Uphill ist,
-  /// trägt deshalb Petrol statt seiner Stufe, das Schild einen Pfeil
-  /// statt der Form. Petrol, weil jede andere Farbe schon etwas heißt
-  /// (Stufen, Meldung, Hinweis, offiziell, Kandidat, Marke).
+  /// trägt deshalb Magenta statt seiner Stufe, das Schild einen Pfeil
+  /// statt der Form. Magenta seit 0.77.2 (#195, Betreiber): Das Petrol
+  /// davor war auf der Karte kaum von S0-Grün zu unterscheiden. Violett
+  /// heißt „offiziell"; das Rosa der Kandidaten liegt nah, steht aber
+  /// nur in der Vorschau des Zerlege-Blatts.
   final Color uphill;
 
   /// Schrift und Form auf einer Stufenfarbe.
@@ -299,7 +301,7 @@ class GradePalette {
     s2: Color(0xFFC62828),
     s3: Color(0xFF131A16),
     ungraded: Color(0xFF6B756F),
-    uphill: Color(0xFF00796B),
+    uphill: Color(0xFFB0279C),
     ink: Color(0xFFFFFFFF),
   );
 
@@ -309,7 +311,7 @@ class GradePalette {
     s2: Color(0xFFF0605C),
     s3: Color(0xFFF2F4EF),
     ungraded: Color(0xFF9AA69D),
-    uphill: Color(0xFF4DB6AC),
+    uphill: Color(0xFFE060D0),
     ink: Color(0xFF0E1411),
   );
 }
