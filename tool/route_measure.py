@@ -205,13 +205,25 @@ def smooth_heights(heights, window=STEEP_SMOOTH):
 def steep_excess(heights, steps_m, grade=STEEP_GRADE, window=STEEP_SMOOTH):
     """(forward, backward): metres climbed above `grade` along the samples,
     in sample order and against it. `steps_m[i]` is the distance between
-    sample i and i + 1."""
+    sample i and i + 1.
+
+    Heights AND positions are averaged over the window: a smoothed point
+    sits at the mean distance of its samples. The last step of an edge is
+    short (whatever is left after the full 50 m), and smoothing heights
+    alone would put a 50 m rise onto a 1 m step there — a linear slope
+    must come out exact, whatever the steps."""
     if len(heights) < 2 or len(steps_m) != len(heights) - 1:
         return 0.0, 0.0
-    sm = smooth_heights(heights, window) if window > 1 else list(heights)
+    dist = [0.0]
+    for d in steps_m:
+        dist.append(dist[-1] + d)
+    if window > 1:
+        sm, sd = smooth_heights(heights, window), smooth_heights(dist, window)
+    else:
+        sm, sd = list(heights), dist
     up = down = 0.0
-    for i, d in enumerate(steps_m):
-        rise = sm[i + 1] - sm[i]
+    for i in range(len(sm) - 1):
+        rise, d = sm[i + 1] - sm[i], sd[i + 1] - sd[i]
         up += max(0.0, rise - grade * d)
         down += max(0.0, -rise - grade * d)
     return up, down
@@ -1904,7 +1916,9 @@ def self_test():
     ramp = [100.0 + 15.0 * i for i in range(9)]          # 30 % every 50 m
     expect(steep_excess(ramp, [50.0] * 8, window=1) == (60.0, 0.0), "raw: 7.5 m above 15 % per step")
     up, down = steep_excess(ramp, [50.0] * 8)
-    expect(abs(up - 45.0) < 1e-9 and down == 0.0, f"smoothed: the end steps keep half their rise: {up}")
+    expect(abs(up - 52.5) < 1e-9 and down == 0.0, f"smoothed: the ends lose half a step: {up}")
+    short_end = [100.0 + 7.27 * i for i in range(67)] + [100.0 + 7.27 * 66 + 0.163]
+    expect(steep_excess(short_end, [50.0] * 66 + [1.12]) == (0.0, 0.0), "a short last step stays at its grade")
     expect(steep_excess([100.0 + 5.0 * i for i in range(9)], [50.0] * 8) == (0.0, 0.0), "10 % is not steep")
     expect(steep_excess(ramp[::-1], [50.0] * 8)[1] == up, "backwards it is the other direction")
     expect(steep_excess([100.0, 130.0], [50.0]) == (0.0, 0.0), "two samples smooth to one value")
