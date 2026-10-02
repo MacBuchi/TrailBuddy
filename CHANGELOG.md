@@ -2,6 +2,24 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Speichern ohne Hänger
+
+*Version 0.82.1, 2026-10-02*
+
+- **Ein Stern, ein Link, ein S-Grad: gespeichert, ohne dass die App
+  stockt.** Bisher lud die App nach jedem Speichern das ganze Netz neu,
+  mit jeder Linie, und schickte jede Linie noch einmal an die Karte. Bei
+  vielen Trails stand die App dabei sekundenlang, bis Android „App
+  reagiert nicht" melden konnte. Jetzt wird nur nachgelesen, was du
+  geändert hast, und die Karte zeichnet nur die Linien neu, die sich
+  wirklich ändern.
+- Auch das Antippen eines Trails und „Meine Position" schicken nicht mehr
+  alle Linien neu an die Karte.
+- Die Kopie des Netzes für Funklöcher wird in kleinen Stücken
+  geschrieben, die Bedienung läuft dabei weiter.
+- Die Tastatur legt sich über die Karte, statt sie bei jedem Tippen
+  kleiner zu rechnen.
+
 ## Alte Fahrten zählen mit
 
 *Version 0.82.0, 2026-10-02*

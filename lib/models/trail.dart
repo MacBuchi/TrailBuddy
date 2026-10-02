@@ -555,14 +555,17 @@ class Trail {
 
   /// Die beste sichtbare Aufzeichnung: höchste Qualität, bei Gleichstand
   /// die ältere (sie hat den Trail „angelegt").
-  TrailRecording get best {
+  ///
+  /// Einmal je Trail gerechnet: Karte, Liste und Blatt fragen sie (über
+  /// [points], [start], [lengthM] …) bei jedem Aufbau für jeden Trail.
+  late final TrailRecording best = () {
     final sorted = List.of(recordings)
       ..sort((a, b) {
         final q = b.quality.compareTo(a.quality);
         return q != 0 ? q : a.createdAt.compareTo(b.createdAt);
       });
     return sorted.first;
-  }
+  }();
 
   List<LatLng> get points => best.points;
   double get lengthM => best.lengthM;
@@ -817,13 +820,19 @@ class Trail {
 /// Gruppiert die beiden Abfragen zu Trails. Beiträge ohne sichtbaren
 /// Beleg fallen weg: Sichtbar ist, was jemand GEFAHREN ist (Konzept 6),
 /// nicht, worüber jemand etwas gesagt hat.
+///
+/// [previous] ist der Stand davor: Ein Trail, dessen Belege, Beiträge,
+/// Hinweise und Meldungen dieselben OBJEKTE sind (`shareSnapshot`), kommt
+/// als derselbe Trail zurück — mit allem, was an ihm schon gerechnet ist.
 List<Trail> buildTrails({
   required List<TrailRecording> recordings,
   required List<TrailDetails> details,
   required String myId,
   List<TrailNote> notes = const [],
   List<TrailReport> reports = const [],
+  Iterable<Trail> previous = const [],
 }) {
+  final before = {for (final t in previous) if (!t.pending && t.myId == myId) t.id: t};
   final byTrail = <String, List<TrailRecording>>{};
   for (final r in recordings) {
     byTrail.putIfAbsent(r.trailId, () => []).add(r);
@@ -840,15 +849,31 @@ List<Trail> buildTrails({
   for (final r in reports) {
     reportsByTrail.putIfAbsent(r.trailId, () => []).add(r);
   }
+  Trail make(String id, List<TrailRecording> recs) {
+    final d = detailsByTrail[id] ?? const <TrailDetails>[];
+    final n = notesByTrail[id] ?? const <TrailNote>[];
+    final r = reportsByTrail[id] ?? const <TrailReport>[];
+    final old = before[id];
+    if (old != null &&
+        !old.pendingDetails &&
+        _sameObjects(old.recordings, recs) &&
+        _sameObjects(old.details, d) &&
+        _sameObjects(old.notes, n) &&
+        _sameObjects(old.reports, r)) {
+      return old;
+    }
+    return Trail(id: id, recordings: recs, details: d, myId: myId, notes: n, reports: r);
+  }
+
   return [
-    for (final e in byTrail.entries)
-      Trail(
-        id: e.key,
-        recordings: e.value,
-        details: detailsByTrail[e.key] ?? const [],
-        myId: myId,
-        notes: notesByTrail[e.key] ?? const [],
-        reports: reportsByTrail[e.key] ?? const [],
-      ),
+    for (final e in byTrail.entries) make(e.key, e.value),
   ]..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
+}
+
+bool _sameObjects<T>(List<T> a, List<T> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!identical(a[i], b[i])) return false;
+  }
+  return true;
 }

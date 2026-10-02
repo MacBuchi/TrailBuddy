@@ -12,6 +12,7 @@ import '../../data/outbox.dart';
 import '../../data/outbox_runner.dart';
 import '../../data/providers.dart';
 import '../../data/trail_cache.dart';
+import '../../data/trail_sharing.dart';
 import '../../data/trail_repository.dart';
 import '../../models/trail.dart';
 import 'elevation_backfill.dart';
@@ -89,12 +90,15 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         repo.fetchNotes(),
         repo.fetchReports(),
       ]);
-      return (
+      // Was sich nicht geändert hat, bleibt dasselbe Objekt — auch für die
+      // Kopie auf dem Gerät, die einen unveränderten Stand dann nicht neu
+      // schreibt (`trail_sharing.dart`).
+      return shareSnapshot(_snapshotFor(myId), (
         recordings: results[0] as List<TrailRecording>,
         details: results[1] as List<TrailDetails>,
         notes: results[2] as List<TrailNote>,
         reports: results[3] as List<TrailReport>,
-      );
+      ));
     }
 
     // Netz zuerst, ohne Empfang die Kopie vom letzten Mal (#32) — ein
@@ -121,6 +125,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
           ref.read(trailsAwaitNetworkProvider.notifier).state = false;
           ref.read(trailsCachedAtProvider.notifier).set(null);
           _server = _fromSnapshot(fresh, myId);
+          _fetchedAt = now;
           state = AsyncData(_compose(myId));
         },
         onLateOffline: () {
@@ -141,18 +146,89 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     // Hinweise sagen dann nicht „Kein Empfang".
     if (generation == _builds) ref.read(trailsAwaitNetworkProvider.notifier).state = waiting;
     _server = _fromSnapshot(result.snapshot, myId);
+    // Nur ein frischer Stand taugt als Grundlage für [_rereadAfterWrite];
+    // eine Kopie vom letzten Mal lädt nach dem Schreiben ganz neu.
+    _fetchedAt = result.cachedAt == null ? now : null;
     final cached = ref.read(outboxJobsProvider).valueOrNull;
     final List<OutboxJob> jobs = cached ?? await ref.read(outboxJobsProvider.future);
     return _composeWith(jobs, myId);
   }
 
-  static List<Trail> _fromSnapshot(TrailSnapshot s, String myId) => buildTrails(
-        recordings: s.recordings,
-        details: s.details,
-        notes: s.notes,
-        reports: s.reports,
-        myId: myId,
+  /// Der Server-Stand hinter [_server], für das Konto [_snapshotUid] —
+  /// die Grundlage, gegen die ein neuer Abruf seine unveränderten Teile
+  /// tauscht.
+  TrailSnapshot? _snapshot;
+  String? _snapshotUid;
+
+  TrailSnapshot? _snapshotFor(String myId) => _snapshotUid == myId ? _snapshot : null;
+
+  /// Wann [_snapshot] zuletzt GANZ vom Server kam — null, wenn er aus der
+  /// Kopie stammt. Mit diesem Zeitpunkt schreibt [_rereadAfterWrite] die
+  /// Kopie neu: Die Aufzeichnungen darin sind so alt, nicht jünger.
+  DateTime? _fetchedAt;
+
+  /// Read-after-write für das, was geschrieben wurde, statt für das ganze
+  /// Netz (Feldbericht 2026-10-02). Ein Stern lud bis 0.82.x jede Linie
+  /// neu — bei einem großen Netz Megabytes über die Leitung und Sekunden
+  /// auf dem Haupt-Thread, mehrmals je Speichern. Die Aufzeichnungen
+  /// ändert ein Beitrag, eine Meldung oder ein Hinweis nicht; sie bleiben
+  /// stehen, bis das Netz ohnehin neu lädt.
+  ///
+  /// Dieselbe Zusage wie [reloadAfterWrite]: wirft nicht, `false` heißt
+  /// „geschrieben, aber die Anzeige ist alt", der Fehler geht mit [what]
+  /// nach `error_reports`, und der Zustand steht auf `AsyncError` mit dem
+  /// Wert darunter. Ohne frischen Server-Stand (Kopie, anderes Konto)
+  /// lädt es ganz neu.
+  Future<bool> _rereadAfterWrite(String what,
+      {bool details = false, bool notes = false, bool reports = false}) async {
+    final myId = ref.read(currentUserIdProvider);
+    final fetchedAt = _fetchedAt;
+    if (myId == null || fetchedAt == null || _snapshotFor(myId) == null || !state.hasValue) {
+      return reloadAfterWrite(what);
+    }
+    final repo = ref.read(trailRepositoryProvider);
+    try {
+      final fresh = await Future.wait<List<Object>>([
+        if (details) repo.fetchDetails(),
+        if (notes) repo.fetchNotes(),
+        if (reports) repo.fetchReports(),
+      ]);
+      // Erst NACH dem Abruf auf den Stand legen: Ein Neuladen dazwischen
+      // hat ihn vielleicht schon ersetzt.
+      final base = _snapshotFor(myId);
+      if (base == null || ref.read(currentUserIdProvider) != myId) return await reloadAfterWrite(what);
+      var i = 0;
+      final next = (
+        recordings: base.recordings,
+        details: details ? fresh[i++] as List<TrailDetails> : base.details,
+        notes: notes ? fresh[i++] as List<TrailNote> : base.notes,
+        reports: reports ? fresh[i++] as List<TrailReport> : base.reports,
       );
+      _server = _fromSnapshot(next, myId);
+      unawaited(ref.read(trailCacheProvider).write(uid: myId, snapshot: _snapshot!, savedAt: fetchedAt));
+      state = AsyncData(_compose(myId));
+      return true;
+    } catch (error, stackTrace) {
+      logError(what, error, stackTrace);
+      state = AsyncError<List<Trail>>(error, stackTrace).copyWithPrevious(state);
+      return false;
+    }
+  }
+
+  List<Trail> _fromSnapshot(TrailSnapshot s, String myId) {
+    final shared = shareSnapshot(_snapshotFor(myId), s);
+    final previous = _snapshotUid == myId ? _server : const <Trail>[];
+    _snapshot = shared;
+    _snapshotUid = myId;
+    return buildTrails(
+      recordings: shared.recordings,
+      details: shared.details,
+      notes: shared.notes,
+      reports: shared.reports,
+      myId: myId,
+      previous: previous,
+    );
+  }
 
   /// Server-Stand plus Korb plus, was gerade unterwegs ist. Ein Auftrag,
   /// der schon im Korb liegt, zählt dort — einen Augenblick lang ist er
@@ -364,7 +440,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         await _queueIfOffline(error, stackTrace, job);
         return WriteOutcome.queued;
       }
-      return await reloadAfterWrite('Melden')
+      return await _rereadAfterWrite('Melden', reports: true, notes: text.isNotEmpty)
           ? WriteOutcome.done
           : WriteOutcome.doneStale;
     } finally {
@@ -390,7 +466,7 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
         await _queueIfOffline(error, stackTrace, job);
         return WriteOutcome.queued;
       }
-      return await reloadAfterWrite('Trail-Beitrag speichern')
+      return await _rereadAfterWrite('Trail-Beitrag speichern', details: true)
           ? WriteOutcome.done
           : WriteOutcome.doneStale;
     } finally {
@@ -402,12 +478,12 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
     await ref
         .read(trailRepositoryProvider)
         .addNote(trailId: trailId, body: body.trim());
-    return reloadAfterWrite('Hinweis speichern');
+    return _rereadAfterWrite('Hinweis speichern', notes: true);
   }
 
   Future<bool> deleteNote(String id) async {
     await ref.read(trailRepositoryProvider).deleteNote(id);
-    return reloadAfterWrite('Hinweis löschen');
+    return _rereadAfterWrite('Hinweis löschen', notes: true);
   }
 
   /// Den eigenen Beitrag zurückziehen. Kein Ausgangskorb: Ein Löschauftrag,

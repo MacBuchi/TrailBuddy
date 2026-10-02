@@ -80,11 +80,20 @@ void main() {
       expect(identical(again[i], first[i]), isTrue, reason: 'Ebene $i');
       expect(again[i] == first[i], isTrue, reason: 'MapLibre vergleicht mit ==');
     }
-    // Ändert sich eine Linie, wird genau ihre Gruppe (und die Namen) neu gebaut.
+    // Ändert sich eine Linie, wird genau ihre Gruppe (und das Fach ihrer
+    // Namen) neu gebaut.
     final changed = mapLibrePolylineLayers(build([...other]), cache);
     expect(identical(changed.first, first.first), isTrue, reason: 'blaue Gruppe unverändert');
     expect(identical(changed[1], first[1]), isFalse, reason: 'rote Gruppe hat eine neue Liste');
-    expect(identical(changed.last, first.last), isFalse, reason: 'die Namen tragen die neue Linie');
+    LineLabelLayer labelsOf(List<ml.Layer> layers, String name) => layers
+        .whereType<LineLabelLayer>()
+        .firstWhere((l) => l.list.any((f) => f.properties['label'] == name));
+    expect(identical(labelsOf(changed, 'B'), labelsOf(first, 'B')), isFalse,
+        reason: 'die Namen tragen die neue Linie');
+    if (lineBucketOf(pts) != lineBucketOf(other)) {
+      expect(identical(labelsOf(changed, 'A'), labelsOf(first, 'A')), isTrue,
+          reason: 'das Fach der anderen Namen bleibt');
+    }
   });
 
   test('MapLibre: runde Ecken, Namen als Symbol-Ebene entlang der Linie, darüber, ab Zoom 14', () {

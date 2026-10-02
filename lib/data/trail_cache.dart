@@ -87,6 +87,40 @@ String encodeTrailCache({required String uid, required TrailSnapshot snapshot, r
       'reports': [for (final r in snapshot.reports) r.toRow()],
     });
 
+/// Derselbe Text wie [encodeTrailCache], aber in Häppchen: Nach jeweils
+/// [slice] Rechenzeit gibt es den Haupt-Thread frei, damit Eingaben und
+/// Bilder dazwischen drankommen (Feldbericht 2026-10-02). Die Linien sind
+/// der teure Teil — gemessen an 600 Trails 0,8 s am Stück, und das bei
+/// jedem Laden des Netzes. Kein Isolate: Das Kopieren des Stands hinüber
+/// kostete wieder den Haupt-Thread, und in der Test-Zone antwortet keins.
+Future<String> encodeTrailCacheInSlices({
+  required String uid,
+  required TrailSnapshot snapshot,
+  required DateTime savedAt,
+  Duration slice = const Duration(milliseconds: 4),
+}) async {
+  final out = StringBuffer()
+    ..write('{"uid":${jsonEncode(uid)},"saved_at":${jsonEncode(savedAt.toUtc().toIso8601String())},"recordings":[');
+  final clock = Stopwatch()..start();
+  for (var i = 0; i < snapshot.recordings.length; i++) {
+    if (i > 0) out.write(',');
+    out.write(jsonEncode(recordingToRow(snapshot.recordings[i])));
+    if (clock.elapsed >= slice) {
+      await Future<void>.delayed(Duration.zero);
+      clock.reset();
+    }
+  }
+  out
+    ..write('],"details":')
+    ..write(jsonEncode([for (final d in snapshot.details) detailsToRow(d)]))
+    ..write(',"notes":')
+    ..write(jsonEncode([for (final n in snapshot.notes) noteToRow(n)]))
+    ..write(',"reports":')
+    ..write(jsonEncode([for (final r in snapshot.reports) r.toRow()]))
+    ..write('}');
+  return out.toString();
+}
+
 /// Liest [text] zurück — `null`, wenn nichts Brauchbares darin steht oder
 /// der Inhalt einem anderen Konto gehört. Die Trails eines anderen
 /// Nutzers dürfen nie in einer fremden Sitzung auftauchen.
@@ -124,6 +158,23 @@ class FileTrailCache implements TrailCache {
 
   static const dirName = 'trail_cache';
 
+  /// Schreiben und Löschen laufen nacheinander: Das Schreiben gibt
+  /// zwischendurch den Haupt-Thread frei ([encodeTrailCacheInSlices]),
+  /// und zwei Läufe zugleich teilten sich sonst die `.part`-Datei — oder
+  /// ein Schreiben legte die Kopie nach dem Abmelden wieder an.
+  Future<void> _queue = Future.value();
+
+  /// Zählt die Aufträge: Ein Schreiben, hinter dem schon ein neueres oder
+  /// ein Löschen wartet, legt nichts mehr ab.
+  int _generation = 0;
+
+  Future<void> _enqueue(Future<void> Function(int generation) job) {
+    final generation = ++_generation;
+    final next = _queue.then((_) => job(generation));
+    _queue = next.catchError((Object _) {});
+    return next;
+  }
+
   Future<File> _file() async {
     final base = _baseDirOverride ?? await getApplicationSupportDirectory();
     final dir = Directory('${base.path}/$dirName');
@@ -135,17 +186,21 @@ class FileTrailCache implements TrailCache {
   /// Datei hinterlassen — das wäre genau der Zustand, den die Kopie
   /// beseitigen soll.
   @override
-  Future<void> write({required String uid, required TrailSnapshot snapshot, required DateTime savedAt}) async {
-    try {
-      final file = await _file();
-      final temp = File('${file.path}.part');
-      await temp.writeAsString(encodeTrailCache(uid: uid, snapshot: snapshot, savedAt: savedAt), flush: true);
-      await temp.rename(file.path);
-    } catch (_) {
-      // Volle Platte, fehlende Rechte: Dann gibt es eben keine Kopie. Der
-      // Abruf war erfolgreich und darf daran nicht scheitern.
-    }
-  }
+  Future<void> write({required String uid, required TrailSnapshot snapshot, required DateTime savedAt}) =>
+      _enqueue((generation) async {
+        try {
+          if (generation != _generation) return;
+          final text = await encodeTrailCacheInSlices(uid: uid, snapshot: snapshot, savedAt: savedAt);
+          if (generation != _generation) return;
+          final file = await _file();
+          final temp = File('${file.path}.part');
+          await temp.writeAsString(text, flush: true);
+          await temp.rename(file.path);
+        } catch (_) {
+          // Volle Platte, fehlende Rechte: Dann gibt es eben keine Kopie. Der
+          // Abruf war erfolgreich und darf daran nicht scheitern.
+        }
+      });
 
   @override
   Future<({TrailSnapshot snapshot, DateTime savedAt})?> read({required String uid}) async {
@@ -162,14 +217,14 @@ class FileTrailCache implements TrailCache {
   /// Beim Abmelden: Das Netz des abgemeldeten Kontos hat auf dem Gerät
   /// nichts mehr verloren — es ist eine Kopie, es geht nichts verloren.
   @override
-  Future<void> clear() async {
-    try {
-      final file = await _file();
-      if (await file.exists()) await file.delete();
-    } catch (_) {
-      // Ein Löschfehler darf das Abmelden nicht aufhalten.
-    }
-  }
+  Future<void> clear() => _enqueue((_) async {
+        try {
+          final file = await _file();
+          if (await file.exists()) await file.delete();
+        } catch (_) {
+          // Ein Löschfehler darf das Abmelden nicht aufhalten.
+        }
+      });
 }
 
 /// Kein Ort zum Ablegen: der Web-Zweig, bewusst (#32; IndexedDB wie in
@@ -207,7 +262,9 @@ Future<TrailSnapshotResult> fetchWithCache({
     if (cached == null) rethrow;
     return (snapshot: cached.snapshot, cachedAt: cached.savedAt);
   }
-  await cache.write(uid: uid, snapshot: snapshot, savedAt: now);
+  // Nicht abgewartet: Die Kopie ist für das NÄCHSTE Mal; die Karte soll
+  // nicht warten, bis Megabytes auf der Platte liegen.
+  unawaited(cache.write(uid: uid, snapshot: snapshot, savedAt: now));
   return (snapshot: snapshot, cachedAt: null);
 }
 

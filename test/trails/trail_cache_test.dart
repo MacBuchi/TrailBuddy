@@ -116,6 +116,13 @@ void main() {
     expect(decodeTrailCache('{"uid":"me"}', uid: 'me'), isNull);
   });
 
+  test('in Häppchen geschrieben ist es derselbe Text (Feldbericht 2026-10-02)', () async {
+    final whole = encodeTrailCache(uid: 'me', snapshot: snapshot, savedAt: at);
+    // Ohne Rechenzeit je Häppchen gibt es nach JEDER Linie den Haupt-Thread frei.
+    expect(await encodeTrailCacheInSlices(uid: 'me', snapshot: snapshot, savedAt: at, slice: Duration.zero), whole);
+    expect(await encodeTrailCacheInSlices(uid: 'me', snapshot: snapshot, savedAt: at), whole);
+  });
+
   group('FileTrailCache', () {
     late Directory dir;
     setUp(() async => dir = await Directory.systemTemp.createTemp('trail_cache_'));
@@ -132,6 +139,21 @@ void main() {
       expect(files.where((p) => p.endsWith('.part')), isEmpty);
       await cache.clear();
       expect(await cache.read(uid: 'me'), isNull);
+    });
+
+    test('Schreiben nacheinander: ein Löschen danach gewinnt, und das letzte Schreiben', () async {
+      final cache = FileTrailCache(baseDir: dir);
+      // Das Abmelden kommt, während die Kopie noch geschrieben wird: Sie
+      // darf danach nicht wieder dastehen.
+      unawaited(cache.write(uid: 'me', snapshot: snapshot, savedAt: at));
+      await cache.clear();
+      expect(await cache.read(uid: 'me'), isNull);
+      unawaited(cache.write(uid: 'me', snapshot: snapshot, savedAt: at));
+      await cache.write(uid: 'other', snapshot: snapshot, savedAt: at);
+      expect(await cache.read(uid: 'me'), isNull, reason: 'das ältere Schreiben ist übersprungen');
+      expect(await cache.read(uid: 'other'), isNotNull);
+      final files = dir.listSync(recursive: true).map((f) => f.path).toList();
+      expect(files.where((p) => p.endsWith('.part')), isEmpty);
     });
 
     test('schreiben wirft nie, auch wenn es nicht geht', () async {

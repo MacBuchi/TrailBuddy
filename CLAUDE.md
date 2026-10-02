@@ -338,6 +338,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   (0,2 ms). Die Glättung nur an Ecken hält die Punkte beim 2,5-Fachen
   statt beim 7,7-Fachen. Wer die Punktlisten je Aufbau neu anlegt, hebt
   den Cache aus — der Test in `trail_line_look_test.dart` hält es fest.
+  Seit 0.82.1 hängt die Glättung an der PUNKTLISTE, nicht am Trail, und
+  die Ebenen gleicht `keyed_layers.dart` ab (siehe „Speichern ohne
+  Neuladen des Netzes").
 - **Bewegung** (Design 1p–1t, seit 0.45.0, `lib/core/widgets/motion.dart`,
   `start_splash.dart`): Splash, Loader, Ring um den Punkt während der
   Fahrt, „zwei Spuren werden eine" beim Verbinden, atmender Rand bei
@@ -1131,6 +1134,77 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Gemessen: Prüfer vorher in einem von drei Läufen rot, danach 4/4 grün. `--no-web-resources-cdn` in jedem
   Web-Build, `--base-href /trailbuddy/`. Geprüft im echten Chrome
   (`tool/check_service_worker.mjs`, Job „Build Web").
+- **Speichern ohne Neuladen des Netzes** (seit 0.82.1, Feldbericht
+  2026-10-02 „abgestürzt beim Eintragen von Trail-Details, z. B. URL oder
+  Sterne"; im Digest 2026-W40 ein ANR aus 0.82.0, Haupt-Thread 5 s in
+  einem Systemaufruf, RSS 868 MB). Gemessen an 600 Trails
+  (`test/perf/network_reload_measure.dart`, kein `_test`, auf dem
+  Rechner): Ein Stern kostete den Haupt-Thread 0,3 s Netz lesen, 0,9 s
+  Karte (alles neu geglättet, 33 MB GeoJSON an MapLibre) und 0,7 s Kopie
+  schreiben — teils mehrmals je Speichern. Jetzt 60 ms und 0 Byte an
+  MapLibre; ein S-Grad, der die Linienfarbe ändert, zwei Fächer. Ob das
+  der ANR war, ist nicht belegt; die Kosten sind es. Vier Teile, jeder
+  mit eigenem Test:
+  - **Nachgelesen wird, was geschrieben wurde** (`_rereadAfterWrite` in
+    `TrailsNotifier`): `saveDetails` liest die Beiträge, `report` die
+    Meldungen (und Hinweise, wenn einer dabei war), `addNote`/`deleteNote`
+    die Hinweise. Read-after-write bleibt — nur nicht mehr für jede Linie.
+    Die Zusagen sind die von `reloadAfterWrite` (wirft nicht, `false` heißt
+    „geschrieben, Anzeige alt", Fehler mit Kontext nach `error_reports`).
+    Stammt der Stand aus der Kopie oder gibt es keinen, lädt es ganz neu.
+    Die Kopie wird dann mit dem Zeitpunkt des letzten GANZEN Abrufs
+    geschrieben — die Linien darin sind nicht jünger.
+    `contribute`, `withdraw` und der Ausgangskorb laden weiter ganz.
+    `write_feedback_flow_test` zählt die Linien-Abrufe (Gegenprobe: rot).
+  - **Unverändertes bleibt dasselbe Objekt** (`lib/data/trail_sharing.dart`):
+    `shareSnapshot` tauscht jede gleiche Zeile gegen die vom letzten Mal
+    („gleich" = dieselbe Zeile wie in der Kopie, Linien Punkt für Punkt),
+    `buildTrails(previous:)` gibt einen Trail mit lauter gleichen Objekten
+    als denselben Trail zurück. Daran hängen `Trail.best` und
+    `Trail.elevation` (beide `late final`), die geglättete Linie
+    (`_smoothCache` an `t.points`), die Ebenen in `MapLibreLineCache` und
+    die Deckung im Blatt (`OfficialSignposts`).
+  - **Die Ebenen nach Kennung, nicht nach Position**
+    (`lib/features/map/map_view/keyed_layers.dart`): Das Paket gleicht
+    `MapLibreMap.layers` nach dem INDEX ab — eine vorn eingefügte Ebene
+    (Leuchtrand beim Antippen, Genauigkeitskreis, eine neue Stilgruppe,
+    weil ein Trail beim Speichern blass wird) ließ es JEDE folgende neu
+    übertragen und neu anlegen. Die Engine gibt dem Paket deshalb
+    `layers: const []` und gleicht selbst ab: Kennung je Stil und Fach
+    (`line:<Stil>#<Fach>:<Teil>`, `labels#<Fach>`, `poly:…`, `circle:<i>`),
+    fester Platz (`maplibre-source/layer-<slot>`), neu = unter die
+    nächste vorhandene Ebene, geändert = nur die Quelle (oder bei anderem
+    Stil die Ebene an ihrer Stelle), weg = entfernen. `onStyleLoaded`
+    (auch nach `setStyle`) setzt zurück und legt alles neu an; ein
+    gescheiterter Schritt wird gemeldet und beim nächsten Abgleich unter
+    neuem Platz neu angelegt. **Fächer** (`kLineBuckets` = 8,
+    `lineBucketOf`: erster Punkt, gemischt gehasht — eine bloße Summe legte
+    regelmäßig liegende Linien alle in ein Fach): Eine Änderung überträgt
+    ein Achtel einer Farbe, nicht die Farbe. `keyed_layers_test.dart`
+    prüft Plan und Ausführung gegen einen mitschreibenden Stil; die
+    Platform-View selbst sieht nur das Gerät.
+  - **Die Kopie in Häppchen, nacheinander, nicht abgewartet**
+    (`encodeTrailCacheInSlices`, 4 ms je Häppchen, dazwischen ein Takt der
+    Ereignisschleife; `FileTrailCache` reiht Schreiben und Löschen
+    hintereinander, ein überholtes Schreiben fällt weg, ein Löschen beim
+    Abmelden gewinnt). Kein Isolate: Das Kopieren des Stands hinüber
+    kostete wieder den Haupt-Thread, und in der Test-Zone antwortet keins
+    (hier beim Messen erneut gesehen). `fetchWithCache` wartet nicht mehr
+    darauf — die Kopie ist für das NÄCHSTE Mal.
+  Offen, bewusst: Ein GANZES Neuladen (Start, Zurückkehren des Netzes,
+  Ausgangskorb) liest und parst das Netz weiter auf dem Haupt-Thread
+  (0,3 s bei 600 Trails); die Karte überträgt danach dank Teilen nichts.
+- **Die Tastatur überlagert, sie schiebt nicht** (seit 0.82.1, Feldbericht
+  2026-10-02 „abgestürzt beim Eintragen von Trail-Details"; PilzBuddy
+  #397): `resizeToAvoidBottomInset: false` an der Hülle (`router.dart`)
+  UND am Scaffold der Karte. Die Karte hat kein Textfeld, alle liegen in
+  Dialogen und Blättern darüber; ausweichend schrumpfte sie Bild für Bild
+  der Tastatur-Animation, und mit ihr die native Fläche von MapLibre. Im
+  Digest 2026-W40 stand dazu ein ANR aus 0.82.0 (Haupt-Thread in einem
+  Systemaufruf, RSS 868 MB) — der Zusammenhang ist möglich, nicht
+  belegt, und Sterne öffnen keine Tastatur (siehe darüber). Ein neues Textfeld IM Body der Karte müsste sein Inset selbst
+  einrechnen. `test/flows/keyboard_inset_flow_test.dart` (Gegenprobe
+  ohne die Zeile: rot).
 - **Zurück nach Hierarchie** (#175, seit 0.76.0): Erst schließt, was
   oben liegt (Dialog, Blatt, Unterseite — der Navigator des Reiters bzw.
   der Wurzel-Navigator, go_router fragt sie in dieser Reihenfolge), auf
@@ -2012,7 +2086,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
 ## Code-Konventionen
 
 Wie PilzBuddy: Business-Logik in Repositories, Mutationen per
-`reloadAfterWrite`, `mounted` nach jedem `await`, `requireUid` statt
+`reloadAfterWrite` (am Trail-Netz gezielt per `_rereadAfterWrite`, siehe
+„Speichern ohne Neuladen des Netzes"), `mounted` nach jedem `await`, `requireUid` statt
 `currentUser!.id`, `catch (_) {}` nur mit Grund. Farben aus
 `lib/core/app_colors.dart` (Marke Lime `AppColors.brand`, hell und dunkel
 als `AppPalette`, gelesen mit `AppPalette.of(context)`; Text in Marke,
