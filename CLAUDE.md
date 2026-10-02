@@ -1131,6 +1131,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Gemessen: Prüfer vorher in einem von drei Läufen rot, danach 4/4 grün. `--no-web-resources-cdn` in jedem
   Web-Build, `--base-href /trailbuddy/`. Geprüft im echten Chrome
   (`tool/check_service_worker.mjs`, Job „Build Web").
+- **Die Tastatur überlagert, sie schiebt nicht** (seit 0.82.1, Feldbericht
+  2026-10-02 „abgestürzt beim Eintragen von Trail-Details"; PilzBuddy
+  #397): `resizeToAvoidBottomInset: false` an der Hülle (`router.dart`)
+  UND am Scaffold der Karte. Die Karte hat kein Textfeld, alle liegen in
+  Dialogen und Blättern darüber; ausweichend schrumpfte sie Bild für Bild
+  der Tastatur-Animation, und mit ihr die native Fläche von MapLibre. Im
+  Digest 2026-W40 stand dazu ein ANR aus 0.82.0 (Haupt-Thread in einem
+  Systemaufruf, RSS 868 MB) — der Zusammenhang ist naheliegend, nicht
+  belegt. Ein neues Textfeld IM Body der Karte müsste sein Inset selbst
+  einrechnen. `test/flows/keyboard_inset_flow_test.dart` (Gegenprobe
+  ohne die Zeile: rot).
 - **Zurück nach Hierarchie** (#175, seit 0.76.0): Erst schließt, was
   oben liegt (Dialog, Blatt, Unterseite — der Navigator des Reiters bzw.
   der Wurzel-Navigator, go_router fragt sie in dieser Reihenfolge), auf

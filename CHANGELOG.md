@@ -2,6 +2,16 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Kein Hänger mehr beim Tippen über der Karte
+
+*Version 0.82.1, 2026-10-02*
+
+- **Die Tastatur legt sich jetzt über die Karte**, statt sie Bild für
+  Bild kleiner zu rechnen. Beim Eintragen in „Mein Beitrag" konnte die
+  App dabei hängen bleiben, bis Android „App reagiert nicht" meldete.
+  Dasselbe gilt für jedes andere Textfeld über der Karte, etwa im
+  Zerlege-Blatt.
+
 ## Alte Fahrten zählen mit
 
 *Version 0.82.0, 2026-10-02*

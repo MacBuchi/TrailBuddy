@@ -941,6 +941,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       },
       child: Scaffold(
       key: _scaffoldKey,
+      // Die Tastatur ÜBERLAGERT die Karte, sie schiebt sie nicht — wie in
+      // der Hülle (`router.dart`) und in PilzBuddy (#397). Dieser Body
+      // hat kein einziges Textfeld; die Felder stecken in Dialogen und
+      // Blättern ÜBER der Karte („Mein Beitrag", Zerlege-Blatt). Ab Werk
+      // schrumpfte der Scaffold trotzdem um die Tastatur, und zwar Bild
+      // für Bild ihrer Animation: Die native Fläche von MapLibre wurde
+      // dabei bei jedem Bild neu bemessen. Das ist der naheliegende Grund
+      // für die Hänger beim Eintragen der Details (Feldbericht 2026-10-02;
+      // ANR „Input dispatching timed out" aus 0.82.0 im Digest 2026-W40,
+      // Haupt-Thread in einem Systemaufruf) — belegt ist er nicht, die
+      // Wirkung dieser Zeile schon (`keyboard_inset_flow_test`).
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           MapView(
