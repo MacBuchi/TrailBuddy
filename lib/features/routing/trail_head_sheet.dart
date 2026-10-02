@@ -160,7 +160,7 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
         // Die Trails, die der spaßige Weg mitnehmen darf, gleich mit —
         // ein Wechsel auf „Spaßig" lädt dann nicht neu.
         ..._funPool(from).expand((t) => t.points),
-      ]));
+      ]), fillOnline: LoopPrefs.parse(ref.read(settingsProvider).loopPlannerPrefs, _profile).fillOnline);
       if (!mounted) return;
       if (loaded.graph == null) {
         setState(() {
@@ -444,12 +444,11 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
           style: theme.textTheme.bodyMedium?.copyWith(color: palette.warningText),
         ),
       ],
-      if (_loaded?.partial ?? false) ...[
+      if (_loaded == null ? null : planningCoverageNote(_loaded!, what: 'der Weg') case final note?) ...[
         const SizedBox(height: 8),
         Text(
           key: const ValueKey('trail-head-partial'),
-          'Gerechnet über ${_loaded!.tilesFound} von ${_loaded!.tilesNeeded} Kacheln — nur dort kennt '
-          'die App die Wege. Ein Weg außerhalb deiner Bereiche kann kürzer sein.',
+          note,
           style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
       ],
@@ -496,9 +495,9 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
   String _blockerText(_Blocker b) => switch (b) {
         _Blocker.noPosition => 'Kein Standort — ohne ihn gibt es keinen Startpunkt. Erlaube '
             'TrailBuddy den Standort, oder nimm „Anfahrt": Die Navi-App kennt den Weg auch.',
-        _Blocker.noArea => 'Kein gespeicherter Bereich deckt den Weg von deinem Standort $_goal. '
-            'Gerechnet wird nur offline, aus deinen Bereichen — speichere einen '
-            'über den Knopf „Offline-Karten" auf der Karte.',
+        _Blocker.noArea => 'Kein gespeicherter Bereich deckt den Weg von deinem Standort $_goal, und online '
+            'kam kein Weg dazu (kein Empfang, oder „Fehlende Wege online ergänzen" in den Parametern des '
+            'Planers ist aus). Speichere einen Bereich über den Knopf „Offline-Karten" auf der Karte.',
         _Blocker.failed => 'Der Weg ließ sich nicht rechnen — ein Fehler, der gemeldet ist. '
             'Nimm „Anfahrt", die Navi-App kennt den Weg auch.',
       };

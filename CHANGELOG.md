@@ -2,6 +2,19 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Runden auch ohne gespeicherten Bereich
+
+*Version 0.78.0, 2026-10-02*
+
+- **Mit Empfang ergänzt der Planer fehlende Wege**: Was deine
+  gespeicherten Bereiche nicht tragen, holt er vom Kartenhost —
+  höchstens 75 Kacheln je Planung, nur für diese Sitzung. Eine Runde
+  oder der Weg zum Trail geht dann auch ganz ohne Bereich, und das
+  Ergebnis sagt, wie viele Kacheln online dazukamen.
+- **Offline-Lage zu Hause prüfen**: Unter Parameter lässt sich
+  „Fehlende Wege online ergänzen" abschalten — dann rechnet der Planer
+  wie im Funkloch, nur mit deinen Bereichen.
+
 ## Sofort sichtbar, auch im Funkloch
 
 *Version 0.77.1–0.77.2, 2026-10-02*

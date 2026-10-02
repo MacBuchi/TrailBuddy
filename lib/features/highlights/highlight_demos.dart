@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import '../coach/coach.dart';
 import '../help/map_tour.dart';
 import '../help/tab_tours.dart';
+import '../routing/road_graph_loader.dart' show kOnlineFillMaxTiles;
 
 /// Eine Vorführung: wo sie beginnt und was sie zeigt.
 class HighlightDemo {
@@ -98,6 +99,30 @@ CoachStep _profileRow(String id, String title, String text) => CoachStep(
 
 final kHighlightDemos = <String, HighlightDemo>{
   // ─── Highlights ────────────────────────────────────────────────
+  'online-fill': HighlightDemo(
+    route: '/',
+    script: _demo('online-fill', [
+      const CoachStep(
+        title: 'Wege vom Kartenhost',
+        text: 'Der Planer rechnet über die Wege deiner Bereiche. Mit Empfang '
+            'holt er, was fehlt, vom Kartenhost — höchstens $kOnlineFillMaxTiles '
+            'Kacheln je Planung, nur für diese Sitzung.',
+        lit: [MapCoach.loop],
+        gesture: CoachGesture.tap,
+        requires: [MapCoach.loop],
+      ),
+      CoachStep(
+        title: 'Offline prüfen',
+        text: 'Unter Parameter schaltest du „Fehlende Wege online ergänzen" ab — '
+            'dann rechnet er wie im Funkloch, und du siehst zu Hause, ob deine '
+            'Bereiche für die Runde reichen.',
+        scene: MapCoach.loopRail,
+        lit: const [MapCoach.loopRail],
+        ring: [MapCoach.loopRailButton('loop-rail-params')],
+        requires: const [MapCoach.loop],
+      ),
+    ]),
+  ),
   'map-legend': HighlightDemo(
     route: '/',
     script: _demo('map-legend', [

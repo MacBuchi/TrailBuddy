@@ -1707,8 +1707,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     — das Blatt IST der Tipp, ein zweiter Knopf davor wäre eine Hürde.
     Ohne Standort kein Startpunkt, und das Blatt sagt es und bietet die
     Anfahrt an. Ein getippter Startpunkt kommt mit dem Planer (Schritt 5).
-  - **Gerechnet wird nur aus den Bereichen** (Nicht-Ziel „kein Routing
-    über fremde Gegenden"); seit 0.74.0 über die Kacheln, die da sind,
+  - **Gerechnet wird aus den Bereichen** (Nicht-Ziel „kein Routing
+    über fremde Gegenden"; seit 0.78.0 mit Empfang ergänzt vom Host, #187); seit 0.74.0 über die Kacheln, die da sind,
     auch bei `partial` (siehe „Navigation rund"); der Rahmen aus
     Standort und Kopf bekommt `kTrailHeadMarginM` (500 m) Rand, sonst
     wäre er bei zwei Punkten auf einer Linie null Meter breit. Ohne
@@ -1831,7 +1831,17 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `loadRoadGraph(requireComplete: false)`): Das Rechteck um Start und
     Trails füllt ein Bereich „Entlang meiner Trails" nie, bis 0.73.0
     scheiterte die Planung deshalb fast immer. Das Blatt sagt „x von y
-    Kacheln". Was aufhält, steht OBEN (`loop-blocker`); Rechnen läuft in
+    Kacheln". **Mit Empfang kommen die fehlenden vom Host** (#187, seit
+    0.78.0, `online_fill.dart`): letzte Quelle hinter den Bereichen,
+    nächst der Mitte zuerst, höchstens `kOnlineFillMaxTiles` (75) je
+    Planung plus ihre Höhenkacheln (R2-Class-B, #55), 10 s Frist je
+    Schritt, ein Netzfehler beendet nur das Nachladen; nur für die
+    Sitzung im Speicher (`OnlineTileCache`, Behalten ist #155);
+    abschaltbar über `LoopPrefs.fillOnline` („Fehlende Wege online
+    ergänzen", gilt auch für den Weg zum Trail). Was das Blatt dazu sagt,
+    steht an EINER Stelle (`planningCoverageNote`). Der Harness hat kein
+    Manifest, also kein Nachladen; Tests ersetzen
+    `onlineFillFactoryProvider`. Was aufhält, steht OBEN (`loop-blocker`); Rechnen läuft in
     `try`, ein Fehler ist ein Satz plus `logError`, und vor der Rechnung
     gibt es ein Bild Kreisel (`endOfFrame`).
   - **Trails auf dem Graphen** (`trail_overlay.dart`, `applyTrails`):

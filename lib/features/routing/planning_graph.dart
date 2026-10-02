@@ -13,6 +13,7 @@
 // einzige Kachel gibt es weiter keinen Plan.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/connectivity.dart';
 import '../../core/errors.dart';
 import '../../core/line_geometry.dart';
 import '../../models/trail.dart';
@@ -22,6 +23,7 @@ import '../offline_areas/height_tiles.dart';
 import '../rides/road_index.dart' show RoadCoverage;
 import '../trails/trail_providers.dart';
 import 'loop_planner.dart' show graphTrailsOf;
+import 'online_fill.dart';
 import 'road_graph.dart';
 import 'road_graph_loader.dart';
 import 'trail_head_route.dart' show kTrailHeadMarginM;
@@ -33,6 +35,9 @@ class PlanningGraph {
     required this.coverage,
     required this.tilesFound,
     required this.tilesNeeded,
+    this.tilesOnline = 0,
+    this.onlineCapped = false,
+    this.onlineBroken = false,
   });
 
   /// Null: keine einzige Kachel im Rahmen — kein Plan.
@@ -40,6 +45,15 @@ class PlanningGraph {
   final RoadCoverage coverage;
   final int tilesFound;
   final int tilesNeeded;
+
+  /// Davon vom Host nachgeladen (#187) — in [tilesFound] mitgezählt.
+  final int tilesOnline;
+
+  /// Es fehlten mehr Kacheln, als eine Planung online holt.
+  final bool onlineCapped;
+
+  /// Das Nachladen brach ab (Netz weg, Frist um).
+  final bool onlineBroken;
 
   /// Geplant über einen Teil der Kacheln: Ein Weg außerhalb kann kürzer
   /// sein, und das Blatt sagt es.
@@ -49,7 +63,10 @@ class PlanningGraph {
 /// Lädt den Graphen für den Rahmen um [points] (plus [kTrailHeadMarginM])
 /// und legt die sichtbaren Trails darauf. Wirft nie: Ein Fehler beim Lesen
 /// wird gemeldet und ergibt „keine Kachel".
-Future<PlanningGraph> loadPlanningGraph(Ref ref, LatBox box) async {
+///
+/// [fillOnline] erlaubt das Nachladen fehlender Kacheln vom Host — nur,
+/// wenn das Gerät Empfang meldet.
+Future<PlanningGraph> loadPlanningGraph(Ref ref, LatBox box, {bool fillOnline = true}) async {
   List<StoredArea> areas;
   try {
     areas = await ref.read(storedAreasProvider.future);
@@ -65,6 +82,12 @@ Future<PlanningGraph> loadPlanningGraph(Ref ref, LatBox box) async {
   }
   final store = ref.read(areaStoreProvider);
   final open = ref.read(areaArchiveOpenerProvider);
+  final online = fillOnline && !ref.read(noConnectivityProvider) ? ref.read(onlineFillFactoryProvider)() : null;
+  if (online != null) {
+    // Die Höhen der nachgeladenen Kacheln kommen als LETZTE Quelle dazu;
+    // der Leser der Bereiche gehört seinem Provider und bleibt offen.
+    heights = HeightReader([...?heights?.sources, online.heights]);
+  }
   RoadGraphLoadResult roads;
   try {
     roads = await loadRoadGraph(
@@ -74,10 +97,13 @@ Future<PlanningGraph> loadPlanningGraph(Ref ref, LatBox box) async {
       heights: heights,
       marginM: kTrailHeadMarginM,
       requireComplete: false,
+      fetchOnline: online?.fetch,
     );
   } catch (e, s) {
     logError('Wege für die Planung lesen', e, s);
     return const PlanningGraph(graph: null, coverage: RoadCoverage.none, tilesFound: 0, tilesNeeded: 0);
+  } finally {
+    await online?.close();
   }
   final graph = roads.graph;
   if (graph != null) {
@@ -93,10 +119,32 @@ Future<PlanningGraph> loadPlanningGraph(Ref ref, LatBox box) async {
     coverage: roads.coverage,
     tilesFound: roads.tilesFound,
     tilesNeeded: roads.tilesNeeded,
+    tilesOnline: roads.tilesOnline,
+    onlineCapped: roads.onlineCapped,
+    onlineBroken: roads.onlineBroken,
   );
+}
+
+/// Der Satz unter dem Ergebnis, wenn nicht alles aus den Bereichen kam —
+/// EINE Fassung für Runde und Weg. Null, wenn es nichts zu sagen gibt.
+String? planningCoverageNote(PlanningGraph g, {required String what}) {
+  if (g.graph == null) return null;
+  final online = g.tilesOnline;
+  final tiles = online == 1 ? '1 Kachel' : '$online Kacheln';
+  if (!g.partial) {
+    return online == 0 ? null : '$tiles online nachgeladen — ohne Empfang ginge $what so nicht.';
+  }
+  final head = 'Gerechnet über ${g.tilesFound} von ${g.tilesNeeded} Kacheln — nur dort kennt die App die Wege.';
+  if (online == 0) return '$head Ein Weg außerhalb deiner Bereiche kann kürzer sein.';
+  final rest = g.onlineCapped
+      ? 'mehr als $kOnlineFillMaxTiles holt eine Planung nicht'
+      : g.onlineBroken
+          ? 'dann riss die Verbindung ab'
+          : 'der Rest liegt außerhalb der Karte';
+  return '$head $tiles davon online nachgeladen — $rest.';
 }
 
 /// Ein Provider, damit die Blätter [loadPlanningGraph] mit IHREM `ref`
 /// rufen können (`WidgetRef` ist kein `Ref`) und Tests die Naht haben.
-final planningGraphLoaderProvider = Provider<Future<PlanningGraph> Function(LatBox box)>(
-    (ref) => (box) => loadPlanningGraph(ref, box));
+final planningGraphLoaderProvider = Provider<Future<PlanningGraph> Function(LatBox box, {bool fillOnline})>(
+    (ref) => (box, {fillOnline = true}) => loadPlanningGraph(ref, box, fillOnline: fillOnline));

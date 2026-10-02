@@ -5,6 +5,7 @@
 // speichern", „Als GPX"; der getippte Start, und die Fälle, in denen
 // nichts gerechnet werden kann (kein Bereich, kein Standort).
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,8 @@ import 'package:trailbuddy/features/offline_areas/area_plan.dart';
 import 'package:trailbuddy/features/routing/trail_head_providers.dart' show RouteMode;
 import 'package:trailbuddy/features/offline_areas/area_store.dart';
 import 'package:trailbuddy/features/offline_areas/pmtiles_writer.dart';
+import 'package:trailbuddy/features/map/pmtiles_tile_provider.dart';
+import 'package:trailbuddy/features/routing/online_fill.dart';
 import 'package:trailbuddy/features/trails/gpx.dart';
 import 'package:trailbuddy/models/trail.dart';
 
@@ -53,6 +56,27 @@ final _fromLat = math.max(_bounds.south + 0.0004, 48.0 - 0.003);
 /// meiner Trails", der das Rechteck um die Runde nie ganz deckt.
 Future<MemoryAreaStore> _areaWithTrack({bool onlyCenter = false}) async {
   final store = MemoryAreaStore();
+  final (:tiles, :bytes) = _trackArchive(onlyCenter: onlyCenter);
+  await store.putArchive('a', bytes);
+  await store.saveIndex([
+    StoredArea(
+      id: 'a',
+      name: 'Hausrunde',
+      bounds: const AreaBounds(south: 47.9, west: 8.9, north: 48.1, east: 9.1),
+      minZoom: 13,
+      maxZoom: 13,
+      build: '20260928',
+      tiles: tiles.length,
+      bytes: bytes.length,
+      savedAt: DateTime.utc(2026, 9, 28),
+    ),
+  ]);
+  return store;
+}
+
+/// Die Kacheln mit dem Forstweg als Archiv — für einen Bereich oder als
+/// Archiv des Kartenhosts (#187).
+({List<TileToWrite> tiles, Uint8List bytes}) _trackArchive({bool onlyCenter = false}) {
   final tiles = <TileToWrite>[];
   final reach = onlyCenter ? 0 : 1;
   for (var dx = -reach; dx <= reach; dx++) {
@@ -71,21 +95,7 @@ Future<MemoryAreaStore> _areaWithTrack({bool onlyCenter = false}) async {
     tileCompression: Compression.none,
     bounds: const TileBounds(west: 8.9, south: 47.9, east: 9.1, north: 48.1),
   );
-  await store.putArchive('a', bytes);
-  await store.saveIndex([
-    StoredArea(
-      id: 'a',
-      name: 'Hausrunde',
-      bounds: const AreaBounds(south: 47.9, west: 8.9, north: 48.1, east: 9.1),
-      minZoom: 13,
-      maxZoom: 13,
-      build: '20260928',
-      tiles: tiles.length,
-      bytes: bytes.length,
-      savedAt: DateTime.utc(2026, 9, 28),
-    ),
-  ]);
-  return store;
+  return (tiles: tiles, bytes: bytes);
 }
 
 void main() {
@@ -114,7 +124,10 @@ void main() {
   });
 
   Future<void> start(WidgetTester tester,
-      {MemoryAreaStore? areaStore, FakePositionFix? positionFix, FakeSettings? settings}) async {
+      {MemoryAreaStore? areaStore,
+      FakePositionFix? positionFix,
+      FakeSettings? settings,
+      OnlineFill Function()? onlineFill}) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -124,7 +137,10 @@ void main() {
         rideStore: rides,
         positionFix: positionFix ?? FakePositionFix(fakePosition(_fromLat, _lon)),
         settings: settings,
-        extraOverrides: [gpxShareProvider.overrideWithValue(recorder)]);
+        extraOverrides: [
+          gpxShareProvider.overrideWithValue(recorder),
+          if (onlineFill != null) onlineFillFactoryProvider.overrideWithValue(onlineFill),
+        ]);
     await settle(tester, frames: 20);
   }
 
@@ -336,6 +352,74 @@ void main() {
     expect(find.byKey(const ValueKey('loop-blocker')), findsOneWidget);
     expect(find.textContaining('Kein gespeicherter Bereich'), findsOneWidget);
     expect(trailLines(tester), isEmpty);
+  });
+
+  testWidgets('#187: ohne Bereich, aber mit Empfang — die Wege kommen vom Host, und das Blatt sagt es',
+      (tester) async {
+    final host = _trackArchive().bytes;
+    var opened = 0;
+    final cache = OnlineTileCache();
+    OnlineFill fill() => OnlineFill(
+          openRoads: () async {
+            opened++;
+            return PmTilesVectorTileProvider.openBytes(host);
+          },
+          openHeights: () async => null,
+          cache: cache,
+        );
+    await start(tester, onlineFill: fill);
+    await openPlanner(tester);
+    await zoomToTrails(tester);
+    await tapMapAt(tester, const LatLng(48.004, _lon));
+    await settle(tester);
+    await tapRail(tester, 'loop-rail-compute');
+    // Der Host liest echte Bytes; das Rechnen braucht ein paar Bilder mehr.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await settle(tester, frames: 30);
+    expect(find.byKey(const ValueKey('loop-blocker')), findsNothing);
+    expect(find.byKey(const ValueKey('loop-summary')), findsOneWidget);
+    expect(opened, 1);
+    final list = find
+        .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+        .first;
+    await tester.drag(list, const Offset(0, -500));
+    await settle(tester);
+    expect(find.textContaining('online nachgeladen'), findsOneWidget);
+    expect(cache.length, greaterThan(0), reason: 'die Kacheln bleiben für die Sitzung');
+  });
+
+  testWidgets('#187: „Fehlende Wege online ergänzen" aus — gerechnet wird wie ohne Empfang', (tester) async {
+    var opened = 0;
+    OnlineFill fill() => OnlineFill(
+          openRoads: () async {
+            opened++;
+            return PmTilesVectorTileProvider.openBytes(_trackArchive().bytes);
+          },
+          openHeights: () async => null,
+          cache: OnlineTileCache(),
+        );
+    final settings = FakeSettings();
+    await start(tester, onlineFill: fill, settings: settings);
+    await openPlanner(tester);
+    await tapRail(tester, 'loop-rail-params');
+    final toggle = find.byKey(const ValueKey('loop-fill-online'));
+    await tester.scrollUntilVisible(toggle, 200,
+        scrollable: find
+            .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+            .first);
+    await settle(tester, frames: 2);
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue, reason: 'ab Werk an');
+    await tester.tap(toggle);
+    await settle(tester);
+    expect(settings.loopPlannerPrefs, contains('o=0'), reason: 'das Gerät merkt es sich');
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester, frames: 20);
+    await zoomToTrails(tester);
+    await tapMapAt(tester, const LatLng(48.004, _lon));
+    await settle(tester);
+    await tapRail(tester, 'loop-rail-compute');
+    expect(find.byKey(const ValueKey('loop-blocker')), findsOneWidget);
+    expect(opened, 0, reason: 'aus heißt: keine Anfrage an den Host');
   });
 
   testWidgets('ohne Standort: der Grund steht im Blatt, gefragt wurde einmal', (tester) async {
