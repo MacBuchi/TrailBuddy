@@ -68,6 +68,33 @@ void main() {
     expect(await store.list(uid: 'other'), isEmpty);
   });
 
+  test('eine Fahrt aus GPX (#188) liegt mit Profil und Name da, ein zweites Mal nicht', () async {
+    final store = FileRideStore(baseDir: dir);
+    final pts = [for (var i = 0; i < 4; i++) point(i)];
+    expect(await store.saveImported(uid: 'me', name: 'Sonntagsrunde', points: pts, profile: 'ebike'),
+        ImportSave.saved);
+    final ride = (await store.list(uid: 'me')).single;
+    expect(ride.imported, isTrue);
+    expect(ride.planned, isFalse);
+    expect(ride.name, 'Sonntagsrunde');
+    expect(ride.profile, 'ebike');
+    expect(ride.startedAt, pts.first.at, reason: 'der Start ist der erste Punkt der Datei');
+    expect(ride.endedAt, pts.last.at);
+    expect(ride.points.map((p) => p.altM), [900, 899, 898, 897]);
+    expect(dir.listSync(recursive: true).where((f) => f.path.endsWith('.part')), isEmpty);
+    // Dieselbe Datei noch einmal: nichts geschrieben, nichts überschrieben.
+    expect(await store.saveImported(uid: 'me', name: 'anders', points: pts, profile: 'bio'),
+        ImportSave.exists);
+    expect((await store.list(uid: 'me')).single.name, 'Sonntagsrunde');
+    // Eine Aufzeichnung kennt das Feld nicht.
+    await store.begin(uid: 'me', startedAt: start.add(const Duration(hours: 3)));
+    await store.appendPoint(point(0));
+    await store.finish(uid: 'me', endedAt: start.add(const Duration(hours: 4)));
+    expect((await store.list(uid: 'me')).map((r) => r.imported), [false, true]);
+    expect(await store.list(uid: 'other'), isEmpty);
+    expect(await store.saveImported(uid: 'me', name: 'leer', points: const []), ImportSave.failed);
+  });
+
   test('Punkte überstehen Schreiben und Lesen, auch die Höhe', () async {
     final store = FileRideStore(baseDir: dir);
     await store.begin(uid: 'me', startedAt: start);

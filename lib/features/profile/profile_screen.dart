@@ -736,25 +736,7 @@ class _RiderProfileSectionState extends ConsumerState<_RiderProfileSection> {
       if (mounted) setState(() => _learning = false);
     }
     if (!mounted) return;
-    final learned = [
-      for (final p in RiderProfile.values)
-        if ((r.ridesByProfile[p] ?? 0) > 0)
-          '${p.label} aus ${r.ridesByProfile[p]} ${r.ridesByProfile[p] == 1 ? 'Fahrt' : 'Fahrten'} '
-              '(${r.sectionsByProfile[p] ?? 0} Aufstiege)',
-    ];
-    final String text;
-    if (r.rides == 0) {
-      text = 'Keine Fahrt auf diesem Gerät — gelernt wird nur aus eigenen Aufzeichnungen.';
-    } else if (r.usable == 0) {
-      text = 'Keine Fahrt mit Profil und Höhen — Fahrten seit 0.70.0 tragen beides.';
-    } else if (learned.isEmpty) {
-      text = r.withoutArea == r.usable
-          ? 'Kein gespeicherter Bereich deckt deine Fahrten — ohne Wege lässt sich kein Aufstieg einordnen.'
-          : 'Kein Aufstieg über 100 Höhenmeter am Stück gefunden — nichts zu lernen.';
-    } else {
-      text = 'Gelernt: ${learned.join(' · ')}.';
-    }
-    messenger.showSnackBar(SnackBar(content: Text(text)));
+    messenger.showSnackBar(SnackBar(content: Text(learnResultText(r))));
   }
 
   @override
@@ -838,7 +820,8 @@ class _RiderProfileSectionState extends ConsumerState<_RiderProfileSection> {
         ]),
         const SizedBox(height: 4),
         Text(
-          'Aus Zeit und GPS-Höhe deiner Aufzeichnungen: je Fahrt die Aufstiege ab 100 Höhenmetern '
+          'Aus Zeit und Höhe deiner Fahrten (Aufzeichnungen und per GPX-Import übernommene): '
+          'je Fahrt die Aufstiege ab 100 Höhenmetern '
           'am Stück, eingeordnet über die Wege deiner gespeicherten Bereiche, der Median je '
           'Wegklasse ab drei Aufstiegen. Nie aus Fahrten anderer; nichts verlässt das Gerät.',
           style: text.bodySmall,

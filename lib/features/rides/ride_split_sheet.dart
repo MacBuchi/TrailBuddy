@@ -57,15 +57,17 @@ class SplitRequest {
   /// Aus einer eigenen Fahrt. Die GPS-Höhe geht als Höhe hinein — für die
   /// Gefälle-Suche taugt sie, ausgeliefert wird sie NICHT (#28: „file
   /// elevations stay the source until measured"); [stripElevation] gilt.
+  /// Eine aus GPX übernommene Fahrt (#188) zählt wie die Datei, aus der
+  /// sie kam: Quelle `import`, Datei-Höhen gehen mit, keine Streuung.
   factory SplitRequest.fromRide(Ride ride) => SplitRequest(
         track: GpxTrack(
-          name: 'Fahrt',
+          name: ride.imported ? (ride.name ?? 'Fahrt') : 'Fahrt',
           points: [
             for (final p in ride.points) TrackPoint(p.lat, p.lng, ele: p.altM, time: p.at),
           ],
         ),
-        source: RecordingSource.app,
-        accuracyM: [for (final p in ride.points) p.accuracyM],
+        source: ride.imported ? RecordingSource.import : RecordingSource.app,
+        accuracyM: ride.imported ? null : [for (final p in ride.points) p.accuracyM],
         rideId: ride.id,
         marks: ride.marks,
       );

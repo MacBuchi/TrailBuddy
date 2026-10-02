@@ -117,6 +117,7 @@ class Ride {
     this.marks = const [],
     this.profile,
     this.planned = false,
+    this.imported = false,
     this.name,
   });
 
@@ -132,7 +133,15 @@ class Ride {
   /// was gefahren wurde, und das ist dann eine eigene Aufzeichnung.
   final bool planned;
 
-  /// Der Name einer geplanten Fahrt („Runde: Hexentanz, Steinbruch").
+  /// Eine aus einer GPX-Datei übernommene Fahrt (#188): gemessen, aber
+  /// nicht von dieser App — Zeit und Höhe stammen aus der Datei, eine
+  /// Streuung je Punkt gibt es nicht (gespeichert als 0, gelesen wird sie
+  /// nicht: [SplitRequest.fromRide] lässt sie weg). Ihre Höhen sind
+  /// DATEI-Höhen und gehen beim Zerlegen mit hinaus wie beim Import.
+  final bool imported;
+
+  /// Der Name einer geplanten Fahrt („Runde: Hexentanz, Steinbruch") oder
+  /// der Spur einer übernommenen Datei.
   final String? name;
 
   /// Das Fahrerprofil beim Start (`RiderProfile.name`, Konzept-Routing

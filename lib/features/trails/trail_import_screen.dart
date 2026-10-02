@@ -9,7 +9,12 @@ import '../../core/errors.dart';
 import '../../data/providers.dart';
 import '../../core/router_branches.dart';
 import '../../models/trail.dart';
+import '../profile/profile_providers.dart';
+import '../rides/ride_import.dart';
+import '../rides/ride_providers.dart';
 import '../rides/ride_split_sheet.dart';
+import '../routing/ride_calibrator.dart';
+import '../routing/route_profile.dart';
 import 'elevation_backfill.dart';
 import 'gpx.dart';
 import 'gpx_files.dart';
@@ -158,6 +163,60 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
   /// NACH der RPC weiß der Client, dass eine Kennung dazugehört.
   final _takeOverIds = <String>[];
 
+  /// Fahrten aufs Gerät (#188): mit welchem Profil gefahren (null = das
+  /// eingestellte), was daraus wurde und der Satz nach dem Lernen.
+  RiderProfile? _rideProfile;
+  ImportRidesResult? _ridesResult;
+  String? _learnText;
+  bool _learning = false;
+
+  /// Aufgezeichnete Fahrten der Auswahl — nur die taugen fürs Lernen.
+  List<ImportCandidate> get _rideCandidates => [
+        for (final c in _candidates)
+          if (c.kind == TrackKind.ride && c.source == RecordingSource.import) c,
+      ];
+
+  Future<void> _saveRides() async {
+    final RiderProfile profile = _rideProfile ?? ref.read(riderProfileProvider);
+    final tracks = [
+      for (final c in _rideCandidates)
+        (name: c.track.name, points: ridePointsOf(c.uploadTrack)),
+    ];
+    setState(() {
+      _busy = true;
+      _ridesResult = null;
+      _learnText = null;
+    });
+    ImportRidesResult r;
+    try {
+      r = await ref.read(ridesProvider.notifier).saveImported(tracks, profile: profile.name);
+    } catch (e, st) {
+      logError('Fahrten aus GPX speichern', e, st);
+      r = (saved: 0, existed: 0, failed: tracks.length);
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _ridesResult = r;
+    });
+  }
+
+  Future<void> _learnNow() async {
+    setState(() => _learning = true);
+    String text;
+    try {
+      text = learnResultText(await ref.read(riderCalibrationsProvider.notifier).learn());
+    } catch (e, st) {
+      logError('Aus Fahrten lernen', e, st);
+      text = 'Das Lernen ist fehlgeschlagen.';
+    }
+    if (!mounted) return;
+    setState(() {
+      _learning = false;
+      _learnText = text;
+    });
+  }
+
   Future<void> _pick() async {
     final List<PickedFile> picked;
     try {
@@ -195,6 +254,8 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
     ];
     setState(() {
       _result = null;
+      _ridesResult = null;
+      _learnText = null;
       _errors.addAll(unreadable);
       for (final f in files) {
         try {
@@ -503,10 +564,85 @@ class _TrailImportScreenState extends ConsumerState<TrailImportScreen> {
                   ? '${_selected.length} übernehmen'
                   : '${_selected.length} beisteuern'),
             ),
+            if (_rideCandidates.isNotEmpty && ref.watch(rideRecordingAvailableProvider))
+              ..._ridesSection(theme),
           ],
         ],
       ),
     );
+  }
+
+  /// Fahrten aufs Gerät, damit das Fahrerprofil aus ihnen lernt (#188).
+  /// Nur auf Android — im Browser gibt es „Meine Fahrten" nicht.
+  List<Widget> _ridesSection(ThemeData theme) {
+    final rides = _rideCandidates;
+    final n = rides.length;
+    final heightless = rides.where((c) => c.uploadTrack.points.any((p) => p.ele == null)).length;
+    final RiderProfile profile = _rideProfile ?? ref.watch(riderProfileProvider);
+    final r = _ridesResult;
+    return [
+      const SizedBox(height: 24),
+      Text('Fahrten für dein Fahrerprofil', style: theme.textTheme.titleSmall),
+      const SizedBox(height: 4),
+      Text(
+        '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} mit Fahrzeiten. Gespeichert liegen sie unter '
+        '„Meine Fahrten", und das Fahrerprofil lernt aus ihnen, wie schnell du bergauf '
+        'kommst. Sie bleiben auf diesem Gerät.'
+        '${heightless > 0 ? ' $heightless davon ohne Höhen — sie lernen nichts.' : ''}',
+        style: theme.textTheme.bodyMedium,
+      ),
+      const SizedBox(height: 8),
+      Text('Gefahren mit', style: theme.textTheme.labelLarge),
+      const SizedBox(height: 4),
+      SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<RiderProfile>(
+          key: const ValueKey('import-ride-profile'),
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+                value: RiderProfile.bio, icon: Icon(Icons.pedal_bike_outlined), label: Text('Bio-Bike')),
+            ButtonSegment(
+                value: RiderProfile.ebike, icon: Icon(Icons.electric_bike_outlined), label: Text('E-Bike')),
+          ],
+          selected: {profile},
+          onSelectionChanged: _busy ? null : (v) => setState(() => _rideProfile = v.single),
+        ),
+      ),
+      const SizedBox(height: 8),
+      FilledButton.tonalIcon(
+        key: const ValueKey('import-save-rides'),
+        onPressed: _busy ? null : _saveRides,
+        icon: const Icon(Icons.directions_bike),
+        label: Text('$n als ${n == 1 ? 'Fahrt' : 'Fahrten'} speichern'),
+      ),
+      if (r != null) ...[
+        const SizedBox(height: 8),
+        Text(
+          [
+            '${r.saved} gespeichert',
+            if (r.existed > 0) '${r.existed} schon auf dem Gerät',
+            if (r.failed > 0) '${r.failed} fehlgeschlagen',
+          ].join(' · '),
+          key: const ValueKey('import-rides-result'),
+          style: theme.textTheme.titleSmall,
+        ),
+        if (r.saved + r.existed > 0)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('import-learn'),
+              onPressed: _learning ? null : _learnNow,
+              icon: _learning
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.school_outlined),
+              label: const Text('Fahrerprofil jetzt lernen lassen'),
+            ),
+          ),
+        if (_learnText case final t?)
+          Text(t, key: const ValueKey('import-learn-result'), style: theme.textTheme.bodyMedium),
+      ],
+    ];
   }
 
   /// Der Tag der Fahrt, höchstens heute; gespeichert wird 12 Uhr

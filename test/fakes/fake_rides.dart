@@ -134,6 +134,28 @@ class FakeRideStore implements RideStore {
   }
 
   @override
+  Future<ImportSave> saveImported({
+    required String uid,
+    required String name,
+    required List<RidePoint> points,
+    String? profile,
+  }) async {
+    this.uid ??= uid;
+    final id = 'imported-${points.first.at.toIso8601String().replaceAll(RegExp(r'[-:.]'), '')}';
+    if (rides.any((r) => r.id == id)) return ImportSave.exists;
+    rides.add(Ride(
+        id: id,
+        startedAt: points.first.at,
+        endedAt: points.last.at,
+        points: points,
+        profile: profile,
+        imported: true,
+        name: name));
+    rides.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    return ImportSave.saved;
+  }
+
+  @override
   Future<List<Ride>> list({required String uid}) async =>
       [for (final r in rides) if (this.uid == uid) r];
 
