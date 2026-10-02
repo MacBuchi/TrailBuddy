@@ -2,6 +2,7 @@
 // Übersichtskarte aus den Assets, liest den Zoombereich aus dem
 // Archiv-Header und setzt daraus das Style-Dokument der MapLibre-Engine
 // zusammen.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -13,6 +14,7 @@ import 'package:pmtiles/pmtiles.dart';
 import '../../../core/app_colors.dart';
 import '../../../core/connectivity.dart';
 import '../../../core/errors.dart';
+import '../../../core/patience.dart';
 import '../../offline_areas/area_providers.dart';
 import '../../official/official_trails_source.dart';
 import '../base_map_providers.dart';
@@ -96,7 +98,25 @@ String cssColor(int argb) => '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, 
 /// Style-String; die Engine spielt ihn per `setStyle` ein.
 final maplibreStyleProvider = FutureProvider<String?>((ref) async {
   final noConnectivity = ref.watch(noConnectivityProvider);
-  final manifest = await ref.watch(mapManifestProvider.future);
+  // Nicht unbegrenzt auf das Manifest warten (#183): MapLibre zeichnet
+  // erst mit dem Stil, und bei einem Balken ohne Daten stand die Karte
+  // sonst leer, bis der Abruf aufgab. Nach [kMapManifestPatience] kommt
+  // die Übersicht, und ein spätes Manifest baut den Stil neu.
+  //
+  // Beobachtet wird das FUTURE, nicht der Zustand: Der wechselt beim
+  // Eintreffen, der Stil baute dann mitten im ersten Aufbau neu — und
+  // dessen `.future` erfüllte sich ohne Zuhörer nie (im Test gefunden).
+  var arrived = false;
+  final manifestFuture =
+      ref.watch(mapManifestProvider.future).whenComplete(() => arrived = true);
+  final manifest = await withinOrNull(manifestFuture, kMapManifestPatience);
+  if (!arrived) {
+    var current = true;
+    ref.onDispose(() => current = false);
+    unawaited(manifestFuture.then((late) {
+      if (current && late != null) ref.invalidateSelf();
+    }));
+  }
   final io = ref.watch(maplibreStyleIoProvider);
   // Die Quellenangabe der Behörden — nur solange die Ebene an ist und
   // eine ihrer Regionen geladen. `select` auf den Text: Der Controller

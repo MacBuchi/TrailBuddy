@@ -737,9 +737,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     // Verbindung zurück ⇒ Ausgangskorb losschicken (#30). Genau hier
     // und nicht am App-Resume: Wer aus dem Wald nach Hause kommt, ohne
     // die App zu schließen, hat kein Resume — aber einen Netzwechsel.
+    // Steht danach noch die Kopie (#183: Start ohne Empfang), holt die
+    // Karte den frischen Stand — sonst bliebe „Trails vom …" stehen, bis
+    // jemand von Hand neu lädt.
     ref.listen<bool>(noConnectivityProvider, (previous, next) {
       if (previous == true && next == false) {
-        unawaited(ref.read(trailsProvider.notifier).sendOutbox());
+        unawaited(() async {
+          await ref.read(trailsProvider.notifier).sendOutbox();
+          if (mounted && ref.read(trailsCachedAtProvider) != null) ref.invalidate(trailsProvider);
+        }());
       }
     });
     ref.listen(mapFocusRideProvider, (_, r) {
@@ -1180,7 +1186,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         key: const ValueKey('cached-notice'),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          child: Text('Kein Empfang — Trails vom ${formatCachedAt(cachedAt)}'),
+                          child: Text(ref.watch(trailsAwaitNetworkProvider)
+                              ? 'Trails vom ${formatCachedAt(cachedAt)} — das Netz antwortet noch'
+                              : 'Kein Empfang — Trails vom ${formatCachedAt(cachedAt)}'),
                         ),
                       ),
                     if (poiUnavailable)

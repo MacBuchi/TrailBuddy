@@ -3,6 +3,7 @@
 // sobald das Manifest da ist; die Übersicht darunter ohne Empfang oder
 // ohne Manifest; die gespeicherten Bereiche immer zuoberst (#82)" —
 // dieselbe wie in der flutter_map-Engine.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -125,6 +126,31 @@ void main() {
   test('online ohne Manifest (Host weg): die Übersicht ist die Karte', () async {
     final (container, _) = make(noConnectivity: false, manifest: null);
     expect(sourceIds(await styleOf(container)), ['overview']);
+  });
+
+  test('ein Manifest, das nicht kommt, hält die Karte nicht auf (#183) — kommt es spät, '
+      'wechselt der Stil', () async {
+    final late = Completer<MapManifest?>();
+    final io = _FakeIo();
+    final container = ProviderContainer(overrides: [
+      maplibreStyleIoProvider.overrideWithValue(io),
+      areaStoreProvider.overrideWithValue(MemoryAreaStore()),
+      noConnectivityProvider.overrideWithValue(false),
+      mapManifestLoaderProvider.overrideWithValue(() => late.future),
+      settingsProvider.overrideWithValue(FakeSettings()),
+      officialTrailsSourceProvider.overrideWithValue(FakeOfficialTrailsSource()),
+      officialTrailsCacheProvider.overrideWithValue(MemoryOfficialTrailsCache()),
+    ]);
+    addTearDown(container.dispose);
+    final sub = container.listen(maplibreStyleProvider, (_, _) {});
+    addTearDown(sub.close);
+    final watch = Stopwatch()..start();
+    expect(sourceIds(await styleOf(container)), ['overview']);
+    expect(watch.elapsed, lessThan(kMapManifestPatience + const Duration(seconds: 1)),
+        reason: 'die Übersicht nach der Frist, nicht nach dem Abbruch des Abrufs');
+    late.complete(_manifest);
+    await Future<void>.delayed(Duration.zero);
+    expect(sourceIds(await styleOf(container)), ['online']);
   });
 
   test('I/O-Fehler ⇒ null statt Wurf (die Engine fällt auf flutter_map zurück)', () async {

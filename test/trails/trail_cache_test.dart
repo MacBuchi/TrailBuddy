@@ -1,5 +1,6 @@
 // Die Kopie des Netzes (#32): Rundlauf Feld für Feld, fremdes Konto,
 // Datei über `.part` + `rename` — und die Regel „nur ohne Empfang".
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -182,6 +183,120 @@ void main() {
               fetch: () async => throw StateError('42501: RLS'),
               cache: cache, uid: 'me', now: at),
           throwsA(isA<StateError>()));
+    });
+  });
+
+  // Der Kaltstart (#183): ohne Empfang kam die Kopie erst nach den
+  // Wiederholungen von postgrest (rund 7 s). Jetzt nach einer kurzen Frist.
+  group('fetchWithCacheQuick', () {
+    const patience = Duration(milliseconds: 50);
+    FakeTrailCache filled() => FakeTrailCache()
+      ..uid = 'me'
+      ..snapshot = snapshot
+      ..savedAt = at;
+
+    ({List<TrailSnapshot> late, List<Object> errors, List<String> offline, List<String> waiting})
+        calls() => (late: [], errors: [], offline: [], waiting: []);
+
+    Future<TrailSnapshotResult> run(
+      Future<TrailSnapshot> Function() fetch,
+      FakeTrailCache cache,
+      ({List<TrailSnapshot> late, List<Object> errors, List<String> offline, List<String> waiting})
+          c, {
+      Duration p = patience,
+    }) =>
+        fetchWithCacheQuick(
+          fetch: fetch,
+          cache: cache,
+          uid: 'me',
+          now: at,
+          patience: p,
+          onLate: c.late.add,
+          onLateOffline: () => c.offline.add('offline'),
+          onLateError: (e, _) => c.errors.add(e),
+          onStillWaiting: () => c.waiting.add('waiting'),
+        );
+
+    test('das Netz antwortet in der Frist: frisch, wie bisher', () async {
+      final cache = filled();
+      final c = calls();
+      final r = await run(() async => snapshot, cache, c);
+      expect(r.cachedAt, isNull);
+      expect(cache.writes, 1);
+      expect(c.late, isEmpty);
+    });
+
+    test('schnell abgelehnt (Flugmodus): die Kopie, wie bisher', () async {
+      final c = calls();
+      final r = await run(() async => throw const SocketException('offline'), filled(), c);
+      expect(r.cachedAt, at);
+      expect(c.offline, isEmpty, reason: 'kein später Ausgang — das Netz ist schon fertig');
+      expect(c.waiting, isEmpty, reason: 'sonst hieße es „das Netz antwortet noch"');
+    });
+
+    test('das Netz zögert: SOFORT die Kopie, der frische Stand kommt nach', () async {
+      final net = Completer<TrailSnapshot>();
+      final cache = filled();
+      final c = calls();
+      final watch = Stopwatch()..start();
+      final r = await run(() => net.future, cache, c);
+      expect(r.cachedAt, at);
+      expect(watch.elapsed, lessThan(const Duration(seconds: 1)));
+      expect(c.waiting, hasLength(1));
+      expect(cache.writes, 0);
+      net.complete(snapshot);
+      await pumpEventQueue();
+      expect(c.late, hasLength(1));
+      expect(cache.writes, 1, reason: 'die Kopie ist neu, bevor der frische Stand gezeigt wird');
+    });
+
+    test('das Netz zögert und gibt dann auf: die Kopie bleibt', () async {
+      final net = Completer<TrailSnapshot>();
+      final c = calls();
+      await run(() => net.future, filled(), c);
+      net.completeError(const SocketException('offline'));
+      await pumpEventQueue();
+      expect(c.offline, hasLength(1));
+      expect(c.late, isEmpty);
+      expect(c.errors, isEmpty);
+    });
+
+    test('das Netz zögert und antwortet mit einem Serverfehler: der wird gemeldet', () async {
+      final net = Completer<TrailSnapshot>();
+      final c = calls();
+      await run(() => net.future, filled(), c);
+      net.completeError(StateError('42501: RLS kaputt'));
+      await pumpEventQueue();
+      expect(c.errors.single, isA<StateError>());
+    });
+
+    test('ohne Kopie wird gewartet — eine leere Karte vorab wäre keine Antwort', () async {
+      final net = Completer<TrailSnapshot>();
+      final c = calls();
+      var done = false;
+      final result = run(() => net.future, FakeTrailCache(), c).then((r) {
+        done = true;
+        return r;
+      });
+      await Future<void>.delayed(patience * 3);
+      expect(done, isFalse);
+      net.complete(snapshot);
+      expect((await result).cachedAt, isNull);
+      expect(c.late, isEmpty);
+    });
+
+    test('ohne Kopie und das Netz gibt auf: der Netzfehler', () async {
+      final net = Completer<TrailSnapshot>();
+      final result = run(() => net.future, FakeTrailCache(), calls());
+      await Future<void>.delayed(patience * 2);
+      net.completeError(const SocketException('offline'));
+      await expectLater(result, throwsA(isA<SocketException>()));
+    });
+
+    test('ohne Empfang gemeldet (Frist 0): die Kopie, ohne zu warten', () async {
+      final net = Completer<TrailSnapshot>();
+      final r = await run(() => net.future, filled(), calls(), p: Duration.zero);
+      expect(r.cachedAt, at);
     });
   });
 }

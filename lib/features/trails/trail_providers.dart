@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/connectivity.dart';
 import '../../core/errors.dart';
 import '../../core/read_after_write.dart';
 import '../../core/settings.dart';
@@ -51,10 +52,28 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
   /// der Korb gelegt wird, ohne dafür neu zu laden.
   List<Trail> _server = const [];
 
+  /// Aufträge, die gerade UNTERWEGS sind (#183): Sie stehen schon da wie
+  /// wartende, bis Schreiben UND Neuladen durch sind — sonst erschien ein
+  /// gesetzter S-Grad erst nach mehreren Abrufen, mit einem Balken nach
+  /// Sekunden. Kein optimistisches Update an der Regel vorbei: Was hier
+  /// steht, ist als „wird übertragen" gekennzeichnet, und ein Fehler
+  /// nimmt es sichtbar zurück.
+  final List<OutboxJob> _sending = [];
+
+  /// Für wen schon einmal etwas gezeigt wurde. Nur der ERSTE Abruf je
+  /// Konto darf die Kopie vorziehen ([fetchWithCacheQuick]); ein
+  /// Neuladen nach dem Schreiben muss sagen, ob es frisch ist.
+  String? _shownFor;
+
+  /// Zählt die Abrufe — ein später Netzstand gilt nur für den Abruf, der
+  /// ihn angestoßen hat.
+  int _builds = 0;
+
   @override
   Future<List<Trail>> build() async {
     final myId = ref.watch(currentUserIdProvider);
     if (myId == null) return const [];
+    final generation = ++_builds;
     // Ändert sich der Korb, wird NICHT neu vom Server geladen — ein
     // Auftrag entsteht ja gerade, weil es kein Netz gibt. Der Korb wird
     // auf den letzten bekannten Stand gelegt.
@@ -63,46 +82,115 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       if (jobs != null) _applyPending(jobs, myId);
     });
     final repo = ref.watch(trailRepositoryProvider);
+    Future<TrailSnapshot> fetch() async {
+      final results = await Future.wait([
+        repo.fetchRecordings(),
+        repo.fetchDetails(),
+        repo.fetchNotes(),
+        repo.fetchReports(),
+      ]);
+      return (
+        recordings: results[0] as List<TrailRecording>,
+        details: results[1] as List<TrailDetails>,
+        notes: results[2] as List<TrailNote>,
+        reports: results[3] as List<TrailReport>,
+      );
+    }
+
     // Netz zuerst, ohne Empfang die Kopie vom letzten Mal (#32) — ein
     // Serverfehler bleibt sichtbar, `fetchWithCache` liest die Kopie nur
-    // bei `looksOffline`.
-    final result = await fetchWithCache(
-      fetch: () async {
-        final results = await Future.wait([
-          repo.fetchRecordings(),
-          repo.fetchDetails(),
-          repo.fetchNotes(),
-          repo.fetchReports(),
-        ]);
-        return (
-          recordings: results[0] as List<TrailRecording>,
-          details: results[1] as List<TrailDetails>,
-          notes: results[2] as List<TrailNote>,
-          reports: results[3] as List<TrailReport>,
-        );
-      },
-      cache: ref.read(trailCacheProvider),
-      uid: myId,
-      now: DateTime.now(),
-    );
+    // bei `looksOffline`. Beim ersten Abruf wartet die Karte darauf nur
+    // kurz (#183): Ohne Empfang kam die Kopie sonst erst nach den
+    // Wiederholungen von postgrest, rund 7 s.
+    final cache = ref.read(trailCacheProvider);
+    final now = DateTime.now();
+    final TrailSnapshotResult result;
+    var waiting = false;
+    if (_shownFor == myId) {
+      result = await fetchWithCache(fetch: fetch, cache: cache, uid: myId, now: now);
+    } else {
+      bool current() => generation == _builds;
+      result = await fetchWithCacheQuick(
+        fetch: fetch,
+        cache: cache,
+        uid: myId,
+        now: now,
+        patience: ref.read(noConnectivityProvider) ? Duration.zero : kTrailsNetworkPatience,
+        onLate: (fresh) {
+          if (!current()) return;
+          ref.read(trailsAwaitNetworkProvider.notifier).state = false;
+          ref.read(trailsCachedAtProvider.notifier).set(null);
+          _server = _fromSnapshot(fresh, myId);
+          state = AsyncData(_compose(myId));
+        },
+        onLateOffline: () {
+          if (current()) ref.read(trailsAwaitNetworkProvider.notifier).state = false;
+        },
+        onStillWaiting: () => waiting = true,
+        onLateError: (error, stackTrace) {
+          if (!current()) return;
+          ref.read(trailsAwaitNetworkProvider.notifier).state = false;
+          logError('Trails laden', error, stackTrace);
+          state = AsyncError<List<Trail>>(error, stackTrace).copyWithPrevious(state);
+        },
+      );
+    }
+    _shownFor = myId;
     ref.read(trailsCachedAtProvider.notifier).set(result.cachedAt);
-    _server = buildTrails(
-      recordings: result.snapshot.recordings,
-      details: result.snapshot.details,
-      notes: result.snapshot.notes,
-      reports: result.snapshot.reports,
-      myId: myId,
-    );
+    // Kam die Kopie, weil das Netz zu langsam war, läuft es noch — die
+    // Hinweise sagen dann nicht „Kein Empfang".
+    if (generation == _builds) ref.read(trailsAwaitNetworkProvider.notifier).state = waiting;
+    _server = _fromSnapshot(result.snapshot, myId);
     final cached = ref.read(outboxJobsProvider).valueOrNull;
     final List<OutboxJob> jobs = cached ?? await ref.read(outboxJobsProvider.future);
-    return withPendingJobs(_server, jobs, myId: myId);
+    return _composeWith(jobs, myId);
   }
+
+  static List<Trail> _fromSnapshot(TrailSnapshot s, String myId) => buildTrails(
+        recordings: s.recordings,
+        details: s.details,
+        notes: s.notes,
+        reports: s.reports,
+        myId: myId,
+      );
+
+  /// Server-Stand plus Korb plus, was gerade unterwegs ist. Ein Auftrag,
+  /// der schon im Korb liegt, zählt dort — einen Augenblick lang ist er
+  /// beides, und eine Meldung stünde sonst doppelt da.
+  List<Trail> _composeWith(List<OutboxJob> jobs, String myId) {
+    final queued = {for (final j in jobs) j.id};
+    final sending = [for (final j in _sending) if (!queued.contains(j.id)) j];
+    return withPendingJobs(_server, [...jobs, ...sending],
+        myId: myId, sending: {for (final j in sending) j.id});
+  }
+
+  List<Trail> _compose(String myId) =>
+      _composeWith(ref.read(outboxJobsProvider).valueOrNull ?? const [], myId);
 
   void _applyPending(List<OutboxJob> jobs, String myId) {
     // Ohne je einen Server-Stand und ohne Aufträge gibt es nichts zu
     // zeigen — der Fehlerzustand bleibt dann stehen.
     if (!state.hasValue && jobs.isEmpty) return;
-    state = AsyncData(withPendingJobs(_server, jobs, myId: myId));
+    state = AsyncData(_composeWith(jobs, myId));
+  }
+
+  /// Legt [job] als „unterwegs" auf die Anzeige (#183) — sofort, vor dem
+  /// ersten Byte im Netz.
+  void _beginSending(OutboxJob job, String myId) {
+    _sending.add(job);
+    if (state.hasValue) state = AsyncData(_compose(myId));
+  }
+
+  /// Nimmt [job] wieder herunter. Ein Fehlerzustand des Neuladens bleibt
+  /// stehen ([reloadAfterWrite] hat ihn gesetzt), nur der Wert darunter
+  /// ändert sich.
+  void _endSending(OutboxJob job, String myId) {
+    if (!_sending.remove(job) || !state.hasValue) return;
+    final next = AsyncData(_compose(myId));
+    final current = state;
+    state = current is AsyncError<List<Trail>>
+        ? AsyncError<List<Trail>>(current.error, current.stackTrace).copyWithPrevious(next)
+        : next;
   }
 
   /// Steuert eine Spur bei: vereinfacht (mit Höhe, siehe [simplify]),
@@ -249,6 +337,8 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       String? note,
       DateTime? at}) async {
     final repo = ref.read(trailRepositoryProvider);
+    final myId = ref.read(currentUserIdProvider);
+    if (myId == null) throw const NotSignedInException();
     final text = note?.trim() ?? '';
     final job = ReportJob(
       id: newClientId(),
@@ -259,43 +349,53 @@ class TrailsNotifier extends AsyncNotifier<List<Trail>>
       onSite: onSite,
       note: text.isEmpty ? null : text,
     );
+    _beginSending(job, myId);
     try {
-      await repo.report(
-          trailId: trailId,
-          status: status,
-          condition: condition,
-          onSite: onSite,
-          reportedAt: job.createdAt,
-          clientId: job.id);
-      if (text.isNotEmpty) await repo.addNote(trailId: trailId, body: text);
-    } catch (error, stackTrace) {
-      await _queueIfOffline(error, stackTrace, job);
-      return WriteOutcome.queued;
+      try {
+        await repo.report(
+            trailId: trailId,
+            status: status,
+            condition: condition,
+            onSite: onSite,
+            reportedAt: job.createdAt,
+            clientId: job.id);
+        if (text.isNotEmpty) await repo.addNote(trailId: trailId, body: text);
+      } catch (error, stackTrace) {
+        await _queueIfOffline(error, stackTrace, job);
+        return WriteOutcome.queued;
+      }
+      return await reloadAfterWrite('Melden')
+          ? WriteOutcome.done
+          : WriteOutcome.doneStale;
+    } finally {
+      _endSending(job, myId);
     }
-    return await reloadAfterWrite('Melden')
-        ? WriteOutcome.done
-        : WriteOutcome.doneStale;
   }
 
   /// Speichert den eigenen Beitrag. Ohne Netz wartet er im Ausgangskorb
   /// (#30).
   Future<WriteOutcome> saveDetails(TrailDetails details) async {
     final repo = ref.read(trailRepositoryProvider);
+    final myId = ref.read(currentUserIdProvider);
+    if (myId == null) throw const NotSignedInException();
+    final job = DetailsJob(id: newClientId(), createdAt: DateTime.now().toUtc(), details: details);
+    // Sofort zeigen, was gesetzt wurde (#183) — verblasst, bis Schreiben
+    // und Neuladen durch sind. Ohne Netz übernimmt der Korb nahtlos: Der
+    // Auftrag liegt dort, bevor er hier heruntergenommen wird.
+    _beginSending(job, myId);
     try {
-      await repo.saveDetails(details);
-    } catch (error, stackTrace) {
-      await _queueIfOffline(
-          error,
-          stackTrace,
-          DetailsJob(
-              id: newClientId(),
-              createdAt: DateTime.now().toUtc(),
-              details: details));
-      return WriteOutcome.queued;
+      try {
+        await repo.saveDetails(details);
+      } catch (error, stackTrace) {
+        await _queueIfOffline(error, stackTrace, job);
+        return WriteOutcome.queued;
+      }
+      return await reloadAfterWrite('Trail-Beitrag speichern')
+          ? WriteOutcome.done
+          : WriteOutcome.doneStale;
+    } finally {
+      _endSending(job, myId);
     }
-    return await reloadAfterWrite('Trail-Beitrag speichern')
-        ? WriteOutcome.done
-        : WriteOutcome.doneStale;
   }
 
   Future<bool> addNote(String trailId, String body) async {
@@ -351,6 +451,11 @@ class TrailsCachedAtNotifier extends Notifier<DateTime?> {
 
 final trailsCachedAtProvider =
     NotifierProvider<TrailsCachedAtNotifier, DateTime?>(TrailsCachedAtNotifier.new);
+
+/// Die Kopie steht, weil das Netz beim Start zu langsam war — es läuft
+/// aber noch (#183). Dann sagen Karte und Liste nicht „Kein Empfang",
+/// sondern dass gleich der frische Stand kommt.
+final trailsAwaitNetworkProvider = StateProvider<bool>((ref) => false);
 
 /// Die Wiedervorlage (#30). Den Namen übernimmt sie über den Notifier,
 /// der den Bestand kennt und keinen bewusst eingetragenen überschreibt.

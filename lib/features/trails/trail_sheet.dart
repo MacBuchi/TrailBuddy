@@ -19,6 +19,7 @@ import 'gpx_writer.dart';
 import 'grade_shield.dart';
 import 'elevation_profile_chart.dart';
 import 'outbox_providers.dart';
+import 'pending_value.dart';
 import 'singletrail_scale.dart';
 import 'trail_elevation.dart';
 import 'trail_export.dart';
@@ -178,7 +179,10 @@ class _TrailSheetState extends ConsumerState<_TrailSheet> {
             if (trail.pendingDetails)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text('Dein Beitrag wartet auf Übertragung.',
+                child: Text(
+                    trail.sendingDetails
+                        ? 'Dein Beitrag wird übertragen …'
+                        : 'Dein Beitrag wartet auf Übertragung.',
                     key: const ValueKey('pending-details'),
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -695,17 +699,24 @@ class _OwnGradePickerState extends ConsumerState<OwnGradePicker> {
           runSpacing: 4,
           children: [
             for (final g in kSingletrailScale)
-              ChoiceChip(
-                key: ValueKey('own-grade-${g.value}'),
-                label: Text(g.label),
-                tooltip: g.short,
-                selected: mine == g.value,
-                onSelected: _saving
-                    ? null
-                    : (on) => _set(on ? g.value : null),
+              // Der eigene Grad steht sofort da (#183), verblasst, bis er
+              // auf dem Server liegt.
+              Opacity(
+                opacity: mine == g.value && widget.trail.pendingDetails ? kPendingValueOpacity : 1,
+                child: ChoiceChip(
+                  key: ValueKey('own-grade-${g.value}'),
+                  label: Text(g.label),
+                  tooltip: g.short,
+                  selected: mine == g.value,
+                  onSelected: _saving
+                      ? null
+                      : (on) => _set(on ? g.value : null),
+                ),
               ),
           ],
         ),
+        PendingValueCaption(
+            key: const ValueKey('own-grade-pending'), trail: widget.trail, hasValue: mine != null),
       ],
     );
   }

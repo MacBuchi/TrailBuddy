@@ -103,9 +103,23 @@ final heightsManifestProvider = FutureProvider<HeightsManifest?>((ref) async {
   }
 });
 
+/// Höchstens so lange wartet der Abruf des Manifests (#183). Ohne Grenze
+/// hing er bei „Netz gemeldet, aber nichts kommt durch" (ein Balken im
+/// Wald) bis zum Abbruch durch das System — eine halbe Minute und mehr.
+/// Danach gilt „kein Manifest": die Übersicht, und mit der Rückkehr des
+/// Netzes ein neuer Versuch.
+const kMapManifestTimeout = Duration(seconds: 10);
+
+/// Wie lange der MapLibre-Stil beim Aufbau auf das Manifest wartet, bevor
+/// er mit der Übersicht beginnt (#183). Kommt es später, baut der Stil
+/// neu und wechselt auf die Online-Karte. Kurz genug, dass die Karte im
+/// Funkloch sofort etwas zeigt, lang genug, dass sie mit Netz nicht erst
+/// die Übersicht und dann die Online-Karte zeichnet.
+const kMapManifestPatience = Duration(milliseconds: 1500);
+
 /// Holt das Manifest vom Host — die Naht, die Tests ersetzen (kein Netz).
 Future<MapManifest?> fetchMapManifest() async {
-  final response = await http.get(Uri.parse(kMapManifestUrl));
+  final response = await http.get(Uri.parse(kMapManifestUrl)).timeout(kMapManifestTimeout);
   if (response.statusCode != 200) {
     throw http.ClientException('Manifest: HTTP ${response.statusCode}');
   }

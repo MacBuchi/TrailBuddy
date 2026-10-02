@@ -2,6 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Sofort sichtbar, auch im Funkloch
+
+*Version 0.77.1, 2026-10-02*
+
+- **Was du setzt, steht sofort da**: Schwierigkeit, Sterne und
+  Meldungen erscheinen mit dem Tipp — blass und mit „wird übertragen",
+  bis sie angekommen sind. Ohne Netz bleiben sie blass stehen und
+  warten im Ausgangskorb. Lehnt der Server ab, verschwinden sie wieder,
+  und die App sagt es.
+- **Der Start ohne Empfang ist schneller**: Die Trails vom letzten Mal
+  stehen nach gut einer Sekunde da statt nach sieben. Antwortet das
+  Netz doch noch, kommt der frische Stand von selbst nach — und kommt
+  die Verbindung später zurück, auch.
+- **Die Karte bleibt im Funkloch nicht mehr leer**: Kommt die
+  Online-Karte nicht, zeigt sie gleich die mitgelieferte Übersicht und
+  wechselt, sobald die Online-Karte da ist.
+
 ## Die Legende auf der Karte
 
 *Version 0.77.0, 2026-10-02*

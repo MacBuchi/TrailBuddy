@@ -185,8 +185,11 @@ class _TrailsScreenState extends ConsumerState<TrailsScreen> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                     child: Text(
-                      'Kein Empfang — Stand vom ${formatCachedAt(cachedAt)}. '
-                      'Neue Beiträge deiner Buddys kommen mit dem nächsten Netz.',
+                      ref.watch(trailsAwaitNetworkProvider)
+                          ? 'Stand vom ${formatCachedAt(cachedAt)} — das Netz antwortet noch, '
+                              'der frische Stand kommt gleich.'
+                          : 'Kein Empfang — Stand vom ${formatCachedAt(cachedAt)}. '
+                              'Neue Beiträge deiner Buddys kommen mit dem nächsten Netz.',
                       key: const ValueKey('cached-notice-list'),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),

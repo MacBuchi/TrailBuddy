@@ -755,6 +755,20 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Ausgangskorb entfernen"). Angestoßen beim Kartenstart, bei der
     Rückkehr der Verbindung (`noConnectivityProvider`,
     `connectivity_plus`) und auf Tippen im Banner — NICHT am App-Resume.
+  - **Was gerade gesendet wird, steht schon da** (#183, seit 0.77.1):
+    `saveDetails` und `report` legen ihren Auftrag VOR dem Sendeversuch
+    als „unterwegs" auf die Anzeige (`_sending`, `withPendingJobs(sending:)`,
+    `Trail.sendingDetails`, `TrailReport.sending`) und nehmen ihn erst
+    nach Schreiben UND Neuladen herunter — vorher erschien ein S-Grad erst
+    nach fünf Abrufen. Der eigene Wert ist blass (`kPendingValueOpacity`,
+    `PendingValueCaption`: „wird übertragen …", im Korb „nur auf dem
+    Gerät — wartet auf Übertragung"). Ohne Netz liegt der Auftrag im Korb,
+    BEVOR er hier herunterkommt (kein Flackern, keine doppelte Meldung:
+    `_composeWith` zählt einen Auftrag, der in beiden steht, nur im
+    Korb); ein Serverfehler nimmt den Wert sichtbar zurück. Das ist kein
+    optimistisches Update an Read-after-write vorbei: Der Wert ist als
+    nicht übertragen gekennzeichnet, und der Server-Stand kommt danach
+    wie immer durch Neuladen. `test/flows/write_feedback_flow_test.dart`.
   - **Kein Korb im Web, ausdrücklich** (`NoOutbox`, `append` wirft): Dort
     kommt der Netzfehler wie bisher. IndexedDB (PilzBuddy #386) ist ein
     eigener Schritt. `outbox/` steht in beiden Backup-Ausschlüssen; beim
@@ -775,6 +789,22 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     Original trägt.
   - **Der Stand sagt sein Alter** (`trailsCachedAtProvider`): Karte
     („Kein Empfang — Trails vom …") und Liste. `null` heißt frisch.
+  - **Beim Kaltstart wartet die App nur kurz aufs Netz** (#183, seit
+    0.77.1, `fetchWithCacheQuick`): postgrest wiederholt ein GET bei
+    JEDEM Netzfehler dreimal mit 1, 2 und 4 s Pause — ohne Empfang kam
+    die Kopie so erst nach rund 7 s, bei einem Balken ohne Daten später.
+    Jetzt: Antwort in `kTrailsNetworkPatience` (1,5 s; 0, wenn
+    `noConnectivityProvider` schon „kein Netz" sagt) ⇒ wie bisher; sonst
+    sofort die Kopie, und das Netz läuft weiter. Kommt es, ersetzt es die
+    Kopie (und schreibt sie neu); gibt es auf, bleibt die Kopie; ein
+    Serverfehler setzt `AsyncError` über die Kopie. Solange es läuft,
+    sagen die Hinweise „das Netz antwortet noch" statt „Kein Empfang"
+    (`trailsAwaitNetworkProvider`). Ohne Kopie wird gewartet. Nur der
+    ERSTE Abruf je Konto (`_shownFor`) — ein Neuladen nach dem Schreiben
+    muss sagen, ob es frisch ist. Kehrt die Verbindung zurück und steht
+    noch die Kopie, lädt die Karte neu. Im Test: Ein zweites `pumpApp`
+    behält den ProviderScope und ist KEIN Kaltstart — vorher
+    `pumpWidget(SizedBox())`.
   - **Abmelden und Kontolöschung räumen die Kopie ab** (Profil), der
     Ausgangskorb bleibt. Kein Korb/keine Kopie im Web, bewusst; IndexedDB
     (PilzBuddy #385) ist ein eigener Schritt. Der Harness hängt
@@ -850,7 +880,15 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     OSM-Raster mehr, auf keiner Plattform. Ohne Empfang wird das Manifest
     gar nicht erst geholt; ohne Manifest (Host weg, Datei kaputt) ist die
     Übersicht die Karte — still, und nur ein Fehler, der nicht nach
-    Funkloch aussieht, wird gemeldet. Die Adresse ist eine KONSTANTE, keine
+    Funkloch aussieht, wird gemeldet. **Das Manifest hat eine Frist**
+    (#183, `kMapManifestTimeout`, 10 s), und der MapLibre-Stil wartet
+    darauf nur `kMapManifestPatience` (1,5 s, `withinOrNull` in
+    `lib/core/patience.dart`), dann zeichnet er die Übersicht und baut bei
+    spätem Manifest neu — bei „Netz gemeldet, nichts kommt durch" stand
+    die Karte vorher leer, bis das System den Abruf abbrach. Beobachtet
+    wird dort `mapManifestProvider.future`, nicht der Zustand: Ein
+    Zustandswechsel mitten im ersten Aufbau ließ dessen `.future` ohne
+    Zuhörer nie fertig werden. Die Adresse ist eine KONSTANTE, keine
     Konfiguration: `test/release_workflow_test.dart` hält
     `kMapTilesBase` und `PUBLIC_BASE` im Workflow zusammen,
     `test/privacy_policy_test.dart` die Erklärung. R2-Zugang: die drei
