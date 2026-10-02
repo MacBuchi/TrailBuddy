@@ -222,7 +222,9 @@ Startseite und Kette kommen in PR 3.
   - `nav.bar`, `nav.map/trails/buddys/profile` — die `NavigationBar`
     in `AppShell` (`router.dart`).
   - `map.buttons` (die Knopfspalte), `map.feedback` (Glühbirne, bekommt
-    `key: feedback-button`), `map.layers`, `map.locate` (bekommt
+    `key: feedback-button`; seit 0.75.0 oben rechts, nicht mehr in der
+    Spalte, #180), `map.layers` (Kartenebenen), `map.offline`
+    (Offline-Karten, seit 0.75.0, #190), `map.locate` (bekommt
     `key: locate-button`), `map.record` (nur Android ⇒ `requires`).
   - `map.trailBadge` — das erste Schild aus `trailBadgeMarkers`. Auf
     Android zeichnet MapLibre die Marker über `WidgetLayer` als
@@ -231,13 +233,14 @@ Startseite und Kette kommen in PR 3.
   - `map.rail` — die Leiste, und generisch je Knopf `map.rail.<key>`
     in der Knopf-Fabrik von `offline_tool_rail.dart`.
   - `map.filter.official`, `map.filter.pois`, `map.filter.trails` im
-    Filter-Blatt (`poi_layer.dart`).
+    Blatt „Kartenebenen" (`poi_layer.dart`).
   - `sheet.metrics`, `sheet.grade`, `sheet.ownGrade`,
     `sheet.contribution` („Mein Beitrag“ bekommt
     `key: trail-contribution`), `sheet.addNote`, `sheet.showOnMap` im
     Trail-Blatt.
   - Szenen in `MapScreen.initState`: `map.rail` (`_openTools` /
-    `_closeTools`), `map.rail/filter` (`showPoiFilterSheet` direkt),
+    `_closeTools`), `map.layersSheet` (`showMapLayersSheet`; bis 0.74.x
+    `map.rail/filter` auf der Leiste),
     `map.trailSheet` (`showTrailSheet` mit dem ersten sichtbaren Trail;
     ohne Trail fällt der Schritt weg). Abmelden in `dispose`. **Gebaut:**
     Schild und Blatt zeigen DENSELBEN Trail (der erste gezeichnete mit
@@ -450,12 +453,13 @@ hinweg gerechnet; Fahrt und Position verlassen das Gerät nie.
 | 1 | **Das Schild am Anfang** | Am Anfang jedes Trails steht sein Schild mit Grad und Charakter. Ein Tipp darauf — oder auf die Linie — öffnet das Blatt. | Schild | Tippen; nur mit Trail |
 | 2 | **Das Blatt zum Trail** | Länge, Höhenmeter und die Schwierigkeit, wie dein Netz sie sieht — ein Tipp auf den Grad zeigt, wer wie eingeschätzt hat. | Kachelzeile | Szene Trail-Blatt; nur mit Trail |
 | 3 | **Farbe heißt Schwierigkeit** | Jede Linie trägt die Schwierigkeit ihres Trails wie eine Piste: grün S0, blau S1, rot S2, schwarz ab S3. Wie die Linie gezeichnet ist, sagt den Zustand — durchgezogen gepflegt, gestrichelt abgerockt. Ein orangener Saum: ein Buddy hat etwas gemeldet; ein gelber: ein neuer Hinweis. Petrol ist Uphill, Violett gestrichelt ein offizieller Trail. | nichts (nur abgedunkelt) | Mini-Legende in der Blase (Farben, Linienarten, Säume) |
-| 4 | **Hinter dem Ebenen-Knopf** | Orte wie Einkehr, Wasser und Rad-Service, die offiziellen Trails der Region — und die Werkzeuge für Karten ohne Empfang. | Knopfspalte / Ebenen | — |
-| 5 | **Die Werkzeugleiste** | Oben der Filter für Orte und offizielle Trails. Darunter zeichnest du einen Bereich, den die App für unterwegs speichert; „Meine Bereiche“ im Profil verwaltet sie. | Leiste / Filter-Knopf | Szene Leiste |
-| 6 | **Orte und offizielle Trails wählen** | Offizielle Trails an oder aus, Orte nach Gruppe. Was hier aus ist, bleibt aus, bis du es wieder einschaltest. | Schalter und Gruppen | Szene Leiste/Filter |
-| 7 | **Zu dir und zu uns** | Der Positionsknopf holt die Karte zu dir — dein Standort verlässt das Gerät nie. Darüber die Glühbirne: Idee oder Fehler melden, das wird ein öffentlicher Eintrag auf GitHub. | Knopfspalte / Position, Glühbirne | — |
-| 8 | **Eine Fahrt aufzeichnen** | Der große Knopf zeichnet eine Fahrt auf — Haustür bis Haustür, nur auf deinem Gerät, auch ohne Empfang. Danach zerlegst du sie in Trails; erst die kommen zu deinen Buddys. | Knopfspalte / Aufnahme | nur Android |
-| 9 | **Unten die Bereiche** | Trails: alle als Liste, suchen und filtern. Buddys: wer deine Trails sieht — und du ihre. Profil: Import, Fahrten, Bereiche und die Kurzanleitung. | Leiste unten / drei Reiter | — |
+| 4 | **Was die Karte zeigt** (seit 0.75.0, #190; vorher „Hinter dem Ebenen-Knopf") | Der oberste Knopf: welche Trails die Karte zeigt, die offiziellen Trails der Region und Orte wie Einkehr, Wasser und Rad-Service. | Knopfspalte / Kartenebenen | — |
+| 5 | **Orte und offizielle Trails wählen** | Offizielle Trails an oder aus, Orte nach Gruppe. Was hier aus ist, bleibt aus, bis du es wieder einschaltest. | Schalter und Gruppen | Szene Blatt „Kartenebenen" |
+| 6 | **Karten ohne Empfang** | Der Knopf darunter holt die Karte aufs Gerät — für unterwegs, wo kein Netz ist. | Knopfspalte / Offline-Karten | — |
+| 7 | **Die Werkzeugleiste** | Hier zeichnest du einen Bereich, den die App für unterwegs speichert, oder nimmst einen weg; „Meine Bereiche“ verwaltet sie. | Leiste / Stift | Szene Leiste |
+| 8 | **Zu dir und zu uns** | Der Positionsknopf holt die Karte zu dir — dein Standort verlässt das Gerät nie. Oben rechts die Glühbirne: Idee oder Fehler melden, das wird ein öffentlicher Eintrag auf GitHub. | Knopfspalte und Glühbirne / Position, Glühbirne | — |
+| 9 | **Eine Fahrt aufzeichnen** | Der große Knopf zeichnet eine Fahrt auf — Haustür bis Haustür, nur auf deinem Gerät, auch ohne Empfang. Danach zerlegst du sie in Trails; erst die kommen zu deinen Buddys. | Knopfspalte / Aufnahme | nur Android |
+| 10 | **Unten die Bereiche** | Trails: alle als Liste, suchen und filtern. Buddys: wer deine Trails sieht — und du ihre. Profil: Import, Fahrten, Bereiche und die Kurzanleitung. | Leiste unten / drei Reiter | — |
 
 Für ein leeres Konto fallen 1 und 2 still weg; der Zähler zählt nur,
 was kommt.

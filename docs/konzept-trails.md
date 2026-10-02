@@ -920,7 +920,8 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   macht den nächsten Bericht genauer), kleine Kartenpunkte (ERLEDIGT in
   0.74.2: kein Quadrat am Ende #179, Namen auf der Mittellinie #181,
   Schilder ab Zoom 14 #184), Glühbirne oben rechts und
-  Kartenebenen getrennt von den Offline-Werkzeugen (#180, #190),
+  Kartenebenen getrennt von den Offline-Werkzeugen (ERLEDIGT in 0.75.0:
+  #180, #190),
   Zurück-Taste nach Hierarchie (#175), Legende auf der Karte (#182),
   Offline-Start und sofortige Rückmeldung beim Setzen (#183). Danach
   Höhen aus dem Geländemodell anzeigen (#186, nur Anzeige und Export,

@@ -129,8 +129,8 @@ const kHelpSteps = <HelpStep>[
     text: 'Deine Trails zeigt die App auch offline, mit dem Stand deines '
         'letzten Abrufs. Was du ohne Netz beisteuerst oder meldest, wartet im '
         'Ausgangskorb und geht los, sobald du wieder Empfang hast. Damit die '
-        'Karte etwas zeigt, speicherst du vorher einen Bereich: Ebenen-Knopf '
-        'auf der Karte, dann zeichnen; verwalten unter „Meine Bereiche" im '
+        'Karte etwas zeigt, speicherst du vorher einen Bereich: Knopf '
+        '„Offline-Karten" auf der Karte, dann zeichnen; verwalten unter „Meine Bereiche" im '
         'Profil — am besten zu Hause im WLAN.',
   ),
 ];

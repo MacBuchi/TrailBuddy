@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'map-layers',
+    since: '0.75.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.layers_outlined,
+    title: 'Ebenen mit einem Tipp',
+    text: 'Der oberste Knopf rechts öffnet die Kartenebenen direkt: Trail-Filter, '
+        'offizielle Trails und Orte in einem Blatt. Die Offline-Karten haben '
+        'ihren eigenen Knopf darunter, die Glühbirne steht jetzt oben rechts.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'map-select',
     since: '0.74.0',
     kind: HighlightKind.highlight,
@@ -265,11 +277,11 @@ const kFeatureHighlights = <FeatureHighlight>[
     since: '0.19.0',
     kind: HighlightKind.highlight,
     tab: HighlightTab.map,
-    icon: Icons.layers_outlined,
+    icon: Icons.download_for_offline_outlined,
     title: 'Karten für unterwegs',
-    text: 'Unter „Ebenen" zeichnest du einen Bereich, den die App speichert — '
-        'dann steht die Karte auch ohne Empfang. „Meine Bereiche" im Profil '
-        'verwaltet sie.',
+    text: 'Unter „Offline-Karten" zeichnest du einen Bereich, den die App '
+        'speichert — dann steht die Karte auch ohne Empfang. „Meine Bereiche" '
+        'im Profil verwaltet sie.',
     target: '/',
   ),
   FeatureHighlight(
@@ -291,7 +303,7 @@ const kFeatureHighlights = <FeatureHighlight>[
     icon: Icons.verified_outlined,
     title: 'Offizielle Trails',
     text: 'Vom Land ausgewiesene Singletrails, gestrichelt in Violett — mit '
-        'Status und Quelle. Ein- und ausschalten unter „Ebenen".',
+        'Status und Quelle. Ein- und ausschalten unter „Kartenebenen".',
     target: '/',
   ),
   FeatureHighlight(
@@ -391,10 +403,10 @@ const kFeatureHighlights = <FeatureHighlight>[
     since: '0.5.0',
     kind: HighlightKind.tip,
     tab: HighlightTab.map,
-    icon: Icons.tune,
+    icon: Icons.layers_outlined,
     title: 'Orte auf der Karte',
     text: 'Einkehr, Wasser, Rad-Service: Welche Orte die Karte zeigt, wählst du '
-        'unter „Ebenen" oben in der Leiste.',
+        'unter „Kartenebenen", dem obersten Knopf rechts.',
     target: '/',
   ),
   FeatureHighlight(

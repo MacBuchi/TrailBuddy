@@ -1,5 +1,5 @@
 // Die Filter-Chips für Trails (#66) — EIN Widget für die Liste und das
-// Blatt „Ebenen" der Karte, weil beide denselben Filter setzen
+// Blatt „Kartenebenen" der Karte, weil beide denselben Filter setzen
 // (`trailListFilterProvider`). Zwei Fassungen wären zwei Meinungen
 // darüber, was „bis S2" heißt.
 import 'package:flutter/material.dart';

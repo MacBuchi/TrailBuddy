@@ -2,6 +2,18 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Ebenen mit einem Tipp
+
+*Version 0.75.0, 2026-10-02*
+
+- **Der oberste Knopf rechts öffnet die Kartenebenen direkt**: welche
+  Trails die Karte zeigt, die offiziellen Trails und die Orte — ein
+  Blatt statt drei Schritte über die Leiste mit den Offline-Werkzeugen.
+- **Die Offline-Karten haben einen eigenen Knopf** darunter. Er öffnet
+  links die Werkzeuge zum Zeichnen, Radieren und Speichern wie bisher.
+- **Die Glühbirne steht oben rechts**, neben den Hinweisen oben —
+  abgesetzt von den Knöpfen, mit denen man die Karte bedient.
+
 ## Ruhigere Karte
 
 *Version 0.74.2, 2026-10-02*

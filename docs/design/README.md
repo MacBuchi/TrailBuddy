@@ -273,7 +273,13 @@ der Strich beim Zeichnen folgt der Regel.
 
 - **Rechts unten — immer:** Aufnahme 60 px (Lime; läuft die Fahrt: Orange
   mit Stop-Quadrat), darüber 44 px: Position, Runde planen (seit 0.72.0,
-  #158 Schritt 5 — ein eigener Knopf, nicht die Glühbirne), Ebenen, Idee.
+  #158 Schritt 5 — ein eigener Knopf, nicht die Glühbirne),
+  Offline-Karten, Kartenebenen (seit 0.75.0 zwei Knöpfe, #190: die
+  Ebenen öffnen ihr Blatt direkt, Offline-Karten die linke Leiste).
+- **Rechts oben — immer:** die Glühbirne, 44 px (seit 0.75.0, #180;
+  Betreiber: abgesetzt vom Menü). Die Banner oben halten rechts immer
+  52 px frei (`kBannerRightInset`), auch ohne Banner — so liegt nichts
+  unter ihr und nichts springt.
   Ein offenes Menü markiert seinen Knopf mit Rand in der Marke. Nur wo
   die Spalte nicht mehr hinpasst (kleines Telefon quer, 360 px hoch),
   skaliert sie als Ganzes herunter; hochkant gelten die 44 px.
@@ -289,10 +295,12 @@ der Strich beim Zeichnen folgt der Regel.
 - **Oben:** ein Satz, was der nächste Strich tut; verschwindet, sobald kein
   Werkzeug scharf ist.
 - **Unten links:** Maßstab + Quelle, rückt neben die linke Leiste.
-- **Schließen:** X, Ebenen-Knopf, Zurück — mit Rückfrage bei offenem
-  Entwurf.
-- Der Filter (Orte, offizielle Trails) klappt aus der Leiste nach rechts
-  auf (3c). Dasselbe Muster später für die Fahrt (3d: Folgen, Hinweis
+- **Schließen:** X, Knopf „Offline-Karten", Zurück — mit Rückfrage bei
+  offenem Entwurf.
+- Der Filter (Orte, offizielle Trails, welche Trails) steht seit 0.75.0
+  NICHT mehr in der Leiste (#190, Betreiber: „genested ist UX-Gift"),
+  sondern hinter dem eigenen Knopf „Kartenebenen" als Blatt; bis 0.74.x
+  war er der erste Knopf der Leiste (3c). Dasselbe Muster später für die Fahrt (3d: Folgen, Hinweis
   hier; Foto ist #37).
 - **Reiterleiste:** Grund-Farbe, aktiver Reiter als Lime-Pill.
 

@@ -4,8 +4,8 @@
 // **Sie erklärt Wege und Zeichen, nicht Knöpfe allein.** PilzBuddys Karte
 // ist selbst Inhalt; TrailBuddys ist am Anfang leer. Deshalb zeigt die
 // Tour, was auf der Karte steht (Schild, Blatt, die Regeln der Linien),
-// dann, was hinter den Knöpfen liegt — und sie FÜHRT VOR: Die
-// Werkzeugleiste und das Filter-Blatt gehen auf und wieder zu.
+// dann, was hinter den Knöpfen liegt — und sie FÜHRT VOR: Das Blatt
+// „Kartenebenen" und die Leiste „Offline-Karten" gehen auf und wieder zu.
 //
 // **Sie blockiert nie.** „Überspringen" steht in jedem Schritt, und ein
 // Tipp irgendwohin geht weiter. Was sie öffnet, schließt sie wieder, ohne
@@ -37,8 +37,14 @@ abstract final class NavCoach {
 abstract final class MapCoach {
   /// Die Knopfspalte rechts.
   static const buttons = 'map.buttons';
+  /// Die Glühbirne, seit 0.75.0 oben rechts (#180) — nicht mehr in [buttons].
   static const feedback = 'map.feedback';
+
+  /// Kartenebenen (#190): öffnet das Blatt [layersSheet].
   static const layers = 'map.layers';
+
+  /// Offline-Karten: öffnet die Leiste [rail].
+  static const offline = 'map.offline';
   static const locate = 'map.locate';
 
   /// Die Aufnahme — nur, wo man aufzeichnen kann (Android).
@@ -61,15 +67,19 @@ abstract final class MapCoach {
   /// Der leere Kartenzustand — da heißt: kein Trail, kein Blatt.
   static const empty = 'map.empty';
 
-  /// Die Werkzeugleiste „Ebenen" — Anker UND Szene.
+  /// Die Werkzeugleiste „Offline-Karten" — Anker UND Szene.
   static const rail = 'map.rail';
 
   /// Ein Knopf der Leiste, je `ValueKey` in `OfflineToolRail`.
   static String railButton(String key) => 'map.rail.$key';
-  static const railFilter = 'map.rail.rail-filter';
 
-  /// Szene: das Filter-Blatt, geöffnet AUF der Leiste.
-  static const filterSheet = 'map.rail/filter';
+  /// Der Stift der Leiste („Fläche dazunehmen") — `railButton('area-draw-add')`
+  /// als Konstante, weil das Skript `const` ist.
+  static const railDraw = 'map.rail.area-draw-add';
+
+  /// Szene: das Blatt „Kartenebenen" (seit 0.75.0 direkt vom Knopf, #190;
+  /// bis 0.74.x `map.rail/filter`, auf der Leiste).
+  static const layersSheet = 'map.layersSheet';
   static const filterTrails = 'map.filter.trails';
   static const filterOfficial = 'map.filter.official';
   static const filterPois = 'map.filter.pois';
@@ -166,34 +176,40 @@ const kMapTourScript = CoachScript(
       illustration: TourLegend(),
     ),
     CoachStep(
-      title: 'Hinter dem Ebenen-Knopf',
-      text: 'Orte wie Einkehr, Wasser und Rad-Service, die offiziellen Trails '
-          'der Region — und die Werkzeuge für Karten ohne Empfang.',
+      title: 'Was die Karte zeigt',
+      text: 'Der oberste Knopf: welche Trails die Karte zeigt, die offiziellen '
+          'Trails der Region und Orte wie Einkehr, Wasser und Rad-Service.',
       lit: [MapCoach.buttons],
       ring: [MapCoach.layers],
-    ),
-    CoachStep(
-      title: 'Die Werkzeugleiste',
-      text: 'Oben der Filter für Orte und offizielle Trails. Darunter '
-          'zeichnest du einen Bereich, den die App für unterwegs speichert; '
-          '„Meine Bereiche" im Profil verwaltet sie.',
-      scene: MapCoach.rail,
-      lit: [MapCoach.rail],
-      ring: [MapCoach.railFilter],
     ),
     CoachStep(
       title: 'Orte und offizielle Trails wählen',
       text: 'Offizielle Trails an oder aus, Orte nach Gruppe. Was hier aus '
           'ist, bleibt aus, bis du es wieder einschaltest.',
-      scene: MapCoach.filterSheet,
+      scene: MapCoach.layersSheet,
       lit: [MapCoach.filterOfficial, MapCoach.filterPois],
+    ),
+    CoachStep(
+      title: 'Karten ohne Empfang',
+      text: 'Der Knopf darunter holt die Karte aufs Gerät — für unterwegs, '
+          'wo kein Netz ist.',
+      lit: [MapCoach.buttons],
+      ring: [MapCoach.offline],
+    ),
+    CoachStep(
+      title: 'Die Werkzeugleiste',
+      text: 'Hier zeichnest du einen Bereich, den die App für unterwegs '
+          'speichert, oder nimmst einen weg; „Meine Bereiche" verwaltet sie.',
+      scene: MapCoach.rail,
+      lit: [MapCoach.rail],
+      ring: [MapCoach.railDraw],
     ),
     CoachStep(
       title: 'Zu dir und zu uns',
       text: 'Der Positionsknopf holt die Karte zu dir — dein Standort verlässt '
-          'das Gerät nie. Darüber die Glühbirne: Idee oder Fehler melden, das '
-          'wird ein öffentlicher Eintrag auf GitHub.',
-      lit: [MapCoach.buttons],
+          'das Gerät nie. Oben rechts die Glühbirne: Idee oder Fehler melden, '
+          'das wird ein öffentlicher Eintrag auf GitHub.',
+      lit: [MapCoach.buttons, MapCoach.feedback],
       ring: [MapCoach.feedback, MapCoach.locate],
     ),
     CoachStep(

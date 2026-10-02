@@ -74,9 +74,7 @@ void main() {
   testWidgets('im Blatt der Karte gesetzt, gilt in der Liste', (tester) async {
     await pumpApp(tester, backend, trails: trails);
     await settle(tester, frames: 20);
-    await tester.tap(find.byTooltip('Ebenen und Orte'));
-    await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('rail-filter')));
+    await tester.tap(find.byTooltip('Kartenebenen'));
     await settle(tester);
     await tester.tap(find.text('Von Buddys').last);
     await settle(tester);

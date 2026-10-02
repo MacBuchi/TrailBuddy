@@ -10,6 +10,11 @@ import '../../core/app_colors.dart';
 /// Kantenlänge der runden Kartenknöpfe und der Leistenknöpfe.
 const kMapButtonSize = 44.0;
 
+/// So viel Platz halten die Banner oben rechts frei (#180): die Glühbirne
+/// samt 8 dp Luft. Konstant, auch ohne Banner — nichts springt, wenn eines
+/// kommt.
+const kBannerRightInset = kMapButtonSize + 8;
+
 /// Der Aufnahmeknopf ist größer: die Hauptaktion der Karte.
 const kRecordButtonSize = 60.0;
 

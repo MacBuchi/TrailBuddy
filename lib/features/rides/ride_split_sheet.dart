@@ -586,11 +586,11 @@ class _RideSplitSheetState extends ConsumerState<_RideSplitSheet> {
                       ? 'Die Wege kennt die App hier nur zum Teil: Ein gespeicherter '
                           'Bereich deckt die Fahrt nicht ganz. Von selbst findet sie '
                           'Kandidaten erst, wenn ein Bereich bis Zoomstufe 13 '
-                          'die ganze Fahrt trägt (Ebenen-Knopf auf der Karte → '
+                          'die ganze Fahrt trägt (Knopf „Offline-Karten" auf der Karte → '
                           'Ausschnitt oder Fläche wählen → Speichern).'
                       : 'Die Wege kennt die App hier nicht: Es gibt keinen '
                           'gespeicherten Bereich über der Fahrt. Von selbst findet sie '
-                          'Kandidaten erst damit — Ebenen-Knopf auf der Karte → '
+                          'Kandidaten erst damit — Knopf „Offline-Karten" auf der Karte → '
                           'Ausschnitt oder Fläche wählen → Speichern, dann die Fahrt aus '
                           '„Meine Fahrten" noch einmal zerlegen.',
                   style: theme.textTheme.bodyMedium,
