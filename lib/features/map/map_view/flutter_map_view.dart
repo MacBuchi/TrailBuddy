@@ -343,7 +343,8 @@ class _HaloText extends StatelessWidget {
           style: base.copyWith(
               foreground: Paint()
                 ..style = PaintingStyle.stroke
-                ..strokeWidth = 3
+                // Der Strich liegt zur Hälfte unter der Schrift.
+                ..strokeWidth = 2 * kLineLabelHaloWidth
                 ..color = Colors.white)),
       Text(text, maxLines: 1, style: base.copyWith(color: const Color(0xFF131A16))),
     ]);

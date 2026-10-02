@@ -12,7 +12,8 @@
   näher**, zusammen mit den Namen — weiter draußen bleibt die Karte
   frei.
 - **Die Namen stehen auf dem Trail**, nicht mehr daneben, wo sie sich
-  wie der Name des Nachbarwegs lasen.
+  wie der Name des Nachbarwegs lasen — mit einem breiteren weißen Rand,
+  damit sie auch auf einer schwarzen Linie lesbar bleiben.
 
 ## Fehlerberichte, die sagen, wo es passiert ist
 

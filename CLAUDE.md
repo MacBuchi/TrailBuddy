@@ -318,8 +318,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Gehrung sah jede Kehre wie ein Knick aus). Der Name steht ab Zoom 14
   (`kLineLabelMinZoom`, 256er; seit 0.74.2 dieselbe Stufe wie die
   Schilder, #184) AUF der Mittellinie (seit 0.74.2, #181 — daneben las
-  er sich wie der Name des Nachbarwegs; kein `text-offset`, der Saum hält
-  ihn auf jeder Linienfarbe lesbar): MapLibre als Symbol-Ebene
+  er sich wie der Name des Nachbarwegs; kein `text-offset`; der weiße Saum
+  `kLineLabelHaloWidth`, 2,5 px statt 1,5, hält ihn auf jeder
+  Linienfarbe lesbar — beide Engines lesen die Zahl): MapLibre als Symbol-Ebene
   `symbol-placement: line` über allen Linien (`LineLabelLayer`, Kollision
   und Wiederholung macht MapLibre), **Schrift `noto-sans-medium`** — der
   Glyphen-Ordner, nicht „Noto Sans Medium" (der Stil wird umgeschrieben,

@@ -516,7 +516,7 @@ class LineLabelLayer extends ml.Layer<ml.Feature<ml.LineString>> {
   Map<String, Object> getPaint() => {
         'text-color': '#131A16',
         'text-halo-color': '#FFFFFF',
-        'text-halo-width': 1.5,
+        'text-halo-width': kLineLabelHaloWidth,
       };
 
   @override
