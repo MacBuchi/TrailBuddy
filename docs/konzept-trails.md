@@ -896,7 +896,7 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   Ausgangskorb und Zwischenspeicher im Browser (#153), Zusammenführen
   (#107).
 - **Phase 3b — Alltagstauglich, vor den ersten Testern außerhalb der
-  Buddys (neu am 2026-10-01):** Start- und Endmarker auf der Karte
+  Buddys (neu am 2026-10-01). ERLEDIGT bis auf Freigabe und Tester:** Start- und Endmarker auf der Karte
   (#96, ERLEDIGT 0.66.0), Anfahrt zum Trailkopf per Übergabe an die
   Navi-App (#151, ERLEDIGT 0.67.0),
   GPX-Export von Fahrten und Trails (#150 — Entscheidung 10.4 setzt ihn
@@ -905,21 +905,32 @@ abgehakt; hier steht, was die Phasen sind und welche davon stehen.*
   Teil; ERLEDIGT, `docs/nutzungsbedingungen-entwurf.md`, wartet auf die
   Prüfung). Dann Freigabe und Tester; mit deren Daten beginnt der Abgleich
   aus dem Rework.
-- **Phase 4 — Der Trail-zuerst-Planer** (9, #158; Plan und
-  Anforderungsprofil in `docs/konzept-routing.md`): erst die Messung
-  (#35, jetzt mit der Zielfunktion des Planers), dann Höhengitter,
-  Wegegraph aus den Bereichen, Aufstieg von Punkt zu Punkt mit
-  Wegklasse („zum Trailkopf, offline"), zuletzt die Verkettung mit
-  Budget und Blatt. Läuft direkt nach Phase 3b, parallel zum Abgleich
-  aus dem Rework: Der wartet auf Daten mehrerer Nutzer, der Planer
-  braucht keine. Bis dahin die Übergabe aus Phase 3b.
+- **Phase 4 — Der Trail-zuerst-Planer. ERLEDIGT (0.69.0–0.74.0)**
+  (9, #158; Plan und Anforderungsprofil in `docs/konzept-routing.md`):
+  Messung (#35, `docs/routing-messung.md`), Höhenkacheln je Bereich,
+  Wegegraph aus den Bereichen mit Fahrerprofil, „Zum Trailkopf",
+  Rundenplaner, Kalibrierung aus eigenen Fahrten, zuletzt die Runde in
+  0.74.0 (Planer als Modus mit eigener Leiste, Planen über die
+  vorhandenen Kacheln, Trail-Richtung und Verbinder auf dem Graphen,
+  direkt oder spaßig). **Offen:** fehlende Kacheln mit Empfang vom Host
+  nachladen (#187), Startwerte und die lokalen Messungen M2/M4 an
+  eigenen Fahrten im Feld prüfen (#188).
+- **Feldberichte zu 0.73.0 (neu am 2026-10-02), vor der Freigabe:**
+  Absturz in `AnimationController.stop` aus dem Digest (#62), kleine
+  Kartenpunkte (#179, #181, #184), Glühbirne oben rechts und
+  Kartenebenen getrennt von den Offline-Werkzeugen (#180, #190),
+  Zurück-Taste nach Hierarchie (#175), Legende auf der Karte (#182),
+  Offline-Start und sofortige Rückmeldung beim Setzen (#183). Danach
+  Höhen aus dem Geländemodell anzeigen (#186, nur Anzeige und Export,
+  nie gespeichert).
 - **Phase 5 — Community.** Airtime und Ranking unter Buddys (#36), Fotos
   am Trail (#37).
 - **Play Store** (#39): rechtliche Prüfung, Store-Grafiken, Pro-Plan,
   AAB-Probe, 1.0.0 — nach Phase 3. Danach die Entscheidung zum
   dezentralen Weg (12, #38).
 
-Der nächste Schritt ist Phase 3b.
+Der nächste Schritt sind die Feldberichte zu 0.73.0, dann Freigabe
+und Tester (#156, Stufe 1 Punkt 6).
 
 ## 12. Dezentral: der offene Weg
 

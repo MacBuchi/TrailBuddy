@@ -1092,7 +1092,14 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   ISO-Woche (Label `ops`, Titel `Error reports JJJJ-Wnn`), bei jedem
   Lauf neu geschrieben statt kommentiert; keine Fehler ⇒ kein Issue.
   Jede Gruppe zeigt den obersten Frame im EIGENEN Code (`top_frame`,
-  `package:trailbuddy/`), sonst den obersten überhaupt (ANR-Dump). Eine
+  `package:trailbuddy/`), sonst den obersten überhaupt (ANR-Dump), und
+  bei Framework-Fehlern die PHASE (seit 0.74.1: `flutterErrorStack`
+  schreibt `Phase: <Bibliothek> · <Zusammenhang>` über den Stack,
+  `stack_phase` liest sie) — ein Ticker-Rückruf trägt keinen eigenen
+  Frame, und in 2026-W40 stand fünfmal ein Null-Check in
+  `AnimationController.stop` ohne jeden Hinweis da. Gekürzt wird der
+  Stack nicht mehr von hinten (`clipStack`: Anfang, Zahl der fehlenden
+  Zeilen, dann die eigenen Frames aus dem Rest). Eine
   vergangene Woche rendert `--digest-week 2026-W40` (liest nur), im
   Workflow über die Eingabe `digest_week` in die Run-Summary.
   `--test-digest` läuft in CI mit. Vier Dinge, die man wissen muss:
@@ -1529,7 +1536,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     hielte in einer Alpenkachel nur 8-m-Stufen — die Treppen, an denen
     das Hex-Gitter in M3 gescheitert ist (42 % statt 5 % Medianfehler).
     int16, Delta, gzip: gemessen 2,4 KB je Kachel in den Alpen, 1,4 KB
-    im Flachland; ganz DACH rund 200 MB auf dem Host.
+    im Flachland; ganz DACH 140 MiB auf dem Host (95 494 Kacheln,
+    `heights-20261001.pmtiles`, gemessen beim ersten `publish`).
   - **Format und Konstanten stehen ZWEIMAL** — `FORMAT/GRID/ZOOM/NODATA`
     im Werkzeug, `kHeightsFormat/kHeightGrid/kHeightTileZoom/kHeightNoData`
     in Dart. `test/release_workflow_test.dart` hält sie zusammen, und
