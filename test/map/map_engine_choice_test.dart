@@ -50,7 +50,20 @@ void main() {
         .where((f) => f.readAsStringSync().contains("package:maplibre/"))
         .map((f) => f.path.replaceAll('\\', '/'))
         .toList();
-    expect(importers, ['lib/features/map/map_view/maplibre_map_view.dart']);
+    expect(importers..sort(), [
+      // Der Abgleich der Ebenen (Feldbericht 2026-10-02) — gebraucht NUR
+      // von der MapLibre-Engine, also ebenfalls hinter dem bedingten Import.
+      'lib/features/map/map_view/keyed_layers.dart',
+      'lib/features/map/map_view/maplibre_map_view.dart',
+    ]);
+    final keyedUsers = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))
+        .where((f) => f.readAsStringSync().contains("keyed_layers.dart'"))
+        .map((f) => f.path.replaceAll('\\', '/'))
+        .toList();
+    expect(keyedUsers, ['lib/features/map/map_view/maplibre_map_view.dart']);
   });
 
   test('beide Engines verankern den Quellenhinweis unten links', () {

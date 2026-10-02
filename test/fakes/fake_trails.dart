@@ -50,8 +50,12 @@ class FakeTrailRepository implements TrailRepository {
     return d == null || d.visibility == TrailVisibility.buddies;
   }
 
+  /// Wie oft die Linien abgerufen wurden — das Teure eines Neuladens.
+  int recordingFetches = 0;
+
   @override
   Future<List<TrailRecording>> fetchRecordings() async {
+    recordingFetches++;
     final gate = fetchGate;
     if (gate != null) {
       fetchGate = null;

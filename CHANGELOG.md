@@ -2,15 +2,23 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
-## Kein Hänger mehr beim Tippen über der Karte
+## Speichern ohne Hänger
 
 *Version 0.82.1, 2026-10-02*
 
-- **Die Tastatur legt sich jetzt über die Karte**, statt sie Bild für
-  Bild kleiner zu rechnen. Beim Eintragen in „Mein Beitrag" konnte die
-  App dabei hängen bleiben, bis Android „App reagiert nicht" meldete.
-  Dasselbe gilt für jedes andere Textfeld über der Karte, etwa im
-  Zerlege-Blatt.
+- **Ein Stern, ein Link, ein S-Grad: gespeichert, ohne dass die App
+  stockt.** Bisher lud die App nach jedem Speichern das ganze Netz neu,
+  mit jeder Linie, und schickte jede Linie noch einmal an die Karte. Bei
+  vielen Trails stand die App dabei sekundenlang, bis Android „App
+  reagiert nicht" melden konnte. Jetzt wird nur nachgelesen, was du
+  geändert hast, und die Karte zeichnet nur die Linien neu, die sich
+  wirklich ändern.
+- Auch das Antippen eines Trails und „Meine Position" schicken nicht mehr
+  alle Linien neu an die Karte.
+- Die Kopie des Netzes für Funklöcher wird in kleinen Stücken
+  geschrieben, die Bedienung läuft dabei weiter.
+- Die Tastatur legt sich über die Karte, statt sie bei jedem Tippen
+  kleiner zu rechnen.
 
 ## Alte Fahrten zählen mit
 

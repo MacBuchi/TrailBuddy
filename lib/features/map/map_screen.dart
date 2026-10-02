@@ -348,7 +348,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   /// Geglättete Punkte je Trail, einmal gerechnet: Die Karte baut bei
   /// jeder Kamerabewegung neu, die Trails ändern sich nur mit dem Laden.
   static final _smoothCache = Expando<List<LatLng>>('smoothed');
-  List<LatLng> _smoothed(Trail t) => _smoothCache[t] ??= chaikinSmooth(t.points);
+  // An der PUNKTLISTE, nicht am Trail: Ein Trail-Objekt entsteht neu,
+  // sobald sich ein Stern ändert, seine Linie nicht. Dieselbe geglättete
+  // Liste heißt für MapLibre „nichts zu übertragen" (`MapLibreLineCache`).
+  List<LatLng> _smoothed(Trail t) => _smoothCache[t.points] ??= chaikinSmooth(t.points);
 
   /// Die Linie trägt die Schwierigkeit (seit 0.42.0), nicht mehr die
   /// Beziehung; eine Meldung liegt als Leuchtrand darum ([_borderOf]).
@@ -947,11 +950,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       // Blättern ÜBER der Karte („Mein Beitrag", Zerlege-Blatt). Ab Werk
       // schrumpfte der Scaffold trotzdem um die Tastatur, und zwar Bild
       // für Bild ihrer Animation: Die native Fläche von MapLibre wurde
-      // dabei bei jedem Bild neu bemessen. Das ist der naheliegende Grund
-      // für die Hänger beim Eintragen der Details (Feldbericht 2026-10-02;
-      // ANR „Input dispatching timed out" aus 0.82.0 im Digest 2026-W40,
-      // Haupt-Thread in einem Systemaufruf) — belegt ist er nicht, die
-      // Wirkung dieser Zeile schon (`keyboard_inset_flow_test`).
+      // dabei bei jedem Bild neu bemessen — unnötige Arbeit, gefunden beim
+      // Feldbericht 2026-10-02 (Hänger beim Eintragen der Details). Der
+      // größere Teil lag beim Speichern (CLAUDE.md, „Speichern ohne
+      // Neuladen des Netzes"); die Wirkung dieser Zeile hält
+      // `keyboard_inset_flow_test` fest.
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [

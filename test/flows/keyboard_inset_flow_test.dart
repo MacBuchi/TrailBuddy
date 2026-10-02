@@ -4,8 +4,8 @@
 // Die Textfelder liegen alle ÜBER der Karte — „Mein Beitrag", das
 // Zerlege-Blatt, der Name eines Bereichs. Der Scaffold der Karte schrumpfte
 // trotzdem ab Werk um `viewInsets.bottom`, Bild für Bild der
-// Tastatur-Animation, und mit ihm die native Fläche von MapLibre. Beim
-// Eintragen der Details hing die App.
+// Tastatur-Animation, und mit ihm die native Fläche von MapLibre — Arbeit
+// für nichts, gefunden beim Hänger nach dem Eintragen von Details.
 //
 // Die Tests stellen den Zustand direkt her: ein Fenster mit gesetztem
 // `viewInsets.bottom`. Gemessen wird der Body, nicht der Scaffold — der

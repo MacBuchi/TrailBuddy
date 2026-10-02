@@ -20,6 +20,7 @@ import 'package:maplibre/maplibre.dart' as ml;
 
 import '../../../core/errors.dart';
 import 'flutter_map_view.dart';
+import 'keyed_layers.dart';
 import 'map_attribution.dart';
 import 'map_hit_test.dart';
 import 'map_view.dart';
@@ -57,6 +58,33 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Unveränderte Linien behalten ihre Ebenen-OBJEKTE — MapLibre überträgt
   /// dann nichts neu (siehe [MapLibreLineCache]).
   final _lineCache = MapLibreLineCache();
+
+  /// Die eigenen Ebenen, abgeglichen nach Kennung statt nach Position
+  /// (`keyed_layers.dart`). Das Paket bekommt `layers: const []` — sein
+  /// eigener Abgleich überträgt nach jeder eingefügten Ebene alles
+  /// dahinter neu.
+  final _layerSync = KeyedLayerSync();
+
+  /// Der Stil, gegen den abgeglichen wird — erst nach `onStyleLoaded`,
+  /// und nach jedem `setStyle` ein neuer.
+  ml.StyleController? _style;
+
+  /// Was der letzte Aufbau zeigen will.
+  List<KeyedLayer> _desired = const [];
+  bool _syncScheduled = false;
+
+  /// Nach dem Bild abgleichen, einmal je Bild: Der Aufbau beschreibt nur,
+  /// die Karte wird danach angefasst.
+  void _scheduleSync() {
+    if (_syncScheduled) return;
+    _syncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncScheduled = false;
+      final style = _style;
+      if (!mounted || style == null) return;
+      unawaited(_layerSync.sync(style, _desired));
+    });
+  }
 
   /// Kamerawunsch aus der Zeit zwischen Einbau und Map-Ready (z. B. der
   /// Zoom auf das Netz beim Start): wird bei `onMapCreated` nachgeholt,
@@ -154,7 +182,7 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Auftretens — wie die Linien: Der Entwurf eines gezeichneten Bereichs
   /// (Stufe C) sind hunderte Rechtecke derselben Farbe, und eine
   /// Style-Ebene je Rechteck wäre für die Engine eine Zumutung.
-  static List<ml.Layer> polygonLayers(List<MapViewPolygon> polygons) {
+  static List<KeyedLayer> polygonLayers(List<MapViewPolygon> polygons, [MapLibreLineCache? cache]) {
     final groups = <String, List<MapViewPolygon>>{};
     for (final p in polygons) {
       if (p.points.length < 3) continue;
@@ -162,11 +190,22 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
       (groups[key] ??= []).add(p);
     }
     return [
-      for (final group in groups.values)
-        ml.PolygonLayer(
-          polygons: [for (final p in group) polygonFeature(p)],
-          color: group.first.fillColor,
-          outlineColor: group.first.borderColor ?? group.first.fillColor,
+      for (final MapEntry(:key, value: group) in groups.entries)
+        (
+          key: 'poly:$key',
+          layer: (cache?.lookup('poly:$key', [for (final p in group) ...[p.points, ...p.holes]])?.single ??
+              cache?.store('poly:$key', [for (final p in group) ...[p.points, ...p.holes]], [
+                ml.PolygonLayer(
+                  polygons: [for (final p in group) polygonFeature(p)],
+                  color: group.first.fillColor,
+                  outlineColor: group.first.borderColor ?? group.first.fillColor,
+                ),
+              ]).single ??
+              ml.PolygonLayer(
+                polygons: [for (final p in group) polygonFeature(p)],
+                color: group.first.fillColor,
+                outlineColor: group.first.borderColor ?? group.first.fillColor,
+              )),
         ),
     ];
   }
@@ -180,27 +219,66 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
   /// Die Linien nach Stil gruppiert, in der Reihenfolge des ersten
   /// Auftretens — MapLibre trägt Farbe, Breite und Strich am LAYER. Ein
   /// Rand wird zu einer breiteren Ebene DARUNTER in der Randfarbe.
-  static List<ml.Layer> polylineLayers(List<MapViewPolyline> lines, [MapLibreLineCache? cache]) {
+  ///
+  /// Jede Gruppe zerfällt zusätzlich in [kLineBuckets] Fächer nach der
+  /// Lage ihres ersten Punkts (`lineBucketOf`): Ändert sich ein Trail,
+  /// wird nur sein Fach neu übertragen, nicht jede Linie seiner Farbe —
+  /// mit 600 Trails in vier Farben wären das sonst Megabytes je Stern.
+  /// Die Kennung (`line:<Stil>#<Fach>`) ist, was der Abgleich
+  /// (`keyed_layers.dart`) vergleicht.
+  static List<KeyedLayer> polylineLayers(List<MapViewPolyline> lines, [MapLibreLineCache? cache]) {
     final groups = <String, List<MapViewPolyline>>{};
+    final labels = <int, List<MapViewPolyline>>{};
     for (final line in lines) {
       if (line.points.length < 2) continue;
-      (groups[line.styleKey] ??= []).add(line);
+      final bucket = lineBucketOf(line.points);
+      (groups['${line.styleKey}#$bucket'] ??= []).add(line);
+      if (line.label != null) (labels[bucket] ??= []).add(line);
     }
-    final out = <ml.Layer>[];
-    for (final entry in groups.entries) {
-      out.addAll(cache?.lookup('line:${entry.key}', entry.value) ??
-          cache?.store('line:${entry.key}', entry.value, _groupLayers(entry.value)) ??
-          _groupLayers(entry.value));
+    List<ml.Layer> cached(String key, List<MapViewPolyline> group, List<ml.Layer> Function() build) =>
+        cache?.lookup(key, MapLibreLineCache.signatureOf(group)) ??
+        cache?.store(key, MapLibreLineCache.signatureOf(group), build()) ??
+        build();
+    final out = <KeyedLayer>[];
+    for (final MapEntry(:key, value: group) in groups.entries) {
+      final layers = cached('line:$key', group, () => _groupLayers(group));
+      for (var i = 0; i < layers.length; i++) {
+        // Saum und Linie: zwei Ebenen, zwei Kennungen.
+        out.add((key: 'line:$key:${layers.length - 1 - i}', layer: layers[i]));
+      }
     }
     // Die Namen zuletzt: über allen Linien.
-    final labelled = [for (final l in lines) if (l.label != null && l.points.length >= 2) l];
-    if (labelled.isNotEmpty) {
-      out.addAll(cache?.lookup('labels', labelled) ??
-          cache?.store('labels', labelled, [_labelLayer(labelled)]) ??
-          [_labelLayer(labelled)]);
+    for (final bucket in labels.keys.toList()..sort()) {
+      final labelled = labels[bucket]!;
+      out.add((key: 'labels#$bucket', layer: cached('labels#$bucket', labelled, () => [_labelLayer(labelled)]).single));
     }
     return out;
   }
+
+  /// Alle eigenen Ebenen in Zeichenreihenfolge: Flächen, Kreise, Linien,
+  /// Namen. Kreise tragen ihre Nummer als Kennung — es ist einer, der
+  /// Genauigkeitskreis, und er ändert sich mit jeder Position.
+  static List<KeyedLayer> keyedLayers(MapViewLayers layers, [MapLibreLineCache? cache]) {
+    final out = <KeyedLayer>[
+      ...polygonLayers(layers.polygons, cache),
+      for (final (i, c) in layers.circles.indexed)
+        (
+          key: 'circle:$i',
+          layer: ml.PolygonLayer(
+            polygons: [circlePolygon(c)],
+            color: c.fillColor,
+            outlineColor: c.borderColor ?? c.fillColor,
+          ),
+        ),
+      ...polylineLayers(layers.polylines, cache),
+    ];
+    // Der Speicher behält nur, was dieser Aufbau benutzt hat.
+    cache?.keep({for (final k in out) k.key.replaceFirst(_partSuffix, '')});
+    return out;
+  }
+
+  /// Saum und Linie einer Gruppe teilen sich einen Eintrag im Speicher.
+  static final _partSuffix = RegExp(r':\d+$');
 
   static List<ml.Layer> _groupLayers(List<MapViewPolyline> group) {
     final style = group.first;
@@ -342,6 +420,8 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
     }
 
     final layers = widget.layers;
+    _desired = keyedLayers(layers, _lineCache);
+    _scheduleSync();
     // Startkamera aus der Fassade, nicht aus der Config: Ein `move()` vor
     // Map-Ready landet im Fallback-Zustand des Controllers.
     final initialCenter = widget.controller.center;
@@ -356,6 +436,13 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Rotation und Neigung bleiben aus — wie bei flutter_map.
         gestures: const ml.MapGestures(rotate: false, pan: true, zoom: true, pitch: false),
       ),
+      onStyleLoaded: (style) {
+        // Erster Stil ODER ein neuer nach `setStyle`: Der hat alle eigenen
+        // Ebenen mitgenommen, also alles neu anlegen.
+        _style = style;
+        _layerSync.reset();
+        unawaited(_layerSync.sync(style, _desired));
+      },
       onMapCreated: (controller) {
         _ml = controller;
         _appliedStyle = style;
@@ -401,19 +488,9 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
         // Culling und Nachladen bei Kamera-Idle, NICHT pro Frame.
         if (event is ml.MapEventCameraIdle) _onIdle();
       },
-      // Deklarative Layer des Pakets — NICHT `children`: Ein
-      // `PolylineLayer` ist dort ein `Layer`, kein Widget.
-      layers: [
-        ...polygonLayers(layers.polygons),
-        for (final c in layers.circles) ...[
-          ml.PolygonLayer(
-            polygons: [circlePolygon(c)],
-            color: c.fillColor,
-            outlineColor: c.borderColor ?? c.fillColor,
-          ),
-        ],
-        ...polylineLayers(layers.polylines, _lineCache),
-      ],
+      // Leer: Die Ebenen gleicht `_layerSync` nach Kennung ab, nicht das
+      // Paket nach Position (`keyed_layers.dart`, Feldbericht 2026-10-02).
+      layers: const [],
       children: [
         // Maßstab und Quellenhinweis (ODbL-Pflicht) unten links, wie bei
         // der flutter_map-Engine — unten rechts läge er unter den Knöpfen.
@@ -447,7 +524,30 @@ class _MapLibreMapViewState extends ConsumerState<MapLibreMapView>
 /// (die Platform-View selbst ist im Widget-Test nicht renderbar).
 @visibleForTesting
 List<ml.Layer> mapLibrePolylineLayers(List<MapViewPolyline> lines, [MapLibreLineCache? cache]) =>
-    _MapLibreMapViewState.polylineLayers(lines, cache);
+    [for (final k in _MapLibreMapViewState.polylineLayers(lines, cache)) k.layer];
+
+/// Alle eigenen Ebenen mit ihren Kennungen, in Zeichenreihenfolge — was
+/// [KeyedLayerSync] mit der Karte abgleicht.
+@visibleForTesting
+List<KeyedLayer> mapLibreKeyedLayers(MapViewLayers layers, [MapLibreLineCache? cache]) =>
+    _MapLibreMapViewState.keyedLayers(layers, cache);
+
+/// In wie viele Fächer eine Stilgruppe zerfällt — mehr heißt weniger je
+/// Änderung, aber mehr Ebenen auf der Karte.
+const kLineBuckets = 8;
+
+/// Das Fach einer Linie: aus ihrem ersten Punkt, auf rund 10 m gerastert.
+/// Die Glättung hält Anfang und Ende fest, also bleibt das Fach, solange
+/// die Linie dieselbe ist — auch über ein Neuladen hinweg.
+int lineBucketOf(List<LatLng> points) {
+  final p = points.first;
+  // Gemischt, nicht nur summiert: Linien in regelmäßigem Abstand fielen
+  // sonst alle in dasselbe Fach (im Test gefunden).
+  var h = ((p.latitude * 1e4).floor() * 0x1f1f1f1f) ^ (p.longitude * 1e4).floor();
+  h = ((h ^ (h >> 16)) * 0x45d9f3b) & 0x7fffffff;
+  h = (h ^ (h >> 16)) & 0x7fffffff;
+  return h % kLineBuckets;
+}
 
 /// Merkt sich die Ebenen des letzten Aufbaus je Gruppe. Gemessen (200
 /// Trails, 2026-09-29): Jede Übertragung an MapLibre baut den ganzen
@@ -461,9 +561,15 @@ List<ml.Layer> mapLibrePolylineLayers(List<MapViewPolyline> lines, [MapLibreLine
 class MapLibreLineCache {
   final _last = <String, (List<Object?>, List<ml.Layer>)>{};
 
-  static List<Object?> _signature(List<MapViewPolyline> group) => [
+  /// Was eine Liniengruppe ausmacht: dieselben Punktlisten, dieselben
+  /// Namen, in derselben Reihenfolge.
+  static List<Object?> signatureOf(List<MapViewPolyline> group) => [
         for (final l in group) ...[l.points, l.label],
       ];
+
+  /// Vergisst, was dieser Aufbau nicht mehr braucht — sonst hielte der
+  /// Speicher die Ebenen jedes Fachs, das je bestand.
+  void keep(Set<String> keys) => _last.removeWhere((k, _) => !keys.contains(k));
 
   static bool _same(List<Object?> a, List<Object?> b) {
     if (a.length != b.length) return false;
@@ -474,13 +580,13 @@ class MapLibreLineCache {
   }
 
   /// Die Ebenen vom letzten Mal, wenn die Gruppe sich nicht geändert hat.
-  List<ml.Layer>? lookup(String key, List<MapViewPolyline> group) {
+  List<ml.Layer>? lookup(String key, List<Object?> signature) {
     final hit = _last[key];
-    return hit != null && _same(hit.$1, _signature(group)) ? hit.$2 : null;
+    return hit != null && _same(hit.$1, signature) ? hit.$2 : null;
   }
 
-  List<ml.Layer> store(String key, List<MapViewPolyline> group, List<ml.Layer> layers) {
-    _last[key] = (_signature(group), layers);
+  List<ml.Layer> store(String key, List<Object?> signature, List<ml.Layer> layers) {
+    _last[key] = (signature, layers);
     return layers;
   }
 }

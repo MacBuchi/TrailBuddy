@@ -12,7 +12,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:trailbuddy/data/outbox.dart';
+import 'package:trailbuddy/features/trails/trail_providers.dart';
 
 import '../fakes/fake_backend.dart';
 import '../fakes/fake_outbox.dart';
@@ -74,6 +76,28 @@ void main() {
     expect(opacityOf(tester, grade4), 1);
     expect(find.text('wird übertragen …'), findsNothing);
     expect(find.byKey(const ValueKey('pending-details')), findsNothing);
+  });
+
+  testWidgets('nach dem Speichern wird nur der Beitrag nachgelesen, nicht das Netz', (tester) async {
+    // Feldbericht 2026-10-02: Ein Stern lud jede Linie neu — über die
+    // Leitung, und die Karte übertrug danach jede Linie neu an MapLibre.
+    trails.seedTrail(annaId, name: 'Wald', lat: 48.2);
+    await openRoots(tester);
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp).first));
+    final before = container.read(trailsProvider).value!;
+    final wald = before.firstWhere((t) => t.displayName == 'Wald');
+    final fetches = trails.recordingFetches;
+
+    await tester.tap(grade4);
+    await settle(tester, frames: 12);
+    expect(trails.details.firstWhere((d) => d.name == 'Roots').grade, 4);
+    expect(trails.recordingFetches, fetches, reason: 'die Linien hat der Beitrag nicht geändert');
+    final after = container.read(trailsProvider).value!;
+    expect(after.firstWhere((t) => t.displayName == 'Roots').grade, 4);
+    expect(after.firstWhere((t) => t.displayName == 'Wald'), same(wald),
+        reason: 'ein unveränderter Trail bleibt dasselbe Objekt — samt geglätteter Linie');
+    expect(after.firstWhere((t) => t.displayName == 'Roots').points,
+        same(before.firstWhere((t) => t.displayName == 'Roots').points));
   });
 
   testWidgets('ohne Netz: der Wert bleibt stehen und sagt, dass er wartet', (tester) async {
