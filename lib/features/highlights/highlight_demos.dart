@@ -199,15 +199,30 @@ final kHighlightDemos = <String, HighlightDemo>{
       ),
     ]),
   ),
+  'route-prefs': HighlightDemo(
+    route: '/',
+    script: _demo('route-prefs', const [
+      CoachStep(
+        title: 'Meiden oder egal',
+        text: 'Im Planer unter „Parameter": Straßen, Wanderwege bergauf und '
+            'steile Rampen je meiden oder egal. Egal heißt nicht umsonst — '
+            'nur ein Bruchteil des Aufschlags bleibt. Die Wahl merkt sich das '
+            'Gerät, und sie gilt auch für den Weg zum Trail.',
+        lit: [MapCoach.loop],
+        gesture: CoachGesture.tap,
+        requires: [MapCoach.loop],
+      ),
+    ]),
+  ),
   'steep-climbs': HighlightDemo(
     route: '/',
     script: _demo('steep-climbs', const [
       CoachStep(
         title: 'Flacher, wo es geht',
-        text: 'Planer und „Zum Trailkopf" zählen jeden Höhenmeter über 15 % '
-            'Steigung extra — auf Schotter und Pfad dreifach, auf Asphalt '
-            'einfach. Ein Umweg, der flacher hinaufführt, gewinnt dann. '
-            'Uphill-Trails zählen nie als zu steil.',
+        text: 'Planer und „Zum Trailkopf" zählen jeden Höhenmeter ab 10 % '
+            'Steigung extra, und je steiler, desto mehr — auf Schotter und '
+            'Pfad dreifach so viel wie auf Asphalt. Ein Umweg, der flacher '
+            'hinaufführt, gewinnt dann. Uphill-Trails zählen nie als zu steil.',
         lit: [MapCoach.loop],
         gesture: CoachGesture.tap,
         requires: [MapCoach.loop],

@@ -74,6 +74,18 @@ class FeatureHighlight {
 const kFeatureHighlights = <FeatureHighlight>[
   // ─── Highlights ──────────────────────────────────────────────────
   FeatureHighlight(
+    id: 'route-prefs',
+    since: '0.81.0',
+    kind: HighlightKind.highlight,
+    tab: HighlightTab.map,
+    icon: Icons.tune,
+    title: 'Wege nach deinem Geschmack',
+    text: 'Straßen, Wanderwege bergauf, steile Rampen: In den Parametern des '
+        'Planers sagst du je, ob du sie meidest oder ob sie dir egal sind. Das '
+        'gilt für Runden und den Weg zum Trail.',
+    target: '/',
+  ),
+  FeatureHighlight(
     id: 'steep-climbs',
     since: '0.80.0',
     kind: HighlightKind.highlight,
@@ -81,8 +93,8 @@ const kFeatureHighlights = <FeatureHighlight>[
     icon: Icons.trending_up,
     title: 'Steile Rampen meiden',
     text: 'Runden und Wege zum Trail weichen sehr steilen Anstiegen aus, wo es '
-        'flacher geht — auf Schotter und Pfad deutlich mehr als auf Asphalt. '
-        'Uphill-Trails bleiben gewollt.',
+        'flacher geht — je steiler, desto stärker, auf Schotter und Pfad mehr '
+        'als auf Asphalt. Uphill-Trails bleiben gewollt.',
     target: '/',
   ),
   FeatureHighlight(

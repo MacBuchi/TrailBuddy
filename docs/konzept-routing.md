@@ -209,19 +209,45 @@ wieder erstiegen werden, bevor der nächste Trail kommt — er geht als
 „verschenkte Höhenmeter" in den Vergleich zweier Pläne und ins Blatt
 („120 hm auf Forstweg verschenkt").
 
-**Steile Anstiege kosten extra** (#194, seit 0.80.0, gemessen in
-`docs/routing-messung.md`): Je Kante zählen die Höhenmeter, die ein
-50-m-Schritt über **15 %** seiner Länge steigt (Höhen und Positionen über
-drei Proben geglättet, sonst ist es Rauschen des 90-m-Modells), in jeder
-Richtung für sich. Sie kosten ihre Steigzeit noch einmal, mal **3**
-unbefestigt (Forstweg, Wanderweg, Fußweg), mal **1** auf Asphalt
+**Steile Anstiege kosten extra** (#194 seit 0.80.0, seit 0.81.0 als
+Kurve, #188; gemessen in `docs/routing-messung.md`): Jeder Höhenmeter
+einer Kante kostet seine Steigzeit noch einmal, mal ein **Gewicht, das
+mit der Steigung exponentiell wächst** (Betreiber: „sehr steil bergauf
+wird exponentiell teurer") — unter **10 %** nichts, dann je fünf
+Prozentpunkte etwa ×3 bis ×4: 0,14 bei 15 %, 0,57 bei 20 %, 1,9 bei
+25 %, 5,7 bei 30 %, höchstens 30 (`steepWeightAt`). Die Steigung je
+50-m-Schritt, Höhen und Positionen über drei Proben geglättet (sonst
+ist es Rauschen des 90-m-Modells), in jeder Richtung für sich. Dazu mal
+**3** unbefestigt (Forstweg, Wanderweg, Fußweg), mal **1** auf Asphalt
 (Radweg, Straßen), auf Stufen nichts. Die Kacheln kennen keinen Belag;
 die Klasse ist die Näherung. Uphill-Trails und Verbinder (#185) tragen
-keinen Aufschlag. Er ist Kosten, nicht Zeit — die geschätzte Zeit und die
-Kalibrierung bleiben unberührt. Das Ergebnis sagt es, wenn die Route
-trotzdem steile Stücke hat (ab 5 hm über der Grenze), ohne Zahl: Gezählt
-ist nur, was über der Grenze steigt, und „12 hm steil" läse sich wie die
-Länge der Rampe.
+keinen Aufschlag. Er ist Kosten, nicht Zeit — die geschätzte Zeit und
+die Kalibrierung bleiben unberührt. Bis 0.80.x zählten nur die Meter
+über 15 % (ab da ein Sprung); die 15 % bleiben, was das Ergebnis
+„steil" nennt: Es sagt es, wenn die Route trotzdem steile Stücke hat (ab
+5 hm über der Grenze), ohne Zahl — gezählt ist nur, was über der Grenze
+steigt, und „12 hm steil" läse sich wie die Länge der Rampe.
+
+**Verschenkte Höhe kostet** (seit 0.81.0, #188, Betreiber: „Bergab ist
+teurer"): Ein Höhenmeter bergab auf einer Wegekante kostet **0,3**
+seiner Steigzeit — er muss wieder hinauf, bevor der nächste Trail
+kommt. Auf Trails und Verbindern nichts: Dafür sind sie da.
+
+**Die Vorlieben** (seit 0.81.0, #188): drei Schalter in den Parametern
+des Planers, gemerkt in `LoopPrefs`, gültig für die Runde UND den Weg
+zum Trail — **Straßen meiden**, **Wanderwege bergauf meiden**, **steile
+Rampen meiden**. Ab Werk alle an, also die Zahlen oben. Aus heißt „egal",
+und das ist nie null: Von Straßen- und Wanderweg-Aufschlag bleibt der
+Anteil über 1 zu **35 %** (Hauptstraße 1,525 statt 2,5, Wanderweg
+bergauf Bio 1,14, E 1,35), vom Steil-Gewicht **30 %**. Mit null nähme
+die Route bei gleicher Zeit die Hauptstraße statt des Forstwegs — die
+Reihenfolge Forstweg/Radweg < Nebenstraße < Landstraße < Hauptstraße <
+Bundesstraße bleibt immer. Die Grenze „höchstens Wanderweg" gilt
+unabhängig davon. Gesetzt, nicht gemessen: Die eigenen Fahrten des
+Betreibers passen mit „Straßen egal" am besten (Kosten der Fahrt / des
+Plans im Median 1,38 statt 1,52), für eine Vorgabe für alle sind 15
+Fälle eines Fahrers zu wenig („weiter optimieren kann man erst mit mehr
+Fahrdaten").
 
 Trailkanten: nur in Trail-Richtung (`reversed` beachtet), nur bergab
 gedacht, Kosten = Zeit nach S-Grad, Gewinn = Trail-Meter. Ein Trail mit

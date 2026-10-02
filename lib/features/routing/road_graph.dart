@@ -223,6 +223,11 @@ class GraphEdge {
   double steepUp = 0;
   double steepDown = 0;
 
+  /// Gewichtete Steilmeter (#188, [steepWeight]) in Kantenrichtung bzw.
+  /// dagegen — was der Steilaufschlag kostet.
+  double steepWUp = 0;
+  double steepWDown = 0;
+
   /// Falsch, solange keine Höhen gelesen wurden oder eine Probe der Kante
   /// keine Höhe hatte — dann rechnet die Kante flach, und der Graph sagt
   /// es ([RoadGraph.edgesWithoutHeights]).
@@ -347,7 +352,7 @@ class RoadGraph {
       ..blockForward = e.blockForward
       ..blockBackward = e.blockBackward
       ..hasHeights = e.hasHeights;
-    if (e.gain > 0 || e.loss > 0 || e.steepUp > 0 || e.steepDown > 0) {
+    if (e.gain > 0 || e.loss > 0 || e.steepUp > 0 || e.steepDown > 0 || e.steepWUp > 0 || e.steepWDown > 0) {
       // Höhen anteilig nach Länge — genauer weiß es niemand, und flach
       // wäre falscher.
       final total = e.length + edges[ni].length;
@@ -356,12 +361,16 @@ class RoadGraph {
         ..gain = e.gain * share
         ..loss = e.loss * share
         ..steepUp = e.steepUp * share
-        ..steepDown = e.steepDown * share;
+        ..steepDown = e.steepDown * share
+        ..steepWUp = e.steepWUp * share
+        ..steepWDown = e.steepWDown * share;
       e
         ..gain = e.gain * (1 - share)
         ..loss = e.loss * (1 - share)
         ..steepUp = e.steepUp * (1 - share)
-        ..steepDown = e.steepDown * (1 - share);
+        ..steepDown = e.steepDown * (1 - share)
+        ..steepWUp = e.steepWUp * (1 - share)
+        ..steepWDown = e.steepWDown * (1 - share);
     }
     return mid;
   }
@@ -592,11 +601,14 @@ Future<void> addClimbs(RoadGraph g, HeightReader heights) async {
     }
     final (gain, loss) = hysteresisClimb(profile.heights, kClimbHysteresisM);
     final steep = steepExcess(profile.heights, profile.stepsM);
+    final weighted = steepWeight(profile.heights, profile.stepsM);
     e
       ..gain = gain
       ..loss = loss
       ..steepUp = steep.up
       ..steepDown = steep.down
+      ..steepWUp = weighted.up
+      ..steepWDown = weighted.down
       ..hasHeights = true;
   }
 }

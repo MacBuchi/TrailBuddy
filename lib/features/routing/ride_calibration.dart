@@ -313,6 +313,9 @@ class CalibratedRider implements RiderParams {
   final RiderCalibration calibration;
 
   @override
+  RoutePrefs get prefs => const RoutePrefs();
+
+  @override
   double get climbTrackMPerH => calibration.climbTrackMPerH ?? profile.climbTrackMPerH;
   @override
   double get climbPathMPerH => calibration.climbPathMPerH ?? profile.climbPathMPerH;

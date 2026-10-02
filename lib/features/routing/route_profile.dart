@@ -7,13 +7,16 @@
 //
 // Zahl für Zahl der Spiegel von `PROFILES`, `CLASSES`, `classify`,
 // `edge_time_s`, `edge_factor`, `edge_cost_s` und — seit #194 —
-// `STEEP_*`, `steep_excess` und `steep_cost_s` in
+// `STEEP_*`, `steep_excess` und `steep_cost_s`, seit #188 auch
+// `steep_weight`, `descent_cost_s` und der Vorlieben (`PREF_*`) in
 // `tool/route_measure.py` — das Werkzeug ist die Referenz, mit der die
 // Engine gemessen wurde (docs/routing-messung.md), und
 // `test/routing/route_profile_test.dart` hält die Zahlen beider Seiten
 // zusammen. Wer hier eine Zahl ändert, ändert sie dort im selben PR.
 //
 // Rein: keine Widgets, kein Riverpod, keine Platte.
+
+import 'dart:math' as math;
 
 /// Die Zahlen, mit denen das Zeitmodell rechnet — das Profil mit seinen
 /// Vorgaben ([RiderProfile]) oder das Profil mit gelernten Werten
@@ -31,6 +34,89 @@ abstract interface class RiderParams {
   double get pathUpFactor;
   double get pathDownFactor;
   double get budgetClimbM;
+
+  /// Die Vorlieben des Fahrers (#188): Straßen, Wanderwege bergauf,
+  /// steile Rampen — meiden oder egal. Ab Werk alles meiden.
+  RoutePrefs get prefs;
+}
+
+/// Die Vorlieben fürs Routing (#188, Betreiber 2026-10-02: „meiden / egal
+/// passt für die erste Version", aber „eher bestimmte
+/// Bestrafungsfunktionen" statt nur der Zeit). Jede schaltet die STÄRKE
+/// einer Strafkurve: meiden heißt der volle Aufschlag, egal ein Teil
+/// davon ([kPrefAnyRoads] …) — nie null, sonst nähme die Route bei
+/// gleicher Zeit eine Hauptstraße statt des Forstwegs.
+class RoutePrefs {
+  const RoutePrefs({this.avoidRoads = true, this.avoidHiking = true, this.avoidSteep = true});
+
+  final bool avoidRoads;
+  final bool avoidHiking;
+  final bool avoidSteep;
+
+  double get roadStrength => avoidRoads ? 1.0 : kPrefAnyRoads;
+  double get hikingStrength => avoidHiking ? 1.0 : kPrefAnyHiking;
+  double get steepStrength => avoidSteep ? 1.0 : kPrefAnySteep;
+
+  RoutePrefs copyWith({bool? avoidRoads, bool? avoidHiking, bool? avoidSteep}) => RoutePrefs(
+        avoidRoads: avoidRoads ?? this.avoidRoads,
+        avoidHiking: avoidHiking ?? this.avoidHiking,
+        avoidSteep: avoidSteep ?? this.avoidSteep,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is RoutePrefs &&
+      other.avoidRoads == avoidRoads &&
+      other.avoidHiking == avoidHiking &&
+      other.avoidSteep == avoidSteep;
+
+  @override
+  int get hashCode => Object.hash(avoidRoads, avoidHiking, avoidSteep);
+}
+
+/// Was von einem Aufschlag bleibt, wenn er „egal" ist — `PREF_ANY` im
+/// Werkzeug. Straßen und Wanderwege: der Teil über 1; steile Rampen: das
+/// Gewicht.
+const kPrefAnyRoads = 0.35;
+const kPrefAnyHiking = 0.35;
+const kPrefAnySteep = 0.3;
+
+/// Die Profilwerte mit anderen Vorlieben — was der Planer und „Zum
+/// Trailkopf" aus dem Profil (samt Kalibrierung) und den gemerkten
+/// Schaltern machen.
+extension RiderParamsPrefs on RiderParams {
+  RiderParams withPrefs(RoutePrefs prefs) => prefs == this.prefs ? this : _PreferringRider(this, prefs);
+}
+
+class _PreferringRider implements RiderParams {
+  const _PreferringRider(this._base, this.prefs);
+
+  final RiderParams _base;
+  @override
+  final RoutePrefs prefs;
+
+  @override
+  RiderProfile get profile => _base.profile;
+  @override
+  double get climbTrackMPerH => _base.climbTrackMPerH;
+  @override
+  double get climbPathMPerH => _base.climbPathMPerH;
+  @override
+  double get pushRateMPerH => _base.pushRateMPerH;
+  @override
+  double get vFlatKmh => _base.vFlatKmh;
+  @override
+  double get vPathUpKmh => _base.vPathUpKmh;
+  @override
+  double get vPushKmh => _base.vPushKmh;
+  @override
+  double get vDownKmh => _base.vDownKmh;
+  @override
+  double get pathUpFactor => _base.pathUpFactor;
+  @override
+  double get pathDownFactor => _base.pathDownFactor;
+  @override
+  double get budgetClimbM => _base.budgetClimbM;
 }
 
 /// Bio-Bike oder E-Bike (Konzept-Routing 2.1). Das Profil ändert drei
@@ -82,6 +168,9 @@ enum RiderProfile implements RiderParams {
 
   @override
   RiderProfile get profile => this;
+
+  @override
+  RoutePrefs get prefs => const RoutePrefs();
 
   /// Steigrate auf Forstweg und Straße, auf Pfaden (fahrend) und beim
   /// Schieben (Steig, Stufen), in Höhenmetern je Stunde.
@@ -210,6 +299,59 @@ const kSteepSmooth = 3;
 const kSteepFactorUnpaved = 3.0;
 const kSteepFactorPaved = 1.0;
 
+/// Seit #188 beginnt der Steilaufschlag nicht an einer Schwelle: Jeder
+/// Höhenmeter kostet seine Steigzeit noch einmal mal ein Gewicht, das mit
+/// der Steigung EXPONENTIELL wächst (Betreiber 2026-10-02: „sehr steil
+/// bergauf wird exponentiell teurer") — unter [kSteepWeightFrom] nichts,
+/// je fünf Prozentpunkte etwa ×3 bis ×4: 0,14 bei 15 %, 0,57 bei 20 %,
+/// 1,9 bei 25 %, 5,7 bei 30 %, höchstens [kSteepWeightMax].
+/// [kSteepGrade] bleibt, was das Ergebnis „steil" nennt ([steepExcess],
+/// [steepNote]); das Gewicht ist, was es kostet.
+const kSteepWeightFrom = 0.10;
+const kSteepWeightRef = 0.22;
+const kSteepWeightScale = 0.0455;
+const kSteepWeightMax = 30.0;
+
+/// Ein Höhenmeter bergab auf einer Verbindung kostet diesen Teil dessen,
+/// ihn wieder hinaufzufahren (Betreiber: „Bergab ist teurer") — die Höhe
+/// ist verschenkt, wo ein Trail sie hätte nutzen können. Trails und
+/// Verbinder tragen nichts.
+const kDescentCost = 0.3;
+
+/// Das Gewicht eines Höhenmeters bei [grade] — `steep_weight_at`.
+double steepWeightAt(double grade) {
+  if (grade <= kSteepWeightFrom) return 0;
+  final w = math.exp((grade - kSteepWeightRef) / kSteepWeightScale) -
+      math.exp((kSteepWeightFrom - kSteepWeightRef) / kSteepWeightScale);
+  return w > kSteepWeightMax ? kSteepWeightMax : w;
+}
+
+/// Die gewichteten Steilmeter entlang der Proben, in Probenrichtung und
+/// dagegen: je Schritt der Anstieg mal [steepWeightAt] seiner Steigung,
+/// geglättet wie [steepExcess] (Höhen UND Positionen). Spiegel von
+/// `steep_weight` im Werkzeug, mit dessen Testvektoren.
+({double up, double down}) steepWeight(List<double> heights, List<double> stepsM, {int window = kSteepSmooth}) {
+  if (heights.length < 2 || stepsM.length != heights.length - 1) return (up: 0.0, down: 0.0);
+  final dist = <double>[0];
+  for (final d in stepsM) {
+    dist.add(dist.last + d);
+  }
+  final sm = window > 1 ? smoothHeights(heights, window: window) : heights;
+  final sd = window > 1 ? smoothHeights(dist, window: window) : dist;
+  var up = 0.0, down = 0.0;
+  for (var i = 0; i < sm.length - 1; i++) {
+    final rise = sm[i + 1] - sm[i];
+    final d = sd[i + 1] - sd[i];
+    if (d <= 0) continue;
+    if (rise > 0) {
+      up += rise * steepWeightAt(rise / d);
+    } else if (rise < 0) {
+      down += -rise * steepWeightAt(-rise / d);
+    }
+  }
+  return (up: up, down: down);
+}
+
 /// Gleitender Mittelwert über [window] Werte, an den Enden über die, die
 /// da sind — `smooth_heights` im Werkzeug.
 List<double> smoothHeights(List<double> heights, {int window = kSteepSmooth}) {
@@ -320,26 +462,44 @@ double _climbRate(RiderParams p, WayClass cls) => cls.pushing
         ? p.climbPathMPerH
         : p.climbTrackMPerH;
 
-/// Der Steilaufschlag (#194) für [steepM] Höhenmeter über [kSteepGrade]:
-/// ihre Steigzeit noch einmal, mal [WayClass.steep]. Kosten, keine
+/// Der Steilaufschlag (#194, seit #188 gewichtet) für [steepW]
+/// gewichtete Steilmeter ([steepWeight]): ihre Steigzeit noch einmal,
+/// mal [WayClass.steep] und der Stärke aus den Vorlieben. Kosten, keine
 /// Minuten — die Zeit bleibt, was die Fahrten kalibrieren.
-double steepCostS(RiderParams p, WayClass cls, double steepM) =>
-    steepM / (_climbRate(p, cls) / 3600.0) * cls.steep;
+double steepCostS(RiderParams p, WayClass cls, double steepW) =>
+    steepW / (_climbRate(p, cls) / 3600.0) * cls.steep * p.prefs.steepStrength;
+
+/// Was [lossM] Höhenmeter bergab auf einer Verbindung kosten:
+/// [kDescentCost] der Zeit, sie wieder hinaufzufahren.
+double descentCostS(RiderParams p, WayClass cls, double lossM) => kDescentCost * lossM / (_climbRate(p, cls) / 3600.0);
 
 /// Die Zeit auf einem Trail bergab, nach S-Grad.
 double trailTimeS({required double lengthM, required int? grade}) =>
     lengthM / (trailDownKmh(grade) / 3.6);
 
 /// Der Aufschlag der Kante — bergab der Abstiegs-, sonst der
-/// Anstiegsaufschlag.
-double edgeFactor(RiderParams p, WayClass cls, {required double gainM, required double lossM}) =>
-    lossM > gainM ? cls.downFactor(p) : cls.upFactor(p);
+/// Anstiegsaufschlag. Die Vorlieben (#188) skalieren den Teil über 1:
+/// Straßen in beide Richtungen, Wanderwege nur bergauf, Stufen nie.
+double edgeFactor(RiderParams p, WayClass cls, {required double gainM, required double lossM}) {
+  final downhill = lossM > gainM;
+  final f = downhill ? cls.downFactor(p) : cls.upFactor(p);
+  if (cls.isRoad) return 1 + p.prefs.roadStrength * (f - 1);
+  if (cls.hiking && !cls.pushing && !downhill) return 1 + p.prefs.hikingStrength * (f - 1);
+  return f;
+}
 
 /// Kosten = Zeit × Aufschlag (Konzept-Routing 2.4): Der Aufschlag sagt,
 /// was die Zeit nicht sagt — eine Bundesstraße ist nicht langsam, sie
-/// ist falsch. Dazu der Steilaufschlag für [steepM] (#194).
+/// ist falsch. Dazu der Steilaufschlag für [steepW] gewichtete
+/// Steilmeter (#194) und, mit [descent], der Preis der verschenkten
+/// Höhe (#188).
 double edgeCostS(RiderParams p, WayClass cls,
-        {required double lengthM, required double gainM, required double lossM, double steepM = 0}) =>
+        {required double lengthM,
+        required double gainM,
+        required double lossM,
+        double steepW = 0,
+        bool descent = true}) =>
     edgeTimeS(p, cls, lengthM: lengthM, gainM: gainM, lossM: lossM) *
         edgeFactor(p, cls, gainM: gainM, lossM: lossM) +
-    steepCostS(p, cls, steepM);
+    steepCostS(p, cls, steepW) +
+    (descent ? descentCostS(p, cls, lossM) : 0);

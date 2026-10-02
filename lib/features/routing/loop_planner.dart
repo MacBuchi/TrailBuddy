@@ -307,6 +307,7 @@ Object _riderKey(RiderParams p) => (
       p.vDownKmh,
       p.pathUpFactor,
       p.pathDownFactor,
+      p.prefs,
     );
 
 /// Der Zustand einer Runde als Folge von Pool-Indizes, mit den Summen
@@ -813,6 +814,7 @@ class LoopPrefs {
     required this.returnToStart,
     this.radiusKm = kLoopReachM / 1000,
     this.fillOnline = true,
+    this.route = const RoutePrefs(),
   });
 
   final double hours;
@@ -828,6 +830,11 @@ class LoopPrefs {
   /// was die Bereiche tragen, wie ohne Empfang — so lässt sich die
   /// Offline-Lage zu Hause prüfen.
   final bool fillOnline;
+
+  /// Die Vorlieben fürs Routing (#188) — Straßen, Wanderwege bergauf,
+  /// steile Rampen, je meiden oder egal. Gelten wie [fillOnline] für die
+  /// Runde UND den Weg zum Trail.
+  final RoutePrefs route;
 
   static const minHours = 1.0, maxHours = 6.0, hoursStep = 0.5;
   static const minClimb = 200.0, maxClimb = 2500.0, climbStep = 100.0;
@@ -857,16 +864,27 @@ class LoopPrefs {
       returnToStart: fields['r'] != '0',
       radiusKm: clamp('k', d.radiusKm, minRadiusKm, maxRadiusKm),
       fillOnline: fields['o'] != '0',
+      route: RoutePrefs(
+        avoidRoads: fields['sr'] != '0',
+        avoidHiking: fields['sw'] != '0',
+        avoidSteep: fields['ss'] != '0',
+      ),
     );
   }
 
-  String encode() =>
-      'h=$hours;c=$climbM;w=$hikingKm;r=${returnToStart ? 1 : 0};k=$radiusKm;o=${fillOnline ? 1 : 0}';
+  String encode() => 'h=$hours;c=$climbM;w=$hikingKm;r=${returnToStart ? 1 : 0};k=$radiusKm;o=${fillOnline ? 1 : 0}'
+      ';sr=${route.avoidRoads ? 1 : 0};sw=${route.avoidHiking ? 1 : 0};ss=${route.avoidSteep ? 1 : 0}';
 
   LoopBudget get budget => LoopBudget(timeS: hours * 3600, climbM: climbM, hikingM: hikingKm * 1000);
 
   LoopPrefs copyWith(
-          {double? hours, double? climbM, double? hikingKm, bool? returnToStart, double? radiusKm, bool? fillOnline}) =>
+          {double? hours,
+          double? climbM,
+          double? hikingKm,
+          bool? returnToStart,
+          double? radiusKm,
+          bool? fillOnline,
+          RoutePrefs? route}) =>
       LoopPrefs(
         hours: hours ?? this.hours,
         climbM: climbM ?? this.climbM,
@@ -874,6 +892,7 @@ class LoopPrefs {
         returnToStart: returnToStart ?? this.returnToStart,
         radiusKm: radiusKm ?? this.radiusKm,
         fillOnline: fillOnline ?? this.fillOnline,
+        route: route ?? this.route,
       );
 }
 

@@ -147,7 +147,23 @@ void main() {
     expect(LoopPrefs.defaults(p).fillOnline, isTrue);
     expect(LoopPrefs.parse('h=3.0;c=800.0;w=1.0;r=1;k=12.0', p).fillOnline, isTrue, reason: 'vor 0.78.0');
     final off = LoopPrefs.defaults(p).copyWith(fillOnline: false);
-    expect(off.encode(), endsWith(';o=0'));
+    expect(off.encode(), contains(';o=0'));
     expect(LoopPrefs.parse(off.encode(), p).fillOnline, isFalse);
+  });
+
+  test('die Vorlieben (#188) stehen in den Reglern: ab Werk meiden, gemerkt, ältere Einträge meiden', () {
+    const p = RiderProfile.bio;
+    expect(LoopPrefs.defaults(p).route, const RoutePrefs());
+    expect(LoopPrefs.parse('h=3.0;c=800.0;w=1.0;r=1;k=12.0;o=1', p).route, const RoutePrefs(), reason: 'vor 0.81.0');
+    for (final r in const [
+      RoutePrefs(avoidRoads: false),
+      RoutePrefs(avoidHiking: false),
+      RoutePrefs(avoidSteep: false),
+      RoutePrefs(avoidRoads: false, avoidHiking: false, avoidSteep: false),
+    ]) {
+      final prefs = LoopPrefs.defaults(p).copyWith(route: r);
+      expect(LoopPrefs.parse(prefs.encode(), p).route, r);
+      expect(LoopPrefs.parse(prefs.encode(), p).fillOnline, isTrue);
+    }
   });
 }

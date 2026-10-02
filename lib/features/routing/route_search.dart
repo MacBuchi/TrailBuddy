@@ -43,7 +43,9 @@ class SearchResult {
 /// Uphill-Trail oder Verbinder (#185) gilt statt des Aufschlags der Klasse
 /// [kTrailConnectorFactor] — die Zeit bleibt die der Klasse — und kein
 /// Steilaufschlag (#194): Wer ihn eingetragen hat, will genau da hinauf.
-/// [steep] sind die Höhenmeter über [kSteepGrade], die dabei zählen.
+/// [steep] sind die Höhenmeter über [kSteepGrade], die dabei zählen;
+/// gekostet wird das Gewicht ([GraphEdge.steepWUp]). Bergab auf einem
+/// Trail kostet keine verschenkte Höhe (#188) — dafür ist er da.
 ({double cost, double gain, double loss, double steep}) edgeCostFrom(RoadGraph g, int ei, int from, RiderParams p) {
   final e = g.edges[ei];
   final forward = e.a == from;
@@ -54,7 +56,12 @@ class SearchResult {
     return (cost: cost, gain: gain, loss: loss, steep: 0.0);
   }
   final steep = forward ? e.steepUp : e.steepDown;
-  final cost = edgeCostS(p, e.cls, lengthM: e.length, gainM: gain, lossM: loss, steepM: steep);
+  final cost = edgeCostS(p, e.cls,
+      lengthM: e.length,
+      gainM: gain,
+      lossM: loss,
+      steepW: forward ? e.steepWUp : e.steepWDown,
+      descent: e.trail == null);
   return (cost: cost, gain: gain, loss: loss, steep: steep);
 }
 

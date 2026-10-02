@@ -1736,6 +1736,31 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   - **Spiegel des Werkzeugs** (`STEEP_*`, `steep_excess`, `steep_cost_s`
     in `tool/route_measure.py`, Testvektoren in `route_profile_test`);
     `splitEdge` teilt die steilen Meter nach Länge wie die Höhen.
+  **Seit 0.81.0 kostet das Gewicht, nicht die Schwelle** (#188):
+  `steepWeight` (`GraphEdge.steepWUp/steepWDown`) zählt jeden Höhenmeter
+  mal `steepWeightAt` seiner Steigung — ab 10 %, exponentiell (×3–4 je
+  fünf Punkte), gedeckelt bei 30. Die 15 % bleiben, was `steepNote`
+  „steil" nennt; zwei Felder je Kante, weil Anzeige und Kosten
+  verschiedene Fragen beantworten.
+- **Vorlieben und verschenkte Höhe** (#188, seit 0.81.0; Konzept-Routing
+  2.4): `RoutePrefs` (Straßen, Wanderwege bergauf, steile Rampen; je
+  meiden/egal) steht in `LoopPrefs.route` und kommt über
+  `RiderParams.prefs` in die Kosten — `withPrefs` legt sie über das
+  (kalibrierte) Profil, Planer und „Zum Trailkopf" lesen dieselben
+  gemerkten Schalter. Vier Dinge, die man wissen muss:
+  - **„Egal" ist nie null** (`kPrefAny*`: 35 % des Aufschlags über 1,
+    30 % des Steil-Gewichts) — sonst nähme die Route bei gleicher Zeit
+    die Hauptstraße statt des Forstwegs.
+  - **Die Vorlieben gehören in den Schlüssel des Suchspeichers**
+    (`_riderKey`): Wer umschaltet, rechnet neu; der Speicher hielte sonst
+    Suchen mit den alten Kosten.
+  - **Bergab auf einer Wegekante kostet `kDescentCost` (0,3) der
+    Steigzeit**, auf Trails (`GraphEdge.trail`) und Verbindern nichts
+    (`edgeCostS(descent:)`). Ein Test hält die Ausnahme fest, die
+    Gegenprobe ist rot.
+  - **Spiegel des Werkzeugs**: `PREF_*`, `pref_strength`,
+    `DESCENT_COST`, `steep_weight` in `tool/route_measure.py`; die
+    Zahlen in `route_profile_test` sind dort gerechnet.
 - **„Zum Trailkopf"** (Schritt 4, seit 0.71.0, `trail_head_route.dart`
   pur, `trail_head_sheet.dart`, `trail_head_providers.dart`): im
   Trail-Blatt neben „Anfahrt", vom eigenen Standort zum Anfang des

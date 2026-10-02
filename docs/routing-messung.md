@@ -387,6 +387,32 @@ die kein Aufschlag erklärt. Für eine neue Vorgabe für alle reichen
 15 Fälle eines Fahrers nicht; es ist Geschmack, und Geschmack gehört
 in einfache Einstellungen des Planers statt in die Tabelle.
 
+### Die Strafkurven (0.81.0)
+
+Der Betreiber darauf: „meiden / egal passt für die erste Version … eher
+bestimmte Bestrafungsfunktionen" — Straße teurer als Radweg und
+Feldweg, bergab teurer, sehr steil bergauf exponentiell teurer.
+Gebaut (Konzept-Routing 2.4): Steil-Gewicht ab 10 % (×3–4 je fünf
+Punkte), verschenkte Höhe 0,3 der Steigzeit, und drei Schalter, deren
+„egal" 35 % (Straßen, Wanderweg bergauf) bzw. 30 % (steil) des
+Aufschlags lässt. Dieselbe Gegenprobe:
+
+| Variante | Median | Mittel | ≤ 1,20 | Planer: forst / haupt / wander / neben |
+|---|---|---|---|---|
+| bis 0.80.x | 1,55 | 1,59 | 4 | 47 / 8 / 4 / 30 % |
+| 0.81.0, alles meiden, ohne verschenkte Höhe | 1,55 | 1,65 | 4 | 47 / 8 / 3 / 31 % |
+| 0.81.0, alles meiden (Vorgabe) | 1,52 | 1,62 | 4 | 47 / 8 / 3 / 31 % |
+| verschenkte Höhe 0,5 statt 0,3 | 1,50 | 1,63 | 4 | 49 / 7 / 3 / 30 % |
+| Straßen egal | **1,38** | 1,56 | 5 | 39 / 20 / 1 / 29 % |
+| Wanderwege bergauf egal | 1,49 | 1,58 | 4 | 47 / 5 / 7 / 30 % |
+| steile Rampen egal | 1,51 | 1,58 | 4 | 48 / 7 / 4 / 31 % |
+| alles egal | 1,56 | 1,52 | 3 | 39 / 19 / 2 / 30 % |
+
+Die Vorgabe plant fast wie bisher (der Planer-Mix ist derselbe), die
+Kurven verschieben die Wahl erst dort, wo es steil wird. Für diesen
+Fahrer passt „Straßen egal" am besten; die Vorgabe bleibt „meiden",
+weil 15 Fälle eines Fahrers keine Vorgabe für alle tragen.
+
 Der Betreiber dazu: „Meine gefahrene Route ist ja auch nicht unbedingt
 das Optimum." M4 fragt, ob der Planer DEN gefahrenen Weg findet; das
 misst die Gewohnheit des Fahrers (Umwege, eine schönere Auffahrt, ein
