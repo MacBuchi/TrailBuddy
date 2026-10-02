@@ -207,14 +207,15 @@ class _RouteSheetState extends ConsumerState<_RouteSheet> {
     setState(() => _phase = _Phase.computing);
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
-    final rider = ref.read(calibratedRiderProvider(_profile));
+    final prefs = LoopPrefs.parse(ref.read(settingsProvider).loopPlannerPrefs, _profile);
+    final rider = ref.read(calibratedRiderProvider(_profile)).withPrefs(prefs.route);
     try {
       final plan = planTrailHeadRoute(graph, from, widget.target.point, rider);
       LoopPlan? fun;
       var funEmpty = false;
       final direct = plan.route;
       if (_mode == RouteMode.fun && direct != null) {
-        final hikingKm = LoopPrefs.parse(ref.read(settingsProvider).loopPlannerPrefs, _profile).hikingKm;
+        final hikingKm = prefs.hikingKm;
         final t = direct.summary.timeS, c = direct.summary.gainM;
         final result = planLoop(
           graph,

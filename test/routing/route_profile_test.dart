@@ -1,6 +1,7 @@
 // Profil, Wegklassen und Kosten der Routing-Engine — Zahl für Zahl gegen
 // `tool/route_measure.py` (die Zahlen hier sind dort gerechnet, am
-// 2026-10-01, mit denselben Aufrufen).
+// 2026-10-01, mit denselben Aufrufen; seit #188 mit dem Preis der
+// verschenkten Höhe und den Vorlieben, gerechnet am 2026-10-02).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trailbuddy/features/routing/route_profile.dart';
 
@@ -51,13 +52,14 @@ void main() {
     expect(k(e, WayClass.forstweg, 1000, 100, 0), closeTo(603.529412, 1e-5));
     expect(t(bio, WayClass.bundesstrasse, 1000, 0, 0), closeTo(240.0, 1e-6));
     expect(k(bio, WayClass.bundesstrasse, 1000, 0, 0), closeTo(960.0, 1e-6));
-    expect(k(bio, WayClass.forstweg, 1000, 0, 100), closeTo(144.0, 1e-6), reason: 'bergab 25 km/h');
+    expect(k(bio, WayClass.forstweg, 1000, 0, 100), closeTo(384.0, 1e-6),
+        reason: 'bergab 25 km/h, dazu 0,3 der Steigzeit für die verschenkten 100 hm');
     expect(t(bio, WayClass.wanderweg, 1000, 0, 100), closeTo(360.0, 1e-6), reason: 'bergab wie Trail ohne Grad');
-    expect(k(bio, WayClass.wanderweg, 1000, 0, 100), closeTo(720.0, 1e-6));
+    expect(k(bio, WayClass.wanderweg, 1000, 0, 100), closeTo(1028.571429, 1e-5));
     expect(k(bio, WayClass.stufen, 200, 50, 0), closeTo(2520.0, 1e-6));
     expect(k(e, WayClass.stufen, 200, 50, 0), closeTo(3318.545455, 1e-5));
-    expect(k(bio, WayClass.fussweg, 500, 0, 30), closeTo(562.5, 1e-6));
-    expect(k(bio, WayClass.nebenstrasse, 2000, 150, 20), closeTo(2016.0, 1e-6));
+    expect(k(bio, WayClass.fussweg, 500, 0, 30), closeTo(655.071429, 1e-5));
+    expect(k(bio, WayClass.nebenstrasse, 2000, 150, 20), closeTo(2064.0, 1e-6));
     // Trails bergab nach Grad.
     expect(trailTimeS(lengthM: 1800, grade: 2), closeTo(720.0, 1e-6));
     expect(trailTimeS(lengthM: 1800, grade: null), closeTo(648.0, 1e-6));
@@ -94,7 +96,7 @@ void main() {
     expect(steepCostS(bio, WayClass.wanderweg, 10), closeTo(10 * 3600 / 350 * 3, 1e-9), reason: 'Pfad-Steigrate');
     expect(steepCostS(bio, WayClass.stufen, 10), 0, reason: 'Stufen werden ohnehin geschoben');
     expect(
-        edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0, steepM: 10) -
+        edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0, steepW: 10) -
             edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0),
         closeTo(240.0, 1e-9),
         reason: 'der Aufschlag kommt zu den Kosten, nicht zur Zeit');
@@ -102,6 +104,50 @@ void main() {
       expect(c.steep, c == WayClass.stufen ? 0 : c.isRoad || c == WayClass.radweg ? kSteepFactorPaved : kSteepFactorUnpaved,
           reason: c.label);
     }
+  });
+
+  test('Gewichtete Steilmeter: dieselben Vektoren wie das Werkzeug (#188)', () {
+    expect(steepWeightAt(0.05), 0);
+    expect(steepWeightAt(0.10), 0, reason: 'bis 10 % nichts');
+    expect(steepWeightAt(0.15), closeTo(0.14316, 1e-4));
+    expect(steepWeightAt(0.20), closeTo(0.57277, 1e-4));
+    expect(steepWeightAt(0.25), closeTo(1.86197, 1e-4));
+    expect(steepWeightAt(0.30), closeTo(5.73068, 1e-4));
+    expect(steepWeightAt(0.5), kSteepWeightMax, reason: 'gedeckelt');
+    expect(steepWeightAt(0.20) / steepWeightAt(0.15), closeTo(4.0, 0.1), reason: 'fünf Punkte mehr, etwa ×4');
+    final ramp = [for (var i = 0; i < 9; i++) 100.0 + 15.0 * i];
+    final steps = List.filled(8, 50.0);
+    final raw = steepWeight(ramp, steps, window: 1);
+    expect(raw.up, closeTo(120 * steepWeightAt(0.30), 1e-9), reason: 'roh: jeder Meter einer 30-%-Rampe');
+    expect(raw.down, 0);
+    expect(steepWeight([for (var i = 0; i < 9; i++) 100.0 + 5.0 * i], steps), (up: 0.0, down: 0.0));
+    expect(steepWeight(ramp.reversed.toList(), steps).down, steepWeight(ramp, steps).up);
+    final shortEnd = [for (var i = 0; i < 67; i++) 100.0 + 7.27 * i, 100.0 + 7.27 * 66 + 0.163];
+    expect(steepWeight(shortEnd, [...List.filled(66, 50.0), 1.12]).up, closeTo(58.350125, 1e-5),
+        reason: 'ein kurzer letzter Schritt bleibt bei seiner Steigung');
+  });
+
+  test('Vorlieben: die Zahlen des Werkzeugs (#188)', () {
+    const bio = RiderProfile.bio, e = RiderProfile.ebike;
+    final roadsAny = bio.withPrefs(const RoutePrefs(avoidRoads: false));
+    final hikingAny = e.withPrefs(const RoutePrefs(avoidHiking: false));
+    final steepAny = bio.withPrefs(const RoutePrefs(avoidSteep: false));
+    expect(edgeCostS(roadsAny, WayClass.hauptstrasse, lengthM: 1000, gainM: 0, lossM: 0), closeTo(366.0, 1e-6),
+        reason: 'Straßen egal: 35 % des Aufschlags über 1');
+    expect(edgeCostS(roadsAny, WayClass.hauptstrasse, lengthM: 1000, gainM: 0, lossM: 100), closeTo(459.6, 1e-6));
+    expect(edgeFactor(roadsAny, WayClass.radweg, gainM: 0, lossM: 0), 1.0, reason: 'ein Radweg ist keine Straße');
+    expect(edgeCostS(hikingAny, WayClass.wanderweg, lengthM: 1000, gainM: 100, lossM: 0), closeTo(1233.692308, 1e-5),
+        reason: 'Wanderweg bergauf egal');
+    expect(edgeFactor(hikingAny, WayClass.wanderweg, gainM: 0, lossM: 10), 2.5, reason: 'bergab bleibt');
+    expect(edgeFactor(bio.withPrefs(const RoutePrefs(avoidHiking: false)), WayClass.stufen, gainM: 10, lossM: 0), 3.0,
+        reason: 'Stufen bleiben');
+    expect(edgeCostS(steepAny, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0, steepW: 20), closeTo(1184.0, 1e-6));
+    expect(edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 100, lossM: 0, steepW: 20), closeTo(1520.0, 1e-6));
+    expect(edgeCostS(bio, WayClass.forstweg, lengthM: 1000, gainM: 0, lossM: 100, descent: false),
+        closeTo(144.0, 1e-6), reason: 'ohne den Preis der Höhe (Trail)');
+    expect(bio.withPrefs(const RoutePrefs()), same(bio), reason: 'meiden ist die Vorgabe');
+    expect(roadsAny.profile, bio);
+    expect(roadsAny.climbTrackMPerH, bio.climbTrackMPerH);
   });
 
   test('Profile: Vorgaben und Lesen aus der Einstellung', () {

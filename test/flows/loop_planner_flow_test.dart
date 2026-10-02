@@ -543,6 +543,30 @@ void main() {
     expect(opened, 0, reason: 'aus heißt: keine Anfrage an den Host');
   });
 
+  testWidgets('#188: die Vorlieben stehen in den Parametern, ab Werk meiden, gemerkt', (tester) async {
+    final settings = FakeSettings();
+    await start(tester, settings: settings);
+    await openPlanner(tester);
+    await tapRail(tester, 'loop-rail-params');
+    final sheetList =
+        find.descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable)).first;
+    for (final (key, field) in const [('loop-pref-roads', 'sr'), ('loop-pref-hiking', 'sw'), ('loop-pref-steep', 'ss')]) {
+      final toggle = find.byKey(ValueKey(key));
+      await tester.scrollUntilVisible(toggle, 200, scrollable: sheetList);
+      await settle(tester, frames: 2);
+      expect(tester.widget<SwitchListTile>(toggle).value, isTrue, reason: '$key ab Werk meiden');
+      await tester.tap(toggle);
+      await settle(tester);
+      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+      expect(settings.loopPlannerPrefs, contains('$field=0'), reason: 'das Gerät merkt sich $key');
+      if (key == 'loop-pref-roads') {
+        expect(find.descendant(of: toggle, matching: find.textContaining('Straßen sind fast so gut wie Forstwege')),
+            findsOneWidget,
+            reason: 'der Satz sagt, was „egal" bewirkt');
+      }
+    }
+  });
+
   testWidgets('ohne Standort: der Grund steht im Blatt, gefragt wurde einmal', (tester) async {
     final fix = FakePositionFix(null);
     await start(tester, areaStore: await _areaWithTrack(), positionFix: fix);

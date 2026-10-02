@@ -87,6 +87,8 @@ class _BrokenRider implements RiderParams {
   double get pathDownFactor => throw StateError('kaputtes Profil');
   @override
   double get budgetClimbM => throw StateError('kaputtes Profil');
+  @override
+  RoutePrefs get prefs => const RoutePrefs();
 }
 
 void main() {

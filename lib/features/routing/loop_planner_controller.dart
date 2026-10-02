@@ -341,7 +341,7 @@ class LoopPlannerNotifier extends Notifier<LoopSession> {
         LoopRequest(
           start: start,
           // Mit den gelernten Werten des Profils (Schritt 6), wo es welche gibt.
-          profile: ref.read(calibratedRiderProvider(state.profile)),
+          profile: ref.read(calibratedRiderProvider(state.profile)).withPrefs(state.prefs.route),
           budget: state.prefs.budget,
           pool: [for (final t in chosen) poolTrailOf(t, mandatory: state.mandatory.contains(t.id))],
           returnToStart: state.prefs.returnToStart,

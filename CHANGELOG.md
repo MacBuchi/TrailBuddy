@@ -2,6 +2,24 @@
 
 *Was ist neu — in Alltagssprache, nach Themen. Jeder Block nennt seine Versionen.*
 
+## Wege nach deinem Geschmack
+
+*Version 0.81.0, 2026-10-02*
+
+- **Drei neue Schalter in den Parametern des Planers**: Straßen meiden,
+  Wanderwege bergauf meiden, steile Rampen meiden. Ab Werk ist alles
+  „meiden" wie bisher; ausgeschaltet heißt „ist mir egal" — dann bleibt
+  nur ein kleiner Teil des Aufschlags, und eine kürzere Straße oder ein
+  Pfad bergauf gewinnt eher. Die Wahl merkt sich das Gerät, und sie gilt
+  auch für „Zum Trailkopf".
+- **Steile Anstiege werden mit der Steigung immer teurer**: Statt ab
+  15 % auf einen Schlag zählt jeder Höhenmeter ab 10 % ein wenig extra,
+  sehr steile Rampen sehr viel — auf Schotter und Pfad mehr als auf
+  Asphalt.
+- **Bergab auf Verbindungswegen zählt etwas mehr**: Die Höhe ist
+  verschenkt, die ein Trail hätte nutzen können. Bergab auf einem Trail
+  kostet nichts extra.
+
 ## Runden rechnen, ohne dass die Karte steht
 
 *Version 0.80.1–0.80.2, 2026-10-02*

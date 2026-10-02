@@ -59,7 +59,8 @@ void main() {
   });
 
   test('Steilaufschlag (#194): die steile Abkürzung verliert, bergab und auf dem Uphill-Trail nicht', () {
-    // (0,0) → (0,600): direkt 600 m Forstweg mit 140 hm, davon 60 über 15 %;
+    // (0,0) → (0,600): direkt 600 m Forstweg mit 140 hm, davon 60 über 15 %
+    // — gewichtet (#188) jeder der 140 hm mit seinen 23 %, rund 150;
     // der Umweg über (400, 300) hat 1 000 m und 140 hm, nirgends steil.
     final g = buildRoadGraph([
       _way([(0, 0), (0, 600)]),
@@ -75,27 +76,34 @@ void main() {
         ..hasHeights = true;
       if (i == direct) {
         if (up) {
-          e.steepUp = 60;
+          e
+            ..steepUp = 60
+            ..steepWUp = 140 * steepWeightAt(140 / 600);
         } else {
-          e.steepDown = 60;
+          e
+            ..steepDown = 60
+            ..steepWDown = 140 * steepWeightAt(140 / 600);
         }
       }
     }
     final up = shortestPath(g, a, b, bio)!;
-    expect(up.edges, isNot([direct]), reason: '60 steile hm kosten 24 min — mehr als 400 m Umweg');
+    expect(up.edges, isNot([direct]), reason: '140 hm mit 23 % kosten gut eine Stunde — mehr als 400 m Umweg');
     expect(summarizePath(g, up.edges, a, bio).steepM, 0);
     expect(shortestPath(g, b, a, bio)!.edges, [direct], reason: 'bergab ist die Steilheit kein Aufschlag');
 
     // Ohne die steilen Meter wäre die Abkürzung die Wahl.
     final e = g.edges[direct];
-    final steep = (e.steepUp, e.steepDown);
+    final steep = (e.steepWUp, e.steepWDown);
     e
-      ..steepUp = 0
-      ..steepDown = 0;
+      ..steepWUp = 0
+      ..steepWDown = 0;
     expect(shortestPath(g, a, b, bio)!.edges, [direct]);
+    // Mit „Steile Rampen: egal" (#188) bleibt ein Drittel — für 23 %
+    // immer noch zu viel, die Abkürzung verliert weiter.
     e
-      ..steepUp = steep.$1
-      ..steepDown = steep.$2;
+      ..steepWUp = steep.$1
+      ..steepWDown = steep.$2;
+    expect(shortestPath(g, a, b, bio.withPrefs(const RoutePrefs(avoidSteep: false)))!.edges, isNot([direct]));
 
     // Als Uphill-Trail gewollt: kein Aufschlag, die Abkürzung ist der Weg.
     e.trail = const EdgeTrail(id: 'up', name: 'Uphill', connector: true);
@@ -120,6 +128,41 @@ void main() {
     expect(g.edges[shortestPath(g, b, a, bio)!.edges.single].cls, WayClass.forstweg);
   });
 
+  test('Vorlieben (#188): „Straßen egal" nimmt die kürzere Hauptstraße, „meiden" den Forstweg', () {
+    // Hauptstraße direkt 1 km (×2,5, egal ×1,525), Forstweg über (500, 300)
+    // ≈ 1,17 km (×1).
+    final g = buildRoadGraph([
+      _way([(0, 0), (1000, 0)], cls: WayClass.hauptstrasse),
+      _way([(0, 0), (500, 300), (1000, 0)]),
+    ], lat0: 47.5).graph;
+    final src = g.attach(_m([(0, 0)]).single)!, dst = g.attach(_m([(1000, 0)]).single)!;
+    expect(g.edges[shortestPath(g, src, dst, bio)!.edges.single].cls, WayClass.forstweg);
+    final any = bio.withPrefs(const RoutePrefs(avoidRoads: false));
+    expect(g.edges[shortestPath(g, src, dst, any)!.edges.single].cls, WayClass.forstweg,
+        reason: 'egal ist nicht null: 1,525 × 1 km sind mehr als 1,17 km Forstweg');
+    // Bei 1,7 km Forstweg kippt es (1,525 km gegen 1,72 km, meiden 2,5 km).
+    final g2 = buildRoadGraph([
+      _way([(0, 0), (1000, 0)], cls: WayClass.hauptstrasse),
+      _way([(0, 0), (500, 700), (1000, 0)]),
+    ], lat0: 47.5).graph;
+    final s2 = g2.attach(_m([(0, 0)]).single)!, d2 = g2.attach(_m([(1000, 0)]).single)!;
+    expect(g2.edges[shortestPath(g2, s2, d2, bio)!.edges.single].cls, WayClass.forstweg);
+    expect(g2.edges[shortestPath(g2, s2, d2, any)!.edges.single].cls, WayClass.hauptstrasse);
+  });
+
+  test('Verschenkte Höhe (#188) kostet auf einer Verbindung, auf einem Trail nicht', () {
+    final g = buildRoadGraph([_way([(0, 0), (1000, 0)])], lat0: 47.5).graph;
+    final e = g.edges.single
+      ..gain = 0
+      ..loss = 100
+      ..hasHeights = true;
+    final from = e.a; // in Kantenrichtung: 100 hm bergab
+    final plain = 1000 / (25 / 3.6);
+    expect(edgeCostFrom(g, 0, from, bio).cost, closeTo(plain + 100 * kDescentCost * 3600 / 450, 1e-6));
+    e.trail = const EdgeTrail(id: 't', name: 'Abfahrt', connector: false);
+    expect(edgeCostFrom(g, 0, from, bio).cost, closeTo(plain, 1e-6), reason: 'dafür ist der Trail da');
+  });
+
   test('das Budget begrenzt die Reichweite; Anstieg wird mitgezählt', () {
     final g = buildRoadGraph([
       _way([(0, 0), (1000, 0), (2000, 0), (3000, 0)]),
@@ -138,9 +181,10 @@ void main() {
     expect(r.reached(split[3]), isFalse);
     expect(r.climb[split[2]], closeTo(200, 1e-9));
     expect(r.dist[split[2]], closeTo(2080, 1e-6));
-    // Zurück: bergab, nur Strecke, 25 km/h.
+    // Zurück: bergab, Strecke mit 25 km/h, dazu kostet jeder verschenkte
+    // Höhenmeter 0,3 seiner Steigzeit (#188).
     final back = dijkstra(g, split[3], bio);
-    expect(back.dist[split[0]], closeTo(3 * 1000 / (25 / 3.6), 1e-6));
+    expect(back.dist[split[0]], closeTo(3 * 1000 / (25 / 3.6) + 300 * kDescentCost * 3600 / 450, 1e-6));
     expect(back.climb[split[0]], 0);
     final s = summarizePath(g, back.pathTo(split[0])!, split[3], bio);
     expect(s.gainM, 0);

@@ -205,12 +205,17 @@ void main() {
     expect(e.steepUp, closeTo((grade - kSteepGrade) * e.length, (grade - kSteepGrade) * kClimbSampleM * 1.01));
     expect(e.steepUp, lessThan((grade - kSteepGrade) * e.length));
     expect(e.steepDown, 0);
+    // Gewichtet (#188): fast jeder Höhenmeter mit dem Gewicht seiner 36 %.
+    expect(e.steepWUp, closeTo(e.gain * steepWeightAt(grade), e.gain * steepWeightAt(grade) * 0.1));
+    expect(e.steepWDown, 0);
 
     // Geteilt: beide Hälften tragen ihren Anteil.
     final whole = e.steepUp;
+    final wholeW = e.steepWUp;
     g.attach(LatLng(midLat, (b.west + b.east) / 2));
     expect(g.edges, hasLength(2));
     expect(g.edges.fold<double>(0, (s, e) => s + e.steepUp), closeTo(whole, 1e-6));
     expect(g.edges.first.steepUp, closeTo(g.edges.last.steepUp, whole * 0.02));
+    expect(g.edges.fold<double>(0, (s, e) => s + e.steepWUp), closeTo(wholeW, 1e-6));
   });
 }

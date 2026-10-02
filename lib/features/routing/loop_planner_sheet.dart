@@ -152,6 +152,38 @@ class _ParamsSheet extends ConsumerWidget {
           value: prefs.returnToStart,
           onChanged: (v) => notifier.setPrefs(prefs.copyWith(returnToStart: v)),
         ),
+        const SizedBox(height: 4),
+        Text('Unterwegs', style: theme.textTheme.titleSmall),
+        _PrefSwitch(
+          tileKey: const ValueKey('loop-pref-roads'),
+          title: 'Straßen meiden',
+          on: 'Forstweg, Feldweg und Radweg vor Straße — je größer die Straße, desto stärker.',
+          off: 'Straßen sind fast so gut wie Forstwege; nur große Straßen kosten noch etwas.',
+          value: prefs.route.avoidRoads,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(route: prefs.route.copyWith(avoidRoads: v))),
+        ),
+        _PrefSwitch(
+          tileKey: const ValueKey('loop-pref-hiking'),
+          title: 'Wanderwege bergauf meiden',
+          on: 'Bergauf lieber Forstweg als Pfad. Die Grenze oben gilt immer.',
+          off: 'Ein Pfad bergauf ist kaum teurer als ein Forstweg. Die Grenze oben gilt immer.',
+          value: prefs.route.avoidHiking,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(route: prefs.route.copyWith(avoidHiking: v))),
+        ),
+        _PrefSwitch(
+          tileKey: const ValueKey('loop-pref-steep'),
+          title: 'Steile Rampen meiden',
+          on: 'Ab 10 % Steigung wird jeder Höhenmeter teurer, sehr steil sehr viel teurer — '
+              'auf Schotter stärker als auf Asphalt.',
+          off: 'Steile Rampen kosten nur noch ein Drittel des Aufschlags.',
+          value: prefs.route.avoidSteep,
+          onChanged: (v) => notifier.setPrefs(prefs.copyWith(route: prefs.route.copyWith(avoidSteep: v))),
+        ),
+        Text(
+          'Gilt auch für den Weg zum Trail. Höhe, die eine Verbindung bergab verschenkt, kostet immer etwas.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+        ),
+        const SizedBox(height: 4),
         SwitchListTile(
           key: const ValueKey('loop-fill-online'),
           contentPadding: EdgeInsets.zero,
@@ -174,6 +206,36 @@ class _ParamsSheet extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Ein Schalter der Vorlieben (#188): meiden (an) oder egal (aus), mit
+/// einem Satz, was er gerade bewirkt.
+class _PrefSwitch extends StatelessWidget {
+  const _PrefSwitch({
+    required this.tileKey,
+    required this.title,
+    required this.on,
+    required this.off,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final Key tileKey;
+  final String title;
+  final String on;
+  final String off;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+        key: tileKey,
+        contentPadding: EdgeInsets.zero,
+        title: Text(title),
+        subtitle: Text(value ? on : off),
+        value: value,
+        onChanged: onChanged,
+      );
 }
 
 class _LoopSlider extends StatelessWidget {
