@@ -1109,8 +1109,12 @@ def edge_cost(profile, e, forward, steep=True):
     return edge_cost_s(profile, e.cls, e.length, gain, loss, steep_m), gain, loss
 
 
-def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None, steep=True):
-    """Bounded Dijkstra (A* with `heuristic`): cost, climb, prev per node."""
+def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None, steep=True, keep=None):
+    """Bounded Dijkstra (A* with `heuristic`): cost, climb, prev per node.
+
+    `keep` (a set of edge indices) makes every other edge OFF_KEEP_FACTOR
+    times as expensive — the search then follows those edges wherever it
+    can (M4: the ride itself on the graph)."""
     dist = {src: 0.0}
     climb = {src: 0.0}
     prev = {}
@@ -1130,6 +1134,8 @@ def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None, steep
                 continue
             m = e.b if forward else e.a
             c, gain, _ = edge_cost(profile, e, forward, steep)
+            if keep is not None and ei not in keep:
+                c *= OFF_KEEP_FACTOR
             nd = dist[n] + c
             if nd > limit:
                 continue
@@ -1142,14 +1148,14 @@ def dijkstra(g, src, profile, limit=math.inf, target=None, heuristic=None, steep
     return dist, climb, prev
 
 
-def astar(g, src, dst, profile, steep=True):
+def astar(g, src, dst, profile, steep=True, keep=None):
     tx, ty = g.nodes[dst]
     vmax = PROFILES[profile]["v_down"] / 3.6
 
     def h(n):
         x, y = g.nodes[n]
         return math.hypot(x - tx, y - ty) / vmax
-    dist, climb, prev = dijkstra(g, src, profile, target=dst, heuristic=h, steep=steep)
+    dist, climb, prev = dijkstra(g, src, profile, target=dst, heuristic=h, steep=steep, keep=keep)
     if dst not in dist:
         return None
     path = []
@@ -1160,6 +1166,32 @@ def astar(g, src, dst, profile, steep=True):
         n = p
     path.reverse()
     return dist[dst], climb[dst], path
+
+
+OFF_KEEP_FACTOR = 1000.0
+RIDDEN_CORRIDOR_M = 25.0   # an edge is "ridden" when all its points lie this close to the ride
+
+
+def ridden_edges(g, track, lat0, corridor=RIDDEN_CORRIDOR_M):
+    """Indices of the edges the ride ran along: every point within `corridor`."""
+    grid = trail_match.SegmentGrid(trail_match.project(track, lat0), corridor)
+    k = math.cos(math.radians(lat0))
+
+    def near(la, lo):
+        return not math.isnan(grid.nearest((math.radians(lo) * R_EARTH * k, math.radians(la) * R_EARTH), corridor)[1])
+    return {i for i, e in enumerate(g.edges) if all(near(la, lo) for la, lo in e.latlon)}
+
+
+def path_time_s(g, path, src, profile):
+    """Model time along a path (edge_time_s, no cost factors)."""
+    n, t = src, 0.0
+    for ei in path:
+        e = g.edges[ei]
+        forward = e.a == n
+        gn, ls = (e.gain, e.loss) if forward else (e.loss, e.gain)
+        t += edge_time_s(profile, e.cls, e.length, gn, ls)
+        n = e.b if forward else e.a
+    return t
 
 
 def path_summary(g, path, src):
@@ -1689,6 +1721,8 @@ def measure_rides(trail_tracks, ride_tracks, archive, dem, profile):
               f"{len(trail_tracks)} Trails der Sammlung. Kennzahlen, keine Orte.*", ""]
     mix_total, rates = {}, {}
     m4 = {"tried": 0, "found": 0, "same": 0, "shorter": 0, "longer": 0, "no_graph": 0}
+    m4_ratio, m4_gaps, m4_longer = [], 0, []
+    mix_ridden, mix_planned = {}, {}
     sections_n = 0
     for ride in ride_tracks:
         if ride.n < 10:
@@ -1759,6 +1793,23 @@ def measure_rides(trail_tracks, ride_tracks, archive, dem, profile):
                                     [None] * len(s["latlon"]), [None] * len(s["latlon"]))
         trail_match._derive(ridden)
         trail_match._derive(planned)
+        # The ride is not the optimum either: put it on the graph (the
+        # cheapest way along its own edges) and compare model times.
+        keep = ridden_edges(g, ridden, lat0)
+        own = astar(g, src, dst, profile, keep=keep)
+        if own is not None:
+            t_plan = path_time_s(g, path, src, profile)
+            if t_plan > 0:
+                m4_ratio.append(path_time_s(g, own[2], src, profile) / t_plan)
+            if sum(g.edges[i].length for i in own[2] if i not in keep) > 1.0:
+                m4_gaps += 1
+            own_len = sum(g.edges[i].length for i in own[2])
+            if own_len > 0:
+                m4_longer.append(s["length_m"] / own_len)
+        for c, l in class_mix_along(g, ridden, lat0).items():
+            mix_ridden[c] = mix_ridden.get(c, 0.0) + l
+        for c, l in class_mix_along(g, planned, lat0).items():
+            mix_planned[c] = mix_planned.get(c, 0.0) + l
         pr = trail_match.compare(ridden, planned, 15.0)
         if pr is not None:
             a, b = pr.coverage(15.0)
@@ -1781,6 +1832,17 @@ def measure_rides(trail_tracks, ride_tracks, archive, dem, profile):
                f"- geprüft: {m4['tried']}, Weg gefunden: {m4['found']}, gleich (15 m, 0,8 beidseitig): {m4['same']}, "
                f"Planer kürzer: {m4['shorter']}, Planer länger: {m4['longer']}, Fahrten ohne Kacheln: {m4['no_graph']}",
                "", "Schwelle: ≥ 70 % gleich, Rest erklärbar."]
+    if m4_ratio:
+        report += ["", "### Die Fahrt auf dem Graphen (Modellzeit gefahren / geplant)", "",
+                   f"- Median {statistics.median(m4_ratio):.2f}, kleinster {min(m4_ratio):.2f}, größter {max(m4_ratio):.2f}; "
+                   f"≤ 1,10: {sum(r <= 1.10 for r in m4_ratio)}, ≤ 1,20: {sum(r <= 1.20 for r in m4_ratio)} "
+                   f"von {len(m4_ratio)}",
+                   f"- Planer länger als die Fahrt auf dem Graphen: höchstens {pct(max(m4_longer) - 1) if m4_longer and max(m4_longer) > 1 else '0 %'}",
+                   f"- Fahrten mit Stücken außerhalb des Graphen ({RIDDEN_CORRIDOR_M:.0f} m): {m4_gaps}", "",
+                   "Klassenmix gefahren / geplant:", ""]
+        tr, tp = sum(mix_ridden.values()) or 1.0, sum(mix_planned.values()) or 1.0
+        for c in sorted(set(mix_ridden) | set(mix_planned), key=lambda c: -mix_ridden.get(c, 0.0)):
+            report.append(f"- {c}: {pct(mix_ridden.get(c, 0.0) / tr)} / {pct(mix_planned.get(c, 0.0) / tp)}")
     return "\n".join(report) + "\n"
 
 
@@ -2105,6 +2167,8 @@ def self_test():
     expect("M2" in rides_text and "M4" in rides_text and "Kalibrierung" in rides_text, "rides report renders")
     expect("geprüft: 1" in rides_text and "Weg gefunden: 1" in rides_text, f"the climb is tried: {rides_text}")
     expect("forstweg" in rides_text, "class mix names the track")
+    expect("Modellzeit gefahren / geplant" in rides_text and "Median 1.00" in rides_text,
+           f"the ride on the graph is the planned way here: {rides_text}")
     print("ok")
 
 
