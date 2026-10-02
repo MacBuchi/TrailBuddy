@@ -25,7 +25,7 @@ void main() {
     // (docs/design/README.md Abschnitt 2). Ändert sich eine Regel, soll
     // dieser Test den Satz daran erinnern.
     final text = step('Die Karte lesen').text;
-    for (final word in ['S0', 'S3', 'Saum', 'S4', 'Petrol', 'Zustand', 'gestrichelt', 'orange', 'gelb',
+    for (final word in ['S0', 'S3', 'Saum', 'S4', 'Magenta', 'Zustand', 'gestrichelt', 'orange', 'gelb',
       'Violett', 'Schild']) {
       expect(text, contains(word), reason: 'fehlt: $word');
     }

@@ -840,12 +840,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (loop.open && loopPlan == null) ...loopSelectionLines(trails, loop),
         if (loopPlan != null) ...loopPreviewLines(loopPlan),
         // Der ausgewählte Trail leuchtet (#178) — unter dem Netz, die
-        // Linie selbst behält ihre Farbe.
+        // Linie selbst behält ihre Farbe. Deckendes Lime mit dunkler
+        // Kontur (#195): Jeder Trail trägt schon einen weißen Saum, und
+        // Lime allein hebt sich vom hellen Kartengrund kaum ab.
         if (selected != null && selected.points.length >= 2)
           MapViewPolyline(
             points: _smoothed(selected),
-            color: AppColors.brand.withValues(alpha: 0.55),
-            width: 12,
+            color: AppColors.brand,
+            width: kSelectionGlowWidth,
+            borderColor: AppColors.onBrand.withValues(alpha: 0.7),
+            borderWidth: kSelectionGlowBorder,
           ),
         if (ride != null && ride.points.length >= 2) _ridePolyline(ride.points),
         for (final t in shownTrails)
@@ -1462,6 +1466,12 @@ class _FocusRideCard extends ConsumerWidget {
         ),
       );
 }
+
+/// Leuchten um den ausgewählten Trail (#178, #195): 16 px Lime unter der
+/// Linie (4 px plus weißer Saum, zusammen 8) — also 4 px Lime je Seite —
+/// und 2 px dunkle Kontur je Seite außen.
+const kSelectionGlowWidth = 16.0;
+const kSelectionGlowBorder = 2.0;
 
 /// Größe der Markerfläche, solange der Ring pulst: Punkt 22 px, Ring bis
 /// zum 3,2-Fachen (Design 1r).

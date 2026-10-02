@@ -87,15 +87,20 @@ erreicht es auf Weiß nur 4,2:1, verlangt sind 4,5:1. Dasselbe für Warnung
 | S3 | `#F2F4EF` | `#131A16` | durchgezogen |
 | S4, S5 | `#F2F4EF` | `#131A16` | Saum gestrichelt (seit 0.51.0; davor die Linie) |
 | ohne Einschätzung | `#9AA69D` | `#6B756F` | durchgezogen |
-| **Uphill** (schlägt die Stufe) | `#4DB6AC` | `#00796B` | durchgezogen; im Schild ein Pfeil ↗ statt der Form |
+| **Uphill** (schlägt die Stufe) | `#E060D0` | `#B0279C` | durchgezogen; im Schild ein Pfeil ↗ statt der Form |
 
 **Uphill** (Betreiber, 2026-09-29: „hier macht Symbol und Farbe Sinn"):
 Die Pistenfarben beschreiben eine Abfahrt; ein Trail, unter dessen
 angezeigten zwei Merkmalen Uphill ist (dieselbe Lesart wie die Filter),
-trägt Petrol statt seiner Stufe — auf der Karte, im Streifen und im
+trägt Magenta statt seiner Stufe — auf der Karte, im Streifen und im
 Schild. Das Schild behält den Grad („↗ S2"): Er sagt, wie technisch die
 Auffahrt ist. EINE Regel für alle drei Stellen: `trailColorOf` in
-`grade_shield.dart`. Petrol, weil jede andere Farbe schon etwas heißt.
+`grade_shield.dart`. Magenta seit 0.77.2 (#195, Betreiber): Das Petrol
+davor (`#00796B`) lag im Farbton 35° neben S0-Grün und sah auf der Karte
+gleich aus; Violett heißt „offiziell". Ein Test verlangt ≥ 40° Abstand im
+Farbton zu S0–S2, offiziell, Marke und Buddy (`app_theme_test.dart`). Das
+Rosa der Kandidaten liegt nah, steht aber nur in der Vorschau des
+Zerlege-Blatts.
 
 Die Töne des Entwurfs (S0 `#2E9E4F`, S2 `#D6322F`) sind nachgedunkelt:
 Auf ihnen steht im Schild weiße Schrift, verlangt sind 4,5:1. Im Dunklen
@@ -353,8 +358,11 @@ Tipp wählt den Trail aus (`hitValue`); die Trefferprüfung fragt Linien vor
 Markern, am Anfang treffen beide denselben Trail.
 
 **Auswählen statt öffnen seit 0.74.0** (#178, `trail_quick_card.dart`):
-Ein Tipp legt einen Leuchtrand in der Marke (Lime, 55 %, 12 px) unter
-die Linie und zeigt unten links, neben der Knopfspalte, die
+Ein Tipp legt einen Leuchtrand in der Marke unter die Linie — seit
+0.77.2 (#195) deckendes Lime, 16 px, mit 2 px dunkler Kontur
+(`onBrand`, 70 %) je Seite: Jeder Trail trägt schon einen weißen Saum,
+und das halbdurchsichtige Lime davor (55 %, 12 px) war darin kaum zu
+sehen — und zeigt unten links, neben der Knopfspalte, die
 Schnellkarte — Schild, Name, Länge, Sterne, das Navi-Symbol (#176), ein
 Pfeil und ein X. Ein Tipp auf sie oder ein zweiter auf den Trail öffnet
 das Blatt; ein Tipp ins Leere, das X oder Zurück heben auf. Ein langer
@@ -575,7 +583,7 @@ Plan `docs/konzept-onboarding.md` Abschnitt 6; gebaut ab 0.60.0
 - **Ring = Marke**: außen Weiß 90 % 5 px, innen Lime 3 px, pulsiert
   3 → 7 px in 1,8 s. Der Ring heißt „hier, für dich" und ist nie eine
   Bedeutungsfarbe der Karte. Lime kollidiert nicht: S0 ist ein anderes
-  Grün, und „mein" ist seit 0.42.0 ein Wort. Orange, Gelb, Petrol,
+  Grün, und „mein" ist seit 0.42.0 ein Wort. Orange, Gelb, Magenta,
   Violett und Blau bleiben den Linien.
 - **Hand** gezeichnet (`FingerPainter`), Ärmel und Druckpunkt in der
   Marke, Kontur fast schwarz (`onBrand` — PilzBuddy: Pilzbraun); heran,

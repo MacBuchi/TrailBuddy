@@ -4,7 +4,13 @@
 
 ## Sofort sichtbar, auch im Funkloch
 
-*Version 0.77.1, 2026-10-02*
+*Version 0.77.1–0.77.2, 2026-10-02*
+
+- **Ein ausgewählter Trail leuchtet deutlich**: kräftiges Grün mit
+  dunklem Rand statt eines blassen Schimmers, der im weißen Saum jeder
+  Linie unterging.
+- **Uphill-Trails sind jetzt magenta** statt petrol — das Petrol sah
+  auf der Karte fast aus wie das Grün von S0.
 
 - **Was du setzt, steht sofort da**: Schwierigkeit, Sterne und
   Meldungen erscheinen mit dem Tipp — blass und mit „wird übertragen",

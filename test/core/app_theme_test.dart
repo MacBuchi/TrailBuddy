@@ -114,6 +114,23 @@ void main() {
     expect(MapPalette.dark.haloBorderWidth, 0);
   });
 
+  test('Uphill liegt im Farbton weit weg von den Stufen und von offiziell (#195)', () {
+    // Das Petrol bis 0.77.1 lag 35° neben S0-Grün und sah auf der Karte
+    // gleich aus.
+    double hueGap(Color a, Color b) {
+      final d = (HSVColor.fromColor(a).hue - HSVColor.fromColor(b).hue).abs() % 360;
+      return math.min(d, 360 - d);
+    }
+    for (final (grades, lines) in [
+      (GradePalette.light, MapPalette.light),
+      (GradePalette.dark, MapPalette.dark),
+    ]) {
+      for (final other in [grades.s0, grades.s1, grades.s2, lines.official, lines.mine, lines.buddy]) {
+        expect(hueGap(grades.uphill, other), greaterThanOrEqualTo(40), reason: '$other');
+      }
+    }
+  });
+
   test('ein unbekannter Wert gilt als System', () {
     expect(parseThemeMode(null), ThemeMode.system);
     expect(parseThemeMode('quatsch'), ThemeMode.system);

@@ -300,7 +300,8 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
   Zustand: durchgezogen, bröckelig, gestrichelt, gestrichelt und
   verblasst, `trailLineStyleOf`; `MapViewPolyline.borderDash` ist das
   eigene Muster des Saums, in flutter_map eine eigene Linie darunter). **Uphill schlägt die Stufe**: Steht Uphill
-  unter den angezeigten zwei Merkmalen, trägt der Trail Petrol und das
+  unter den angezeigten zwei Merkmalen, trägt der Trail Magenta (seit
+  0.77.2, #195; davor Petrol, kaum von S0 zu unterscheiden) und das
   Schild einen Pfeil statt der Form (`trailColorOf`/`isUphill` in
   `grade_shield.dart`, eine Regel für Karte, Streifen, Schild). Wem ein Trail gehört, zeigt KEINE Farbe
   mehr, nur das Wort. Gemeldet und neuer Hinweis liegen als Leuchtrand
@@ -1856,7 +1857,9 @@ was öffentlich sein MUSS (Impressum, Datenschutzerklärung).
     `MapEventLongClick`, flutter_map `onLongPress`, Fake `longPressMapAt`):
     IMMER der Punkt, auch auf einer Linie.
   - **Auswählen statt öffnen** (`_selectedTrailId`, `TrailQuickCard`):
-    Leuchtrand unter dem Netz, Schnellkarte unten links neben der
+    Leuchtrand unter dem Netz (seit 0.77.2 deckendes Lime mit dunkler
+    Kontur, `kSelectionGlowWidth`/`kSelectionGlowBorder` — #195: der
+    halbdurchsichtige ging im weißen Saum unter), Schnellkarte unten links neben der
     Knopfspalte, nicht solange ein Routen-Blatt offen ist; Zurück und
     ein Tipp ins Leere heben auf, ein zweiter Tipp auf denselben Trail
     öffnet das Blatt. Im Planer geht der Tipp an den Planer. Die Touren
